@@ -1,0 +1,10 @@
+[workspace]
+members = [
+	"iotedged",
+	"iothsm-certgen",
+	"iothsm-keygen",
+	"ks-client",
+	"ks-common",
+	"ks-common-http",
+	"ksd",
+]

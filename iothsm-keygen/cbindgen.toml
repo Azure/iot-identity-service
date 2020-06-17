@@ -1,0 +1,13 @@
+language = "C"
+
+no_includes = true
+
+sys_includes = [
+	"stdint.h", # for uintptr_t
+]
+
+tab_width = 4
+
+
+[fn]
+sort_by = "None"

@@ -1,0 +1,17 @@
+[package]
+name = "iothsm-certgen"
+version = "0.1.0"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+foreign-types-shared = "0.1"
+lazy_static = "1"
+openssl = "0.10"
+openssl-sys = "0.9"
+url = "2"
+
+openssl2 = { path = "../../openssl-pkcs11-demo/openssl2" }
