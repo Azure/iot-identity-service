@@ -210,7 +210,7 @@ fn load_inner(location: &crate::implementation::Location) -> Result<Option<Vec<u
 fn create_inner(location: &crate::implementation::Location, bytes: &[u8]) -> Result<(), crate::KEYGEN_ERROR> {
 	match location {
 		crate::implementation::Location::Filesystem(path) => {
-			std::fs::write(&path, &bytes).map_err(crate::implementation::err_external)?;
+			std::fs::write(path, bytes).map_err(crate::implementation::err_external)?;
 			Ok(())
 		},
 

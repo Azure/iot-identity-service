@@ -45,44 +45,16 @@ pub(super) fn handle(
 			)),
 		};
 		let mechanism = match body.parameters {
-			ks_common_http::encrypt::Parameters::Aead { iv, aad } => {
-				let iv = match base64::decode(&iv) {
-					Ok(iv) => iv,
-					Err(err) => return Ok(super::err_response(
-						hyper::StatusCode::UNPROCESSABLE_ENTITY,
-						None,
-						super::error_to_message(&err).into(),
-					)),
-				};
-
-				let aad = match base64::decode(&aad) {
-					Ok(aad) => aad,
-					Err(err) => return Ok(super::err_response(
-						hyper::StatusCode::UNPROCESSABLE_ENTITY,
-						None,
-						super::error_to_message(&err).into(),
-					)),
-				};
-
-				ks_common::EncryptMechanism::Aead { iv, aad }
-			},
-		};
-		let plaintext = match base64::decode(&body.plaintext) {
-			Ok(plaintext) => plaintext,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				super::error_to_message(&err).into(),
-			)),
+			ks_common_http::encrypt::Parameters::Aead { iv, aad } => ks_common::EncryptMechanism::Aead { iv: iv.0, aad: aad.0 },
 		};
 
-		let ciphertext = match inner.encrypt(&body.key_handle, mechanism, &plaintext) {
+		let ciphertext = match inner.encrypt(&body.key_handle, mechanism, &body.plaintext.0) {
 			Ok(ciphertext) => ciphertext,
 			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 		};
 
 		let res = ks_common_http::encrypt::Response {
-			ciphertext: base64::encode(&ciphertext),
+			ciphertext: http_common::ByteString(ciphertext),
 		};
 		let res = super::json_response(hyper::StatusCode::OK, &res);
 		Ok(res)

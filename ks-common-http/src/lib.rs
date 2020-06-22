@@ -17,7 +17,7 @@ pub mod create_key_if_not_exists {
 		pub generate_key_len: Option<usize>,
 
 		#[serde(rename = "keyBytes")]
-		pub import_key_bytes: Option<String>,
+		pub import_key_bytes: Option<http_common::ByteString>,
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -52,7 +52,7 @@ pub mod decrypt {
 		#[serde(flatten)]
 		pub parameters: Parameters,
 
-		pub ciphertext: String,
+		pub ciphertext: http_common::ByteString,
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -60,14 +60,14 @@ pub mod decrypt {
 	pub enum Parameters {
 		#[serde(rename = "AEAD")]
 		Aead {
-			iv: String,
-			aad: String,
+			iv: http_common::ByteString,
+			aad: http_common::ByteString,
 		},
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		pub plaintext: String,
+		pub plaintext: http_common::ByteString,
 	}
 }
 
@@ -80,7 +80,7 @@ pub mod encrypt {
 		#[serde(flatten)]
 		pub parameters: Parameters,
 
-		pub plaintext: String,
+		pub plaintext: http_common::ByteString,
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -88,14 +88,14 @@ pub mod encrypt {
 	pub enum Parameters {
 		#[serde(rename = "AEAD")]
 		Aead {
-			iv: String,
-			aad: String,
+			iv: http_common::ByteString,
+			aad: http_common::ByteString,
 		},
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		pub ciphertext: String,
+		pub ciphertext: http_common::ByteString,
 	}
 }
 
@@ -135,7 +135,7 @@ pub mod sign {
 	pub enum Parameters {
 		#[serde(rename = "ECDSA")]
 		Ecdsa {
-			digest: String,
+			digest: http_common::ByteString,
 		},
 
 		#[serde(rename = "RSA_PKCS1")]
@@ -144,17 +144,17 @@ pub mod sign {
 			message_digest_algorithm: String,
 
 			#[serde(rename = "message")]
-			message: String,
+			message: http_common::ByteString,
 		},
 
 		#[serde(rename = "HMAC-SHA256")]
 		HmacSha256 {
-			message: String,
+			message: http_common::ByteString,
 		},
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		pub signature: String,
+		pub signature: http_common::ByteString,
 	}
 }

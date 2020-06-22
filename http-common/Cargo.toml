@@ -1,11 +1,10 @@
 [package]
-name = "ks-common-http"
+name = "http-common"
 version = "0.1.0"
 authors = ["Arnav Singh <arsing@microsoft.com>"]
 edition = "2018"
 
 [dependencies]
+base64 = "0.12"
+percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
-
-http-common = { path = "../http-common" }
-ks-common = { path = "../ks-common" }

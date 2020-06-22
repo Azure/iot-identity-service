@@ -1,11 +1,9 @@
-use ks_common::KeysServiceInterface;
-
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<ksd::Server>,
+	inner: std::sync::Arc<csd::Server>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
-		if req.uri().path() != "/key" {
+		if req.uri().path() != "/certificates" {
 			return Err(req);
 		}
 
@@ -36,7 +34,7 @@ pub(super) fn handle(
 				super::error_to_message(&err).into(),
 			)),
 		};
-		let body: ks_common_http::create_key_if_not_exists::Request = match serde_json::from_slice(&body) {
+		let body: cs_common_http::create_cert::Request = match serde_json::from_slice(&body) {
 			Ok(body) => body,
 			Err(err) => return Ok(super::err_response(
 				hyper::StatusCode::UNPROCESSABLE_ENTITY,
@@ -44,33 +42,21 @@ pub(super) fn handle(
 				super::error_to_message(&err).into(),
 			)),
 		};
-		let create_key_value = match (body.generate_key_len, body.import_key_bytes) {
-			(Some(generate_key_len), None) => ks_common::CreateKeyValue::Generate { length: generate_key_len },
 
-			(None, Some(import_key_bytes)) => ks_common::CreateKeyValue::Import { bytes: import_key_bytes.0 },
-
-			(Some(_), Some(_)) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				"both lengthBytes and keyBytes cannot be specified in the same request".into(),
-			)),
-
-			(None, None) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				"one of lengthBytes and keyBytes must be specified in the request".into(),
-			)),
-		};
-
-		let handle = match inner.create_key_if_not_exists(&body.id, create_key_value) {
-			Ok(handle) => handle,
+		let pem = inner.create_cert(
+			&body.cert_id,
+			&body.csr.0,
+			body.issuer.as_ref().map(|cs_common_http::create_cert::Issuer { cert_id, private_key_handle }| (&**cert_id, private_key_handle)),
+		);
+		let pem = match pem {
+			Ok(pem) => pem,
 			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 		};
 
-		let res = ks_common_http::create_key_if_not_exists::Response {
-			handle,
+		let res = cs_common_http::create_cert::Response {
+			pem: cs_common_http::Pem(pem),
 		};
-		let res = super::json_response(hyper::StatusCode::OK, &res);
+		let res = super::json_response(hyper::StatusCode::CREATED, &res);
 		Ok(res)
 	})
 }

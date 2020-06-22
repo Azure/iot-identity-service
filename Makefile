@@ -39,37 +39,47 @@ else
 endif
 
 
-.PHONY: clean iotedged iothsm-certgen iothsm-keygen ks-client ksd test
+# Dependencies of a crate, ie its source files as well as its crate dependencies.
+#
+# Keep in sync with the crates' respective Cargo.toml's
+
+DEP_HTTP_COMMON = http-common/Cargo.toml http-common/src/*.rs
+
+DEP_KS_COMMON = ks-common/Cargo.toml ks-common/src/*.rs
+DEP_KS_COMMON_HTTP = ks-common-http/Cargo.toml ks-common-http/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON)
+DEP_KS_CLIENT = ks-client/Cargo.toml ks-client/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
+DEP_KS_CLIENT_ASYNC = ks-client-async/Cargo.toml ks-client-async/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
+DEP_KSD = ksd/Cargo.toml ksd/build.rs ksd/src/keygen.generated.rs ksd/src/*.rs ksd/src/http/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
+
+DEP_OPENSSL_ENGINE_KS = openssl-engine-ks/Cargo.toml openssl-engine-ks/build/* openssl-engine-ks/src/*.rs $(DEP_KS_CLIENT) $(KS_COMMON)
+
+DEP_CS_COMMON = cs-common/Cargo.toml cs-common/src/*.rs
+DEP_CS_COMMON_HTTP = cs-common-http/Cargo.toml cs-common-http/src/*.rs $(DEP_KS_COMMON)
+DEP_CS_CLIENT_ASYNC = cs-client-async/Cargo.toml cs-client-async/src/*.rs $(DEP_CS_COMMON_HTTP) $(DEP_HTTP_COMMON) $(DEP_KS_COMMON)
+DEP_CSD = csd/Cargo.toml csd/src/*.rs csd/src/http/*.rs $(DEP_CS_COMMON_HTTP) $(DEP_KS_CLIENT) $(DEP_KS_COMMON) $(DEP_OPENSSL_ENGINE_KS)
+
+DEP_IOTHSM_KEYGEN = iothsm-keygen/iothsm-keygen.h
+
+DEP_IOTEDGED = iotedged/Cargo.toml iotedged/src/*.rs $(DEP_CS_CLIENT_ASYNC) $(DEP_HTTP_COMMON) $(DEP_KS_CLIENT) $(DEP_KS_CLIENT_ASYNC) $(DEP_KS_COMMON) $(DEP_OPENSSL_ENGINE_KS)
 
 
-default: iotedged ksd
+.PHONY: clean cs-client csd iotedged iothsm-keygen ks-client ksd test
+
+
+default: csd iotedged ksd
 
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
-	rm -rf iotedged/src/iothsm-certgen.generated.rs
-	rm -rf iothsm-certgen/iothsm-certgen.h
 	rm -rf iothsm-keygen/iothsm-keygen.h
 	rm -rf ksd/src/iothsm-keygen.generated.rs
-
-
-iothsm-certgen: target/$(DIRECTORY)/libiothsm_certgen.so
-
-target/$(DIRECTORY)/libiothsm_certgen.so: Cargo.lock
-target/$(DIRECTORY)/libiothsm_certgen.so: iothsm-certgen/Cargo.toml iothsm-certgen/src/*.rs
-
-iothsm-certgen/iothsm-certgen.h: target/$(DIRECTORY)/libiothsm_certgen.so iothsm-certgen/cbindgen.toml iothsm-certgen/cbindgen.prelude.h
-
-	cd iothsm-certgen/ && $(CBINDGEN) --config cbindgen.toml --output iothsm-certgen.h.tmp $(CBINDGEN_VERBOSE)
-	< iothsm-certgen/cbindgen.prelude.h cat > iothsm-certgen/iothsm-certgen.h
-	< iothsm-certgen/iothsm-certgen.h.tmp cat >> iothsm-certgen/iothsm-certgen.h
-	rm -f iothsm-certgen/iothsm-certgen.h.tmp
 
 
 iothsm-keygen: target/$(DIRECTORY)/libiothsm_keygen.so
 
 target/$(DIRECTORY)/libiothsm_keygen.so: Cargo.lock
 target/$(DIRECTORY)/libiothsm_keygen.so: iothsm-keygen/Cargo.toml iothsm-keygen/src/*.rs
+	$(CARGO) build -p iothsm-keygen $(CARGO_VERBOSE)
 
 iothsm-keygen/iothsm-keygen.h: target/$(DIRECTORY)/libiothsm_keygen.so iothsm-keygen/cbindgen.toml iothsm-keygen/cbindgen.prelude.h
 	cd iothsm-keygen/ && $(CBINDGEN) --config cbindgen.toml --output iothsm-keygen.h.tmp $(CBINDGEN_VERBOSE)
@@ -78,24 +88,11 @@ iothsm-keygen/iothsm-keygen.h: target/$(DIRECTORY)/libiothsm_keygen.so iothsm-ke
 	rm -f iothsm-keygen/iothsm-keygen.h.tmp
 
 
-target/$(DIRECTORY)/libiothsm_certgen.so target/$(DIRECTORY)/libiothsm_keygen.so:
-	$(CARGO) build -p iothsm-certgen -p iothsm-keygen $(CARGO_VERBOSE)
+csd: target/$(DIRECTORY)/csd
 
+target/$(DIRECTORY)/csd: Cargo.lock $(DEP_CSD)
+	$(CARGO) build -p csd $(CARGO_VERBOSE)
 
-iotedged/src/certgen.generated.rs: iothsm-certgen/iothsm-certgen.h
-	$(BINDGEN) \
-		--blacklist-type '__.*' \
-		--blacklist-type '(?:EVP|evp).*' \
-		--blacklist-type '(?:X509|x509).*' \
-		--whitelist-function 'CERTGEN_.*' \
-		--whitelist-type 'CERTGEN_.*' \
-		--whitelist-var 'CERTGEN_.*' \
-		-o iotedged/src/certgen.generated.rs.tmp \
-		$(BINDGEN_VERBOSE) \
-		iothsm-certgen/iothsm-certgen.h \
-		-- \
-		$(BINDGEN_EXTRA_FLAGS)
-	mv iotedged/src/certgen.generated.rs.tmp iotedged/src/certgen.generated.rs
 
 ksd/src/keygen.generated.rs: iothsm-keygen/iothsm-keygen.h
 	$(BINDGEN) \
@@ -112,24 +109,17 @@ ksd/src/keygen.generated.rs: iothsm-keygen/iothsm-keygen.h
 
 ksd: target/$(DIRECTORY)/ksd
 
-target/$(DIRECTORY)/ksd: Cargo.lock
-target/$(DIRECTORY)/ksd: ks-common/Cargo.toml ks-common/src/*.rs
-target/$(DIRECTORY)/ksd: ks-common-http/Cargo.toml ks-common-http/src/*.rs
-target/$(DIRECTORY)/ksd: ksd/Cargo.toml ksd/src/keygen.generated.rs ksd/src/*.rs ksd/src/http/*.rs
+target/$(DIRECTORY)/ksd: Cargo.lock $(DEP_KSD)
+	$(CARGO) build -p ksd $(CARGO_VERBOSE)
+
 
 iotedged: target/$(DIRECTORY)/iotedged
 
-target/$(DIRECTORY)/iotedged: Cargo.lock
-target/$(DIRECTORY)/iotedged: iotedged/src/certgen.generated.rs
-target/$(DIRECTORY)/iotedged: iotedged/Cargo.toml iotedged/src/*.rs
-target/$(DIRECTORY)/iotedged: ks-client/Cargo.toml ks-client/src/*.rs
-target/$(DIRECTORY)/iotedged: ks-common/Cargo.toml ks-common/src/*.rs
-target/$(DIRECTORY)/iotedged: ks-common-http/Cargo.toml ks-common-http/src/*.rs
-target/$(DIRECTORY)/iotedged: openssl-engine-ks/Cargo.toml openssl-engine-ks/src/*.rs
+target/$(DIRECTORY)/iotedged: Cargo.lock $(DEP_IOTEDGED)
 	$(CARGO) build -p iotedged $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/libiothsm_certgen.so target/$(DIRECTORY)/libiothsm_keygen.so target/$(DIRECTORY)/ksd target/$(DIRECTORY)/iotedged
+test: target/$(DIRECTORY)/libiothsm_keygen.so target/$(DIRECTORY)/csd target/$(DIRECTORY)/ksd target/$(DIRECTORY)/iotedged
 	$(CARGO) test --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_VERBOSE)

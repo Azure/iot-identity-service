@@ -91,14 +91,14 @@ pub(crate) enum KeyGen {
 }
 
 impl KeyGen {
-	pub(crate) fn new() -> Result<Self, LoadKeyGenError> {
+	pub(crate) fn new() -> Result<Self, LoadLibraryError> {
 		unsafe {
 			let mut function_list: *const sys::KEYGEN_FUNCTION_LIST = std::ptr::null_mut();
-			keygen_fn(|| sys::KEYGEN_get_function_list(sys::KEYGEN_VERSION_2_0_0_0, &mut function_list)).map_err(LoadKeyGenError::GetFunctionList)?;
+			keygen_fn(|| sys::KEYGEN_get_function_list(sys::KEYGEN_VERSION_2_0_0_0, &mut function_list)).map_err(LoadLibraryError::GetFunctionList)?;
 
 			let api_version = (*function_list).version;
 			if api_version != sys::KEYGEN_VERSION_2_0_0_0 {
-				return Err(LoadKeyGenError::UnsupportedApiVersion(api_version));
+				return Err(LoadLibraryError::UnsupportedApiVersion(api_version));
 			}
 
 			// KEYGEN_FUNCTION_LIST has looser alignment than KEYGEN_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
@@ -108,34 +108,34 @@ impl KeyGen {
 
 			let result = KeyGen::V2_0_0_0 {
 				set_parameter:
-					(*function_list).set_parameter.ok_or(LoadKeyGenError::MissingFunction("set_parameter"))?,
+					(*function_list).set_parameter.ok_or(LoadLibraryError::MissingFunction("set_parameter"))?,
 
 				create_key_pair_if_not_exists:
-					(*function_list).create_key_pair_if_not_exists.ok_or(LoadKeyGenError::MissingFunction("create_key_pair_if_not_exists"))?,
+					(*function_list).create_key_pair_if_not_exists.ok_or(LoadLibraryError::MissingFunction("create_key_pair_if_not_exists"))?,
 
 				load_key_pair:
-					(*function_list).load_key_pair.ok_or(LoadKeyGenError::MissingFunction("load_key_pair"))?,
+					(*function_list).load_key_pair.ok_or(LoadLibraryError::MissingFunction("load_key_pair"))?,
 
 				get_key_pair_parameter:
-					(*function_list).get_key_pair_parameter.ok_or(LoadKeyGenError::MissingFunction("get_key_pair_parameter"))?,
+					(*function_list).get_key_pair_parameter.ok_or(LoadLibraryError::MissingFunction("get_key_pair_parameter"))?,
 
 				create_key_if_not_exists:
-					(*function_list).create_key_if_not_exists.ok_or(LoadKeyGenError::MissingFunction("create_key_if_not_exists"))?,
+					(*function_list).create_key_if_not_exists.ok_or(LoadLibraryError::MissingFunction("create_key_if_not_exists"))?,
 
 				import_key:
-					(*function_list).import_key.ok_or(LoadKeyGenError::MissingFunction("import_key"))?,
+					(*function_list).import_key.ok_or(LoadLibraryError::MissingFunction("import_key"))?,
 
 				sign:
-					(*function_list).sign.ok_or(LoadKeyGenError::MissingFunction("sign"))?,
+					(*function_list).sign.ok_or(LoadLibraryError::MissingFunction("sign"))?,
 
 				verify:
-					(*function_list).verify.ok_or(LoadKeyGenError::MissingFunction("verify"))?,
+					(*function_list).verify.ok_or(LoadLibraryError::MissingFunction("verify"))?,
 
 				encrypt:
-					(*function_list).encrypt.ok_or(LoadKeyGenError::MissingFunction("encrypt"))?,
+					(*function_list).encrypt.ok_or(LoadLibraryError::MissingFunction("encrypt"))?,
 
 				decrypt:
-					(*function_list).decrypt.ok_or(LoadKeyGenError::MissingFunction("decrypt"))?,
+					(*function_list).decrypt.ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
 			};
 
 			println!("Loaded keygen library with version 0x{:08x}, {:?}", api_version, result);
@@ -146,34 +146,34 @@ impl KeyGen {
 }
 
 #[derive(Debug)]
-pub enum LoadKeyGenError {
+pub enum LoadLibraryError {
 	GetFunctionList(KeyGenRawError),
 	MissingFunction(&'static str),
 	UnsupportedApiVersion(sys::KEYGEN_VERSION),
 }
 
-impl std::fmt::Display for LoadKeyGenError {
+impl std::fmt::Display for LoadLibraryError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			LoadKeyGenError::GetFunctionList(inner) => write!(f, "could not get function list: {}", inner),
-			LoadKeyGenError::MissingFunction(name) => write!(f, "library does not define {}", name),
-			LoadKeyGenError::UnsupportedApiVersion(api_version) => write!(f, "library exports API version 0x{:08x} which is not supported", api_version),
+			LoadLibraryError::GetFunctionList(inner) => write!(f, "could not get function list: {}", inner),
+			LoadLibraryError::MissingFunction(name) => write!(f, "library does not define {}", name),
+			LoadLibraryError::UnsupportedApiVersion(api_version) => write!(f, "library exports API version 0x{:08x} which is not supported", api_version),
 		}
 	}
 }
 
-impl std::error::Error for LoadKeyGenError {
+impl std::error::Error for LoadLibraryError {
 }
 
 impl KeyGen {
-	pub(crate) fn set_parameter(&mut self, name: &std::ffi::CStr, value: &std::ffi::CStr) -> Result<(), SetKeyGenParameterError> {
+	pub(crate) fn set_parameter(&mut self, name: &std::ffi::CStr, value: &std::ffi::CStr) -> Result<(), SetLibraryParameterError> {
 		unsafe {
 			match self {
 				KeyGen::V2_0_0_0 { set_parameter, .. } => {
 					keygen_fn(|| set_parameter(
 						name.as_ptr(),
 						value.as_ptr(),
-					)).map_err(|err| SetKeyGenParameterError { name: name.to_string_lossy().into_owned(), err })?;
+					)).map_err(|err| SetLibraryParameterError { name: name.to_string_lossy().into_owned(), err })?;
 
 					Ok(())
 				},
@@ -183,18 +183,18 @@ impl KeyGen {
 }
 
 #[derive(Debug)]
-pub struct SetKeyGenParameterError {
+pub struct SetLibraryParameterError {
 	name: String,
 	err: KeyGenRawError,
 }
 
-impl std::fmt::Display for SetKeyGenParameterError {
+impl std::fmt::Display for SetLibraryParameterError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "could not set {} parameter on library: {}", self.name, self.err)
 	}
 }
 
-impl std::error::Error for SetKeyGenParameterError {
+impl std::error::Error for SetLibraryParameterError {
 }
 
 impl KeyGen {

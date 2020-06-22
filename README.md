@@ -66,7 +66,7 @@ Prototype of libiothsm v2
 
 # Run
 
-1. Start `ksd`
+1. Start `ksd` in one shell
 
     ```sh
     # HOMEDIR_PATH is a directory where key files will be stored.
@@ -82,13 +82,19 @@ Prototype of libiothsm v2
     cargo run -p ksd # The server will remain running.
     ```
 
-1. Run `iotedged` in another shell
+1. Start `csd` in another shell
 
     ```sh
     # HOMEDIR_PATH is a directory where cert files will be stored.
     export HOMEDIR_PATH=~/iotedge/hsm/certs
     mkdir -p "$HOMEDIR_PATH"
 
+    cargo run -p csd # The server will remain running.
+    ```
+
+1. Run `iotedged` in a third shell
+
+    ```sh
     # HUB_ID, DEVICE_ID and SAS_KEY are the IoT Hub name, device name and SAS key of an existing Azure IoT device.
     export HUB_ID='example.azure-devices.net'
     export DEVICE_ID='example-1'

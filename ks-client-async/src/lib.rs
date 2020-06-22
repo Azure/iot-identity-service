@@ -4,82 +4,65 @@
 	clippy::unnested_or_patterns, // TODO: Remove when https://github.com/rust-lang/rust-clippy/issues/5704 is fixed
 )]
 
-pub trait Connector {
-	fn connect(&self) -> std::io::Result<Box<dyn Stream>>;
+pub struct Client<C> {
+	inner: hyper::Client<C, hyper::Body>,
 }
 
-pub trait Stream: std::io::Read + std::io::Write {
-}
-
-impl<T> Stream for T where T: std::io::Read + std::io::Write {
-}
-
-pub struct Client {
-	connector: Box<dyn Connector>,
-}
-
-impl Client {
-	pub fn new(connector: Box<dyn Connector>) -> Self {
+impl<C> Client<C> where C: hyper::client::connect::Connect + Clone {
+	pub fn new(connect: C) -> Self {
+		let inner = hyper::Client::builder().build(connect);
 		Client {
-			connector,
+			inner,
 		}
 	}
 }
 
-impl std::fmt::Debug for Client {
+impl<C> std::fmt::Debug for Client<C> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Client").finish()
 	}
 }
 
-impl ks_common::KeysServiceInterface for Client {
-	type Error = std::io::Error;
-
-	fn create_key_pair_if_not_exists(
+impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync + 'static {
+	pub async fn create_key_pair_if_not_exists(
 		&self,
 		id: &str,
 		preferred_algorithms: Option<&str>,
-	) -> Result<ks_common::KeyHandle, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<ks_common::KeyHandle, std::io::Error> {
 		let body = ks_common_http::create_key_pair_if_not_exists::Request {
 			id: id.to_owned(),
 			preferred_algorithms: preferred_algorithms.map(ToOwned::to_owned),
 		};
 
 		let res: ks_common_http::create_key_pair_if_not_exists::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			"/keypair",
 			Some(&body),
-		)?;
+		).await?;
 		Ok(res.handle)
 	}
 
-	fn load_key_pair(
+	pub async fn load_key_pair(
 		&self,
 		id: &str,
-	) -> Result<ks_common::KeyHandle, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<ks_common::KeyHandle, std::io::Error> {
 		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
 		let res: ks_common_http::load_key_pair::Response = request::<_, (), _>(
-			&mut stream,
+			&self.inner,
 			http::Method::GET,
 			&uri,
 			None,
-		)?;
+		).await?;
 		Ok(res.handle)
 	}
 
-	fn get_key_pair_public_parameter(
+	pub async fn get_key_pair_public_parameter(
 		&self,
 		handle: &ks_common::KeyHandle,
 		parameter_name: &str,
-	) -> Result<String, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<String, std::io::Error> {
 		let uri = format!("/parameters/{}", percent_encoding::percent_encode(parameter_name.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
 		let body = ks_common_http::get_key_pair_public_parameter::Request {
@@ -87,21 +70,19 @@ impl ks_common::KeysServiceInterface for Client {
 		};
 
 		let res: ks_common_http::get_key_pair_public_parameter::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			&uri,
 			Some(&body),
-		)?;
+		).await?;
 		Ok(res.value)
 	}
 
-	fn create_key_if_not_exists(
+	pub async fn create_key_if_not_exists(
 		&self,
 		id: &str,
 		value: ks_common::CreateKeyValue,
-	) -> Result<ks_common::KeyHandle, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<ks_common::KeyHandle, std::io::Error> {
 		let body = match value {
 			ks_common::CreateKeyValue::Generate { length } => ks_common_http::create_key_if_not_exists::Request {
 				id: id.to_owned(),
@@ -116,22 +97,20 @@ impl ks_common::KeysServiceInterface for Client {
 		};
 
 		let res: ks_common_http::create_key_if_not_exists::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			"/key",
 			Some(&body),
-		)?;
+		).await?;
 		Ok(res.handle)
 	}
 
-	fn sign(
+	pub async fn sign(
 		&self,
 		handle: &ks_common::KeyHandle,
 		mechanism: ks_common::SignMechanism,
 		digest: &[u8],
-	) -> Result<Vec<u8>, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<Vec<u8>, std::io::Error> {
 		let body = ks_common_http::sign::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
@@ -160,23 +139,21 @@ impl ks_common::KeysServiceInterface for Client {
 		};
 
 		let res: ks_common_http::sign::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			"/sign",
 			Some(&body),
-		)?;
+		).await?;
 		let signature = res.signature.0;
 		Ok(signature)
 	}
 
-	fn encrypt(
+	pub async fn encrypt(
 		&self,
 		handle: &ks_common::KeyHandle,
 		mechanism: ks_common::EncryptMechanism,
 		plaintext: &[u8],
-	) -> Result<Vec<u8>, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<Vec<u8>, std::io::Error> {
 		let body = ks_common_http::encrypt::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
@@ -189,23 +166,21 @@ impl ks_common::KeysServiceInterface for Client {
 		};
 
 		let res: ks_common_http::encrypt::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			"/encrypt",
 			Some(&body),
-		)?;
+		).await?;
 		let ciphertext = res.ciphertext.0;
 		Ok(ciphertext)
 	}
 
-	fn decrypt(
+	pub async fn decrypt(
 		&self,
 		handle: &ks_common::KeyHandle,
 		mechanism: ks_common::EncryptMechanism,
 		ciphertext: &[u8],
-	) -> Result<Vec<u8>, Self::Error> {
-		let mut stream = self.connector.connect()?;
-
+	) -> Result<Vec<u8>, std::io::Error> {
 		let body = ks_common_http::decrypt::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
@@ -218,72 +193,53 @@ impl ks_common::KeysServiceInterface for Client {
 		};
 
 		let res: ks_common_http::decrypt::Response = request(
-			&mut stream,
+			&self.inner,
 			http::Method::POST,
 			"/decrypt",
 			Some(&body),
-		)?;
+		).await?;
 		let plaintext = res.plaintext.0;
 		Ok(plaintext)
 	}
 }
 
-fn request<TStream, TRequest, TResponse>(
-	stream: &mut TStream,
+async fn request<TConnect, TRequest, TResponse>(
+	client: &hyper::Client<TConnect, hyper::Body>,
 	method: http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
-	TStream: std::io::Read + std::io::Write,
+	TConnect: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
-	write!(stream, "{method} {uri} HTTP/1.1\r\n", method = method, uri = uri)?;
+	let uri = format!("http://foo{}", uri);
 
-	if let Some(body) = body {
-		let body = serde_json::to_string(body).expect("serializing request body to JSON cannot fail");
-		let body_len = body.len();
-
-		write!(stream, "\
-			content-length: {body_len}\r\n\
-			content-type: application/json\r\n\
-			connection: close\r\n\
-			\r\n\
-			{body}
-			",
-			body_len = body_len,
-			body = body,
-		)?;
-	}
-	else {
-		stream.write_all(b"\r\n")?;
-	}
-
-	let mut buf = vec![];
-	stream.read_to_end(&mut buf)?;
-
-	let mut headers = [httparse::EMPTY_HEADER; 16];
-	let mut res = httparse::Response::new(&mut headers);
-
-	let body_start_pos = match res.parse(&buf) {
-		Ok(httparse::Status::Complete(body_start_pos)) => body_start_pos,
-		Ok(httparse::Status::Partial) => return Err(std::io::ErrorKind::UnexpectedEof.into()),
-		Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
-	};
-
-	let res_status_code = res.code;
-
-	let mut content_length = None;
-	let mut is_json = false;
-	for header in &headers {
-		if header.name.eq_ignore_ascii_case("content-length") {
-			let value = std::str::from_utf8(header.value).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-			let value: usize = value.parse().map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-			content_length = Some(value);
+	let req =
+		hyper::Request::builder()
+		.method(method)
+		.uri(uri);
+	let req =
+		if let Some(body) = body {
+			let body = serde_json::to_vec(body).expect("serializing request body to JSON cannot fail").into();
+			req
+				.header(hyper::header::CONTENT_TYPE, "application/json")
+				.body(body)
 		}
-		else if header.name.eq_ignore_ascii_case("content-type") {
-			let value = std::str::from_utf8(header.value).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+		else {
+			req.body(Default::default())
+		};
+	let req = req.expect("cannot fail to create hyper request");
+
+	let res = client.request(req).await.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+
+	let (http::response::Parts { status: res_status_code, headers, .. }, body) = res.into_parts();
+
+	let mut is_json = false;
+	for (header_name, header_value) in headers {
+		if header_name == Some(hyper::header::CONTENT_TYPE) {
+			let value = header_value.to_str().map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			if value == "application/json" {
 				is_json = true;
 			}
@@ -294,32 +250,20 @@ where
 		return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response"));
 	}
 
-	let body = &buf[body_start_pos..];
-	let body =
-		if let Some(content_length) = content_length {
-			if body.len() < content_length {
-				return Err(std::io::ErrorKind::UnexpectedEof.into());
-			}
-			else {
-				&body[..content_length]
-			}
-		}
-		else {
-			body
-		};
+	let body = hyper::body::to_bytes(body).await.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
 	let res: TResponse = match res_status_code {
-		Some(200) => {
-			let res = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+		hyper::StatusCode::OK => {
+			let res = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			res
 		},
 
-		Some(400..=499) | Some(500..=599) => {
-			let res: ks_common_http::Error = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+		res_status_code if res_status_code.is_client_error() || res_status_code.is_server_error() => {
+			let res: ks_common_http::Error = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
 		},
 
-		Some(_) | None => return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response")),
+		_ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response")),
 	};
 	Ok(res)
 }

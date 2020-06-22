@@ -13,20 +13,10 @@ impl Error {
 impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Error::Internal(_) => f.write_str("internal error")?,
-			Error::InvalidParameter(Some((name, _))) => write!(f, "parameter {:?} has an invalid value", name)?,
-			Error::InvalidParameter(None) => f.write_str("a parameter has an invalid value")?,
+			Error::Internal(_) => f.write_str("internal error"),
+			Error::InvalidParameter(Some((name, _))) => write!(f, "parameter {:?} has an invalid value", name),
+			Error::InvalidParameter(None) => f.write_str("a parameter has an invalid value"),
 		}
-
-		f.write_str("\n")?;
-
-		let mut source = std::error::Error::source(self);
-		while let Some(err) = source {
-			writeln!(f, "caused by: {}", err)?;
-			source = err.source();
-		}
-
-		Ok(())
 	}
 }
 
@@ -50,8 +40,8 @@ pub enum InternalError {
 	Encrypt(crate::keygen::EncryptError),
 	GenerateNonce(openssl::error::ErrorStack),
 	LoadKeyPair(crate::keygen::LoadKeyPairError),
-	LoadLibrary(crate::keygen::LoadKeyGenError),
-	SetLibraryParameter(crate::keygen::SetKeyGenParameterError),
+	LoadLibrary(crate::keygen::LoadLibraryError),
+	SetLibraryParameter(crate::keygen::SetLibraryParameterError),
 	Sign(crate::keygen::SignError),
 	Verify(crate::keygen::VerifyError),
 }
@@ -94,14 +84,14 @@ impl std::error::Error for InternalError {
 	}
 }
 
-impl From<crate::keygen::LoadKeyGenError> for Error {
-	fn from(err: crate::keygen::LoadKeyGenError) -> Self {
+impl From<crate::keygen::LoadLibraryError> for Error {
+	fn from(err: crate::keygen::LoadLibraryError) -> Self {
 		Error::Internal(InternalError::LoadLibrary(err))
 	}
 }
 
-impl From<crate::keygen::SetKeyGenParameterError> for Error {
-	fn from(err: crate::keygen::SetKeyGenParameterError) -> Self {
+impl From<crate::keygen::SetLibraryParameterError> for Error {
+	fn from(err: crate::keygen::SetLibraryParameterError) -> Self {
 		Error::Internal(InternalError::SetLibraryParameter(err))
 	}
 }

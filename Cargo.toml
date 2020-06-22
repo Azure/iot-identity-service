@@ -1,9 +1,15 @@
 [workspace]
 members = [
+	"cs-client-async",
+	"cs-common",
+	"cs-common-http",
+	"csd",
+	"http-common",
 	"iotedged",
 	"iothsm-certgen",
 	"iothsm-keygen",
 	"ks-client",
+	"ks-client-async",
 	"ks-common",
 	"ks-common-http",
 	"ksd",

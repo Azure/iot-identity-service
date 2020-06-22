@@ -1,21 +1,37 @@
-use ks_common::KeysServiceInterface;
+lazy_static::lazy_static! {
+	static ref URI_REGEX: regex::Regex =
+		regex::Regex::new("^/certificates/(?P<certId>[^/]+)$")
+		.expect("hard-coded regex must compile");
+}
 
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<ksd::Server>,
+	inner: std::sync::Arc<csd::Server>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
-		if req.uri().path() != "/decrypt" {
-			return Err(req);
-		}
+		let captures = match URI_REGEX.captures(req.uri().path()) {
+			Some(captures) => captures,
+			None => return Err(req),
+		};
+
+		let cert_id = &captures["certId"];
+		let cert_id = percent_encoding::percent_decode_str(cert_id).decode_utf8();
+		let cert_id = match cert_id {
+			Ok(cert_id) => cert_id.into_owned(),
+			Err(err) => return Ok(super::err_response(
+				hyper::StatusCode::BAD_REQUEST,
+				None,
+				super::error_to_message(&err).into(),
+			)),
+		};
 
 		let (http::request::Parts { method, headers, .. }, body) = req.into_parts();
 		let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
 
-		if method != hyper::Method::POST {
+		if method != hyper::Method::PUT {
 			return Ok(super::err_response(
 				hyper::StatusCode::METHOD_NOT_ALLOWED,
-				Some((hyper::header::ALLOW, "POST")),
+				Some((hyper::header::ALLOW, "PUT")),
 				"method not allowed".into(),
 			));
 		}
@@ -36,7 +52,7 @@ pub(super) fn handle(
 				super::error_to_message(&err).into(),
 			)),
 		};
-		let body: ks_common_http::decrypt::Request = match serde_json::from_slice(&body) {
+		let body: cs_common_http::import_cert::Request = match serde_json::from_slice(&body) {
 			Ok(body) => body,
 			Err(err) => return Ok(super::err_response(
 				hyper::StatusCode::UNPROCESSABLE_ENTITY,
@@ -44,19 +60,16 @@ pub(super) fn handle(
 				super::error_to_message(&err).into(),
 			)),
 		};
-		let mechanism = match body.parameters {
-			ks_common_http::decrypt::Parameters::Aead { iv, aad } => ks_common::EncryptMechanism::Aead { iv: iv.0, aad: aad.0 },
-		};
 
-		let plaintext = match inner.decrypt(&body.key_handle, mechanism, &body.ciphertext.0) {
-			Ok(plaintext) => plaintext,
+		match inner.import_cert(&cert_id, &body.pem.0) {
+			Ok(()) => (),
 			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 		};
 
-		let res = ks_common_http::decrypt::Response {
-			plaintext: http_common::ByteString(plaintext),
+		let res = cs_common_http::import_cert::Response {
+			pem: body.pem,
 		};
-		let res = super::json_response(hyper::StatusCode::OK, &res);
+		let res = super::json_response(hyper::StatusCode::CREATED, &res);
 		Ok(res)
 	})
 }

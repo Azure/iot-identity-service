@@ -66,23 +66,14 @@ pub(super) fn handle(
 
 			ks_common_http::sign::Parameters::HmacSha256 { message } => (ks_common::SignMechanism::HmacSha256, message),
 		};
-		let digest = match base64::decode(&digest) {
-			Ok(digest) => digest,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
 
-		let signature = match inner.sign(&body.key_handle, mechanism, &digest) {
+		let signature = match inner.sign(&body.key_handle, mechanism, &digest.0) {
 			Ok(signature) => signature,
 			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 		};
-		let signature = base64::encode(&signature);
 
 		let res = ks_common_http::sign::Response {
-			signature,
+			signature: http_common::ByteString(signature),
 		};
 		let res = super::json_response(hyper::StatusCode::OK, &res);
 		Ok(res)
