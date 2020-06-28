@@ -148,7 +148,7 @@ unsafe extern "C" fn engine_load_privkey(
 			},
 
 			"RSA" => {
-				let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa=modulus")?;
+				let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
 				let modulus = base64::decode(&modulus)?;
 				let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
@@ -234,7 +234,7 @@ unsafe extern "C" fn engine_load_pubkey(
 			},
 
 			"RSA" => {
-				let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa=modulus")?;
+				let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
 				let modulus = base64::decode(&modulus)?;
 				let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
