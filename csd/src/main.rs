@@ -30,6 +30,18 @@ async fn main() -> Result<(), Error> {
 	};
 
 	let server = csd::Server::new(homedir_path, ks_client)?;
+
+	for (key, value) in std::env::vars() {
+		if key.starts_with("PRELOADED_CERT:") {
+			let key = &key["PRELOADED_CERT:".len()..];
+
+			let value: std::path::PathBuf = value.into();
+			let value = std::fs::read(value).map_err(|err| csd::Error::Internal(csd::InternalError::ReadFile(err)))?;
+
+			server.import_cert(key, &value)?;
+		}
+	}
+
 	let server = std::sync::Arc::new(server);
 
 	eprintln!("Starting server...");
