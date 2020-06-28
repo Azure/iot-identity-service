@@ -212,67 +212,118 @@ async fn main() -> Result<(), Error> {
 	}
 
 
-	// Verify IoT Hub auth using SAS key
+	let hub_id = std::env::var("HUB_ID").unwrap();
+	let device_id = std::env::var("DEVICE_ID").unwrap();
 
-	let (hub_id, device_id, key) = (
-		std::env::var("HUB_ID").unwrap(),
-		std::env::var("DEVICE_ID").unwrap(),
-		std::env::var("SAS_KEY").unwrap(),
-	);
-	let key_handle = {
-		let key = base64::decode(key).unwrap();
-		ks_client.create_key_if_not_exists("device-id", ks_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
-	};
-	let token = {
-		let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(30)).unwrap();
-		let expiry = expiry.timestamp().to_string();
-		let audience = format!("{}/devices/{}", hub_id, device_id);
-
-		let resource_uri = percent_encoding::percent_encode(audience.to_lowercase().as_bytes(), IOTHUB_ENCODE_SET).to_string();
-		let sig_data = format!("{}\n{}", &resource_uri, expiry);
-
-		let signature = ks_client.sign(&key_handle, ks_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await.unwrap();
-		let signature = base64::encode(&signature);
-
-		let token =
-			url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
-			.append_pair("sig", &signature)
-			.append_pair("se", &expiry)
-			.finish();
-		token
-	};
-	println!("{}", token);
-
-	let authorization_header_value = reqwest::header::HeaderValue::from_str(&format!("SharedAccessSignature {}", token)).unwrap();
-	let mut default_headers = reqwest::header::HeaderMap::new();
-	default_headers.insert(reqwest::header::AUTHORIZATION, authorization_header_value);
+	let mut request: hyper::Request<hyper::Body> = hyper::Request::new(Default::default());
+	*request.uri_mut() =
+		format!(
+			"https://{}/devices/{}/modules?api-version=2017-11-08-preview",
+			hub_id,
+			percent_encoding::percent_encode(device_id.as_bytes(), IOTHUB_ENCODE_SET),
+		)
+		.parse().unwrap();
 
 	let client =
-		reqwest::Client::builder()
-		.default_headers(default_headers)
-		.build()
-		.unwrap();
-	let url = format!("https://{}/devices/{}/modules?api-version=2017-11-08-preview", hub_id, percent_encoding::percent_encode(device_id.as_bytes(), IOTHUB_ENCODE_SET));
-	let response: serde_json::Value = client.get(&url).send().await.unwrap().json().await.unwrap();
+		if let Ok(key) = std::env::var("SAS_KEY") {
+			println!("Using SAS key auth");
+
+
+			let key_handle = {
+				let key = base64::decode(key).unwrap();
+				ks_client.create_key_if_not_exists("device-id", ks_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
+			};
+
+
+			// Verify encrypt-decrypt
+
+			let mut rng = rand::rngs::OsRng;
+
+			let original_plaintext = b"aaaaaa";
+			let iv = {
+				let mut iv = vec![0_u8; 16];
+				rand::RngCore::fill_bytes(&mut rng, &mut iv);
+				iv
+			};
+			let aad = b"$iotedged".to_vec();
+
+			let ciphertext = ks_client.encrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
+
+			let new_plaintext = ks_client.decrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
+			assert_eq!(original_plaintext, &new_plaintext[..]);
+
+
+			// Verify IoT Hub auth using SAS key
+
+			let token = {
+				let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(30)).unwrap();
+				let expiry = expiry.timestamp().to_string();
+				let audience = format!("{}/devices/{}", hub_id, device_id);
+
+				let resource_uri = percent_encoding::percent_encode(audience.to_lowercase().as_bytes(), IOTHUB_ENCODE_SET).to_string();
+				let sig_data = format!("{}\n{}", &resource_uri, expiry);
+
+				let signature = ks_client.sign(&key_handle, ks_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await.unwrap();
+				let signature = base64::encode(&signature);
+
+				let token =
+					url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
+					.append_pair("sig", &signature)
+					.append_pair("se", &expiry)
+					.finish();
+				token
+			};
+			println!("{}", token);
+
+			let authorization_header_value = hyper::header::HeaderValue::from_str(&format!("SharedAccessSignature {}", token)).unwrap();
+			request.headers_mut().append(hyper::header::AUTHORIZATION, authorization_header_value);
+
+			let tls_connector = hyper_openssl::HttpsConnector::new().unwrap();
+
+			let client = hyper::Client::builder().build(tls_connector);
+			client
+		}
+		else {
+			println!("Using X.509 auth");
+
+
+			let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls()).unwrap();
+
+			let device_id_private_key = {
+				let device_id_key_handle = ks_client.load_key_pair("device-id").await.unwrap();
+				let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0).unwrap();
+				let device_id_private_key = ks_engine.load_private_key(&device_id_key_handle).unwrap();
+				device_id_private_key
+			};
+			tls_connector.set_private_key(&device_id_private_key).unwrap();
+
+			let mut device_id_certs = {
+				let device_id_certs = cs_client.get_cert("device-id").await.unwrap();
+				let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs).unwrap().into_iter();
+				device_id_certs
+			};
+			let client_cert = device_id_certs.next().unwrap();
+			tls_connector.set_certificate(&client_cert).unwrap();
+			for cert in device_id_certs {
+				tls_connector.add_extra_chain_cert(cert).unwrap();
+			}
+
+			let mut http_connector = hyper::client::HttpConnector::new();
+			http_connector.enforce_http(false);
+			let tls_connector = hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector).unwrap();
+
+			let client = hyper::Client::builder().build(tls_connector);
+			client
+		};
+
+	println!("{:?}", request);
+	let response = client.request(request).await.unwrap();
+	assert_eq!(response.status(), hyper::StatusCode::OK);
+	let response = response.into_body();
+	let response = hyper::body::to_bytes(response).await.unwrap();
+	let response: serde_json::Value = serde_json::from_slice(&response).unwrap();
 	println!("{:#?}", response);
 
-
-	// Verify encrypt-decrypt
-
-	let mut rng = rand::rngs::OsRng;
-
-	let original_plaintext = b"aaaaaa";
-	let iv = {
-		let mut iv = vec![0_u8; 16];
-		rand::RngCore::fill_bytes(&mut rng, &mut iv);
-		iv
-	};
-	let aad = b"$iotedged".to_vec();
-
-	let ciphertext = ks_client.encrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
-
-	let new_plaintext = ks_client.decrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
-	assert_eq!(original_plaintext, &new_plaintext[..]);
 
 	Ok(())
 }
