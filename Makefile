@@ -208,7 +208,7 @@ key/aziot-keyd/src/keys.generated.rs: $(DEP_AZIOT_KEYS)
 		$(BINDGEN_EXTRA_FLAGS)
 	mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs
 
-key/aziot-keyd: target/$(DIRECTORY)/aziot-keyd
+aziot-keyd: target/$(DIRECTORY)/aziot-keyd
 
 target/$(DIRECTORY)/aziot-keyd: Cargo.lock $(DEP_AZIOT_KEYD)
 	$(CARGO) build -p aziot-keyd $(CARGO_VERBOSE)
