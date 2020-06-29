@@ -1,0 +1,16 @@
+[package]
+name = "aziot-cert-client-async"
+version = "0.1.0"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+
+[dependencies]
+http = "0.2"
+hyper = { version = "0.13", features = ["stream"] }
+percent-encoding = "2"
+serde = "1"
+serde_json = "1"
+
+aziot-cert-common-http = { path = "../aziot-cert-common-http" }
+aziot-key-common = { path = "../../key/aziot-key-common" }
+http-common = { path = "../../http-common" }

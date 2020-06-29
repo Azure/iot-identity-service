@@ -17,11 +17,11 @@ serde_json = "1"
 tokio = { version = "0.2", features = ["dns", "macros"] }
 url = "2"
 
-cs-client-async = { path = "../cs-client-async" }
 http-common = { path = "../http-common" }
-ks-client = { path = "../ks-client" }
-ks-client-async = { path = "../ks-client-async" }
-ks-common = { path = "../ks-common" }
+aziot-cert-client-async = { path = "../cert/aziot-cert-client-async" }
+aziot-key-client = { path = "../key/aziot-key-client" }
+aziot-key-client-async = { path = "../key/aziot-key-client-async" }
+aziot-key-common = { path = "../key/aziot-key-common" }
+aziot-key-openssl-engine = { path = "../key/aziot-key-openssl-engine" }
 openssl2 = { path = "../../openssl-pkcs11-demo/openssl2" }
-openssl-engine-ks = { path = "../openssl-engine-ks" }
 openssl-sys2 = { path = "../../openssl-pkcs11-demo/openssl-sys2" }

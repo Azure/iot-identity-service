@@ -66,7 +66,7 @@ Prototype of libiothsm v2
 
 # Run
 
-1. Start `ksd` in one shell
+1. Start `aziot-keyd` in one shell
 
     ```sh
     # HOMEDIR_PATH is a directory where key files will be stored.
@@ -80,15 +80,15 @@ Prototype of libiothsm v2
     # export PKCS11_BASE_SLOT='pkcs11:token=Key pairs?pin-value=1234'
 
     # If device identity is set to `x509_ca` or `x509_thumbprint`, and thus the IoT Hub connection would use a device ID client cert,
-    # set the env var to preload the key in ksd
+    # set the env var to preload the key in aziot-keyd
     #
-    # env 'PRELOADED_KEY:device-id=file:///path/to/key.pem' cargo run -p ksd
+    # env 'PRELOADED_KEY:device-id=file:///path/to/key.pem' cargo run -p aziot-keyd
     #
     # Otherwise, run it without that env var
-    cargo run -p ksd # The server will remain running.
+    cargo run -p aziot-keyd # The server will remain running.
     ```
 
-1. Start `csd` in another shell
+1. Start `aziot-certd` in another shell
 
     ```sh
     # HOMEDIR_PATH is a directory where cert files will be stored.
@@ -96,12 +96,12 @@ Prototype of libiothsm v2
     mkdir -p "$HOMEDIR_PATH"
 
     # If device identity is set to `x509_ca` or `x509_thumbprint`, and thus the IoT Hub connection would use a device ID client cert,
-    # set the env var to preload the cert in csd
+    # set the env var to preload the cert in aziot-certd
     #
-    # env 'PRELOADED_CERT:device-id=/path/to/cert.pem' cargo run -p csd
+    # env 'PRELOADED_CERT:device-id=/path/to/cert.pem' cargo run -p aziot-certd
     #
     # Otherwise, run it without that env var
-    cargo run -p csd # The server will remain running.
+    cargo run -p aziot-certd # The server will remain running.
     ```
 
 1. Run `iotedged` in a third shell
@@ -112,21 +112,21 @@ Prototype of libiothsm v2
     export DEVICE_ID='example-1'
 
     # If device identity is set to `shared_private_key`, set an env var for the SAS key.
-    # Otherwise, leave it unset and iotedged will use the key and cert named "device-id" that you preloaded into ksd and csd respectively.
+    # Otherwise, leave it unset and iotedged will use the key and cert named "device-id" that you preloaded into aziot-keyd and aziot-certd respectively.
     export SAS_KEY='QXp1cmUgSW9UIEVkZ2U='
 
     cargo run -p iotedged
     ```
 
-`iotedged` should connect to `ksd` and:
+`iotedged` should connect to `aziot-keyd` and `aziot-certd`:
 
 - Create a self-signed device CA cert.
 - Create a workload CA cert signed by the device CA cert.
 - If `SAS_KEY` is set:
-    - Import the IoT Hub SAS key to the Keys Service.
-    - Connect to the IoT Hub and perform a list modules HTTP request. The SAS token for this request is signed using the SAS key imported into the Keys Service.
+    - Import the IoT Hub SAS key into `aziot-keyd`
+    - Connect to the IoT Hub and perform a list modules HTTP request. The SAS token for this request is signed using the SAS key imported into `aziot-keyd`
 - If `SAS_KEY` is not set:
-    - Connect to the IoT Hub and perform a list modules HTTP request. The "device-id" key and cert preloaded into the Keys Service and Certificates Service respectively are used for the TLS client certificate.
+    - Connect to the IoT Hub and perform a list modules HTTP request. The "device-id" key and cert preloaded into `aziot-keyd` and `aziot-certd` respectively are used for the TLS client certificate.
 
 
 # Miscellaneous

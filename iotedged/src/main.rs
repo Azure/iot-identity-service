@@ -10,24 +10,24 @@ const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-	let mut ks_engine = {
+	let mut key_engine = {
 		struct Connector;
 
-		impl ks_client::Connector for Connector {
-			fn connect(&self) -> std::io::Result<Box<dyn ks_client::Stream>> {
+		impl aziot_key_client::Connector for Connector {
+			fn connect(&self) -> std::io::Result<Box<dyn aziot_key_client::Stream>> {
 				let stream = std::net::TcpStream::connect(("localhost", 8888))?;
 				Ok(Box::new(stream))
 			}
 		}
 
-		let ks_client = ks_client::Client::new(Box::new(Connector));
-		let ks_client = std::sync::Arc::new(ks_client);
+		let key_client = aziot_key_client::Client::new(Box::new(Connector));
+		let key_client = std::sync::Arc::new(key_client);
 
-		let ks_engine = openssl_engine_ks::load(ks_client).map_err(Error::LoadKeysServiceOpensslEngine)?;
-		ks_engine
+		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(Error::LoadKeyOpenslEngine)?;
+		key_engine
 	};
 
-	let ks_client = {
+	let key_client = {
 		#[derive(Clone, Copy)]
 		struct Connector;
 
@@ -49,12 +49,12 @@ async fn main() -> Result<(), Error> {
 			}
 		}
 
-		let ks_client = ks_client_async::Client::new(Connector);
-		let ks_client = std::sync::Arc::new(ks_client);
-		ks_client
+		let key_client = aziot_key_client_async::Client::new(Connector);
+		let key_client = std::sync::Arc::new(key_client);
+		key_client
 	};
 
-	let cs_client = {
+	let cert_client = {
 		#[derive(Clone, Copy)]
 		struct Connector;
 
@@ -76,33 +76,33 @@ async fn main() -> Result<(), Error> {
 			}
 		}
 
-		let cs_client = cs_client_async::Client::new(Connector);
-		let cs_client = std::sync::Arc::new(cs_client);
-		cs_client
+		let cert_client = aziot_cert_client_async::Client::new(Connector);
+		let cert_client = std::sync::Arc::new(cert_client);
+		cert_client
 	};
 
 
 	// Device CA
 
 	let device_ca_key_pair_handle =
-		ks_client.create_key_pair_if_not_exists("device-ca", Some("ec-p256:rsa-4096:*")).await.map_err(Error::CreateOrLoadDeviceCaKeyPair)?;
+		key_client.create_key_pair_if_not_exists("device-ca", Some("ec-p256:rsa-4096:*")).await.map_err(Error::CreateOrLoadDeviceCaKeyPair)?;
 	let (device_ca_public_key, device_ca_private_key) = {
 		let device_ca_key_pair_handle = std::ffi::CString::new(device_ca_key_pair_handle.0.clone()).unwrap();
-		let device_ca_public_key = ks_engine.load_public_key(&device_ca_key_pair_handle).unwrap();
-		let device_ca_private_key = ks_engine.load_private_key(&device_ca_key_pair_handle).unwrap();
+		let device_ca_public_key = key_engine.load_public_key(&device_ca_key_pair_handle).unwrap();
+		let device_ca_private_key = key_engine.load_private_key(&device_ca_key_pair_handle).unwrap();
 		(device_ca_public_key, device_ca_private_key)
 	};
 	println!("Loaded device CA key with parameters: {}", Displayable(&*device_ca_public_key));
 
 	let device_ca_cert = {
-		let device_ca_cert = match cs_client.get_cert("device-ca").await {
+		let device_ca_cert = match cert_client.get_cert("device-ca").await {
 			Ok(device_ca_cert) => device_ca_cert,
 			Err(_) => {
 				let csr =
 					create_csr("device-ca", &device_ca_public_key, &device_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 				let device_ca_cert =
-					cs_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+					cert_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 					.await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 				device_ca_cert
 			},
@@ -122,13 +122,13 @@ async fn main() -> Result<(), Error> {
 	if regenerate_device_ca_cert {
 		println!("Generating new device CA cert...");
 
-		cs_client.delete_cert("device-ca").await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
+		cert_client.delete_cert("device-ca").await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 
 		let csr =
 			create_csr("device-ca", &device_ca_public_key, &device_ca_private_key)
 			.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 		let device_ca_cert =
-			cs_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+			cert_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 			.await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 		let device_ca_cert = openssl::x509::X509::stack_from_pem(&device_ca_cert).map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 
@@ -147,25 +147,25 @@ async fn main() -> Result<(), Error> {
 	// Workload CA
 
 	let workload_ca_key_pair_handle =
-		ks_client.create_key_pair_if_not_exists("workload-ca", Some("ec-p256:rsa-2048:*")).await.map_err(Error::CreateOrLoadWorkloadCaKeyPair)?;
+		key_client.create_key_pair_if_not_exists("workload-ca", Some("ec-p256:rsa-2048:*")).await.map_err(Error::CreateOrLoadWorkloadCaKeyPair)?;
 	let (workload_ca_public_key, workload_ca_private_key) = {
 		let workload_ca_key_pair_handle = std::ffi::CString::new(workload_ca_key_pair_handle.0.clone()).unwrap();
-		let workload_ca_public_key = ks_engine.load_public_key(&workload_ca_key_pair_handle).unwrap();
-		let workload_ca_private_key = ks_engine.load_private_key(&workload_ca_key_pair_handle).unwrap();
+		let workload_ca_public_key = key_engine.load_public_key(&workload_ca_key_pair_handle).unwrap();
+		let workload_ca_private_key = key_engine.load_private_key(&workload_ca_key_pair_handle).unwrap();
 		(workload_ca_public_key, workload_ca_private_key)
 	};
 
 	println!("Loaded workload CA key with parameters: {}", Displayable(&*workload_ca_public_key));
 
 	let workload_ca_cert = {
-		let workload_ca_cert = match cs_client.get_cert("workload-ca").await {
+		let workload_ca_cert = match cert_client.get_cert("workload-ca").await {
 			Ok(workload_ca_cert) => workload_ca_cert,
 			Err(_) => {
 				let csr =
 					create_csr("workload-ca", &workload_ca_public_key, &workload_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 				let workload_ca_cert =
-					cs_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+					cert_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 					.await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 				workload_ca_cert
 			},
@@ -190,13 +190,13 @@ async fn main() -> Result<(), Error> {
 	if regenerate_workload_ca_cert {
 		println!("Generating new workload CA cert...");
 
-		cs_client.delete_cert("workload-ca").await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
+		cert_client.delete_cert("workload-ca").await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 
 		let csr =
 			create_csr("workload-ca", &workload_ca_public_key, &workload_ca_private_key)
 			.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 		let workload_ca_cert =
-			cs_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+			cert_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 			.await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 		let workload_ca_cert = openssl::x509::X509::stack_from_pem(&*workload_ca_cert).map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 
@@ -231,7 +231,7 @@ async fn main() -> Result<(), Error> {
 
 			let key_handle = {
 				let key = base64::decode(key).unwrap();
-				ks_client.create_key_if_not_exists("device-id", ks_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
+				key_client.create_key_if_not_exists("device-id", aziot_key_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
 			};
 
 
@@ -247,9 +247,9 @@ async fn main() -> Result<(), Error> {
 			};
 			let aad = b"$iotedged".to_vec();
 
-			let ciphertext = ks_client.encrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
+			let ciphertext = key_client.encrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
 
-			let new_plaintext = ks_client.decrypt(&key_handle, ks_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
+			let new_plaintext = key_client.decrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
 			assert_eq!(original_plaintext, &new_plaintext[..]);
 
 
@@ -263,7 +263,7 @@ async fn main() -> Result<(), Error> {
 				let resource_uri = percent_encoding::percent_encode(audience.to_lowercase().as_bytes(), IOTHUB_ENCODE_SET).to_string();
 				let sig_data = format!("{}\n{}", &resource_uri, expiry);
 
-				let signature = ks_client.sign(&key_handle, ks_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await.unwrap();
+				let signature = key_client.sign(&key_handle, aziot_key_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await.unwrap();
 				let signature = base64::encode(&signature);
 
 				let token =
@@ -290,15 +290,15 @@ async fn main() -> Result<(), Error> {
 			let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls()).unwrap();
 
 			let device_id_private_key = {
-				let device_id_key_handle = ks_client.load_key_pair("device-id").await.unwrap();
+				let device_id_key_handle = key_client.load_key_pair("device-id").await.unwrap();
 				let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0).unwrap();
-				let device_id_private_key = ks_engine.load_private_key(&device_id_key_handle).unwrap();
+				let device_id_private_key = key_engine.load_private_key(&device_id_key_handle).unwrap();
 				device_id_private_key
 			};
 			tls_connector.set_private_key(&device_id_private_key).unwrap();
 
 			let mut device_id_certs = {
-				let device_id_certs = cs_client.get_cert("device-id").await.unwrap();
+				let device_id_certs = cert_client.get_cert("device-id").await.unwrap();
 				let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs).unwrap().into_iter();
 				device_id_certs
 			};
@@ -417,7 +417,7 @@ enum Error {
 	CreateOrLoadDeviceCaKeyPair(std::io::Error),
 	CreateOrLoadWorkloadCaCert(Box<dyn std::error::Error>),
 	CreateOrLoadWorkloadCaKeyPair(std::io::Error),
-	LoadKeysServiceOpensslEngine(openssl2::Error),
+	LoadKeyOpenslEngine(openssl2::Error),
 	VerifyWorkloadCaCert(openssl::error::ErrorStack),
 }
 
@@ -442,7 +442,7 @@ impl std::fmt::Display for Error {
 			Error::CreateOrLoadDeviceCaKeyPair(_) => f.write_str("could not create or load device CA key pair"),
 			Error::CreateOrLoadWorkloadCaCert(_) => f.write_str("could not create workload CA cert"),
 			Error::CreateOrLoadWorkloadCaKeyPair(_) => f.write_str("could not create or load workload CA key pair"),
-			Error::LoadKeysServiceOpensslEngine(_) => f.write_str("could not load keys service openssl engine"),
+			Error::LoadKeyOpenslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
 			Error::VerifyWorkloadCaCert(_) => f.write_str("could not verify workload CA cert signature"),
 		}
 	}
@@ -455,7 +455,7 @@ impl std::error::Error for Error {
 			Error::CreateOrLoadDeviceCaKeyPair(err) => Some(err),
 			Error::CreateOrLoadWorkloadCaCert(err) => Some(&**err),
 			Error::CreateOrLoadWorkloadCaKeyPair(err) => Some(err),
-			Error::LoadKeysServiceOpensslEngine(err) => Some(err),
+			Error::LoadKeyOpenslEngine(err) => Some(err),
 			Error::VerifyWorkloadCaCert(err) => Some(err),
 		}
 	}

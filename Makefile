@@ -43,74 +43,121 @@ endif
 #
 # Keep in sync with the crates' respective Cargo.toml's
 
-DEP_HTTP_COMMON = http-common/Cargo.toml http-common/src/*.rs
+DEP_HTTP_COMMON = \
+	http-common/Cargo.toml http-common/src/*.rs \
 
-DEP_KS_COMMON = ks-common/Cargo.toml ks-common/src/*.rs
-DEP_KS_COMMON_HTTP = ks-common-http/Cargo.toml ks-common-http/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON)
-DEP_KS_CLIENT = ks-client/Cargo.toml ks-client/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
-DEP_KS_CLIENT_ASYNC = ks-client-async/Cargo.toml ks-client-async/src/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
-DEP_KSD = ksd/Cargo.toml ksd/build.rs ksd/src/keygen.generated.rs ksd/src/*.rs ksd/src/http/*.rs $(DEP_HTTP_COMMON) $(DEP_KS_COMMON) $(DEP_KS_COMMON_HTTP)
+DEP_AZIOT_KEY_COMMON = \
+	key/aziot-key-common/Cargo.toml key/aziot-key-common/src/*.rs \
 
-DEP_OPENSSL_ENGINE_KS = openssl-engine-ks/Cargo.toml openssl-engine-ks/build/* openssl-engine-ks/src/*.rs $(DEP_KS_CLIENT) $(KS_COMMON)
+DEP_AZIOT_KEY_COMMON_HTTP = \
+	key/aziot-key-common-http/Cargo.toml key/aziot-key-common-http/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_HTTP_COMMON) \
 
-DEP_CS_COMMON = cs-common/Cargo.toml cs-common/src/*.rs
-DEP_CS_COMMON_HTTP = cs-common-http/Cargo.toml cs-common-http/src/*.rs $(DEP_KS_COMMON)
-DEP_CS_CLIENT_ASYNC = cs-client-async/Cargo.toml cs-client-async/src/*.rs $(DEP_CS_COMMON_HTTP) $(DEP_HTTP_COMMON) $(DEP_KS_COMMON)
-DEP_CSD = csd/Cargo.toml csd/src/*.rs csd/src/http/*.rs $(DEP_CS_COMMON_HTTP) $(DEP_KS_CLIENT) $(DEP_KS_COMMON) $(DEP_OPENSSL_ENGINE_KS)
+DEP_AZIOT_KEY_CLIENT = \
+	key/aziot-key-client/Cargo.toml key/aziot-key-client/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON_HTTP) \
+	$(DEP_HTTP_COMMON) \
 
-DEP_IOTHSM_KEYGEN = iothsm-keygen/iothsm-keygen.h
+DEP_AZIOT_KEY_CLIENT_ASYNC = \
+	key/aziot-key-client-async/Cargo.toml key/aziot-key-client-async/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON_HTTP) \
+	$(DEP_HTTP_COMMON) \
 
-DEP_IOTEDGED = iotedged/Cargo.toml iotedged/src/*.rs $(DEP_CS_CLIENT_ASYNC) $(DEP_HTTP_COMMON) $(DEP_KS_CLIENT) $(DEP_KS_CLIENT_ASYNC) $(DEP_KS_COMMON) $(DEP_OPENSSL_ENGINE_KS)
+DEP_AZIOT_KEYD = \
+	key/aziot-keyd/Cargo.toml key/aziot-keyd/build.rs key/aziot-keyd/src/keys.generated.rs key/aziot-keyd/src/*.rs key/aziot-keyd/src/http/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON_HTTP) \
+	$(DEP_HTTP_COMMON) \
+
+DEP_AZIOT_KEY_OPENSSL_ENGINE = \
+	key/aziot-key-openssl-engine/Cargo.toml key/aziot-key-openssl-engine/build/* key/aziot-key-openssl-engine/src/*.rs \
+	$(DEP_AZIOT_KEY_CLIENT) \
+	$(DEP_AZIOT_KEY_COMMON) \
+
+DEP_AZIOT_KEYS = \
+	key/aziot-keys/aziot-keys.h \
+
+DEP_AZIOT_CERT_COMMON = \
+	cert/aziot-cert-common/Cargo.toml cert/aziot-cert-common/src/*.rs \
+
+DEP_AZIOT_CERT_COMMON_HTTP = \
+	cert/aziot-cert-common-http/Cargo.toml cert/aziot-cert-common-http/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+
+DEP_AZIOT_CERT_CLIENT_ASYNC = \
+	cert/aziot-cert-client-async/Cargo.toml cert/aziot-cert-client-async/src/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_HTTP_COMMON) \
+
+DEP_AZIOT_CERTD = \
+	cert/aziot-certd/Cargo.toml cert/aziot-certd/src/*.rs cert/aziot-certd/src/http/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_KEY_CLIENT) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+
+DEP_IOTEDGED = \
+	iotedged/Cargo.toml iotedged/src/*.rs \
+	$(DEP_AZIOT_CERT_CLIENT_ASYNC) \
+	$(DEP_AZIOT_KEY_CLIENT) \
+	$(DEP_AZIOT_KEY_CLIENT_ASYNC) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+	$(DEP_HTTP_COMMON) \
 
 
-.PHONY: clean cs-client csd iotedged iothsm-keygen ks-client ksd test
+.PHONY: clean aziot-certd iotedged aziot-keyd aziot-keys test
 
 
-default: csd iotedged ksd
+default: aziot-certd iotedged aziot-keyd aziot-keys
 
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
-	rm -rf iothsm-keygen/iothsm-keygen.h
-	rm -rf ksd/src/iothsm-keygen.generated.rs
+	$(RM) key/aziot-keyd/src/keys.generated.rs
+	$(RM) key/aziot-keys/aziot-keys.h
 
 
-iothsm-keygen: target/$(DIRECTORY)/libiothsm_keygen.so
+aziot-keys: target/$(DIRECTORY)/libaziot_keys.so
 
-target/$(DIRECTORY)/libiothsm_keygen.so: Cargo.lock
-target/$(DIRECTORY)/libiothsm_keygen.so: iothsm-keygen/Cargo.toml iothsm-keygen/src/*.rs
-	$(CARGO) build -p iothsm-keygen $(CARGO_VERBOSE)
+target/$(DIRECTORY)/libaziot_keys.so: Cargo.lock
+target/$(DIRECTORY)/libaziot_keys.so: key/aziot-keys/Cargo.toml key/aziot-keys/src/*.rs
+	$(CARGO) build -p aziot-keys $(CARGO_VERBOSE)
 
-iothsm-keygen/iothsm-keygen.h: target/$(DIRECTORY)/libiothsm_keygen.so iothsm-keygen/cbindgen.toml iothsm-keygen/cbindgen.prelude.h
-	cd iothsm-keygen/ && $(CBINDGEN) --config cbindgen.toml --output iothsm-keygen.h.tmp $(CBINDGEN_VERBOSE)
-	< iothsm-keygen/cbindgen.prelude.h cat > iothsm-keygen/iothsm-keygen.h
-	< iothsm-keygen/iothsm-keygen.h.tmp grep -v 'cbindgen_unused' >> iothsm-keygen/iothsm-keygen.h
-	rm -f iothsm-keygen/iothsm-keygen.h.tmp
-
-
-csd: target/$(DIRECTORY)/csd
-
-target/$(DIRECTORY)/csd: Cargo.lock $(DEP_CSD)
-	$(CARGO) build -p csd $(CARGO_VERBOSE)
+key/aziot-keys/aziot-keys.h: target/$(DIRECTORY)/libaziot_keys.so key/aziot-keys/cbindgen.toml key/aziot-keys/cbindgen.prelude.h
+	cd key/aziot-keys/ && $(CBINDGEN) --config cbindgen.toml --output aziot-keys.h.tmp $(CBINDGEN_VERBOSE)
+	cp key/aziot-keys/cbindgen.prelude.h key/aziot-keys/aziot-keys.h
+	< key/aziot-keys/aziot-keys.h.tmp grep -v 'cbindgen_unused' >> key/aziot-keys/aziot-keys.h
+	$(RM) key/aziot-keys/aziot-keys.h.tmp
 
 
-ksd/src/keygen.generated.rs: iothsm-keygen/iothsm-keygen.h
+aziot-certd: target/$(DIRECTORY)/aziot-certd
+
+target/$(DIRECTORY)/aziot-certd: Cargo.lock $(DEP_CSD)
+	$(CARGO) build -p aziot-certd $(CARGO_VERBOSE)
+
+
+key/aziot-keyd/src/keys.generated.rs: $(DEP_AZIOT_KEYS)
 	$(BINDGEN) \
 		--blacklist-type '__.*' \
 		--whitelist-function 'KEYGEN_.*' \
 		--whitelist-type 'KEYGEN_.*' \
 		--whitelist-var 'KEYGEN_.*' \
-		-o ksd/src/keygen.generated.rs.tmp \
+		-o key/aziot-keyd/src/keys.generated.rs.tmp \
 		$(BINDGEN_VERBOSE) \
-		iothsm-keygen/iothsm-keygen.h \
+		key/aziot-keys/aziot-keys.h \
 		-- \
 		$(BINDGEN_EXTRA_FLAGS)
-	mv ksd/src/keygen.generated.rs.tmp ksd/src/keygen.generated.rs
+	mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs
 
-ksd: target/$(DIRECTORY)/ksd
+key/aziot-keyd: target/$(DIRECTORY)/aziot-keyd
 
-target/$(DIRECTORY)/ksd: Cargo.lock $(DEP_KSD)
-	$(CARGO) build -p ksd $(CARGO_VERBOSE)
+target/$(DIRECTORY)/aziot-keyd: Cargo.lock $(DEP_AZIOT_KEYD)
+	$(CARGO) build -p aziot-keyd $(CARGO_VERBOSE)
 
 
 iotedged: target/$(DIRECTORY)/iotedged
@@ -119,7 +166,7 @@ target/$(DIRECTORY)/iotedged: Cargo.lock $(DEP_IOTEDGED)
 	$(CARGO) build -p iotedged $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/libiothsm_keygen.so target/$(DIRECTORY)/csd target/$(DIRECTORY)/ksd target/$(DIRECTORY)/iotedged
+test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd
 	$(CARGO) test --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_VERBOSE)

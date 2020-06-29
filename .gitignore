@@ -1,4 +1,3 @@
-/iotedged/src/certgen.generated.rs
-/ksd/src/keygen.generated.rs
+/key/aziot-keyd/src/keys.generated.rs
 /target
 Cargo.lock

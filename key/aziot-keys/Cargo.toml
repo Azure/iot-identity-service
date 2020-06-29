@@ -1,0 +1,24 @@
+[package]
+name = "aziot-keys"
+version = "0.1.0"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+foreign-types-shared = "0.1"
+hex = "0.4"
+hmac = "0.8"
+lazy_static = "1"
+openssl = "0.10"
+openssl-sys = "0.9"
+sha2 = "0.9"
+url = "2"
+
+openssl2 = { path = "../../../openssl-pkcs11-demo/openssl2" }
+openssl-sys2 = { path = "../../../openssl-pkcs11-demo/openssl-sys2" }
+openssl-engine-pkcs11 = { path = "../../../openssl-pkcs11-demo/openssl-engine-pkcs11" }
+pkcs11 = { path = "../../../openssl-pkcs11-demo/pkcs11" }
+pkcs11-sys = { path = "../../../openssl-pkcs11-demo/pkcs11-sys" }

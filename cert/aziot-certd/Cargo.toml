@@ -1,0 +1,25 @@
+[package]
+name = "aziot-certd"
+version = "0.1.0"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+
+[dependencies]
+backtrace = "0.3"
+futures-util = { version = "0.3", features = [] }
+hex = "0.4"
+http = "0.2"
+hyper = "0.13"
+lazy_static = "1"
+openssl = "0.10"
+percent-encoding = "2"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "0.2", features = ["macros"] }
+
+aziot-cert-common-http = { path = "../aziot-cert-common-http" }
+aziot-key-client = { path = "../../key/aziot-key-client" }
+aziot-key-common = { path = "../../key/aziot-key-common" }
+aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+openssl2 = { path = "../../../openssl-pkcs11-demo/openssl2" }

@@ -1,16 +1,18 @@
 [workspace]
 members = [
-	"cs-client-async",
-	"cs-common",
-	"cs-common-http",
-	"csd",
+	"cert/aziot-cert-client-async",
+	"cert/aziot-cert-common",
+	"cert/aziot-cert-common-http",
+	"cert/aziot-certd",
+
 	"http-common",
+
 	"iotedged",
-	"iothsm-certgen",
-	"iothsm-keygen",
-	"ks-client",
-	"ks-client-async",
-	"ks-common",
-	"ks-common-http",
-	"ksd",
+
+	"key/aziot-key-client",
+	"key/aziot-key-client-async",
+	"key/aziot-key-common",
+	"key/aziot-key-common-http",
+	"key/aziot-keyd",
+	"key/aziot-keys",
 ]
