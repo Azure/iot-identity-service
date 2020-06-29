@@ -379,7 +379,7 @@ fn load_inner(location: &crate::implementation::Location) ->
 			let key_id = uri.to_string();
 			let key_id = std::ffi::CString::new(key_id).map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
 
-			let mut engine = openssl_engine_pkcs11::load(pkcs11_context)?;
+			let mut engine = pkcs11_openssl_engine::load(pkcs11_context)?;
 
 			let public_key = engine.load_public_key(&key_id)?;
 			let private_key = engine.load_private_key(&key_id)?;

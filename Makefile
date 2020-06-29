@@ -43,6 +43,45 @@ endif
 #
 # Keep in sync with the crates' respective Cargo.toml's
 
+DEP_OPENSSL_BUILD = \
+	openssl-build/Cargo.toml openssl-build/src/*.rs \
+
+DEP_OPENSSL_SYS2 = \
+	openssl-sys2/Cargo.toml openssl-sys2/build/* openssl-sys2/src/*.rs \
+	$(DEP_OPENSSL_BUILD) \
+
+DEP_OPENSSL2 = \
+	openssl2/Cargo.toml openssl2/build/* openssl2/src/*.rs \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
+
+DEP_PKCS11 = \
+	pkcs11/pkcs11/Cargo.toml pkcs11/pkcs11/build.rs pkcs11/pkcs11/src/*.rs \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
+	$(DEP_PKCS11_SYS) \
+
+DEP_PKCS11_SYS = \
+	pkcs11/pkcs11-sys/Cargo.toml pkcs11/pkcs11-sys/src/*.rs \
+
+DEP_PKCS11_OPENSSL_ENGINE = \
+	pkcs11/pkcs11-openssl-engine/Cargo.toml pkcs11/pkcs11-openssl-engine/build/* pkcs11/pkcs11-openssl-engine/src/*.rs \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
+	$(DEP_PKCS11) \
+	$(DEP_PKCS11_SYS) \
+
+DEP_PKCS11_TEST = \
+	pkcs11/pkcs11-test/Cargo.toml pkcs11/pkcs11-test/build.rs pkcs11/pkcs11-test/src/*.rs \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
+	$(DEP_PKCS11) \
+	$(DEP_PKCS11_OPENSSL_ENGINE) \
+	$(DEP_PKCS11_SYS) \
+
 DEP_HTTP_COMMON = \
 	http-common/Cargo.toml http-common/src/*.rs \
 
@@ -76,9 +115,18 @@ DEP_AZIOT_KEY_OPENSSL_ENGINE = \
 	key/aziot-key-openssl-engine/Cargo.toml key/aziot-key-openssl-engine/build/* key/aziot-key-openssl-engine/src/*.rs \
 	$(DEP_AZIOT_KEY_CLIENT) \
 	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
 
 DEP_AZIOT_KEYS = \
 	key/aziot-keys/aziot-keys.h \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
+	$(DEP_PKCS11) \
+	$(DEP_PKCS11_OPENSSL_ENGINE) \
+	$(DEP_PKCS11_SYS) \
 
 DEP_AZIOT_CERT_COMMON = \
 	cert/aziot-cert-common/Cargo.toml cert/aziot-cert-common/src/*.rs \
@@ -99,6 +147,9 @@ DEP_AZIOT_CERTD = \
 	$(DEP_AZIOT_KEY_CLIENT) \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
 
 DEP_IOTEDGED = \
 	iotedged/Cargo.toml iotedged/src/*.rs \
@@ -108,12 +159,15 @@ DEP_IOTEDGED = \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
 	$(DEP_HTTP_COMMON) \
+	$(DEP_OPENSSL2) \
+	$(DEP_OPENSSL_BUILD) \
+	$(DEP_OPENSSL_SYS2) \
 
 
-.PHONY: clean aziot-certd iotedged aziot-keyd aziot-keys test
+.PHONY: clean aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test test
 
 
-default: aziot-certd iotedged aziot-keyd aziot-keys
+default: aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test
 
 
 clean:
@@ -166,7 +220,13 @@ target/$(DIRECTORY)/iotedged: Cargo.lock $(DEP_IOTEDGED)
 	$(CARGO) build -p iotedged $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd
+pkcs11-test: target/$(DIRECTORY)/pkcs11-test
+
+target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
+	$(CARGO) build -p pkcs11-test $(CARGO_VERBOSE)
+
+
+test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
 	$(CARGO) test --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_VERBOSE)

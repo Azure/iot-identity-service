@@ -1,0 +1,20 @@
+[package]
+name = "openssl2"
+version = "0.1.0"
+license = "MIT"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+build = "build/main.rs"
+
+
+[dependencies]
+foreign-types = "0.3"
+foreign-types-shared = "0.1"
+openssl = "0.10"
+openssl-sys = "0.9"
+
+openssl-sys2 = { path = "../openssl-sys2/" }
+
+
+[build-dependencies]
+openssl-build = { path = "../openssl-build/" }

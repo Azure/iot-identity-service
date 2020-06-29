@@ -14,4 +14,4 @@ openssl = "0.10"
 openssl-sys = "0.9"
 url = "2"
 
-openssl2 = { path = "../../openssl-pkcs11-demo/openssl2" }
+openssl2 = { path = "../openssl2" }

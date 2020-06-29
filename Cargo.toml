@@ -15,4 +15,22 @@ members = [
 	"key/aziot-key-common-http",
 	"key/aziot-keyd",
 	"key/aziot-keys",
+
+	"openssl2",
+	"openssl-build",
+	"openssl-sys2",
+
+	"pkcs11/pkcs11",
+	"pkcs11/pkcs11-openssl-engine",
+	"pkcs11/pkcs11-sys",
+	"pkcs11/pkcs11-test",
 ]
+
+
+# Don't let panics from callbacks cross FFI boundary
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

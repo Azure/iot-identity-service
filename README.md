@@ -29,13 +29,6 @@ Prototype of libiothsm v2
     git clone https://github.com/arsing/libiothsm2
     ```
 
-1. Clone the openssl-pkcs11-demo repo
-
-    ```sh
-    cd ~/src/
-    git clone https://github.com/arsing/openssl-pkcs11-demo
-    ```
-
 1. Build the code
 
     ```sh

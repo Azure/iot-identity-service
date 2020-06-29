@@ -17,8 +17,8 @@ openssl-sys = "0.9"
 sha2 = "0.9"
 url = "2"
 
-openssl2 = { path = "../../../openssl-pkcs11-demo/openssl2" }
-openssl-sys2 = { path = "../../../openssl-pkcs11-demo/openssl-sys2" }
-openssl-engine-pkcs11 = { path = "../../../openssl-pkcs11-demo/openssl-engine-pkcs11" }
-pkcs11 = { path = "../../../openssl-pkcs11-demo/pkcs11" }
-pkcs11-sys = { path = "../../../openssl-pkcs11-demo/pkcs11-sys" }
+openssl2 = { path = "../../openssl2" }
+openssl-sys2 = { path = "../../openssl-sys2" }
+pkcs11 = { path = "../../pkcs11/pkcs11" }
+pkcs11-openssl-engine = { path = "../../pkcs11/pkcs11-openssl-engine" }
+pkcs11-sys = { path = "../../pkcs11/pkcs11-sys" }

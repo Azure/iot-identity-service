@@ -1,0 +1,28 @@
+[package]
+name = "pkcs11"
+version = "0.1.0"
+license = "MIT"
+authors = ["Arnav Singh <arsing@microsoft.com>"]
+edition = "2018"
+
+
+[dependencies]
+foreign-types-shared = "0.1"
+lazy_static = "1"
+libc = "0.2"
+openssl = "0.10"
+openssl-sys = "0.9"
+percent-encoding = "2"
+serde = { version = "1", optional = true }
+
+openssl2 = { path = "../../openssl2/" }
+openssl-sys2 = { path = "../../openssl-sys2/" }
+pkcs11-sys = { path = "../pkcs11-sys/" }
+
+
+[build-dependencies]
+openssl-build = { path = "../../openssl-build/" }
+
+
+[dev-dependencies]
+itertools = "0.8"
