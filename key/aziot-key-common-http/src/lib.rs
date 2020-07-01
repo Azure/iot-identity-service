@@ -22,7 +22,7 @@ pub mod create_key_if_not_exists {
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub handle: aziot_key_common::KeyHandle,
 	}
 }
@@ -38,7 +38,7 @@ pub mod create_key_pair_if_not_exists {
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub handle: aziot_key_common::KeyHandle,
 	}
 }
@@ -46,7 +46,7 @@ pub mod create_key_pair_if_not_exists {
 pub mod decrypt {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub key_handle: aziot_key_common::KeyHandle,
 
 		#[serde(flatten)]
@@ -74,7 +74,7 @@ pub mod decrypt {
 pub mod encrypt {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub key_handle: aziot_key_common::KeyHandle,
 
 		#[serde(flatten)]
@@ -102,7 +102,7 @@ pub mod encrypt {
 pub mod get_key_pair_public_parameter {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub key_handle: aziot_key_common::KeyHandle,
 	}
 
@@ -115,7 +115,7 @@ pub mod get_key_pair_public_parameter {
 pub mod load_key_pair {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub handle: aziot_key_common::KeyHandle,
 	}
 }
@@ -123,7 +123,7 @@ pub mod load_key_pair {
 pub mod sign {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
-		#[serde(rename = "keysServiceHandle")]
+		#[serde(rename = "keyHandle")]
 		pub key_handle: aziot_key_common::KeyHandle,
 
 		#[serde(flatten)]
