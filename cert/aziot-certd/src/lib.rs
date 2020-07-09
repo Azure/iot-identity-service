@@ -8,6 +8,7 @@ pub use error::{Error, InternalError};
 
 pub struct Server {
 	homedir_path: std::path::PathBuf,
+	preloaded_certs: std::collections::BTreeMap<String, std::path::PathBuf>,
 	key_engine: std::sync::Arc<std::sync::Mutex<openssl2::FunctionalEngine>>,
 }
 
@@ -21,12 +22,17 @@ impl Server {
 
 		Ok(Server {
 			homedir_path,
+			preloaded_certs: Default::default(),
 			key_engine,
 		})
 	}
 }
 
 impl Server {
+	pub fn preload_cert(&mut self, id: String, path: std::path::PathBuf) {
+		self.preloaded_certs.insert(id, path);
+	}
+
 	pub fn create_cert(
 		&self,
 		id: &str,
@@ -80,7 +86,7 @@ impl Server {
 					x509
 				}
 				else {
-					let issuer_path = get_path(&self.homedir_path, issuer_id)?;
+					let issuer_path = get_path(&self.homedir_path, &self.preloaded_certs, issuer_id)?;
 					let issuer_x509_pem =
 						load_inner(&issuer_path)
 						.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
@@ -101,7 +107,7 @@ impl Server {
 					x509
 				};
 
-			let path = get_path(&self.homedir_path, id)?;
+			let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 			std::fs::write(path, &x509).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 			Ok(x509)
@@ -117,7 +123,7 @@ impl Server {
 		id: &str,
 		pem: &[u8],
 	) -> Result<(), Error> {
-		let path = get_path(&self.homedir_path, id)?;
+		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 		create_inner(&path, pem)?;
 		Ok(())
 	}
@@ -126,7 +132,7 @@ impl Server {
 		&self,
 		id: &str,
 	) -> Result<Vec<u8>, Error> {
-		let path = get_path(&self.homedir_path, id)?;
+		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 		let bytes = load_inner(&path)?.ok_or_else(|| Error::invalid_parameter("id", "not found"))?;
 		Ok(bytes)
 	}
@@ -135,7 +141,7 @@ impl Server {
 		&self,
 		id: &str,
 	) -> Result<(), Error> {
-		let path = get_path(&self.homedir_path, id)?;
+		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 		match std::fs::remove_file(path) {
 			Ok(()) => Ok(()),
 			Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -144,7 +150,15 @@ impl Server {
 	}
 }
 
-fn get_path(homedir_path: &std::path::Path, cert_id: &str) -> Result<std::path::PathBuf, Error> {
+fn get_path(
+	homedir_path: &std::path::Path,
+	preloaded_certs: &std::collections::BTreeMap<String, std::path::PathBuf>,
+	cert_id: &str,
+) -> Result<std::path::PathBuf, Error> {
+	if let Some(path) = preloaded_certs.get(cert_id) {
+		return Ok(path.clone());
+	}
+
 	let mut path = homedir_path.to_owned();
 
 	let filename =

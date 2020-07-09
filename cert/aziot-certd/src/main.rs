@@ -29,16 +29,15 @@ async fn main() -> Result<(), Error> {
 		key_client
 	};
 
-	let server = aziot_certd::Server::new(homedir_path, key_client)?;
+	let mut server = aziot_certd::Server::new(homedir_path, key_client)?;
 
 	for (key, value) in std::env::vars() {
 		if key.starts_with("PRELOADED_CERT:") {
-			let key = &key["PRELOADED_CERT:".len()..];
+			let key = key["PRELOADED_CERT:".len()..].to_owned();
 
 			let value: std::path::PathBuf = value.into();
-			let value = std::fs::read(value).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadFile(err)))?;
 
-			server.import_cert(key, &value)?;
+			server.preload_cert(key, value);
 		}
 	}
 
