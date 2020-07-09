@@ -10,6 +10,15 @@ const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+	let Options {
+		hub_id,
+		device_id,
+		preloaded_device_id_ca_cert,
+		preloaded_device_id_cert,
+		sas_key,
+	} = structopt::StructOpt::from_args();
+
+
 	let mut key_engine = {
 		struct Connector;
 
@@ -212,9 +221,6 @@ async fn main() -> Result<(), Error> {
 	}
 
 
-	let hub_id = std::env::var("HUB_ID").unwrap();
-	let device_id = std::env::var("DEVICE_ID").unwrap();
-
 	let mut request: hyper::Request<hyper::Body> = hyper::Request::new(Default::default());
 	*request.uri_mut() =
 		format!(
@@ -225,7 +231,7 @@ async fn main() -> Result<(), Error> {
 		.parse().unwrap();
 
 	let client =
-		if let Ok(key) = std::env::var("SAS_KEY") {
+		if let Some(key) = sas_key {
 			println!("Using SAS key auth");
 
 
@@ -284,13 +290,44 @@ async fn main() -> Result<(), Error> {
 			client
 		}
 		else {
-			println!("Using X.509 auth");
+			let device_id: std::borrow::Cow<'static, str> =
+				if let Some(preloaded_device_id_cert) = preloaded_device_id_cert {
+					println!("Using X.509 auth with preloaded device ID cert");
+					preloaded_device_id_cert.into()
+				}
+				else if let Some(preloaded_device_id_ca_cert) = preloaded_device_id_ca_cert {
+					println!("Using X.509 auth with new device ID cert");
 
+					let device_id_ca_key_handle = key_client.load_key_pair(&preloaded_device_id_ca_cert).await.unwrap();
+
+					let device_id = "device-id";
+
+					let device_id_key_pair_handle =
+						key_client.create_key_pair_if_not_exists(device_id, Some("ec-p256:rsa-4096:*")).await.unwrap();
+					let (device_id_public_key, device_id_private_key) = {
+						let device_id_key_pair_handle = std::ffi::CString::new(device_id_key_pair_handle.0.clone()).unwrap();
+						let device_id_public_key = key_engine.load_public_key(&device_id_key_pair_handle).unwrap();
+						let device_id_private_key = key_engine.load_private_key(&device_id_key_pair_handle).unwrap();
+						(device_id_public_key, device_id_private_key)
+					};
+
+					let csr =
+						create_csr(device_id, &device_id_public_key, &device_id_private_key)
+						.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
+					let device_id_cert =
+						cert_client.create_cert(device_id, &csr, Some((&preloaded_device_id_ca_cert, &device_id_ca_key_handle))).await.unwrap();
+					let _ = openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap();
+
+					device_id.into()
+				}
+				else {
+					unreachable!("clap should not allow the code to reach here");
+				};
 
 			let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls()).unwrap();
 
 			let device_id_private_key = {
-				let device_id_key_handle = key_client.load_key_pair("device-id").await.unwrap();
+				let device_id_key_handle = key_client.load_key_pair(&device_id).await.unwrap();
 				let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0).unwrap();
 				let device_id_private_key = key_engine.load_private_key(&device_id_key_handle).unwrap();
 				device_id_private_key
@@ -298,7 +335,7 @@ async fn main() -> Result<(), Error> {
 			tls_connector.set_private_key(&device_id_private_key).unwrap();
 
 			let mut device_id_certs = {
-				let device_id_certs = cert_client.get_cert("device-id").await.unwrap();
+				let device_id_certs = cert_client.get_cert(&device_id).await.unwrap();
 				let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs).unwrap().into_iter();
 				device_id_certs
 			};
@@ -326,6 +363,36 @@ async fn main() -> Result<(), Error> {
 
 
 	Ok(())
+}
+
+#[derive(structopt::StructOpt)]
+#[structopt(group = structopt::clap::ArgGroup::with_name("auth_method").required(true))]
+struct Options {
+	/// IoT Hub ID, eg "example.azure-devices.net"
+	#[structopt(long)]
+	hub_id: String,
+
+	/// IoT device ID, eg "example-1"
+	#[structopt(long)]
+	device_id: String,
+
+	/// ID of a device ID CA cert that has been preloaded into the KS and CS.
+	///
+	/// The program will generate a device ID cert signed from this CA cert to authenticate to IoT Hub.
+	#[structopt(long, group = "auth_method")]
+	preloaded_device_id_ca_cert: Option<String>,
+
+	/// ID of a device ID cert that has been preloaded into the KS and CS.
+	///
+	/// The program will use this cert to authenticate to IoT Hub.
+	#[structopt(long, group = "auth_method")]
+	preloaded_device_id_cert: Option<String>,
+
+	/// A SAS key, in base64 encoding.
+	///
+	/// The program will import this key into the KS and use it to authenticate to IoT Hub.
+	#[structopt(long, group = "auth_method")]
+	sas_key: Option<String>,
 }
 
 fn cert_public_key_matches_private_key(

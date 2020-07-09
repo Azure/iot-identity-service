@@ -71,15 +71,29 @@ Prototype of libiothsm v2
     #
     # export PKCS11_LIB_PATH=/usr/lib64/pkcs11/libsofthsm2.so
     # export PKCS11_BASE_SLOT='pkcs11:token=Key pairs?pin-value=1234'
-
-    # If device identity is set to `x509_ca` or `x509_thumbprint`, and thus the IoT Hub connection would use a device ID client cert,
-    # set the env var to preload the key in aziot-keyd
-    #
-    # env 'PRELOADED_KEY:device-id=file:///path/to/key.pem' cargo run -p aziot-keyd
-    #
-    # Otherwise, run it without that env var
-    cargo run -p aziot-keyd # The server will remain running.
     ```
+
+    - If device identity is set to `shared_private_key`, run the service normally:
+
+        ```sh
+        cargo run -p aziot-keyd
+        ```
+
+    - If device identity is set to `x509_ca` or `x509_thumbprint` auth method, the IoT Hub connection would use a device ID client cert.
+
+        Either create a device ID cert and preload it into `aziot-keyd`:
+
+        ```sh
+        env 'PRELOADED_KEY:device-id=file:///path/to/key.pem' cargo run -p aziot-keyd
+        ```
+
+        ... or create a device ID CA cert and preload it into `aziot-keyd`:
+
+        ```sh
+        env 'PRELOADED_KEY:device-id-ca=file:///path/to/key.pem' cargo run -p aziot-keyd
+        ```
+
+    The server will remain running.
 
 1. Start `aziot-certd` in another shell
 
@@ -87,39 +101,66 @@ Prototype of libiothsm v2
     # HOMEDIR_PATH is a directory where cert files will be stored.
     export HOMEDIR_PATH=~/iotedge/hsm/certs
     mkdir -p "$HOMEDIR_PATH"
-
-    # If device identity is set to `x509_ca` or `x509_thumbprint`, and thus the IoT Hub connection would use a device ID client cert,
-    # set the env var to preload the cert in aziot-certd
-    #
-    # env 'PRELOADED_CERT:device-id=/path/to/cert.pem' cargo run -p aziot-certd
-    #
-    # Otherwise, run it without that env var
-    cargo run -p aziot-certd # The server will remain running.
     ```
+
+    - If device identity is set to `shared_private_key`, run the service normally:
+
+        ```sh
+        cargo run -p aziot-certd
+        ```
+
+    - If device identity is set to `x509_ca` or `x509_thumbprint` auth method, the IoT Hub connection would use a device ID client cert.
+
+        Either create a device ID cert and preload it into `aziot-certd`:
+
+        ```sh
+        env 'PRELOADED_CERT:device-id=/path/to/cert.pem' cargo run -p aziot-certd
+        ```
+
+        ... or create a device ID CA cert and preload it into `aziot-certd`:
+
+        ```sh
+        env 'PRELOADED_CERT:device-id-ca=/path/to/cert.pem' cargo run -p aziot-certd
+        ```
+
+    The server will remain running.
 
 1. Run `iotedged` in a third shell
 
-    ```sh
-    # HUB_ID, DEVICE_ID and SAS_KEY are the IoT Hub name, device name and SAS key of an existing Azure IoT device.
-    export HUB_ID='example.azure-devices.net'
-    export DEVICE_ID='example-1'
+    - If device identity is set to `shared_private_key`, run the program with the SAS key:
 
-    # If device identity is set to `shared_private_key`, set an env var for the SAS key.
-    # Otherwise, leave it unset and iotedged will use the key and cert named "device-id" that you preloaded into aziot-keyd and aziot-certd respectively.
-    export SAS_KEY='QXp1cmUgSW9UIEVkZ2U='
+        ```sh
+        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --sas-key 'QXp1cmUgSW9UIEVkZ2U='
+        ```
 
-    cargo run -p iotedged
-    ```
+    - If device identity is set to `x509_ca` or `x509_thumbprint` auth method, the IoT Hub connection would use a device ID client cert.
+
+        Either run the program with the device ID cert:
+
+        ```sh
+        # The value of `--preloaded-device-id-cert` matches the name of the `PRELOADED_KEY:` and `PRELOADED_CERT:` env vars set above.
+        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --preloaded-device-id-cert 'device-id'
+        ```
+
+        ... or create a device ID CA cert and preload it into `aziot-certd`:
+
+        ```sh
+        # The value of `--preloaded-device-id-ca-cert` matches the name of the `PRELOADED_KEY:` and `PRELOADED_CERT:` env vars set above.
+        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --preloaded-device-id-ca-cert 'device-id-ca'
+        ```
 
 `iotedged` should connect to `aziot-keyd` and `aziot-certd`:
 
 - Create a self-signed device CA cert.
 - Create a workload CA cert signed by the device CA cert.
-- If `SAS_KEY` is set:
+- When `--sas-key` is provided:
     - Import the IoT Hub SAS key into `aziot-keyd`
     - Connect to the IoT Hub and perform a list modules HTTP request. The SAS token for this request is signed using the SAS key imported into `aziot-keyd`
-- If `SAS_KEY` is not set:
-    - Connect to the IoT Hub and perform a list modules HTTP request. The "device-id" key and cert preloaded into `aziot-keyd` and `aziot-certd` respectively are used for the TLS client certificate.
+- When `--preloaded-device-id-cert` is provided:
+    - Connect to the IoT Hub and perform a list modules HTTP request. The key and cert preloaded into `aziot-keyd` and `aziot-certd` respectively are used for the TLS client certificate.
+- When `--preloaded-device-id-ca-cert` is provided:
+    - Create a new device ID certificate using `aziot-certd` that is signed by the device ID CA cert whose ID is specified by the parameter. The CA cert's key and cert are obtained from `aziot-keyd` and `aziot-certd` respectively.
+    - Connect to the IoT Hub and perform a list modules HTTP request. The device ID cert created in the previous step is used for the TLS client certificate.
 
 
 # Miscellaneous
