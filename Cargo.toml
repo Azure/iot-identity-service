@@ -5,7 +5,11 @@ members = [
 	"cert/aziot-cert-common-http",
 	"cert/aziot-certd",
 
+	"common/aziot-common",
+
 	"http-common",
+
+	"identity/aziot-identityd",
 
 	"iotedged",
 

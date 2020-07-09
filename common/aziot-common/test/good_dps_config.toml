@@ -1,0 +1,29 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[connect]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+[listen]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+###############################################################################
+# Common configuration
+###############################################################################
+[cert_issuance]
+device-id = "dps"
+module-id = "dps"
+module-server = "dps"
+
+[provisioning]
+source = "dps"
+"global_endpoint" = "http://globaldevices.net"
+"scope_id" = "scope"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "regid"
+symmetric_key = "dps"

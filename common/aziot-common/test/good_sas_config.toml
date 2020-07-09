@@ -1,0 +1,29 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[connect]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+[listen]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+###############################################################################
+# Common configuration
+###############################################################################
+[cert_issuance]
+device-id = "dps"
+module-id = "dps"
+module-server = "dps"
+
+[provisioning]
+source = "manual"
+
+[provisioning.authentication]
+method = "sas"
+iothub_hostname = "hubname"
+device_id = "deviceid"
+device_id_pk = "sas"
+dynamic_reprovisioning = false

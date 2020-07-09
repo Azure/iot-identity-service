@@ -1,0 +1,89 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[connect]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+[listen]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+# Identity service configuration used to associate provisioned device and module identities to host-level processes.
+# This configuration will also be used to generate new module identities, if not created in Azure IoT Hub already.
+# [[principal]]
+# name = "hostdaemon1"
+# uid = 1001
+
+# [[principal]]
+# name = "hostprocess1"
+# idtype = "device"
+# uid = 1002
+
+# [[principal]]
+# name = "hostprocess2"
+# idtype = "module"
+# uid = 1003
+
+###############################################################################
+# Common configuration
+###############################################################################
+[cert_issuance]
+device-id = "dps"
+module-id = "dps"
+module-server = "dps"
+
+[provisioning]
+source = "manual"
+
+[provisioning.authentication]
+method = "sas"
+iothub_hostname = "hubname"
+device_id = "deviceid"
+device_id_pk = "sas"
+dynamic_reprovisioning = false
+
+# [provisioning]
+# "source" = "dps"
+# "global_endpoint" = "http://globaldevices.net"
+# "scope_id" = "<ADD DPS SCOPE ID HERE>"
+
+# [provisioning.attestation]
+# "method" = "symmetric_key"
+# "registration_id" = "<ADD REGISTRATION ID HERE>"
+# "symmetric_key" = "dps" #Pre-loaded Key service handle
+#
+# [provisioning.attestation]
+# "method" = "x509"
+# "identity_cert" = "device-id"
+# "identity_pk" = "device-id"
+
+
+# EST provisioning case
+# [provisioning]
+# "source" = "dps"
+# "scope_id" = "<ADD dps SCOPE ID HERE>"
+
+# [provisioning.attestation]
+# "method" = "x509"
+# "identity_cert" = "est"
+# "identity_pk" = "est"
+
+# [cert_issuance]
+# device-ca = "est" # Only needed if one of the others has the value "device-ca"
+# device-id = "est" # or "device-ca" for minting locally
+# module-id = "est" # or "device-ca" for minting locally
+# module-server = "est" # or "device-ca" for minting locally
+
+# [est.url]
+# # Default EST endpoint URL
+# default = "https://estendpoint.com/.well-known/est/simpleenroll"
+
+# # EST endpoint URL specifically for the device-id cert
+# "device-id" = "https://estendpoint.com/.well-known/est/device-id/simpleenroll"
+
+# # EST endpoint URL specifically for the device-ca cert
+# "device-ca" = "https://estendpoint.com/.well-known/est/device-ca/simpleenroll"
+
+
