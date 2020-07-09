@@ -162,16 +162,16 @@ pub(crate) unsafe extern "C" fn sign(
 
 		let mut signature_len_out = std::ptr::NonNull::new(signature_len).ok_or_else(|| err_invalid_parameter("signature_len", "expected non-NULL"))?;
 
-		let location = Location::of(id)?;
+		let locations = Location::of(id)?;
 
 		let (expected_signature_len, expected_signature) = match mechanism {
 			crate::KEYGEN_SIGN_MECHANISM_ECDSA |
 			crate::KEYGEN_SIGN_MECHANISM_RSA_PKCS1 |
 			crate::KEYGEN_SIGN_MECHANISM_RSA_PSS =>
-				crate::key_pair::sign(&location, mechanism, parameters, digest)?,
+				crate::key_pair::sign(&locations, mechanism, parameters, digest)?,
 
 			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
-				crate::key::sign(&location, digest)?,
+				crate::key::sign(&locations, digest)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};
@@ -235,7 +235,7 @@ pub(crate) unsafe extern "C" fn verify(
 
 		let mut ok_out = std::ptr::NonNull::new(ok).ok_or_else(|| err_invalid_parameter("ok", "expected non-NULL"))?;
 
-		let location = Location::of(id)?;
+		let locations = Location::of(id)?;
 
 		let ok = match mechanism {
 			// Verify is not supported for asymmetric keys.
@@ -246,7 +246,7 @@ pub(crate) unsafe extern "C" fn verify(
 				return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 
 			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
-				crate::key::verify(&location, digest, signature)?,
+				crate::key::verify(&locations, digest, signature)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};
@@ -286,11 +286,11 @@ pub(crate) unsafe extern "C" fn encrypt(
 
 		let mut ciphertext_len_out = std::ptr::NonNull::new(ciphertext_len).ok_or_else(|| err_invalid_parameter("ciphertext_len", "expected non-NULL"))?;
 
-		let location = Location::of(id)?;
+		let locations = Location::of(id)?;
 
 		let (expected_ciphertext_len, expected_ciphertext) = match mechanism {
 			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD =>
-				crate::key::encrypt(&location, mechanism, parameters, plaintext)?,
+				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};
@@ -345,11 +345,11 @@ pub(crate) unsafe extern "C" fn decrypt(
 
 		let mut plaintext_len_out = std::ptr::NonNull::new(plaintext_len).ok_or_else(|| err_invalid_parameter("plaintext_len", "expected non-NULL"))?;
 
-		let location = Location::of(id)?;
+		let locations = Location::of(id)?;
 
 		let (expected_plaintext_len, expected_plaintext) = match mechanism {
 			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD =>
-				crate::key::decrypt(&location, mechanism, parameters, ciphertext)?,
+				crate::key::decrypt(&locations, mechanism, parameters, ciphertext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};
@@ -382,7 +382,7 @@ pub(crate) enum Location {
 }
 
 impl Location {
-	pub(crate) fn of(id: &str) -> Result<Self, crate::KEYGEN_ERROR> {
+	pub(crate) fn of(id: &str) -> Result<Vec<Self>, crate::KEYGEN_ERROR> {
 		let homedir_path_guard = HOMEDIR_PATH.read().map_err(err_fatal)?;
 		let homedir_path = homedir_path_guard.as_ref();
 
@@ -395,38 +395,46 @@ impl Location {
 		let preloaded_keys_guard = PRELOADED_KEYS.read().map_err(err_fatal)?;
 		let preloaded_keys = &*preloaded_keys_guard;
 
-		match (preloaded_keys.get(id), pkcs11_lib_path, pkcs11_base_slot, homedir_path) {
-			(Some(PreloadedKeyLocation::Filesystem { path }), _, _, _) =>
-				Ok(Location::Filesystem(path.clone())),
+		let mut locations = vec![];
 
-			(Some(PreloadedKeyLocation::Pkcs11 { uri }), Some(pkcs11_lib_path), _, _) =>
-				Ok(Location::Pkcs11 { lib_path: pkcs11_lib_path.clone(), uri: uri.clone() }),
+		match (preloaded_keys.get(id), pkcs11_lib_path) {
+			(Some(PreloadedKeyLocation::Filesystem { path }), _) =>
+				locations.push(Location::Filesystem(path.clone())),
 
-			// preloaded key uses PKCS#11 but PKCS#11 parameters not configured
-			(Some(PreloadedKeyLocation::Pkcs11 { .. }), None, _, _) =>
-				Err(err_invalid_parameter("id", "pre-loaded key requires PKCS#11 parameters to be set")),
+			(Some(PreloadedKeyLocation::Pkcs11 { uri }), Some(pkcs11_lib_path)) =>
+				locations.push(Location::Pkcs11 { lib_path: pkcs11_lib_path.clone(), uri: uri.clone() }),
 
-			// Prefer to use PKCS#11 over filesystem if configured so
-			(None, Some(pkcs11_lib_path), Some(pkcs11_base_slot), _) => {
+			(Some(PreloadedKeyLocation::Pkcs11 { .. }), None) =>
+				return Err(err_invalid_parameter("id", "pre-loaded key requires PKCS#11 lib path to be configured")),
+
+			_ => (),
+		}
+
+		if locations.is_empty() {
+			// Prefer to use PKCS#11 before filesystem if configured so
+			if let (Some(pkcs11_lib_path), Some(pkcs11_base_slot)) = (pkcs11_lib_path, pkcs11_base_slot) {
 				let mut uri = pkcs11_base_slot.clone();
 				uri.object_label = Some(id.to_owned());
-				Ok(Location::Pkcs11 { lib_path: pkcs11_lib_path.clone(), uri })
-			},
+				locations.push(Location::Pkcs11 { lib_path: pkcs11_lib_path.clone(), uri });
+			}
 
-			(None, _, _, Some(homedir_path)) => {
+			if let Some(homedir_path) = homedir_path {
 				let mut path = homedir_path.clone();
 
 				let filename = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), id.as_bytes())?;
 				let filename = hex::encode(filename);
 				path.push(format!("{}.key", filename));
 
-				Ok(Location::Filesystem(path))
-			},
-
-			// No way to create keys
-			(None, _, _, None) =>
-				Err(err_invalid_parameter("id", "no way to create keys")),
+				locations.push(Location::Filesystem(path));
+			}
 		}
+
+		if locations.is_empty() {
+			// No way to create keys
+			return Err(err_invalid_parameter("id", "no way to create keys"));
+		}
+
+		Ok(locations)
 	}
 }
 

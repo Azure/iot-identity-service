@@ -12,16 +12,14 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 			id
 		};
 
-		let location = crate::implementation::Location::of(id)?;
+		let locations = crate::implementation::Location::of(id)?;
 
-		if load_inner(&location)?.is_none() {
+		if load_inner(&locations)?.is_none() {
 			let mut bytes = vec![0_u8; length];
 			openssl::rand::rand_bytes(&mut bytes)?;
 
-			let location = crate::implementation::Location::of(id)?;
-
-			create_inner(&location, &bytes)?;
-			if load_inner(&location)?.is_none() {
+			create_inner(&locations, &bytes)?;
+			if load_inner(&locations)?.is_none() {
 				return Err(crate::implementation::err_external("key created successfully but could not be found"));
 			}
 		}
@@ -51,10 +49,10 @@ pub(crate) unsafe extern "C" fn import_key(
 
 		let bytes = std::slice::from_raw_parts(bytes, bytes_length);
 
-		let location = crate::implementation::Location::of(id)?;
+		let locations = crate::implementation::Location::of(id)?;
 
-		create_inner(&location, bytes)?;
-		if load_inner(&location)?.is_none() {
+		create_inner(&locations, bytes)?;
+		if load_inner(&locations)?.is_none() {
 			return Err(crate::implementation::err_external("key created successfully but could not be found"));
 		}
 
@@ -63,12 +61,12 @@ pub(crate) unsafe extern "C" fn import_key(
 }
 
 pub(crate) unsafe fn sign(
-	location: &crate::implementation::Location,
+	locations: &[crate::implementation::Location],
 	digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
 	use hmac::{Mac, NewMac};
 
-	let key = match load_inner(location)? {
+	let key = match load_inner(locations)? {
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
@@ -83,13 +81,13 @@ pub(crate) unsafe fn sign(
 }
 
 pub(crate) unsafe fn verify(
-	location: &crate::implementation::Location,
+	locations: &[crate::implementation::Location],
 	digest: &[u8],
 	signature: &[u8],
 ) -> Result<bool, crate::KEYGEN_ERROR> {
 	use hmac::{Mac, NewMac};
 
-	let key = match load_inner(location)? {
+	let key = match load_inner(locations)? {
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
@@ -111,12 +109,12 @@ pub(crate) unsafe fn verify(
 // - Actual ciphertext
 
 pub(crate) unsafe fn encrypt(
-	location: &crate::implementation::Location,
+	locations: &[crate::implementation::Location],
 	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
-	let key = match load_inner(location)? {
+	let key = match load_inner(locations)? {
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
@@ -150,12 +148,12 @@ pub(crate) unsafe fn encrypt(
 }
 
 pub(crate) unsafe fn decrypt(
-	location: &crate::implementation::Location,
+	locations: &[crate::implementation::Location],
 	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	ciphertext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
-	let key = match load_inner(location)? {
+	let key = match load_inner(locations)? {
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
@@ -194,27 +192,35 @@ pub(crate) unsafe fn decrypt(
 	Ok((plaintext.len(), plaintext))
 }
 
-fn load_inner(location: &crate::implementation::Location) -> Result<Option<Vec<u8>>, crate::KEYGEN_ERROR> {
-	match location {
-		crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
-			Ok(key_bytes) => Ok(Some(key_bytes)),
-			Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
-			Err(err) => Err(crate::implementation::err_external(err)),
-		},
+fn load_inner(locations: &[crate::implementation::Location]) -> Result<Option<Vec<u8>>, crate::KEYGEN_ERROR> {
+	for location in locations {
+		match location {
+			crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
+				Ok(key_bytes) => return Ok(Some(key_bytes)),
+				Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+				Err(err) => return Err(crate::implementation::err_external(err)),
+			},
 
-		crate::implementation::Location::Pkcs11 { .. } =>
-			Err(crate::implementation::err_external("PKCS#11 symmetric keys are not supported")),
+			// PKCS#11 symmetric keys are not supported
+			crate::implementation::Location::Pkcs11 { .. } => (),
+		}
 	}
+
+	Err(crate::implementation::err_external("no valid location for symmetric key"))
 }
 
-fn create_inner(location: &crate::implementation::Location, bytes: &[u8]) -> Result<(), crate::KEYGEN_ERROR> {
-	match location {
-		crate::implementation::Location::Filesystem(path) => {
-			std::fs::write(path, bytes).map_err(crate::implementation::err_external)?;
-			Ok(())
-		},
+fn create_inner(locations: &[crate::implementation::Location], bytes: &[u8]) -> Result<(), crate::KEYGEN_ERROR> {
+	for location in locations {
+		match location {
+			crate::implementation::Location::Filesystem(path) => {
+				std::fs::write(path, bytes).map_err(crate::implementation::err_external)?;
+				return Ok(());
+			},
 
-		crate::implementation::Location::Pkcs11 { .. } =>
-			Err(crate::implementation::err_external("PKCS#11 symmetric keys are not supported")),
+			// PKCS#11 symmetric keys are not supported
+			crate::implementation::Location::Pkcs11 { .. } => (),
+		}
 	}
+
+	Err(crate::implementation::err_external("no valid location for symmetric key"))
 }

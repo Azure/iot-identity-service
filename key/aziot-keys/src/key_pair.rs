@@ -14,11 +14,11 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 
 		let preferred_algorithms = PreferredAlgorithm::from_str(preferred_algorithms).map_err(|err| crate::implementation::err_invalid_parameter("preferred_algorithms", err))?;
 
-		let location = crate::implementation::Location::of(id)?;
+		let locations = crate::implementation::Location::of(id)?;
 
-		if load_inner(&location)?.is_none() {
-			create_inner(&location, &preferred_algorithms)?;
-			if load_inner(&location)?.is_none() {
+		if load_inner(&locations)?.is_none() {
+			create_inner(&locations, &preferred_algorithms)?;
+			if load_inner(&locations)?.is_none() {
 				return Err(crate::implementation::err_external("key created successfully but could not be found"));
 			}
 		}
@@ -40,9 +40,9 @@ pub(crate) unsafe extern "C" fn load_key_pair(
 			id
 		};
 
-		let location = crate::implementation::Location::of(id)?;
+		let locations = crate::implementation::Location::of(id)?;
 
-		if load_inner(&location)?.is_none() {
+		if load_inner(&locations)?.is_none() {
 			return Err(crate::implementation::err_invalid_parameter("id", "not found"));
 		}
 
@@ -68,9 +68,9 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
 		let mut value_len_out = std::ptr::NonNull::new(value_len).ok_or_else(|| crate::implementation::err_invalid_parameter("value_len", "expected non-NULL"))?;
 
-		let location = crate::implementation::Location::of(id)?;
+		let locations = crate::implementation::Location::of(id)?;
 
-		let (public_key, _) = load_inner(&location)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
+		let (public_key, _) = load_inner(&locations)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
 		match r#type {
 			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_ALGORITHM => {
@@ -230,12 +230,12 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 }
 
 pub(crate) unsafe fn sign(
-	location: &crate::implementation::Location,
+	locations: &[crate::implementation::Location],
 	mechanism: crate::KEYGEN_SIGN_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
-	let (_, private_key) = load_inner(location)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
+	let (_, private_key) = load_inner(locations)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
 	let (signature_len, signature) = match (mechanism, private_key.ec_key(), private_key.rsa()) {
 		(crate::KEYGEN_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
@@ -337,12 +337,13 @@ pub(crate) unsafe fn sign(
 	Ok((signature_len, signature))
 }
 
-fn load_inner(location: &crate::implementation::Location) ->
+fn load_inner(locations: &[crate::implementation::Location]) ->
 	Result<
 		Option<(openssl::pkey::PKey<openssl::pkey::Public>, openssl::pkey::PKey<openssl::pkey::Private>)>,
 		crate::KEYGEN_ERROR,
 	>
 {
+	let location = locations.first().ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
 	match location {
 		crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
 			Ok(private_key_pem) => {
@@ -389,7 +390,8 @@ fn load_inner(location: &crate::implementation::Location) ->
 	}
 }
 
-fn create_inner(location: &crate::implementation::Location, preferred_algorithms: &[PreferredAlgorithm]) -> Result<(), crate::KEYGEN_ERROR> {
+fn create_inner(locations: &[crate::implementation::Location], preferred_algorithms: &[PreferredAlgorithm]) -> Result<(), crate::KEYGEN_ERROR> {
+	let location = locations.first().ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
 	match location {
 		crate::implementation::Location::Filesystem(path) => {
 			let preferred_algorithm = preferred_algorithms.iter().copied().next().ok_or_else(|| crate::implementation::err_invalid_parameter("preferred_algorithms", "none specified"))?;
