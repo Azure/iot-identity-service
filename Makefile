@@ -33,8 +33,10 @@ else
 endif
 
 ifeq ($(RELEASE), 0)
+	CARGO_PROFILE =
 	DIRECTORY = debug
 else
+	CARGO_PROFILE = --release
 	DIRECTORY = release
 endif
 
@@ -180,7 +182,7 @@ aziot-keys: target/$(DIRECTORY)/libaziot_keys.so
 
 target/$(DIRECTORY)/libaziot_keys.so: Cargo.lock
 target/$(DIRECTORY)/libaziot_keys.so: key/aziot-keys/Cargo.toml key/aziot-keys/src/*.rs
-	$(CARGO) build -p aziot-keys $(CARGO_VERBOSE)
+	$(CARGO) build -p aziot-keys $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 key/aziot-keys/aziot-keys.h: target/$(DIRECTORY)/libaziot_keys.so key/aziot-keys/cbindgen.toml key/aziot-keys/cbindgen.prelude.h
 	cd key/aziot-keys/ && $(CBINDGEN) --config cbindgen.toml --output aziot-keys.h.tmp $(CBINDGEN_VERBOSE)
@@ -192,7 +194,7 @@ key/aziot-keys/aziot-keys.h: target/$(DIRECTORY)/libaziot_keys.so key/aziot-keys
 aziot-certd: target/$(DIRECTORY)/aziot-certd
 
 target/$(DIRECTORY)/aziot-certd: Cargo.lock $(DEP_AZIOT_CERTD)
-	$(CARGO) build -p aziot-certd $(CARGO_VERBOSE)
+	$(CARGO) build -p aziot-certd $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
 key/aziot-keyd/src/keys.generated.rs: $(DEP_AZIOT_KEYS)
@@ -211,26 +213,26 @@ key/aziot-keyd/src/keys.generated.rs: $(DEP_AZIOT_KEYS)
 aziot-keyd: target/$(DIRECTORY)/aziot-keyd
 
 target/$(DIRECTORY)/aziot-keyd: Cargo.lock $(DEP_AZIOT_KEYD)
-	$(CARGO) build -p aziot-keyd $(CARGO_VERBOSE)
+	$(CARGO) build -p aziot-keyd $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
 iotedged: target/$(DIRECTORY)/iotedged
 
 target/$(DIRECTORY)/iotedged: Cargo.lock $(DEP_IOTEDGED)
-	$(CARGO) build -p iotedged $(CARGO_VERBOSE)
+	$(CARGO) build -p iotedged $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
 pkcs11-test: target/$(DIRECTORY)/pkcs11-test
 
 target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
-	$(CARGO) build -p pkcs11-test $(CARGO_VERBOSE)
+	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
 test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
-	$(CARGO) test --all $(CARGO_VERBOSE)
-	$(CARGO) clippy --all $(CARGO_VERBOSE)
-	$(CARGO) clippy --all --tests $(CARGO_VERBOSE)
-	$(CARGO) clippy --all --examples $(CARGO_VERBOSE)
+	$(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
+	$(CARGO) clippy --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
+	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
+	$(CARGO) clippy --all --examples $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
 Cargo.lock:
