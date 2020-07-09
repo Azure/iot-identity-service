@@ -191,7 +191,7 @@ key/aziot-keys/aziot-keys.h: target/$(DIRECTORY)/libaziot_keys.so key/aziot-keys
 
 aziot-certd: target/$(DIRECTORY)/aziot-certd
 
-target/$(DIRECTORY)/aziot-certd: Cargo.lock $(DEP_CSD)
+target/$(DIRECTORY)/aziot-certd: Cargo.lock $(DEP_AZIOT_CERTD)
 	$(CARGO) build -p aziot-certd $(CARGO_VERBOSE)
 
 
