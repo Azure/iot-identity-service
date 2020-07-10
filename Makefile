@@ -234,6 +234,12 @@ test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/libaziot_keys.so targe
 	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
-
-Cargo.lock:
-	$(CARGO) update
+	find -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
+		grep -v '^\./target/' | \
+		grep -v '\.generated\.rs$$' | \
+		while read -r f; do \
+			if [ "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]; then \
+				echo "missing newline from end of $$f" >&2; \
+				exit 1; \
+			fi; \
+		done

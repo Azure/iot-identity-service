@@ -3,7 +3,6 @@
 use std::env;
 use std::io::Write;
 
-use env_logger;
 use log::{Level, LevelFilter};
 
 const ENV_LOG: &str = "IOTEDGE_LOG";

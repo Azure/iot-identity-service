@@ -91,8 +91,8 @@ pub struct Settings {
 
 impl Settings {
     pub fn new(filename: &std::path::Path) -> Result<Self, Error> {
-        let settings = std::fs::read_to_string(filename).map_err(|err| Error::LoadSettings(err))?;
-        let settings = toml::from_str(&settings).map_err(|err| Error::ParseSettings(err))?;
+        let settings = std::fs::read_to_string(filename).map_err(Error::LoadSettings)?;
+        let settings = toml::from_str(&settings).map_err(Error::ParseSettings)?;
 
         Ok(settings)
     }
@@ -119,8 +119,8 @@ mod tests {
         assert_eq!(s.provisioning.dynamic_reprovisioning, false);
 
         match s.provisioning.provisioning {
-            ProvisioningType::Manual { authentication: _ } => assert!(true),
-            _ => assert!(false, "incorrect provisioning type selected"),
+            ProvisioningType::Manual { authentication: _ } => (),
+            _ => panic!("incorrect provisioning type selected"),
         };
     }
 
@@ -143,8 +143,8 @@ mod tests {
                 global_endpoint: _,
                 scope_id: _,
                 attestation: _,
-            } => assert!(true),
-            _ => assert!(false, "incorrect provisioning type selected"),
+            } => (),
+            _ => panic!("incorrect provisioning type selected"),
         };
     }
 

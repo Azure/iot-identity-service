@@ -2,7 +2,6 @@
 #![allow(
 	clippy::let_and_return,
 	clippy::type_complexity,
-	clippy::unnested_or_patterns, // TODO: Remove when https://github.com/rust-lang/rust-clippy/issues/5704 is fixed
 )]
 
 mod http;

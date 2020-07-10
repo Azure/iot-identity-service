@@ -22,8 +22,8 @@ pub struct Settings {
 
 impl Settings {
     pub fn new(filename: &Path) -> Result<Self, Error> {
-        let settings = std::fs::read_to_string(filename).map_err(|err| Error::LoadSettings(err))?;
-        let settings = toml::from_str(&settings).map_err(|err| Error::ParseSettings(err))?;
+        let settings = std::fs::read_to_string(filename).map_err(Error::LoadSettings)?;
+        let settings = toml::from_str(&settings).map_err(Error::ParseSettings)?;
 
         Ok(settings)
     }

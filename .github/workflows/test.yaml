@@ -1,0 +1,52 @@
+name: 'test'
+
+on:
+- 'push'
+
+jobs:
+  test:
+    runs-on: 'ubuntu-18.04'
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container_os:
+        - 'centos:7'
+        - 'debian:9-slim'
+        - 'debian:10-slim'
+        openssl_version:
+        - '1.0'
+        - '1.1.0'
+        - '1.1.1'
+        exclude:
+        - container_os: 'centos:7'
+          openssl_version: '1.1.0'
+        - container_os: 'centos:7'
+          openssl_version: '1.1.1'
+        - container_os: 'debian:9-slim'
+          openssl_version: '1.1.1'
+        - container_os: 'debian:10-slim'
+          openssl_version: '1.0'
+        - container_os: 'debian:10-slim'
+          openssl_version: '1.1.0'
+
+        # TODO: Delete these to re-enable openssl 1.0 jobs
+        - container_os: 'centos:7'
+          openssl_version: '1.0'
+        - container_os: 'debian:9-slim'
+          openssl_version: '1.0'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+    - name: 'Run'
+      run: |
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE:/src" \
+          -e "CONTAINER_OS=$CONTAINER_OS" \
+          -e "OPENSSL_VERSION=$OPENSSL_VERSION" \
+          "${{ matrix.container_os }}" \
+          '/src/ci/test.sh'
+      env:
+        CONTAINER_OS: "${{ matrix.container_os }}"
+        OPENSSL_VERSION: "${{ matrix.openssl_version }}"

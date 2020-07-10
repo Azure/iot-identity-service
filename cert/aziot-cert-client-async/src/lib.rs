@@ -1,7 +1,6 @@
 #![deny(rust_2018_idioms, warnings)]
 #![allow(
 	clippy::let_and_return,
-	clippy::unnested_or_patterns, // TODO: Remove when https://github.com/rust-lang/rust-clippy/issues/5704 is fixed
 )]
 
 pub struct Client<C> {

@@ -1,3 +1,7 @@
+#![allow(
+	clippy::used_underscore_binding, // TODO: Remove when https://github.com/rust-lang/rust-clippy/pull/5535 makes it to stable
+)]
+
 pub(crate) async fn connect(
 	stream: std::net::TcpStream,
 	cert_chain_path: &std::path::Path,
