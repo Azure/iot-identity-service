@@ -50,19 +50,9 @@ pub mod decrypt {
 		pub key_handle: aziot_key_common::KeyHandle,
 
 		#[serde(flatten)]
-		pub parameters: Parameters,
+		pub parameters: crate::encrypt::Parameters,
 
 		pub ciphertext: http_common::ByteString,
-	}
-
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	#[serde(tag = "algorithm", content = "parameters")]
-	pub enum Parameters {
-		#[serde(rename = "AEAD")]
-		Aead {
-			iv: http_common::ByteString,
-			aad: http_common::ByteString,
-		},
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -91,6 +81,9 @@ pub mod encrypt {
 			iv: http_common::ByteString,
 			aad: http_common::ByteString,
 		},
+
+		#[serde(rename = "RSA-PKCS1")]
+		RsaPkcs1,
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -136,15 +129,6 @@ pub mod sign {
 		#[serde(rename = "ECDSA")]
 		Ecdsa {
 			digest: http_common::ByteString,
-		},
-
-		#[serde(rename = "RSA_PKCS1")]
-		RsaPkcs1 {
-			#[serde(rename = "messageDigestAlgorithm")]
-			message_digest_algorithm: String,
-
-			#[serde(rename = "message")]
-			message: http_common::ByteString,
 		},
 
 		#[serde(rename = "HMAC-SHA256")]

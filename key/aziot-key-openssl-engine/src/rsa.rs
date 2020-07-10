@@ -31,7 +31,8 @@ unsafe extern "C" fn aziot_key_freef_rsa_ex_data(
 	crate::ex_data::free::<openssl_sys::RSA, crate::ex_data::KeyExData>(ptr, idx);
 }
 
-static mut OPENSSL_RSA_SIGN: Option<unsafe extern "C" fn (
+#[cfg(ossl110)]
+static mut OPENSSL_EVP_RSA_SIGN: Option<unsafe extern "C" fn (
 	ctx: *mut openssl_sys::EVP_PKEY_CTX,
 	sig: *mut std::os::raw::c_uchar,
 	siglen: *mut usize,
@@ -39,6 +40,7 @@ static mut OPENSSL_RSA_SIGN: Option<unsafe extern "C" fn (
 	tbslen: usize,
 ) -> std::os::raw::c_int> = None;
 
+#[cfg(ossl110)]
 pub(super) unsafe fn get_evp_rsa_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
 	// The default RSA method works fine but for one problem. When signing with a PSS key,
 	// it does the PSS padding itself and then invokes the key's encrypt function with RSA_NO_PADDING for raw encryption.
@@ -55,31 +57,32 @@ pub(super) unsafe fn get_evp_rsa_method() -> Result<*const openssl_sys2::EVP_PKE
 	openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
 
 	let mut openssl_rsa_sign_init = None;
-	openssl_sys2::EVP_PKEY_meth_get_sign(openssl_method, &mut openssl_rsa_sign_init, &mut OPENSSL_RSA_SIGN);
-	openssl_sys2::EVP_PKEY_meth_set_sign(result, openssl_rsa_sign_init, Some(evp_rsa_sign));
+	openssl_sys2::EVP_PKEY_meth_get_sign(openssl_method, &mut openssl_rsa_sign_init, &mut OPENSSL_EVP_RSA_SIGN);
+	openssl_sys2::EVP_PKEY_meth_set_sign(result, openssl_rsa_sign_init, Some(aziot_key_evp_rsa_sign));
 
 	Ok(result)
 }
 
-unsafe extern "C" fn evp_rsa_sign(
+#[cfg(ossl110)]
+unsafe extern "C" fn aziot_key_evp_rsa_sign(
 	ctx: *mut openssl_sys::EVP_PKEY_CTX,
 	sig: *mut std::os::raw::c_uchar,
 	siglen: *mut usize,
 	tbs: *const std::os::raw::c_uchar,
 	tbslen: usize,
 ) -> std::os::raw::c_int {
-	let result = super::r#catch(Some(|| super::Error::RSA_SIGN), || {
+	let result = super::r#catch(Some(|| super::Error::AZIOT_KEY_RSA_SIGN), || {
 		let private_key = openssl2::openssl_returns_nonnull(openssl_sys2::EVP_PKEY_CTX_get0_pkey(ctx))?;
 		let private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private> = foreign_types_shared::ForeignTypeRef::from_ptr(private_key);
 		let rsa = private_key.rsa()?;
-		let crate::ex_data::KeyExData { client, handle } =
+		let crate::ex_data::KeyExData { .. } =
 			if let Ok(ex_data) = crate::ex_data::get(&*foreign_types_shared::ForeignType::as_ptr(&rsa)) {
 				ex_data
 			}
 			else {
-				let openssl_rsa_sign = OPENSSL_RSA_SIGN.expect("OPENSSL_RSA_SIGN must have been set by get_evp_rsa_method earlier");
+				let openssl_rsa_sign = OPENSSL_EVP_RSA_SIGN.expect("OPENSSL_EVP_RSA_SIGN must have been set by get_evp_rsa_method earlier");
 				match openssl_rsa_sign(ctx, sig, siglen, tbs, tbslen) {
-					result if result <= 0 => return Err(format!("OPENSSL_RSA_SIGN returned {}", result).into()),
+					result if result <= 0 => return Err(format!("OPENSSL_EVP_RSA_SIGN returned {}", result).into()),
 					_ => return Ok(()),
 				}
 			};
@@ -87,77 +90,96 @@ unsafe extern "C" fn evp_rsa_sign(
 		let mut padding = 0;
 		openssl2::openssl_returns_positive(openssl_sys::EVP_PKEY_CTX_get_rsa_padding(ctx, &mut padding))?;
 
-		let mechanism = match padding {
-			openssl_sys::RSA_PKCS1_PADDING => {
-				let mut signature_md = std::ptr::null();
-				openssl2::openssl_returns_positive(openssl_sys2::EVP_PKEY_CTX_get_signature_md_f(ctx, &mut signature_md))?;
-				let message_digest = match openssl_sys::EVP_MD_type(signature_md) {
-					openssl_sys::NID_sha1 => aziot_key_common::RsaPkcs1MessageDigest::Sha1,
-					openssl_sys::NID_sha224 => aziot_key_common::RsaPkcs1MessageDigest::Sha224,
-					openssl_sys::NID_sha256 => aziot_key_common::RsaPkcs1MessageDigest::Sha256,
-					openssl_sys::NID_sha384 => aziot_key_common::RsaPkcs1MessageDigest::Sha384,
-					openssl_sys::NID_sha512 => aziot_key_common::RsaPkcs1MessageDigest::Sha512,
-					nid => return Err(format!("unrecognized signature_md nid 0x{:08x}", nid).into()),
-				};
-				aziot_key_common::SignMechanism::RsaPkcs1 { message_digest }
-			},
+		// Let openssl handle other schemes, and use the key's encrypt function (aziot_key__rsa_method_priv_enc) as necessary.
 
-			// openssl_sys::RSA_PKCS1_PSS_PADDING => {
-			// 	let message_digest = match openssl_sys::EVP_MD_type(signature_md) {
-			// 		openssl_sys::NID_sha1 => aziot_key_common::SignMessageDigest::Sha1,
-			// 		openssl_sys::NID_sha224 => aziot_key_common::SignMessageDigest::Sha224,
-			// 		openssl_sys::NID_sha256 => aziot_key_common::SignMessageDigest::Sha256,
-			// 		openssl_sys::NID_sha384 => aziot_key_common::SignMessageDigest::Sha384,
-			// 		openssl_sys::NID_sha512 => aziot_key_common::SignMessageDigest::Sha512,
-			// 		nid => return Err(format!("unrecognized signature_md nid 0x{:08x}", nid).into()),
-			// 	};
-
-			// 	let mut rsa_mgf1_md = std::ptr::null();
-			// 	openssl2::openssl_returns_positive(openssl_sys2::EVP_PKEY_CTX_get_rsa_mgf1_md_f(ctx, &mut rsa_mgf1_md))?;
-
-			// 	let mut rsa_pss_salt_len = 0;
-			// 	openssl2::openssl_returns_positive(openssl_sys2::EVP_PKEY_CTX_get_rsa_pss_saltlen_f(ctx, &mut rsa_pss_salt_len))?;
-
-			// 	let rsa_pss_salt_len = match rsa_pss_salt_len {
-			// 		rsa_pss_salt_len if rsa_pss_salt_len > 0 => rsa_pss_salt_len,
-			// 		-1 => openssl_sys::EVP_MD_size(signature_md),
-			// 		rsa_pss_salt_len => return Err(format!("invalid rsa_pss_salt_len 0x{:08x}", rsa_pss_salt_len).into()),
-			// 	};
-
-			// 	(aziot_key_common::SignMechanism::RsaPss {
-			// 		mask_generation_function: match openssl_sys::EVP_MD_type(rsa_mgf1_md) {
-			// 			openssl_sys::NID_sha1 => aziot_key_common::RsaPssMaskGenerationFunction::Sha1,
-			// 			openssl_sys::NID_sha224 => aziot_key_common::RsaPssMaskGenerationFunction::Sha224,
-			// 			openssl_sys::NID_sha256 => aziot_key_common::RsaPssMaskGenerationFunction::Sha256,
-			// 			openssl_sys::NID_sha384 => aziot_key_common::RsaPssMaskGenerationFunction::Sha384,
-			// 			openssl_sys::NID_sha512 => aziot_key_common::RsaPssMaskGenerationFunction::Sha512,
-			// 			nid => return Err(format!("unrecognized rsa_mgf1_md nid 0x{:08x}", nid).into()),
-			// 		},
-
-			// 		salt_len: std::convert::TryInto::try_into(rsa_pss_salt_len).expect("c_int -> CK_ULONG"),
-			// 	}, message_digest)
-			// },
-
-			padding => return Err(format!("unexpected padding {}", padding).into()),
-		};
-
-		let digest = std::slice::from_raw_parts(tbs, std::convert::TryInto::try_into(tbslen).expect("c_int -> usize"));
-
-		let signature = client.sign(handle, mechanism, digest)?;
-		let signature_len = signature.len();
-
-		if *siglen < signature_len {
-			return Err(format!("openssl expected signature of length <= {} but ks returned a signature of length {}", *siglen, signature_len).into());
+		let openssl_evp_rsa_sign = OPENSSL_EVP_RSA_SIGN.expect("OPENSSL_EVP_RSA_SIGN was never set");
+		let result = openssl_evp_rsa_sign(ctx, sig, siglen, tbs, tbslen);
+		if result > 0 {
+			Ok(())
 		}
-
-		let signature_out = std::slice::from_raw_parts_mut(sig, *siglen);
-		signature_out[..signature_len].copy_from_slice(&signature);
-		*siglen = signature_len;
-
-		Ok(())
+		else {
+			Err(format!("openssl_evp_rsa_sign failed with {}", result).into())
+		}
 	});
 	match result {
 		Ok(()) => 1,
 		Err(()) => -1,
 	}
+}
+
+pub(super) unsafe fn aziot_key_rsa_method() -> *const openssl_sys::RSA_METHOD {
+	static mut RESULT: *const openssl_sys::RSA_METHOD = std::ptr::null();
+	static RESULT_INIT: std::sync::Once = std::sync::Once::new();
+
+	RESULT_INIT.call_once(|| {
+		let openssl_rsa_method = openssl_sys2::RSA_get_default_method();
+		let aziot_key_rsa_method = openssl_sys2::RSA_meth_dup(openssl_rsa_method);
+
+		openssl_sys2::RSA_meth_set_flags(aziot_key_rsa_method, 0);
+
+		// Don't override openssl's RSA signing function (via RSA_meth_set_sign).
+		// Let it compute the digest, and only override the final step to encrypt that digest.
+		openssl_sys2::RSA_meth_set_priv_enc(aziot_key_rsa_method, aziot_key_rsa_method_priv_enc);
+
+		openssl_sys2::RSA_meth_set_priv_dec(aziot_key_rsa_method, aziot_key_rsa_method_priv_dec);
+
+		RESULT = aziot_key_rsa_method as _;
+	});
+
+	RESULT
+}
+
+unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
+	flen: std::os::raw::c_int,
+	from: *const std::os::raw::c_uchar,
+	to: *mut std::os::raw::c_uchar,
+	rsa: *mut openssl_sys::RSA,
+	padding: std::os::raw::c_int,
+) -> std::os::raw::c_int {
+	let result = super::r#catch(Some(|| super::Error::AZIOT_KEY_RSA_PRIV_ENC), || {
+		let crate::ex_data::KeyExData { client, handle } = crate::ex_data::get(&*rsa)?;
+
+		let mechanism = match padding {
+			openssl_sys::RSA_PKCS1_PADDING => aziot_key_common::EncryptMechanism::RsaPkcs1,
+			padding => return Err(format!("unrecognized RSA padding scheme 0x{:08x}", padding).into()),
+		};
+
+		let digest = std::slice::from_raw_parts(from, std::convert::TryInto::try_into(flen).expect("c_int -> usize"));
+
+		let signature = client.encrypt(handle, mechanism, digest)?;
+		let signature_len = signature.len();
+		{
+			let max_signature_len = {
+				let rsa: &openssl::rsa::RsaRef<openssl::pkey::Private> = foreign_types_shared::ForeignTypeRef::from_ptr(rsa);
+				std::convert::TryInto::try_into(rsa.size()).expect("c_int -> usize")
+			};
+			if signature_len > max_signature_len {
+				return Err(format!("openssl expected signature of length <= {} but ks returned a signature of length {}", max_signature_len, signature_len).into());
+			}
+		}
+
+		// openssl requires that `to` has space for `RSA_size(rsa)` bytes. Trust the caller.
+		let signature_out = std::slice::from_raw_parts_mut(to, std::convert::TryInto::try_into(signature_len).expect("c_int -> usize"));
+		signature_out[..signature_len].copy_from_slice(&signature);
+
+		let signature_len = std::convert::TryInto::try_into(signature_len).expect("usize -> c_int");
+
+		Ok(signature_len)
+	});
+	match result {
+		Ok(signature_len) => signature_len,
+		Err(()) => -1,
+	}
+}
+
+unsafe extern "C" fn aziot_key_rsa_method_priv_dec(
+	_flen: std::os::raw::c_int,
+	_from: *const std::os::raw::c_uchar,
+	_to: *mut std::os::raw::c_uchar,
+	_rsa: *mut openssl_sys::RSA,
+	_padding: std::os::raw::c_int,
+) -> std::os::raw::c_int {
+	// TODO
+
+	-1
 }

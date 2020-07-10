@@ -45,23 +45,6 @@ pub(super) fn handle(
 		let (mechanism, digest) = match body.parameters {
 			aziot_key_common_http::sign::Parameters::Ecdsa { digest } => (aziot_key_common::SignMechanism::Ecdsa, digest),
 
-			aziot_key_common_http::sign::Parameters::RsaPkcs1 { message_digest_algorithm, message } => {
-				let message_digest = match &*message_digest_algorithm {
-					"sha1" => aziot_key_common::RsaPkcs1MessageDigest::Sha1,
-					"sha224" => aziot_key_common::RsaPkcs1MessageDigest::Sha224,
-					"sha256" => aziot_key_common::RsaPkcs1MessageDigest::Sha256,
-					"sha384" => aziot_key_common::RsaPkcs1MessageDigest::Sha384,
-					"sha512" => aziot_key_common::RsaPkcs1MessageDigest::Sha512,
-					message_digest_algorithm => return Ok(super::err_response(
-						hyper::StatusCode::UNPROCESSABLE_ENTITY,
-						None,
-						format!("invalid value of parameters.messageDigestAlgorithm {:?}", message_digest_algorithm).into(),
-					)),
-				};
-
-				(aziot_key_common::SignMechanism::RsaPkcs1 { message_digest }, message)
-			},
-
 			aziot_key_common_http::sign::Parameters::HmacSha256 { message } => (aziot_key_common::SignMechanism::HmacSha256, message),
 		};
 

@@ -18,39 +18,9 @@ pub enum SignMechanism {
 	Ecdsa,
 
 
-	// RSA keys
-
-	RsaPkcs1 {
-		message_digest: RsaPkcs1MessageDigest,
-	},
-
-	RsaPss {
-		mask_generation_function: RsaPssMaskGenerationFunction,
-		salt_len: usize,
-	},
-
-
 	// Symmetric keys
 
 	HmacSha256,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum RsaPkcs1MessageDigest {
-	Sha1,
-	Sha224,
-	Sha256,
-	Sha384,
-	Sha512,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum RsaPssMaskGenerationFunction {
-	Sha1,
-	Sha224,
-	Sha256,
-	Sha384,
-	Sha512,
 }
 
 #[derive(Clone, Debug)]
@@ -58,5 +28,7 @@ pub enum EncryptMechanism {
 	Aead {
 		iv: Vec<u8>,
 		aad: Vec<u8>,
-	}
+	},
+
+	RsaPkcs1,
 }

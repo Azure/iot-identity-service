@@ -38,7 +38,10 @@ impl Engine {
 			});
 		});
 
-		let e = openssl2::StructuralEngine::by_id(std::ffi::CStr::from_bytes_with_nul(ENGINE_ID).unwrap())?;
+		let e =
+			openssl2::StructuralEngine::by_id(
+				std::ffi::CStr::from_bytes_with_nul(ENGINE_ID).expect("hard-coded engine ID is valid CStr"),
+			)?;
 		let e: openssl2::FunctionalEngine = std::convert::TryInto::try_into(e)?;
 
 		let engine = Engine {
@@ -236,12 +239,12 @@ unsafe extern "C" fn engine_pkey_meths(
 
 			match nid {
 				openssl_sys::EVP_PKEY_EC => {
-					*pmeth = super::ec_key::get_evp_ec_sign_method()?;
+					*pmeth = super::ec_key::get_evp_ec_method()?;
 					Ok(1)
 				},
 
 				openssl_sys::EVP_PKEY_RSA => {
-					*pmeth = super::rsa::get_evp_rsa_sign_method()?;
+					*pmeth = super::rsa::get_evp_rsa_method()?;
 					Ok(1)
 				},
 

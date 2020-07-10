@@ -11,6 +11,15 @@
 //!
 //! To use the engine, obtain a [`pkcs11::Context`] and call [`load`]
 
+// Note: The majority of the code in this crate is code that is called from openssl. Because of the provenance of data that comes from openssl
+// cannot be verified, the inputs to the functions cannot be guaranteed to be safe to work with.
+//
+// For example, there is no way to be sure that a buffer passed in by openssl with a particular pointer and a length is actually that long.
+// So even after the buffer is converted to a slice, it is not safe to then drop out of `unsafe` and use that slice. The only choice is to trust openssl
+// that the buffer really is that long, and to remain under `unsafe` to indicate that safety is not guaranteed.
+//
+// As a result, the majority of the code in this crate is marked `unsafe`.
+
 mod ec_key;
 
 mod engine;
@@ -28,12 +37,12 @@ pub fn load(context: std::sync::Arc<pkcs11::Context>) -> Result<openssl2::Functi
 
 openssl_errors::openssl_errors! {
 	#[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
-	library Error("openssl_pkcs11_engine") {
+	library Error("pkcs11_openssl_engine") {
 		functions {
-			ENGINE_LOAD_PRIVKEY("engine_load_privkey");
-			ENGINE_LOAD_PUBKEY("engine_load_pubkey");
+			ENGINE_LOAD_PRIVKEY("pkcs11_engine_load_privkey");
+			ENGINE_LOAD_PUBKEY("pkcs11_engine_load_pubkey");
 
-			ENGINE_PKEY_METHS("engine_pkey_meths");
+			ENGINE_PKEY_METHS("pkcs11_engine_pkey_meths");
 
 			PKCS11_EC_SIGN("pkcs11_ec_sign");
 

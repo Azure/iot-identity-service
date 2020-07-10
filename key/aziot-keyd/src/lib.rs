@@ -115,45 +115,6 @@ impl Server {
 			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::Ecdsa) =>
 				keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,
 
-			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::RsaPkcs1 { message_digest }) => {
-				let message_digest = match message_digest {
-					aziot_key_common::RsaPkcs1MessageDigest::Sha1 => keys::sys::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA1,
-					aziot_key_common::RsaPkcs1MessageDigest::Sha224 => keys::sys::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA224,
-					aziot_key_common::RsaPkcs1MessageDigest::Sha256 => keys::sys::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA256,
-					aziot_key_common::RsaPkcs1MessageDigest::Sha384 => keys::sys::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA384,
-					aziot_key_common::RsaPkcs1MessageDigest::Sha512 => keys::sys::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA512,
-				};
-
-				keys.sign(
-					&id_cstr,
-					keys::sys::KEYGEN_SIGN_MECHANISM_RSA_PKCS1,
-					&message_digest as *const _ as *const std::ffi::c_void,
-					digest,
-				)?
-			},
-
-			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::RsaPss { mask_generation_function, salt_len }) => {
-				/*
-				let salt_len = std::convert::TryInto::try_into(salt_len).map_err(|err| Error::invalid_parameter("mechanism.salt_len", err))?;
-
-				let parameters = keys::sys::KEYGEN_SIGN_RSA_PSS_PARAMETERS {
-					mask_generation_function: match mask_generation_function {
-						aziot_key_common::RsaPssMaskGenerationFunction::Sha1 => keys::sys::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA1,
-						aziot_key_common::RsaPssMaskGenerationFunction::Sha224 => keys::sys::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA224,
-						aziot_key_common::RsaPssMaskGenerationFunction::Sha256 => keys::sys::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA256,
-						aziot_key_common::RsaPssMaskGenerationFunction::Sha384 => keys::sys::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA384,
-						aziot_key_common::RsaPssMaskGenerationFunction::Sha512 => keys::sys::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA512,
-					},
-
-					salt_len,
-				};
-
-				keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_RSA_PSS, message_digest, &parameters as *const _ as _, digest).map_err(Error::Sign)?
-				*/
-
-				unimplemented!("sign(RSA_PSS, {:?}, {})", mask_generation_function, salt_len);
-			},
-
 			(KeyId::Key(_), aziot_key_common::SignMechanism::HmacSha256) =>
 				keys.sign(
 					&id_cstr,
@@ -192,6 +153,15 @@ impl Server {
 					&id_cstr,
 					keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
 					&parameters as *const _ as *const std::ffi::c_void,
+					plaintext,
+				)?
+			},
+
+			(KeyId::KeyPair(_), aziot_key_common::EncryptMechanism::RsaPkcs1) => {
+				keys.encrypt(
+					&id_cstr,
+					keys::sys::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1,
+					std::ptr::null_mut(),
 					plaintext,
 				)?
 			},

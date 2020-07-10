@@ -13,6 +13,15 @@
 //!
 //! To use the engine, obtain a [`aziot_key_client::Client`] and call [`load`]
 
+// Note: The majority of the code in this crate is code that is called from openssl. Because of the provenance of data that comes from openssl
+// cannot be verified, the inputs to the functions cannot be guaranteed to be safe to work with.
+//
+// For example, there is no way to be sure that a buffer passed in by openssl with a particular pointer and a length is actually that long.
+// So even after the buffer is converted to a slice, it is not safe to then drop out of `unsafe` and use that slice. The only choice is to trust openssl
+// that the buffer really is that long, and to remain under `unsafe` to indicate that safety is not guaranteed.
+//
+// As a result, the majority of the code in this crate is marked `unsafe`.
+
 mod ec_key;
 
 mod engine;
@@ -37,9 +46,10 @@ openssl_errors::openssl_errors! {
 
 			ENGINE_PKEY_METHS("aziot_key_engine_pkey_meths");
 
-			EC_SIGN("aziot_key_ec_sign");
+			AZIOT_KEY_EC_SIGN("aziot_key_ec_sign");
 
-			RSA_SIGN("aziot_key_rsa_sign");
+			AZIOT_KEY_RSA_PRIV_ENC("aziot_key_rsa_priv_enc");
+			AZIOT_KEY_RSA_SIGN("aziot_key_rsa_sign");
 		}
 
 		reasons {

@@ -32,6 +32,19 @@ unsafe extern "C" fn pkcs11_freef_ec_key_ex_data(
 }
 
 #[cfg(ossl110)]
+pub(super) unsafe fn get_evp_ec_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
+	// The default EC method is good enough.
+
+	let openssl_method = openssl2::openssl_returns_nonnull_const(openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_EC))?;
+	let result =
+		openssl2::openssl_returns_nonnull(
+			openssl_sys2::EVP_PKEY_meth_new(openssl_sys::EVP_PKEY_EC, openssl_sys2::EVP_PKEY_FLAG_AUTOARGLEN))?;
+	openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
+
+	Ok(result)
+}
+
+#[cfg(ossl110)]
 pub(super) unsafe fn pkcs11_ec_key_method() -> *const openssl_sys2::EC_KEY_METHOD {
 	static mut RESULT: *const openssl_sys2::EC_KEY_METHOD = std::ptr::null();
 	static RESULT_INIT: std::sync::Once = std::sync::Once::new();
@@ -102,7 +115,13 @@ unsafe extern "C" fn pkcs11_ec_key_sign_sig(
 			group.order(&mut order, &mut big_num_context)?;
 			let order_num_bits = order.num_bits();
 			if dlen.saturating_mul(8) > order_num_bits {
-				(order_num_bits + 7) / 8
+				let new_dlen = (order_num_bits + 7) / 8;
+
+				// The original `dlen` was at least `order_num_bits / 8 + 1`. `new_dlen` is at most `order_num_bits / 8 + 1`.
+				// So this assert should always hold.
+				assert!(dlen >= new_dlen);
+
+				new_dlen
 			}
 			else {
 				dlen
@@ -128,17 +147,4 @@ unsafe extern "C" fn pkcs11_ec_key_sign_sig(
 		Ok(signature) => signature,
 		Err(()) => std::ptr::null_mut(),
 	}
-}
-
-#[cfg(ossl110)]
-pub(super) unsafe fn get_evp_ec_sign_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
-	// The default EC method is good enough.
-
-	let openssl_method = openssl2::openssl_returns_nonnull_const(openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_EC))?;
-	let result =
-		openssl2::openssl_returns_nonnull(
-			openssl_sys2::EVP_PKEY_meth_new(openssl_sys::EVP_PKEY_EC, openssl_sys2::EVP_PKEY_FLAG_AUTOARGLEN))?;
-	openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
-
-	Ok(result)
 }

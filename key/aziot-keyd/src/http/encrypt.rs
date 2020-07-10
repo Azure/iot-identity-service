@@ -44,6 +44,8 @@ pub(super) fn handle(
 		};
 		let mechanism = match body.parameters {
 			aziot_key_common_http::encrypt::Parameters::Aead { iv, aad } => aziot_key_common::EncryptMechanism::Aead { iv: iv.0, aad: aad.0 },
+
+			aziot_key_common_http::encrypt::Parameters::RsaPkcs1 => aziot_key_common::EncryptMechanism::RsaPkcs1,
 		};
 
 		let ciphertext = match inner.encrypt(&body.key_handle, mechanism, &body.plaintext.0) {

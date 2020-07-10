@@ -16,7 +16,10 @@ case "$CONTAINER_OS" in
                 ;;
         esac
 
-        yum install -y curl gcc make pkgconfig "$OPENSSL_PACKAGE_NAME"
+        yum install -y \
+            curl gcc make pkgconfig \
+            clang llvm-devel \
+            "$OPENSSL_PACKAGE_NAME"
         ;;
 
     'debian:9-slim')

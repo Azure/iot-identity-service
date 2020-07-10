@@ -165,9 +165,7 @@ pub(crate) unsafe extern "C" fn sign(
 		let locations = Location::of(id)?;
 
 		let (expected_signature_len, expected_signature) = match mechanism {
-			crate::KEYGEN_SIGN_MECHANISM_ECDSA |
-			crate::KEYGEN_SIGN_MECHANISM_RSA_PKCS1 |
-			crate::KEYGEN_SIGN_MECHANISM_RSA_PSS =>
+			crate::KEYGEN_SIGN_MECHANISM_ECDSA =>
 				crate::key_pair::sign(&locations, mechanism, parameters, digest)?,
 
 			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
@@ -240,9 +238,7 @@ pub(crate) unsafe extern "C" fn verify(
 		let ok = match mechanism {
 			// Verify is not supported for asymmetric keys.
 			// Clients can verify signatures themselves from the public parameters of the key pair.
-			crate::KEYGEN_SIGN_MECHANISM_ECDSA |
-			crate::KEYGEN_SIGN_MECHANISM_RSA_PKCS1 |
-			crate::KEYGEN_SIGN_MECHANISM_RSA_PSS =>
+			crate::KEYGEN_SIGN_MECHANISM_ECDSA =>
 				return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 
 			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
@@ -291,6 +287,9 @@ pub(crate) unsafe extern "C" fn encrypt(
 		let (expected_ciphertext_len, expected_ciphertext) = match mechanism {
 			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD =>
 				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
+
+			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 =>
+				crate::key_pair::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};

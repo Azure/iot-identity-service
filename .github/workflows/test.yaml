@@ -31,12 +31,6 @@ jobs:
         - container_os: 'debian:10-slim'
           openssl_version: '1.1.0'
 
-        # TODO: Delete these to re-enable openssl 1.0 jobs
-        - container_os: 'centos:7'
-          openssl_version: '1.0'
-        - container_os: 'debian:9-slim'
-          openssl_version: '1.0'
-
     steps:
     - uses: 'actions/checkout@v1'
     - name: 'Run'

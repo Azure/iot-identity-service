@@ -232,7 +232,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 pub(crate) unsafe fn sign(
 	locations: &[crate::implementation::Location],
 	mechanism: crate::KEYGEN_SIGN_MECHANISM,
-	parameters: *const std::ffi::c_void,
+	_parameters: *const std::ffi::c_void,
 	digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
 	let (_, private_key) = load_inner(locations)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
@@ -254,87 +254,37 @@ pub(crate) unsafe fn sign(
 			(signature_len, signature)
 		},
 
-		(crate::KEYGEN_SIGN_MECHANISM_RSA_PKCS1, _, Ok(rsa)) => {
-			let message_digest = {
-				if parameters.is_null() {
-					return Err(crate::implementation::err_invalid_parameter("parameters", "expected non-NULL"));
-				}
-
-				let parameters = parameters as *const crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST;
-				match *parameters {
-					crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA1 => openssl::hash::MessageDigest::sha1(),
-					crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA224 => openssl::hash::MessageDigest::sha224(),
-					crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA256 => openssl::hash::MessageDigest::sha256(),
-					crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA384 => openssl::hash::MessageDigest::sha384(),
-					crate::KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA512 => openssl::hash::MessageDigest::sha512(),
-					_ => return Err(crate::implementation::err_invalid_parameter("parameters", "unrecognized message digest")),
-				}
-			};
-
-			// openssl crate doesn't expose a wrapper around RSA_sign, so call it directly
-
-			let signature_len = rsa.size();
-			let signature_len =
-				std::convert::TryInto::try_into(signature_len)
-				.map_err(|err| crate::implementation::err_external(format!("RSA_size returned invalid value: {}", err)))?;
-
-			let signature = {
-				let mut signature = vec![0_u8; signature_len];
-
-				// It was just converted from u32 to usize above, so this is guaranteed to succeed.
-				let mut signature_len = signature_len as u32;
-
-				openssl2::openssl_returns_1(openssl_sys::RSA_sign(
-					message_digest.type_().as_raw(),
-					digest.as_ptr(), std::convert::TryInto::try_into(digest.len()).map_err(|err| crate::implementation::err_invalid_parameter("digest_len", err))?,
-					signature.as_mut_ptr(), &mut signature_len,
-					foreign_types_shared::ForeignType::as_ptr(&rsa),
-				))?;
-
-				let signature_len =
-					std::convert::TryInto::try_into(signature_len)
-					.map_err(|err| crate::implementation::err_external(format!("RSA_sign returned invalid signature length: {}", err)))?;
-				if signature_len > signature.len() {
-					// RSA_sign scribbled past the end of the buffer. Crash as soon as possible.
-					std::process::abort();
-				}
-
-				signature.truncate(signature_len);
-
-				signature
-			};
-
-			(signature_len, signature)
-		},
-
-		// crate::KEYGEN_SIGN_MECHANISM_RSA_PSS => {
-		// 	if parameters.is_null() {
-		// 		return Err(crate::implementation::err_invalid_parameter("parameters", "expected KEYGEN_SIGN_RSA_PSS_PARAMETERS"));
-		// 	}
-
-		// 	let parameters = &*(parameters as *const crate::KEYGEN_SIGN_RSA_PSS_PARAMETERS);
-
-		// 	let mask_generation_function = match parameters.mask_generation_function {
-		// 		crate::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA1 => openssl::hash::MessageDigest::sha1(),
-		// 		crate::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA224 => openssl::hash::MessageDigest::sha224(),
-		// 		crate::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA256 => openssl::hash::MessageDigest::sha256(),
-		// 		crate::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA384 => openssl::hash::MessageDigest::sha384(),
-		// 		crate::KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA512 => openssl::hash::MessageDigest::sha512(),
-		// 		_ => return Err(crate::implementation::err_invalid_parameter("mask_generation_function", "unrecognized value")),
-		// 	};
-
-		// 	let salt_len = std::convert::TryInto::try_into(parameters.salt_len).map_err(|err| crate::implementation::err_invalid_parameter("salt_len", err))?;
-		// 	let salt_len = openssl::sign::RsaPssSaltlen::custom(salt_len);
-
-		// 	signer.set_rsa_padding(openssl::rsa::Padding::PKCS1_PSS)?;
-		// 	signer.set_rsa_mgf1_md(mask_generation_function)?;
-		// 	signer.set_rsa_pss_saltlen(salt_len)?;
-		// },
-
 		_ => return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value")),
 	};
 
 	Ok((signature_len, signature))
+}
+
+pub(crate) unsafe fn encrypt(
+	locations: &[crate::implementation::Location],
+	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
+	_parameters: *const std::ffi::c_void,
+	plaintext: &[u8],
+) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
+	let (_, private_key) = match load_inner(locations)? {
+		Some(key) => key,
+		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
+	};
+
+	if mechanism != crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 {
+		return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value"));
+	}
+
+	let rsa = private_key.rsa().map_err(|_| crate::implementation::err_invalid_parameter("mechanism", "not an RSA key"))?;
+
+	let result_len =
+		std::convert::TryInto::try_into(rsa.size())
+		.map_err(|err| crate::implementation::err_external(format!("RSA_size returned invalid value: {}", err)))?;
+	let mut result = vec![0_u8; result_len];
+
+	let result_len = rsa.private_encrypt(plaintext, &mut result, openssl::rsa::Padding::PKCS1)?;
+
+	Ok((result_len, result))
 }
 
 fn load_inner(locations: &[crate::implementation::Location]) ->

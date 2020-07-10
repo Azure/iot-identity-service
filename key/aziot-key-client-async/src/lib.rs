@@ -117,20 +117,6 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 					digest: http_common::ByteString(digest.to_owned()),
 				},
 
-				aziot_key_common::SignMechanism::RsaPkcs1 { message_digest } => aziot_key_common_http::sign::Parameters::RsaPkcs1 {
-					message_digest_algorithm: match message_digest {
-						aziot_key_common::RsaPkcs1MessageDigest::Sha1 => "sha1".to_owned(),
-						aziot_key_common::RsaPkcs1MessageDigest::Sha224 => "sha224".to_owned(),
-						aziot_key_common::RsaPkcs1MessageDigest::Sha256 => "sha256".to_owned(),
-						aziot_key_common::RsaPkcs1MessageDigest::Sha384 => "sha384".to_owned(),
-						aziot_key_common::RsaPkcs1MessageDigest::Sha512 => "sha512".to_owned(),
-					},
-					message: http_common::ByteString(digest.to_owned()),
-				},
-
-				aziot_key_common::SignMechanism::RsaPss { mask_generation_function, salt_len } =>
-					unimplemented!("sign(RSA_PSS, {:?}, {})", mask_generation_function, salt_len),
-
 				aziot_key_common::SignMechanism::HmacSha256 => aziot_key_common_http::sign::Parameters::HmacSha256 {
 					message: http_common::ByteString(digest.to_owned()),
 				},
@@ -160,6 +146,8 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 					iv: http_common::ByteString(iv),
 					aad: http_common::ByteString(aad),
 				},
+
+				aziot_key_common::EncryptMechanism::RsaPkcs1 => aziot_key_common_http::encrypt::Parameters::RsaPkcs1,
 			},
 			plaintext: http_common::ByteString(plaintext.to_owned()),
 		};
@@ -183,10 +171,12 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		let body = aziot_key_common_http::decrypt::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
-				aziot_key_common::EncryptMechanism::Aead { iv, aad } => aziot_key_common_http::decrypt::Parameters::Aead {
+				aziot_key_common::EncryptMechanism::Aead { iv, aad } => aziot_key_common_http::encrypt::Parameters::Aead {
 					iv: http_common::ByteString(iv),
 					aad: http_common::ByteString(aad),
 				},
+
+				aziot_key_common::EncryptMechanism::RsaPkcs1 => aziot_key_common_http::encrypt::Parameters::RsaPkcs1,
 			},
 			ciphertext: http_common::ByteString(ciphertext.to_owned()),
 		};

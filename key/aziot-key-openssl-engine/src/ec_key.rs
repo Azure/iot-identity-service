@@ -31,70 +31,117 @@ unsafe extern "C" fn aziot_key_freef_ec_key_ex_data(
 	crate::ex_data::free::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(ptr, idx);
 }
 
-static mut OPENSSL_EC_SIGN: Option<unsafe extern "C" fn(
-	ctx: *mut openssl_sys::EVP_PKEY_CTX,
-	sig: *mut std::os::raw::c_uchar,
-	siglen: *mut usize,
-	tbs: *const std::os::raw::c_uchar,
-	tbslen: usize,
-) -> std::os::raw::c_int> = None;
 
+#[cfg(ossl110)]
 pub(super) unsafe fn get_evp_ec_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
+	// The default EC method is good enough.
+
 	let openssl_method = openssl2::openssl_returns_nonnull_const(openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_EC))?;
 	let result =
 		openssl2::openssl_returns_nonnull(
 			openssl_sys2::EVP_PKEY_meth_new(openssl_sys::EVP_PKEY_EC, openssl_sys2::EVP_PKEY_FLAG_AUTOARGLEN))?;
 	openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
 
-	let mut openssl_ec_sign_init = None;
-	openssl_sys2::EVP_PKEY_meth_get_sign(openssl_method, &mut openssl_ec_sign_init, &mut OPENSSL_EC_SIGN);
-	openssl_sys2::EVP_PKEY_meth_set_sign(result, openssl_ec_sign_init, Some(evp_ec_sign));
-
 	Ok(result)
 }
 
-unsafe extern "C" fn evp_ec_sign(
-	ctx: *mut openssl_sys::EVP_PKEY_CTX,
-	sig: *mut std::os::raw::c_uchar,
-	siglen: *mut usize,
-	tbs: *const std::os::raw::c_uchar,
-	tbslen: usize,
-) -> std::os::raw::c_int {
-	let result = super::r#catch(Some(|| super::Error::EC_SIGN), || {
-		let private_key = openssl2::openssl_returns_nonnull(openssl_sys2::EVP_PKEY_CTX_get0_pkey(ctx))?;
-		let private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private> = foreign_types_shared::ForeignTypeRef::from_ptr(private_key);
-		let ec_key = private_key.ec_key()?;
-		let crate::ex_data::KeyExData { client, handle } =
-			if let Ok(ex_data) = crate::ex_data::get(&*foreign_types_shared::ForeignType::as_ptr(&ec_key)) {
-				ex_data
-			}
-			else {
-				let openssl_ec_sign = OPENSSL_EC_SIGN.expect("OPENSSL_EC_SIGN must have been set by get_evp_ec_method earlier");
-				match openssl_ec_sign(ctx, sig, siglen, tbs, tbslen) {
-					result if result <= 0 => return Err(format!("OPENSSL_EC_SIGN returned {}", result).into()),
-					_ => return Ok(()),
-				}
-			};
+#[cfg(ossl110)]
+pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::EC_KEY_METHOD {
+	static mut RESULT: *const openssl_sys2::EC_KEY_METHOD = std::ptr::null();
+	static RESULT_INIT: std::sync::Once = std::sync::Once::new();
+
+	RESULT_INIT.call_once(|| {
+		let openssl_ec_key_method = openssl_sys2::EC_KEY_OpenSSL();
+		let aziot_key_ec_key_method = openssl_sys2::EC_KEY_METHOD_new(openssl_ec_key_method);
+
+		let mut openssl_ec_key_sign = None;
+		openssl_sys2::EC_KEY_METHOD_get_sign(
+			aziot_key_ec_key_method,
+			&mut openssl_ec_key_sign,
+			std::ptr::null_mut(),
+			std::ptr::null_mut(),
+		);
+		openssl_sys2::EC_KEY_METHOD_set_sign(
+			aziot_key_ec_key_method,
+			openssl_ec_key_sign, // Reuse openssl's function to compute the digest
+			None, // Disable sign_setup because aziot_key_ec_key_sign_sig doesn't need the pre-computed kinv and rp
+			Some(aziot_key_ec_key_sign_sig),
+		);
+
+		RESULT = aziot_key_ec_key_method as _;
+	});
+
+	RESULT
+}
+
+#[cfg(not(ossl110))]
+pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::ECDSA_METHOD {
+	static mut RESULT: *const openssl_sys2::ECDSA_METHOD = std::ptr::null();
+	static RESULT_INIT: std::sync::Once = std::sync::Once::new();
+
+	RESULT_INIT.call_once(|| {
+		let openssl_ec_key_method = openssl_sys2::ECDSA_OpenSSL();
+		let aziot_key_ec_key_method = openssl_sys2::ECDSA_METHOD_new(openssl_ec_key_method);
+
+		openssl_sys2::ECDSA_METHOD_set_sign(
+			aziot_key_ec_key_method,
+			Some(aziot_key_ec_key_sign_sig),
+		);
+
+		RESULT = aziot_key_ec_key_method as _;
+	});
+
+	RESULT
+}
+
+unsafe extern "C" fn aziot_key_ec_key_sign_sig(
+	dgst: *const std::os::raw::c_uchar,
+	dlen: std::os::raw::c_int,
+	_kinv: *const openssl_sys::BIGNUM,
+	_r: *const openssl_sys::BIGNUM,
+	eckey: *mut openssl_sys::EC_KEY,
+) -> *mut openssl_sys::ECDSA_SIG {
+	let result = super::r#catch(Some(|| super::Error::AZIOT_KEY_EC_SIGN), || {
+		let crate::ex_data::KeyExData { client, handle } = crate::ex_data::get(&*eckey)?;
 
 		let mechanism = aziot_key_common::SignMechanism::Ecdsa;
 
-		let digest = std::slice::from_raw_parts(tbs, std::convert::TryInto::try_into(tbslen).expect("c_int -> usize"));
+		// Truncate dgst if it's longer than the key order length. Eg The digest input for a P-256 key can only be 32 bytes.
+		//
+		// softhsm does this inside its C_Sign impl, but tpm2-pkcs11 does not, and the PKCS#11 spec does not opine on the matter.
+		// So we need to truncate the digest ourselves.
+		let dlen = {
+			let eckey: &openssl::ec::EcKeyRef<openssl::pkey::Private> = foreign_types_shared::ForeignTypeRef::from_ptr(eckey);
+			let group = eckey.group();
+			let mut order = openssl::bn::BigNum::new()?;
+			let mut big_num_context = openssl::bn::BigNumContext::new()?;
+			group.order(&mut order, &mut big_num_context)?;
+			let order_num_bits = order.num_bits();
+			if dlen.saturating_mul(8) > order_num_bits {
+				let new_dlen = (order_num_bits + 7) / 8;
+
+				// The original `dlen` was at least `order_num_bits / 8 + 1`. `new_dlen` is at most `order_num_bits / 8 + 1`.
+				// So this assert should always hold.
+				assert!(dlen >= new_dlen);
+
+				new_dlen
+			}
+			else {
+				dlen
+			}
+		};
+
+		let digest = std::slice::from_raw_parts(dgst, std::convert::TryInto::try_into(dlen).expect("c_int -> usize"));
 
 		let signature = client.sign(handle, mechanism, digest)?;
-		let signature_len = signature.len();
+		let signature = openssl::ecdsa::EcdsaSig::from_der(&signature)?;
 
-		if *siglen < signature_len {
-			return Err(format!("openssl expected signature of length <= {} but ks returned a signature of length {}", *siglen, signature_len).into());
-		}
+		let result = openssl2::foreign_type_into_ptr(signature);
 
-		let signature_out = std::slice::from_raw_parts_mut(sig, *siglen);
-		signature_out[..signature_len].copy_from_slice(&signature);
-		*siglen = signature_len;
-
-		Ok(())
+		Ok(result)
 	});
 	match result {
-		Ok(()) => 1,
-		Err(()) => -1,
+		Ok(signature) => signature,
+		Err(()) => std::ptr::null_mut(),
 	}
 }

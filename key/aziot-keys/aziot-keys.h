@@ -155,19 +155,6 @@ typedef struct {
 } KEYGEN_FUNCTION_LIST_2_0_0_0;
 
 /**
- * Represents the mask generation function used for a sign operation with the [`KEYGEN_SIGN_MECHANISM_RSA_PSS`] mechanism.
- */
-typedef unsigned int KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION;
-
-/**
- * Holds parameters for a sign operation with the [`KEYGEN_SIGN_MECHANISM_RSA_PSS`] mechanism.
- */
-typedef struct {
-    KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION mask_generation_function;
-    uintptr_t salt_len;
-} KEYGEN_SIGN_RSA_PSS_PARAMETERS;
-
-/**
  * Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.
  */
 typedef struct {
@@ -180,16 +167,14 @@ typedef struct {
 typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
 
 /**
- * Represents the hash algorithm used to create the message digest given to a RSA PKCS1 sign operation.
- *
- * Used as the parameter for a sign operation with the [`KEYGEN_SIGN_MECHANISM_RSA_PKCS1`] mechanism.
- */
-typedef unsigned int KEYGEN_RSA_PKCS1_MESSAGE_DIGEST;
-
-/**
  * AEAD (eg AES-256-GCM)
  */
 #define KEYGEN_ENCRYPT_MECHANISM_AEAD 1
+
+/**
+ * RSA PKCS1
+ */
+#define KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 2
 
 /**
  * The library encountered an error with an external resource, such as an I/O error or RPC error.
@@ -246,31 +231,6 @@ typedef unsigned int KEYGEN_RSA_PKCS1_MESSAGE_DIGEST;
 #define KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS 4
 
 /**
- * SHA-1
- */
-#define KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA1 2
-
-/**
- * SHA-224
- */
-#define KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA224 3
-
-/**
- * SHA-256
- */
-#define KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA256 4
-
-/**
- * SHA-384
- */
-#define KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA384 5
-
-/**
- * SHA-512
- */
-#define KEYGEN_RSA_PKCS1_MESSAGE_DIGEST_SHA512 6
-
-/**
  * ECDSA
  */
 #define KEYGEN_SIGN_MECHANISM_ECDSA 1
@@ -278,42 +238,7 @@ typedef unsigned int KEYGEN_RSA_PKCS1_MESSAGE_DIGEST;
 /**
  * HMAC-SHA256
  */
-#define KEYGEN_SIGN_MECHANISM_HMAC_SHA256 4
-
-/**
- * RSA PKCS1
- */
-#define KEYGEN_SIGN_MECHANISM_RSA_PKCS1 2
-
-/**
- * RSA-PSS
- */
-#define KEYGEN_SIGN_MECHANISM_RSA_PSS 3
-
-/**
- * SHA-1
- */
-#define KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA1 1
-
-/**
- * SHA-224
- */
-#define KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA224 2
-
-/**
- * SHA-256
- */
-#define KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA256 3
-
-/**
- * SHA-384
- */
-#define KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA384 4
-
-/**
- * SHA-512
- */
-#define KEYGEN_SIGN_RSA_PSS_MASK_GENERATION_FUNCTION_SHA512 5
+#define KEYGEN_SIGN_MECHANISM_HMAC_SHA256 2
 
 /**
  * The operation succeeded.
@@ -343,5 +268,4 @@ typedef unsigned int KEYGEN_RSA_PKCS1_MESSAGE_DIGEST;
  */
 KEYGEN_ERROR KEYGEN_get_function_list(KEYGEN_VERSION version,
                                       const KEYGEN_FUNCTION_LIST **pfunction_list);
-
 

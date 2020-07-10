@@ -303,7 +303,7 @@ async fn main() -> Result<(), Error> {
 					let device_id = "device-id";
 
 					let device_id_key_pair_handle =
-						key_client.create_key_pair_if_not_exists(device_id, Some("ec-p256:rsa-4096:*")).await.unwrap();
+						key_client.create_key_pair_if_not_exists(device_id, Some("ec-p256:rsa-2048:*")).await.unwrap();
 					let (device_id_public_key, device_id_private_key) = {
 						let device_id_key_pair_handle = std::ffi::CString::new(device_id_key_pair_handle.0.clone()).unwrap();
 						let device_id_public_key = key_engine.load_public_key(&device_id_key_pair_handle).unwrap();

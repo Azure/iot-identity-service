@@ -32,6 +32,7 @@ impl Engine {
 
 				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_privkey_function(e, engine_load_privkey))?;
 				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_pubkey_function(e, engine_load_pubkey))?;
+				#[cfg(ossl110)]
 				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_pkey_meths(e, engine_pkey_meths))?;
 				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_flags(e, openssl_sys2::ENGINE_FLAGS_BY_ID_COPY))?;
 
@@ -137,6 +138,17 @@ unsafe extern "C" fn engine_load_privkey(
 					let parameters = foreign_types_shared::ForeignType::as_ptr(&parameters);
 
 					crate::ex_data::set(parameters, key_ex_data)?;
+
+					#[cfg(ossl110)]
+					openssl2::openssl_returns_1(openssl_sys2::EC_KEY_set_method(
+						parameters,
+						super::ec_key::aziot_key_ec_key_method(),
+					))?;
+					#[cfg(not(ossl110))]
+					openssl2::openssl_returns_1(openssl_sys2::ECDSA_set_method(
+						parameters,
+						super::ec_key::aziot_key_ec_key_method(),
+					))?;
 				}
 
 				let openssl_key = openssl::pkey::PKey::from_ec_key(parameters)?;
@@ -163,6 +175,11 @@ unsafe extern "C" fn engine_load_privkey(
 					let parameters = foreign_types_shared::ForeignType::as_ptr(&parameters);
 
 					crate::ex_data::set(parameters, key_ex_data)?;
+
+					openssl2::openssl_returns_1(openssl_sys2::RSA_set_method(
+						parameters,
+						super::rsa::aziot_key_rsa_method(),
+					))?;
 				}
 
 				let openssl_key = openssl::pkey::PKey::from_rsa(parameters)?;
@@ -262,6 +279,7 @@ unsafe extern "C" fn engine_load_pubkey(
 	}
 }
 
+#[cfg(ossl110)]
 unsafe extern "C" fn engine_pkey_meths(
 	_e: *mut openssl_sys::ENGINE,
 	pmeth: *mut *const openssl_sys2::EVP_PKEY_METHOD,
