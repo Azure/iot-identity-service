@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use log::info;
+mod http;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,11 +11,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     read_is_settings()?;
-    aziot_identityd::Server::new()?;
+    let server = aziot_identityd::Server::new()?;
+    let server = std::sync::Arc::new(server);
 
-    info!("Identity Service starting..");
+    log::info!("Identity Service starting..");
 
-    info!("Identity Service stopped.");
+    let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8901".parse()?)?;
+
+    let server =
+        hyper::Server::builder(incoming)
+            .serve(hyper::service::make_service_fn(|_| {
+                let server = http::Server { inner: server.clone() };
+                futures_util::future::ok::<_, std::convert::Infallible>(server)
+            }));
+    let () = server.await?;
+
+    log::info!("Identity Service stopped.");
 
     Ok(())
 }

@@ -7,7 +7,7 @@ use std::str::FromStr;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 
-use crate::error::Error;
+use crate::error::InternalError;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
@@ -21,9 +21,9 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new(filename: &Path) -> Result<Self, Error> {
-        let settings = std::fs::read_to_string(filename).map_err(Error::LoadSettings)?;
-        let settings = toml::from_str(&settings).map_err(Error::ParseSettings)?;
+    pub fn new(filename: &Path) -> Result<Self, InternalError> {
+        let settings = std::fs::read_to_string(filename).map_err(InternalError::LoadSettings)?;
+        let settings = toml::from_str(&settings).map_err(InternalError::ParseSettings)?;
 
         Ok(settings)
     }
