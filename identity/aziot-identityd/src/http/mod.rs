@@ -89,13 +89,11 @@ fn json_response(status_code: hyper::StatusCode, body: &impl serde::Serialize) -
 	let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
 	let body = hyper::Body::from(body);
 
-	let res =
-		hyper::Response::builder()
+	hyper::Response::builder()
 		.status(status_code)
 		.header(hyper::header::CONTENT_TYPE, "application/json")
 		.body(body)
-		.expect("cannot fail to serialize hyper response");
-	res
+		.expect("cannot fail to serialize hyper response")
 }
 
 fn err_response(

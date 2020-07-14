@@ -78,7 +78,7 @@ impl Server {
 }
 
 fn test_device_identity() -> aziot_identity_common::Identity {
-    return aziot_identity_common::Identity::Aziot(
+    aziot_identity_common::Identity::Aziot(
         aziot_identity_common::AzureIoTSpec {
             hub_name: "dummyHubName".to_string(),
             device_id: aziot_identity_common::DeviceId("dummyDeviceId".to_string()),
@@ -88,11 +88,11 @@ fn test_device_identity() -> aziot_identity_common::Identity {
                 auth_type: aziot_identity_common::AuthenticationType::SaS,
                 key_handle: aziot_key_common::KeyHandle("dummyKeyHandle".to_string()),
                 cert_id: None,
-            }});
+            }})
 }
 
 fn test_module_identity() -> aziot_identity_common::Identity {
-    return aziot_identity_common::Identity::Aziot (
+    aziot_identity_common::Identity::Aziot (
         aziot_identity_common::AzureIoTSpec {
             hub_name: "dummyHubName".to_string(),
             device_id: aziot_identity_common::DeviceId("dummyDeviceId".to_string()),
@@ -102,5 +102,5 @@ fn test_module_identity() -> aziot_identity_common::Identity {
                 auth_type: aziot_identity_common::AuthenticationType::SaS,
                 key_handle: aziot_key_common::KeyHandle("dummyKeyHandle".to_string()),
                 cert_id: None,
-            }});
+            }})
 }
