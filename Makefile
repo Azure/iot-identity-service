@@ -249,7 +249,7 @@ target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
 	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test target/$(DIRECTORY)/aziot-identityd
+test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
 	$(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
