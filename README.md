@@ -26,13 +26,13 @@ Prototype of libiothsm v2
 
     ```sh
     cd ~/src/
-    git clone https://github.com/arsing/libiothsm2
+    git clone https://github.com/Azure/iot-identity-service
     ```
 
 1. Build the code
 
     ```sh
-    cd ~/src/libiothsm2/
+    cd ~/src/iot-identity-service/
     make
     ```
 
