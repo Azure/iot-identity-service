@@ -5,6 +5,8 @@ lazy_static::lazy_static! {
 	static ref PKCS11_BASE_SLOT: std::sync::RwLock<Option<pkcs11::Uri>> = Default::default();
 
 	static ref PRELOADED_KEYS: std::sync::RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>> = Default::default();
+
+	static ref PKCS11_BASE_SLOT_SESSION: std::sync::Mutex<Option<std::sync::Arc<pkcs11::Session>>> = Default::default();
 }
 
 #[derive(Debug)]
@@ -127,6 +129,24 @@ pub(crate) unsafe extern "C" fn set_parameter(
 			},
 
 			_ => return Err(err_invalid_parameter("name", "unrecognized value")),
+		}
+
+		{
+			let pkcs11_lib_path = PKCS11_LIB_PATH.read().map_err(err_fatal)?;
+			let pkcs11_base_slot = PKCS11_BASE_SLOT.read().map_err(err_fatal)?;
+
+			if let (Some(pkcs11_lib_path), Some(pkcs11_base_slot)) = (&*pkcs11_lib_path, &*pkcs11_base_slot) {
+				// Pre-emptively open a session to the base slot. This makes it faster to use it in the future,
+				// since we won't have to log in again.
+
+				let pkcs11_context = pkcs11::Context::load(pkcs11_lib_path.clone()).map_err(err_external)?;
+				let pkcs11_slot = pkcs11_context.find_slot(&pkcs11_base_slot.slot_identifier).map_err(err_external)?;
+				let pkcs11_session = pkcs11_context.open_session(pkcs11_slot, pkcs11_base_slot.pin.clone()).map_err(err_external)?;
+
+				let mut pkcs11_base_slot_session = PKCS11_BASE_SLOT_SESSION.lock().map_err(err_fatal)?;
+				let pkcs11_base_slot_session = &mut *pkcs11_base_slot_session;
+				*pkcs11_base_slot_session = Some(pkcs11_session);
+			}
 		}
 
 		Ok(())
