@@ -1,6 +1,6 @@
 pub(super) fn handle(
     req: hyper::Request<hyper::Body>,
-    _inner: std::sync::Arc<aziot_identityd::Server>,
+    inner: std::sync::Arc<aziot_identityd::Server>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
     Box::pin(async move {
         if req.uri().path() != "/encrypt" {
@@ -43,7 +43,7 @@ pub(super) fn handle(
             )),
         };
 
-        let ciphertext = match _inner.encrypt(body.module_id, body.parameters, &body.plaintext.0) {
+        let ciphertext = match inner.encrypt(body.module_id, body.parameters, &body.plaintext.0) {
             Ok(ciphertext) => ciphertext,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

@@ -6,12 +6,6 @@ pub enum Error {
     InvalidParameter(&'static str, Box<dyn std::error::Error + Send + Sync>),
 }
 
-// impl Error {
-// 	pub(crate) fn invalid_parameter<E>(name: &'static str, err: E) -> Self where E: Into<Box<dyn std::error::Error + Send + Sync>> {
-// 		Error::InvalidParameter(name, err.into())
-// 	}
-// }
-
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

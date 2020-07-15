@@ -1,6 +1,6 @@
 pub(super) fn handle(
     req: hyper::Request<hyper::Body>,
-    _inner: std::sync::Arc<aziot_identityd::Server>,
+    inner: std::sync::Arc<aziot_identityd::Server>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
     Box::pin(async move {
         if req.uri().path() != "/identities/modules" {
@@ -44,7 +44,7 @@ pub(super) fn handle(
             )),
         };
 
-        let id = match _inner.create_identity(body.id_type, body.module_id) {
+        let id = match inner.create_identity(body.id_type, body.module_id) {
             Ok(id) => id,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

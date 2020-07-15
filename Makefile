@@ -176,16 +176,16 @@ DEP_AZIOT_IDENTITY_COMMON_HTTP = \
 	$(DEP_AZIOT_IDENTITY_COMMON) \
 
 DEP_AZIOT_IDENTITYD = \
-    identity/aziot-identityd/Cargo.toml identity/aziot-identityd/src/*.rs identity/aziot-identityd/src/http/*.rs \
-    $(DEP_AZIOT_IDENTITY_COMMON) \
-    $(DEP_AZIOT_IDENTITY_COMMON_HTTP) \
+	identity/aziot-identityd/Cargo.toml identity/aziot-identityd/src/*.rs identity/aziot-identityd/src/http/*.rs \
+	$(DEP_AZIOT_IDENTITY_COMMON) \
+	$(DEP_AZIOT_IDENTITY_COMMON_HTTP) \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_HTTP_COMMON) \
 
-.PHONY: clean aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test test aziot-identityd
+.PHONY: clean aziot-certd aziot-identityd aziot-keyd aziot-keys iotedged pkcs11-test test
 
 
-default: aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test aziot-identityd
+default: aziot-certd aziot-identityd aziot-keyd aziot-keys iotedged pkcs11-test
 
 
 clean:

@@ -37,14 +37,14 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 		Box::pin(async move {
 			const ROUTES: &[Route] = &[
 				get_module_identities::handle,
-                get_module_identity::handle,
-                delete_module_identity::handle,
-                get_trust_bundle::handle,
-                decrypt::handle,
-                encrypt::handle,
-                create_module_identity::handle,
-                get_device_identity::handle,
-                get_caller_identity::handle,
+				get_module_identity::handle,
+				delete_module_identity::handle,
+				get_trust_bundle::handle,
+				decrypt::handle,
+				encrypt::handle,
+				create_module_identity::handle,
+				get_device_identity::handle,
+				get_caller_identity::handle,
 				reprovision_device::handle,
 			];
 

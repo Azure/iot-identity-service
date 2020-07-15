@@ -12,13 +12,13 @@ pub(super) fn handle(
         if method != hyper::Method::GET {
             return Ok(super::err_response(
                 hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "POST")),
+                Some((hyper::header::ALLOW, "GET")),
                 "method not allowed".into(),
             ));
         }
 
         let res = aziot_identity_common_http::get_trust_bundle::Response {
-            certificate: aziot_identity_common_http::get_trust_bundle::Pem { 0: std::vec::Vec::default() }
+            certificate: aziot_cert_common_http::Pem { 0: std::vec::Vec::default() }
         };
 
         let res = super::json_response(hyper::StatusCode::OK, &res);

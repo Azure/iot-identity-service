@@ -31,7 +31,7 @@ pub(super) fn handle(
         if method != hyper::Method::GET {
             return Ok(super::err_response(
                 hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "POST")),
+                Some((hyper::header::ALLOW, "GET")),
                 "method not allowed".into(),
             ));
         }
