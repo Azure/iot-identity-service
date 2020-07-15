@@ -8,7 +8,6 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 
 use crate::error::InternalError;
-use aziot_identity_common::ModuleId;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
