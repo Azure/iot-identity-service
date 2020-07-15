@@ -22,11 +22,11 @@ pub(super) fn handle(
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
 
-        let res =
+        let response =
             hyper::Response::builder()
                 .status(hyper::StatusCode::NO_CONTENT)
-                .body(Default::default())
+                .body(hyper::body::Body::default())
                 .expect("cannot fail to serialize hyper response");
-        Ok(res)
+        Ok(response)
     })
 }

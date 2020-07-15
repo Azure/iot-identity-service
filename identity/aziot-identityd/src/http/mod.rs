@@ -50,22 +50,22 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 
 			log::debug!("Received request {:?}", req);
 
-			let mut res = None;
+			let mut response = None;
 			for route in ROUTES {
 				req = match route(req, inner.clone()).await {
-					Ok(res_) => { res = Some(res_); break; },
+					Ok(res_) => { response = Some(res_); break; },
 					Err(req) => req,
 				};
 			}
-			let res = res.unwrap_or_else(|| err_response(
+			let response = response.unwrap_or_else(|| err_response(
 				hyper::StatusCode::NOT_FOUND,
 				None,
 				"not found".into(),
 			));
 
-			log::debug!("Sending response {:?}", res);
+			log::debug!("Sending response {:?}", response);
 
-			Ok(res)
+			Ok(response)
 		})
 	}
 }

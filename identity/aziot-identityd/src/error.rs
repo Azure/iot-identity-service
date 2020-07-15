@@ -26,7 +26,7 @@ impl std::error::Error for Error {
 
 #[derive(Debug)]
 pub enum InternalError {
-    LoadCommonSettings(aziot_common::error::Error),
+    InitializeCommon(aziot_common::error::Error),
     LoadSettings(std::io::Error),
     ParseSettings(toml::de::Error),
 }
@@ -34,7 +34,7 @@ pub enum InternalError {
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalError::LoadCommonSettings(_) => f.write_str("could not load common settings"),
+            InternalError::InitializeCommon(_) => f.write_str("could not load common settings"),
             InternalError::LoadSettings(_) => f.write_str("could not load settings"),
             InternalError::ParseSettings(_) => f.write_str("could not parse settings"),
         }
@@ -44,7 +44,7 @@ impl std::fmt::Display for InternalError {
 impl std::error::Error for InternalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            InternalError::LoadCommonSettings(err) => Some(err),
+            InternalError::InitializeCommon(err) => Some(err),
             InternalError::LoadSettings(err) => Some(err),
             InternalError::ParseSettings(err) => Some(err),
         }
@@ -53,6 +53,6 @@ impl std::error::Error for InternalError {
 
 impl From<aziot_common::error::Error> for InternalError {
     fn from(err: aziot_common::error::Error) -> Self {
-        InternalError::LoadCommonSettings(err)
+        InternalError::InitializeCommon(err)
     }
 }

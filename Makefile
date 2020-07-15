@@ -170,13 +170,20 @@ DEP_AZIOT_COMMON = \
 
 DEP_AZIOT_IDENTITY_COMMON = \
 	identity/aziot-identity-common/Cargo.toml identity/aziot-identity-common/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
 
 DEP_AZIOT_IDENTITY_COMMON_HTTP = \
 	identity/aziot-identity-common-http/Cargo.toml identity/aziot-identity-common-http/src/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
 	$(DEP_AZIOT_IDENTITY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON_HTTP) \
+	$(DEP_HTTP_COMMON) \
 
 DEP_AZIOT_IDENTITYD = \
 	identity/aziot-identityd/Cargo.toml identity/aziot-identityd/src/*.rs identity/aziot-identityd/src/http/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_COMMON) \
 	$(DEP_AZIOT_IDENTITY_COMMON) \
 	$(DEP_AZIOT_IDENTITY_COMMON_HTTP) \
 	$(DEP_AZIOT_KEY_COMMON) \

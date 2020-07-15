@@ -26,9 +26,9 @@ url = "2"
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-common = { path = "../../common/aziot-common" }
-aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-identity-common = { path = "../aziot-identity-common" }
 aziot-identity-common-http = { path = "../aziot-identity-common-http" }
+aziot-key-common = { path = "../../key/aziot-key-common" }
 http-common = { path = "../../http-common" }
 
 [dev-dependencies]

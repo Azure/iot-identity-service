@@ -20,13 +20,13 @@ pub(super) fn handle(
             ));
         }
 
-        let res = match inner.get_module_identity(module_id) {
+        let response = match inner.get_module_identity(module_id) {
             Ok(v) => v,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
-        let res = aziot_identity_common_http::get_module_identity::Response { identity: res };
+        let response = aziot_identity_common_http::get_module_identity::Response { identity: response };
 
-        let res = super::json_response(hyper::StatusCode::OK, &res);
-        Ok(res)
+        let response = super::json_response(hyper::StatusCode::OK, &response);
+        Ok(response)
     })
 }

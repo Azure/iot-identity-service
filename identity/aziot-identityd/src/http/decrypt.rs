@@ -48,11 +48,11 @@ pub(super) fn handle(
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
 
-        let res = aziot_identity_common_http::decrypt::Response {
+        let response = aziot_identity_common_http::decrypt::Response {
             plaintext: http_common::ByteString(plaintext),
         };
-        let res = super::json_response(hyper::StatusCode::OK, &res);
-        Ok(res)
+        let response = super::json_response(hyper::StatusCode::OK, &response);
+        Ok(response)
 
         }
     )

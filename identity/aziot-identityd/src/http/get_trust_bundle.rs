@@ -17,12 +17,12 @@ pub(super) fn handle(
             ));
         }
 
-        let res = aziot_identity_common_http::get_trust_bundle::Response {
+        let response = aziot_identity_common_http::get_trust_bundle::Response {
             certificate: aziot_cert_common_http::Pem { 0: std::vec::Vec::default() }
         };
 
-        let res = super::json_response(hyper::StatusCode::OK, &res);
-        Ok(res)
+        let response = super::json_response(hyper::StatusCode::OK, &response);
+        Ok(response)
 
         }
     )
