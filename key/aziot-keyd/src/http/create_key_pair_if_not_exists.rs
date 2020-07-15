@@ -1,6 +1,6 @@
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<aziot_keyd::Server>,
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
 		if req.uri().path() != "/keypair" {
@@ -42,6 +42,9 @@ pub(super) fn handle(
 				super::error_to_message(&err).into(),
 			)),
 		};
+
+		let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
 		let handle = match inner.create_key_pair_if_not_exists(&body.id, body.preferred_algorithms.as_deref()) {
 			Ok(handle) => handle,

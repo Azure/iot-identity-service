@@ -1,6 +1,6 @@
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<aziot_keyd::Server>,
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
 		if req.uri().path() != "/encrypt" {
@@ -47,6 +47,9 @@ pub(super) fn handle(
 
 			aziot_key_common_http::encrypt::Parameters::RsaPkcs1 => aziot_key_common::EncryptMechanism::RsaPkcs1,
 		};
+
+		let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
 		let ciphertext = match inner.encrypt(&body.key_handle, mechanism, &body.plaintext.0) {
 			Ok(ciphertext) => ciphertext,

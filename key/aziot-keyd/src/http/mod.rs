@@ -7,7 +7,7 @@ mod load_key_pair;
 mod sign;
 
 pub(crate) struct Server {
-	pub(crate) inner: std::sync::Arc<aziot_keyd::Server>,
+	pub(crate) inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 }
 
 /// A route is an async function that receives the hyper request and the `aziot_keyd::Server` value.
@@ -16,7 +16,7 @@ pub(crate) struct Server {
 type Route =
 	fn(
 		hyper::Request<hyper::Body>,
-		std::sync::Arc<aziot_keyd::Server>,
+		std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 	) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>>;
 
 impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {

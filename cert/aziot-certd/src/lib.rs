@@ -9,7 +9,7 @@ pub use error::{Error, InternalError};
 pub struct Server {
 	homedir_path: std::path::PathBuf,
 	preloaded_certs: std::collections::BTreeMap<String, std::path::PathBuf>,
-	key_engine: std::sync::Arc<std::sync::Mutex<openssl2::FunctionalEngine>>,
+	key_engine: openssl2::FunctionalEngine,
 }
 
 impl Server {
@@ -18,7 +18,6 @@ impl Server {
 		key_client: std::sync::Arc<aziot_key_client::Client>,
 	) -> Result<Self, Error> {
 		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(|err| Error::Internal(InternalError::LoadKeyOpenslEngine(err)))?;
-		let key_engine = std::sync::Arc::new(std::sync::Mutex::new(key_engine));
 
 		Ok(Server {
 			homedir_path,
@@ -34,7 +33,7 @@ impl Server {
 	}
 
 	pub fn create_cert(
-		&self,
+		&mut self,
 		id: &str,
 		csr: &[u8],
 		issuer: Option<(&str, &aziot_key_common::KeyHandle)>,
@@ -68,13 +67,10 @@ impl Server {
 				.build().map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 			x509.append_extension(ca_extension).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
-			let mut key_engine = self.key_engine.lock().expect("ks engine mutex poisoned");
-			let key_engine = &mut *key_engine;
-
 			let issuer_private_key =
 				std::ffi::CString::new(issuer_private_key.0.clone()).map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
 			let issuer_private_key =
-				key_engine.load_private_key(&issuer_private_key).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+				self.key_engine.load_private_key(&issuer_private_key).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 			let x509 =
 				if issuer_id == id {
@@ -119,7 +115,7 @@ impl Server {
 	}
 
 	pub fn import_cert(
-		&self,
+		&mut self,
 		id: &str,
 		pem: &[u8],
 	) -> Result<(), Error> {
@@ -129,7 +125,7 @@ impl Server {
 	}
 
 	pub fn get_cert(
-		&self,
+		&mut self,
 		id: &str,
 	) -> Result<Vec<u8>, Error> {
 		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
@@ -138,7 +134,7 @@ impl Server {
 	}
 
 	pub fn delete_cert(
-		&self,
+		&mut self,
 		id: &str,
 	) -> Result<(), Error> {
 		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;

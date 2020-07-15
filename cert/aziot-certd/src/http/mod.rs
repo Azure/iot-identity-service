@@ -3,7 +3,7 @@ mod get_or_delete;
 mod import;
 
 pub(crate) struct Server {
-	pub(crate) inner: std::sync::Arc<aziot_certd::Server>,
+	pub(crate) inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
 }
 
 /// A route is an async function that receives the hyper request and the `aziot_certd::Server` value.
@@ -12,7 +12,7 @@ pub(crate) struct Server {
 type Route =
 	fn(
 		hyper::Request<hyper::Body>,
-		std::sync::Arc<aziot_certd::Server>,
+		std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
 	) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>>;
 
 impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {

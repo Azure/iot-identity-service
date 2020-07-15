@@ -40,7 +40,7 @@ async fn main() -> Result<(), Error> {
 		}
 	}
 
-	let server = std::sync::Arc::new(server);
+	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 
 	eprintln!("Starting server...");
 

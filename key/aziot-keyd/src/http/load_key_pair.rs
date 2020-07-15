@@ -6,7 +6,7 @@ lazy_static::lazy_static! {
 
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<aziot_keyd::Server>,
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
 		let captures = match URI_REGEX.captures(req.uri().path()) {
@@ -34,6 +34,9 @@ pub(super) fn handle(
 				"method not allowed".into(),
 			));
 		}
+
+		let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
 		let handle = match inner.load_key_pair(&key_id) {
 			Ok(handle) => handle,

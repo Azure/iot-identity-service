@@ -1,6 +1,6 @@
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<aziot_keyd::Server>,
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
 		if req.uri().path() != "/sign" {
@@ -47,6 +47,9 @@ pub(super) fn handle(
 
 			aziot_key_common_http::sign::Parameters::HmacSha256 { message } => (aziot_key_common::SignMechanism::HmacSha256, message),
 		};
+
+		let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
 		let signature = match inner.sign(&body.key_handle, mechanism, &digest.0) {
 			Ok(signature) => signature,

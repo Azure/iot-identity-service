@@ -9,13 +9,12 @@ pub use error::{Error, InternalError};
 pub mod keys;
 
 pub struct Server {
-	keys: std::sync::Mutex<keys::Keys>,
+	keys: keys::Keys,
 }
 
 impl Server {
 	pub fn new() -> Result<Self, Error> {
 		let keys = keys::Keys::new()?;
-		let keys = std::sync::Mutex::new(keys);
 
 		Ok(Server {
 			keys,
@@ -23,100 +22,82 @@ impl Server {
 	}
 
 	pub fn set_parameter(&mut self, name: &std::ffi::CStr, value: &std::ffi::CStr) -> Result<(), Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-
-		keys.set_parameter(name, value)?;
-
+		self.keys.set_parameter(name, value)?;
 		Ok(())
 	}
 
 	pub fn create_key_pair_if_not_exists(
-		&self,
+		&mut self,
 		id: &str,
 		preferred_algorithms: Option<&str>,
 	) -> Result<aziot_key_common::KeyHandle, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
 		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
 		let preferred_algorithms =
 			preferred_algorithms
 			.map(|preferred_algorithms| std::ffi::CString::new(preferred_algorithms.to_owned()))
 			.transpose()
 			.map_err(|err| Error::invalid_parameter("preferred_algorithms", err))?;
-		keys.create_key_pair_if_not_exists(&id_cstr, preferred_algorithms.as_ref().map(AsRef::as_ref))?;
+		self.keys.create_key_pair_if_not_exists(&id_cstr, preferred_algorithms.as_ref().map(AsRef::as_ref))?;
 
-		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), keys)?;
+		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
 		Ok(handle)
 	}
 
 	pub fn load_key_pair(
-		&self,
+		&mut self,
 		id: &str,
 	) -> Result<aziot_key_common::KeyHandle, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
 		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
-		keys.load_key_pair(&id_cstr)?;
+		self.keys.load_key_pair(&id_cstr)?;
 
-		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), keys)?;
+		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
 		Ok(handle)
 	}
 
 	pub fn get_key_pair_public_parameter(
-		&self,
+		&mut self,
 		handle: &aziot_key_common::KeyHandle,
 		parameter_name: &str,
 	) -> Result<String, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
+		let (_, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
 
-		let (_, id_cstr) = key_handle_to_id(handle, keys)?;
-
-		let parameter_value = keys.get_key_pair_public_parameter(&id_cstr, parameter_name)?;
+		let parameter_value = self.keys.get_key_pair_public_parameter(&id_cstr, parameter_name)?;
 		Ok(parameter_value)
 	}
 
 	pub fn create_key_if_not_exists(
-		&self,
+		&mut self,
 		id: &str,
 		value: aziot_key_common::CreateKeyValue,
 	) -> Result<aziot_key_common::KeyHandle, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
 		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
 
 		match value {
 			aziot_key_common::CreateKeyValue::Generate { length } =>
-				keys.create_key_if_not_exists(&id_cstr, length)?,
+				self.keys.create_key_if_not_exists(&id_cstr, length)?,
 
 			aziot_key_common::CreateKeyValue::Import { bytes } =>
-				keys.import_key(&id_cstr, &bytes)?,
+				self.keys.import_key(&id_cstr, &bytes)?,
 		}
 
-		let handle = key_id_to_handle(&KeyId::Key(id.into()), keys)?;
+		let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
 		Ok(handle)
 	}
 
 	pub fn sign(
-		&self,
+		&mut self,
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::SignMechanism,
 		digest: &[u8],
 	) -> Result<Vec<u8>, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
-		let (id, id_cstr) = key_handle_to_id(handle, keys)?;
+		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
 
 		let signature = match (id, mechanism) {
 			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::Ecdsa) =>
-				keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,
+				self.keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,
 
 			(KeyId::Key(_), aziot_key_common::SignMechanism::HmacSha256) =>
-				keys.sign(
+				self.keys.sign(
 					&id_cstr,
 					keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
 					std::ptr::null(),
@@ -130,15 +111,12 @@ impl Server {
 	}
 
 	pub fn encrypt(
-		&self,
+		&mut self,
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::EncryptMechanism,
 		plaintext: &[u8],
 	) -> Result<Vec<u8>, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
-		let (id, id_cstr) = key_handle_to_id(handle, keys)?;
+		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
 
 		let ciphertext = match (id, mechanism) {
 			(KeyId::Key(_), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
@@ -149,7 +127,7 @@ impl Server {
 					aad_len: aad.len(),
 				};
 
-				keys.encrypt(
+				self.keys.encrypt(
 					&id_cstr,
 					keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
 					&parameters as *const _ as *const std::ffi::c_void,
@@ -158,7 +136,7 @@ impl Server {
 			},
 
 			(KeyId::KeyPair(_), aziot_key_common::EncryptMechanism::RsaPkcs1) => {
-				keys.encrypt(
+				self.keys.encrypt(
 					&id_cstr,
 					keys::sys::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1,
 					std::ptr::null_mut(),
@@ -173,15 +151,12 @@ impl Server {
 	}
 
 	pub fn decrypt(
-		&self,
+		&mut self,
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::EncryptMechanism,
 		ciphertext: &[u8],
 	) -> Result<Vec<u8>, Error> {
-		let mut keys = self.keys.lock().expect("keys mutex poisoned");
-		let keys = &mut *keys;
-
-		let (id, id_cstr) = key_handle_to_id(handle, keys)?;
+		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
 
 		let plaintext = match (id, mechanism) {
 			(KeyId::Key(_), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
@@ -192,7 +167,7 @@ impl Server {
 					aad_len: aad.len(),
 				};
 
-				keys.decrypt(
+				self.keys.decrypt(
 					&id_cstr,
 					keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
 					&parameters as *const _ as *const std::ffi::c_void,

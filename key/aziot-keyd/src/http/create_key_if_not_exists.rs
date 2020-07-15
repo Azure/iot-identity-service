@@ -1,6 +1,6 @@
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
-	inner: std::sync::Arc<aziot_keyd::Server>,
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
 		if req.uri().path() != "/key" {
@@ -59,6 +59,9 @@ pub(super) fn handle(
 				"one of lengthBytes and keyBytes must be specified in the request".into(),
 			)),
 		};
+
+		let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
 		let handle = match inner.create_key_if_not_exists(&body.id, create_key_value) {
 			Ok(handle) => handle,
