@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #[derive(Clone, Copy)]
 pub(crate) struct ExIndices {
 	pub(crate) engine: openssl::ex_data::Index<openssl_sys::ENGINE, crate::engine::Engine>,

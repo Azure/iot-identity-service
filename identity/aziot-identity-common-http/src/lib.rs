@@ -1,5 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
+
 pub mod get_caller_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {

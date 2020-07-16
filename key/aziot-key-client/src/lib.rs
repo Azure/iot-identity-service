@@ -1,6 +1,12 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 #![allow(
 	clippy::let_and_return,
+	clippy::missing_errors_doc,
+	clippy::must_use_candidate,
+	clippy::shadow_unrelated,
 )]
 
 pub trait Connector {
@@ -38,7 +44,7 @@ impl Client {
 
 		let res: aziot_key_common_http::create_key_pair_if_not_exists::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			"/keypair",
 			Some(&body),
 		)?;
@@ -55,7 +61,7 @@ impl Client {
 
 		let res: aziot_key_common_http::load_key_pair::Response = request::<_, (), _>(
 			&mut stream,
-			http::Method::GET,
+			&http::Method::GET,
 			&uri,
 			None,
 		)?;
@@ -77,7 +83,7 @@ impl Client {
 
 		let res: aziot_key_common_http::get_key_pair_public_parameter::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			&uri,
 			Some(&body),
 		)?;
@@ -106,7 +112,7 @@ impl Client {
 
 		let res: aziot_key_common_http::create_key_if_not_exists::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			"/key",
 			Some(&body),
 		)?;
@@ -136,7 +142,7 @@ impl Client {
 
 		let res: aziot_key_common_http::sign::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			"/sign",
 			Some(&body),
 		)?;
@@ -167,7 +173,7 @@ impl Client {
 
 		let res: aziot_key_common_http::encrypt::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			"/encrypt",
 			Some(&body),
 		)?;
@@ -198,7 +204,7 @@ impl Client {
 
 		let res: aziot_key_common_http::decrypt::Response = request(
 			&mut stream,
-			http::Method::POST,
+			&http::Method::POST,
 			"/decrypt",
 			Some(&body),
 		)?;
@@ -215,7 +221,7 @@ impl std::fmt::Debug for Client {
 
 fn request<TStream, TRequest, TResponse>(
 	stream: &mut TStream,
-	method: http::Method,
+	method: &http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>

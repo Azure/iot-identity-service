@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(super) fn handle(
     req: hyper::Request<hyper::Body>,
     inner: std::sync::Arc<aziot_identityd::Server>,

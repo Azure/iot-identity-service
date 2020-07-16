@@ -1,6 +1,7 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
-#![allow(
-)]
+#![deny(clippy::all, clippy::pedantic)]
 
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pem(pub Vec<u8>);

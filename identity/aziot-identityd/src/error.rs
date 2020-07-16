@@ -24,6 +24,7 @@ impl std::error::Error for Error {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
     InitializeCommon(aziot_common::error::Error),

@@ -1,3 +1,5 @@
+/* Copyright (c) Microsoft. All rights reserved. */
+
 #include <string.h>
 
 #include <openssl/evp.h>

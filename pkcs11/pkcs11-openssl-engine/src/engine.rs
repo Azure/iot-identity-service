@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(super) struct Engine {
 	context: std::sync::Arc<pkcs11::Context>,
 }

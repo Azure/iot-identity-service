@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 mod create_key_if_not_exists;
 mod create_key_pair_if_not_exists;
 mod decrypt;

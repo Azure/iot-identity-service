@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 impl crate::ex_data::HasExData<pkcs11::Object<openssl::ec::EcKey<openssl::pkey::Private>>> for openssl_sys::EC_KEY {
 	unsafe fn index() -> openssl::ex_data::Index<Self, pkcs11::Object<openssl::ec::EcKey<openssl::pkey::Private>>> {
 		crate::ex_data::ex_indices().ec_key

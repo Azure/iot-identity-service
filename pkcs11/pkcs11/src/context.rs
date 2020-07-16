@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 lazy_static::lazy_static! {
 	/// Used to memoize [`Context`]s to PKCS#11 libraries.
 	///

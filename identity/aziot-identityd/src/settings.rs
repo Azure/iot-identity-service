@@ -101,7 +101,7 @@ impl Serialize for Protocol {
 mod tests {
     use test_case::test_case;
 
-    use super::*;
+    use super::{FromStr, Protocol};
 
     #[test_case("tls", Protocol::Tls10; "when tls provided")]
     #[test_case("tls1", Protocol::Tls10; "when tls1 with dot provided")]

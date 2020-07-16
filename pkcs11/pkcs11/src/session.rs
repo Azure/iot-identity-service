@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub struct Session {
 	pub(crate) context: std::sync::Arc<crate::Context>,
 	pub(crate) handle: pkcs11_sys::CK_SESSION_HANDLE,
@@ -155,8 +157,8 @@ impl std::fmt::Display for GetKeyError {
 }
 
 impl std::error::Error for GetKeyError {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			GetKeyError::FindObjectsFailed(inner) => Some(inner),
 			GetKeyError::GetKeyTypeFailed(_) => None,
@@ -476,8 +478,8 @@ impl std::fmt::Display for GenerateKeyPairError {
 }
 
 impl std::error::Error for GenerateKeyPairError {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			GenerateKeyPairError::DeleteExistingKey(_) => None,
 			GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(_) => None,

@@ -1,7 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 #![allow(
-clippy::type_complexity,
+    clippy::let_unit_value,
+    clippy::type_complexity,
 )]
 
 mod http;

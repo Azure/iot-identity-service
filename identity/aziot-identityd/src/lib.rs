@@ -1,6 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 #![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+)]
 
 pub mod app;
 pub mod error;
@@ -17,6 +21,9 @@ impl Server {
     }
 }
 
+#[allow(clippy::unused_self)] // TODO: Remove when the stubs are filled out and `self` actually gets used.
+#[allow(clippy::needless_pass_by_value)] // TODO: Remove when the stubs are filled out if the parameters still need to be `String` and not `&str`,
+                                         // otherwise change them to `&str`.
 impl Server {
     pub fn get_module_identity(&self, _module_id: String) -> Result<aziot_identity_common::Identity, Error> {
 

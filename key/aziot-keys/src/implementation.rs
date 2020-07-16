@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 lazy_static::lazy_static! {
 	static ref HOMEDIR_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
 
@@ -255,6 +257,7 @@ pub(crate) unsafe extern "C" fn verify(
 
 		let locations = Location::of(id)?;
 
+		#[allow(clippy::match_same_arms)]
 		let ok = match mechanism {
 			// Verify is not supported for asymmetric keys.
 			// Clients can verify signatures themselves from the public parameters of the key pair.

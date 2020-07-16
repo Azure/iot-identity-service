@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 //! `ecdsa.h`
 
 #[cfg(not(ossl110))]

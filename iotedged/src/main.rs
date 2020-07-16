@@ -1,5 +1,9 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 #![allow(
+	clippy::default_trait_access,
 	clippy::let_and_return,
 	clippy::type_complexity,
 )]
@@ -104,9 +108,11 @@ async fn main() -> Result<(), Error> {
 	println!("Loaded device CA key with parameters: {}", Displayable(&*device_ca_public_key));
 
 	let device_ca_cert = {
-		let device_ca_cert = match cert_client.get_cert("device-ca").await {
-			Ok(device_ca_cert) => device_ca_cert,
-			Err(_) => {
+		let device_ca_cert =
+			if let Ok(device_ca_cert) = cert_client.get_cert("device-ca").await {
+				device_ca_cert
+			}
+			else {
 				let csr =
 					create_csr("device-ca", &device_ca_public_key, &device_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
@@ -114,8 +120,7 @@ async fn main() -> Result<(), Error> {
 					cert_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 					.await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 				device_ca_cert
-			},
-		};
+			};
 		let device_ca_cert = openssl::x509::X509::stack_from_pem(&device_ca_cert).map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 		device_ca_cert
 	};
@@ -145,10 +150,8 @@ async fn main() -> Result<(), Error> {
 		match verify_device_ca_cert(&device_ca_cert[0], &device_ca_private_key)? {
 			VerifyDeviceCaCertResult::Ok => (),
 
-			verify_result => {
-				// TODO: Handle properly
-				panic!("new device CA cert still failed to validate: {:?}", verify_result);
-			},
+			verify_result @ VerifyDeviceCaCertResult::MismatchedKeys =>
+				panic!("new device CA cert still failed to validate: {:?}", verify_result),
 		}
 	}
 
@@ -167,9 +170,11 @@ async fn main() -> Result<(), Error> {
 	println!("Loaded workload CA key with parameters: {}", Displayable(&*workload_ca_public_key));
 
 	let workload_ca_cert = {
-		let workload_ca_cert = match cert_client.get_cert("workload-ca").await {
-			Ok(workload_ca_cert) => workload_ca_cert,
-			Err(_) => {
+		let workload_ca_cert =
+			if let Ok(workload_ca_cert) = cert_client.get_cert("workload-ca").await {
+				workload_ca_cert
+			}
+			else {
 				let csr =
 					create_csr("workload-ca", &workload_ca_public_key, &workload_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
@@ -177,8 +182,7 @@ async fn main() -> Result<(), Error> {
 					cert_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
 					.await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 				workload_ca_cert
-			},
-		};
+			};
 		let workload_ca_cert = openssl::x509::X509::stack_from_pem(&workload_ca_cert).map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 		workload_ca_cert
 	};
@@ -517,6 +521,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			Error::CreateOrLoadDeviceCaCert(err) => Some(&**err),
 			Error::CreateOrLoadDeviceCaKeyPair(err) => Some(err),
@@ -583,14 +588,14 @@ impl std::fmt::Display for Displayable<'_, openssl::x509::X509Ref> {
 			.ok_or(())
 			.and_then(|entry| entry.data().as_utf8().map_err(|_| ()))
 			.map(|s| s.to_string())
-			.unwrap_or_else(|_| String::new());
+			.unwrap_or_default();
 
 		let issuer_name =
 			self.0.issuer_name().entries().next()
 			.ok_or(())
 			.and_then(|entry| entry.data().as_utf8().map_err(|_| ()))
 			.map(|s| s.to_string())
-			.unwrap_or_else(|_| String::new());
+			.unwrap_or_default();
 
 		let digest: std::borrow::Cow<'static, str> = match self.0.digest(openssl::hash::MessageDigest::sha256()) {
 			Ok(digest_bytes) => {

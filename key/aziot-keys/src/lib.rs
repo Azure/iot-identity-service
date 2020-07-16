@@ -1,8 +1,16 @@
-// #![deny(rust_2018_idioms, warnings)]
+// Copyright (c) Microsoft. All rights reserved.
+
+#![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 #![allow(
 	non_camel_case_types,
+	clippy::default_trait_access,
+	clippy::doc_markdown, // clippy wants "IoT" in a code fence
 	clippy::let_and_return,
 	clippy::missing_safety_doc,
+	clippy::shadow_unrelated,
+	clippy::similar_names,
+	clippy::too_many_lines,
 	clippy::type_complexity,
 )]
 

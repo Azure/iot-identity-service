@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft. All rights reserved.
+
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug)]
 pub struct KeysRawError(pub(crate) sys::KEYGEN_ERROR);
 
@@ -208,7 +211,7 @@ impl Keys {
 				Keys::V2_0_0_0 { create_key_pair_if_not_exists, .. } => {
 					keys_fn(|| create_key_pair_if_not_exists(
 						id.as_ptr(),
-						preferred_algorithms.map_or(std::ptr::null(), |preferred_algorithms| preferred_algorithms.as_ptr()),
+						preferred_algorithms.map_or(std::ptr::null(), std::ffi::CStr::as_ptr),
 					)).map_err(|err| CreateKeyPairIfNotExistsError { err })?;
 
 					Ok(())
@@ -728,7 +731,9 @@ pub(crate) mod sys {
 		non_camel_case_types,
 		non_snake_case,
 		unused,
+		clippy::too_many_lines,
 		clippy::unreadable_literal,
+		clippy::unseparated_literal_suffix,
 	)]
 
 	use openssl_sys::EVP_PKEY;

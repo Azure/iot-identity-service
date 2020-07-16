@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(
@@ -220,8 +222,8 @@ impl std::fmt::Display for ParsePkcs11UriError {
 }
 
 impl std::error::Error for ParsePkcs11UriError {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			ParsePkcs11UriError::InvalidScheme => None,
 			ParsePkcs11UriError::InvalidUtf8(_, inner) => Some(&**inner),

@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 impl crate::ex_data::HasExData<crate::ex_data::KeyExData> for openssl_sys::EC_KEY {
 	unsafe fn index() -> openssl::ex_data::Index<Self, crate::ex_data::KeyExData> {
 		crate::ex_data::ex_indices().ec_key

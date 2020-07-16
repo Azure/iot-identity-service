@@ -1,3 +1,5 @@
+/* Copyright (c) Microsoft. All rights reserved. */
+
 #include <openssl/crypto.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L

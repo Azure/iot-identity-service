@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 impl crate::ex_data::HasExData<pkcs11::Object<openssl::rsa::Rsa<openssl::pkey::Private>>> for openssl_sys::RSA {
 	unsafe fn index() -> openssl::ex_data::Index<Self, pkcs11::Object<openssl::rsa::Rsa<openssl::pkey::Private>>> {
 		crate::ex_data::ex_indices().rsa

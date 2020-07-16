@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 	id: *const std::os::raw::c_char,
 	preferred_algorithms: *const std::os::raw::c_char,

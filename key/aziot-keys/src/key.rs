@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 	id: *const std::os::raw::c_char,
 	length: usize,

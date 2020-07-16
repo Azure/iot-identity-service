@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 /// A reference to an object stored in a slot.
 pub struct Object<T> {
 	session: std::sync::Arc<crate::Session>,
@@ -116,8 +118,8 @@ impl Object<openssl::rsa::Rsa<openssl::pkey::Public>> {
 }
 
 impl std::error::Error for GetKeyParametersError {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			GetKeyParametersError::ConvertToOpenssl(inner) => Some(inner),
 			GetKeyParametersError::GetAttributeValueFailed(_) => None,
@@ -245,8 +247,8 @@ impl std::fmt::Display for SignError {
 }
 
 impl std::error::Error for SignError {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			SignError::LoginFailed(inner) => Some(inner),
 			SignError::SignInitFailed(_) => None,

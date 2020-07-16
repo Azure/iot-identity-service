@@ -1,6 +1,4 @@
-#![allow(
-	clippy::used_underscore_binding, // TODO: Remove when https://github.com/rust-lang/rust-clippy/pull/5535 makes it to stable
-)]
+// Copyright (c) Microsoft. All rights reserved.
 
 pub(crate) async fn connect(
 	stream: std::net::TcpStream,

@@ -1,5 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeviceId(pub String);
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

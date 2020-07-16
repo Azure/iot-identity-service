@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft. All rights reserved.
+
+#[allow(clippy::needless_pass_by_value)] // TODO: Remove when the stub is filled out and `inner` actually gets used.
 pub(super) fn handle(
     req: hyper::Request<hyper::Body>,
     _inner: std::sync::Arc<aziot_identityd::Server>,

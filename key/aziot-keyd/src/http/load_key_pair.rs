@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 lazy_static::lazy_static! {
 	static ref URI_REGEX: regex::Regex =
 		regex::Regex::new("^/keypair/(?P<keyId>[^/]+)$")

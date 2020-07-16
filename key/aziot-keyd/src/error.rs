@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #[derive(Debug)]
 pub enum Error {
 	Internal(InternalError),
@@ -30,6 +32,7 @@ impl std::error::Error for Error {
 	}
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
 	CreateKeyIfNotExistsGenerate(crate::keys::CreateKeyIfNotExistsError),

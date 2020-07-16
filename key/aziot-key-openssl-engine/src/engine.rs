@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(super) struct Engine {
 	client: std::sync::Arc<aziot_key_client::Client>,
 }

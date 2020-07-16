@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(
@@ -25,8 +27,8 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {
-	#[allow(clippy::match_same_arms)]
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			Error::SysReturnedNull { inner } => Some(inner),
 			Error::SysReturnedUnexpected { inner, .. } => Some(inner),

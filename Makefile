@@ -258,6 +258,22 @@ target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
 
 test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
 	$(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
+
+	find -name '*.rs' | \
+		grep -v '^\./target/' | \
+		grep -v '\.generated\.rs$$' | \
+		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
+		while read -r f; do \
+			if ! grep -Eq '^#!\[deny\(rust_2018_idioms, warnings\)\]$$' "$$f"; then \
+				echo "missing #![deny(rust_2018_idioms, warnings)] in $$f" >&2; \
+				exit 1; \
+			fi; \
+			if ! grep -Eq '^#!\[deny\(clippy::all, clippy::pedantic\)\]$$' "$$f"; then \
+				echo "missing #![deny(clippy::all, clippy::pedantic)] in $$f" >&2; \
+				exit 1; \
+			fi; \
+		done
+
 	$(CARGO) clippy --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) $(CARGO_VERBOSE)
@@ -267,7 +283,17 @@ test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if [ "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]; then \
-				echo "missing newline from end of $$f" >&2; \
+				echo "missing newline at end of $$f" >&2; \
+				exit 1; \
+			fi; \
+		done
+
+	find -name '*.c' -or -name '*.rs' | \
+		grep -v '^\./target/' | \
+		grep -v '\.generated\.rs$$' | \
+		while read -r f; do \
+			if ! (head -n1 "$$f" | grep -q 'Copyright (c) Microsoft. All rights reserved.'); then \
+				echo "missing copyright header in $$f" >&2; \
 				exit 1; \
 			fi; \
 		done

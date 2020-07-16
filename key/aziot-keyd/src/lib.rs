@@ -1,6 +1,10 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 #![allow(
 	clippy::let_and_return,
+	clippy::missing_errors_doc,
 )]
 
 mod error;
@@ -182,7 +186,7 @@ impl Server {
 	}
 }
 
-/// Decoded from a aziot_key_common::KeyHandle
+/// Decoded from a [`aziot_key_common::KeyHandle`]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 enum KeyId<'a> {
 	KeyPair(std::borrow::Cow<'a, str>),

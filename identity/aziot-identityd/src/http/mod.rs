@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 mod get_module_identities;
 mod get_module_identity;
 mod delete_module_identity;

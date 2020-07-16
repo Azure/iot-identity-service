@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #[derive(Debug)]
 pub enum Error {
 	Internal(InternalError),
@@ -28,6 +30,7 @@ impl std::error::Error for Error {
 	}
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
 	CreateCert(Box<dyn std::error::Error>),
@@ -55,6 +58,7 @@ impl std::fmt::Display for InternalError {
 
 impl std::error::Error for InternalError {
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		#[allow(clippy::match_same_arms)]
 		match self {
 			InternalError::CreateCert(err) => Some(&**err),
 			InternalError::CreateFile(err) => Some(err),

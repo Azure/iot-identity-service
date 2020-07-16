@@ -1,6 +1,7 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
-#![allow(
-)]
+#![deny(clippy::all, clippy::pedantic)]
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Error {

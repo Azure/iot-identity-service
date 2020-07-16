@@ -1,6 +1,7 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![deny(rust_2018_idioms, warnings)]
-#![allow(
-)]
+#![deny(clippy::all, clippy::pedantic)]
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
 pub const PATH_SEGMENT_ENCODE_SET: &percent_encoding::AsciiSet =

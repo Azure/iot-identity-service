@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub(super) fn handle(
 	req: hyper::Request<hyper::Body>,
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,

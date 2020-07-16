@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 //! `ec.h`
 
 #[cfg(ossl110)]

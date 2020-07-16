@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 /// Represents a dynamically loaded library.
 pub(crate) struct Library {
 	handle: *mut std::ffi::c_void,
