@@ -85,63 +85,6 @@ pub mod get_trust_bundle {
     }
 }
 
-
-pub mod decrypt {
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	pub struct Request {
-		#[serde(rename = "moduleid")]
-		pub module_id: String,
-
-		#[serde(flatten)]
-		pub parameters: Parameters,
-
-		pub ciphertext: http_common::ByteString,
-	}
-
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	#[serde(tag = "algorithm", content = "parameters")]
-	pub enum Parameters {
-		#[serde(rename = "AEAD")]
-		Aead {
-			iv: http_common::ByteString,
-			aad: http_common::ByteString,
-		},
-	}
-
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	pub struct Response {
-		pub plaintext: http_common::ByteString,
-	}
-}
-
-pub mod encrypt {
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	pub struct Request {
-		#[serde(rename = "moduleid")]
-		pub module_id: String,
-
-		#[serde(flatten)]
-		pub parameters: Parameters,
-
-		pub plaintext: http_common::ByteString,
-	}
-
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	#[serde(tag = "algorithm", content = "parameters")]
-	pub enum Parameters {
-		#[serde(rename = "AEAD")]
-		Aead {
-			iv: http_common::ByteString,
-			aad: http_common::ByteString,
-		},
-	}
-
-	#[derive(Debug, serde::Deserialize, serde::Serialize)]
-	pub struct Response {
-		pub ciphertext: http_common::ByteString,
-	}
-}
-
 pub mod reprovision_device {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {

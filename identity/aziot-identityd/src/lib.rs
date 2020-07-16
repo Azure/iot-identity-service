@@ -48,28 +48,6 @@ impl Server {
         Ok(())
     }
 
-    pub fn encrypt(
-        &self,
-        _module_id: String,
-        _parameters: aziot_identity_common_http::encrypt::Parameters,
-        _plaintext: &[u8],
-    ) -> Result<Vec<u8>, Error> {
-
-        //TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-        Ok(b"test".to_vec())
-    }
-
-    pub fn decrypt(
-        &self,
-        _module_id: String,
-        _parameters: aziot_identity_common_http::decrypt::Parameters,
-        _ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Error> {
-
-        //TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-        Ok(b"test".to_vec())
-    }
-
     pub fn reprovision_device(&self) -> Result<(), Error> {
 
         //TODO: invoke reprovision

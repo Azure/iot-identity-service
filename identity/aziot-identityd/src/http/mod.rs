@@ -2,8 +2,6 @@ mod get_module_identities;
 mod get_module_identity;
 mod delete_module_identity;
 mod get_trust_bundle;
-mod decrypt;
-mod encrypt;
 mod create_module_identity;
 mod get_device_identity;
 mod get_caller_identity;
@@ -40,8 +38,6 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 				get_module_identity::handle,
 				delete_module_identity::handle,
 				get_trust_bundle::handle,
-				decrypt::handle,
-				encrypt::handle,
 				create_module_identity::handle,
 				get_device_identity::handle,
 				get_caller_identity::handle,
