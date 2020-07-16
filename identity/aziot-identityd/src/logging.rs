@@ -5,7 +5,7 @@ use std::io::Write;
 
 use log::{Level, LevelFilter};
 
-const ENV_LOG: &str = "IOTEDGE_LOG";
+const ENV_LOG: &str = "AZIOT_LOG";
 
 pub fn init() {
     env_logger::Builder::new()

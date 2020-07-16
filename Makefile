@@ -165,11 +165,34 @@ DEP_IOTEDGED = \
 	$(DEP_OPENSSL_BUILD) \
 	$(DEP_OPENSSL_SYS2) \
 
+DEP_AZIOT_COMMON = \
+	common/aziot-common/Cargo.toml common/aziot-common/src/*.rs \
 
-.PHONY: clean aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test test
+DEP_AZIOT_IDENTITY_COMMON = \
+	identity/aziot-identity-common/Cargo.toml identity/aziot-identity-common/src/*.rs \
+	$(DEP_AZIOT_KEY_COMMON) \
+
+DEP_AZIOT_IDENTITY_COMMON_HTTP = \
+	identity/aziot-identity-common-http/Cargo.toml identity/aziot-identity-common-http/src/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_IDENTITY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_COMMON_HTTP) \
+	$(DEP_HTTP_COMMON) \
+
+DEP_AZIOT_IDENTITYD = \
+	identity/aziot-identityd/Cargo.toml identity/aziot-identityd/src/*.rs identity/aziot-identityd/src/http/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_COMMON) \
+	$(DEP_AZIOT_IDENTITY_COMMON) \
+	$(DEP_AZIOT_IDENTITY_COMMON_HTTP) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_HTTP_COMMON) \
+
+.PHONY: clean aziot-certd aziot-identityd aziot-keyd aziot-keys iotedged pkcs11-test test
 
 
-default: aziot-certd aziot-keyd aziot-keys iotedged pkcs11-test
+default: aziot-certd aziot-identityd aziot-keyd aziot-keys iotedged pkcs11-test
 
 
 clean:
@@ -215,6 +238,11 @@ aziot-keyd: target/$(DIRECTORY)/aziot-keyd
 target/$(DIRECTORY)/aziot-keyd: Cargo.lock $(DEP_AZIOT_KEYD)
 	$(CARGO) build -p aziot-keyd $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
+aziot-identityd: target/$(DIRECTORY)/aziot-identityd
+
+target/$(DIRECTORY)/aziot-identityd: Cargo.lock $(DEP_AZIOT_IDENTITYD)
+	$(CARGO) build -p aziot-identityd $(CARGO_PROFILE) $(CARGO_VERBOSE)
+
 
 iotedged: target/$(DIRECTORY)/iotedged
 
@@ -228,7 +256,7 @@ target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
 	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
+test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
 	$(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
