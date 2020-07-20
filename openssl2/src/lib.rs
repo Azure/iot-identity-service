@@ -6,7 +6,6 @@
 	clippy::default_trait_access,
 	clippy::missing_errors_doc,
 	clippy::must_use_candidate,
-	clippy::not_unsafe_ptr_arg_deref,
 	clippy::use_self,
 )]
 

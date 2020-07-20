@@ -1,4 +1,6 @@
 /**
+ * Copyright (c) Microsoft. All rights reserved.
+ *
  * This header specifies the API used for libaziot-keys. This library is used to create and load keys by the Azure IoT Keys Service.
  *
  *

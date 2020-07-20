@@ -41,6 +41,10 @@ else
 endif
 
 
+# Some of the targets use bash-isms like `set -o pipefail`
+SHELL := /bin/bash
+
+
 # Dependencies of a crate, ie its source files as well as its crate dependencies.
 #
 # Keep in sync with the crates' respective Cargo.toml's
@@ -256,10 +260,16 @@ target/$(DIRECTORY)/pkcs11-test: Cargo.lock $(DEP_PKCS11_TEST)
 	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
 
-test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target/$(DIRECTORY)/libaziot_keys.so target/$(DIRECTORY)/aziot-keyd target/$(DIRECTORY)/iotedged target/$(DIRECTORY)/pkcs11-test
-	$(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE)
+test: target/$(DIRECTORY)/aziot-certd
+test: target/$(DIRECTORY)/aziot-identityd
+test: target/$(DIRECTORY)/aziot-keyd
+test: target/$(DIRECTORY)/iotedged
+test: target/$(DIRECTORY)/libaziot_keys.so
+test: target/$(DIRECTORY)/pkcs11-test
+test:
+	set -o pipefail; $(CARGO) test --all $(CARGO_PROFILE) $(CARGO_VERBOSE) 2>&1 | grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
-	find -name '*.rs' | \
+	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
@@ -278,7 +288,7 @@ test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target
 	$(CARGO) clippy --all --tests $(CARGO_PROFILE) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) $(CARGO_VERBOSE)
 
-	find -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
+	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
@@ -288,7 +298,7 @@ test: target/$(DIRECTORY)/aziot-certd target/$(DIRECTORY)/aziot-identityd target
 			fi; \
 		done
 
-	find -name '*.c' -or -name '*.rs' | \
+	find . -name '*.c' -or -name '*.rs' | \
 		grep -v '^\./target/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
