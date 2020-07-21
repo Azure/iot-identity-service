@@ -61,8 +61,8 @@ pub mod get_module_identities {
 pub mod get_module_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
-        #[serde(rename = "moduleId")]
-        pub module_id: aziot_identity_common::ModuleId,
+        #[serde(rename = "type")]
+        pub id_type: String,
     }
 
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -76,6 +76,8 @@ pub mod get_module_identity {
 pub mod delete_module_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
+        #[serde(rename = "type")]
+        pub id_type: String,
         #[serde(rename = "moduleId")]
         pub module_id: String,
     }

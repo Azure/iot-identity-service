@@ -5,7 +5,7 @@
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeviceId(pub String);
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ModuleId(pub String);
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GenId(pub String);
@@ -46,4 +46,14 @@ pub struct AuthenticationInfo {
 pub enum AuthenticationType {
     SaS,
     X509,
+}
+
+pub struct Uid(i32);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IdType {
+    Device,
+    Local,
+    Module,
 }

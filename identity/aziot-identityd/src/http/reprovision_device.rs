@@ -9,6 +9,12 @@ pub(super) fn handle(
             return Err(req);
         }
 
+        let user = aziot_identityd::auth::Uid(0);
+        let auth_id = match inner.authenticator.authenticate(user) {
+            Ok(auth_id) => auth_id,
+            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+        };
+
         let (http::request::Parts { method, .. }, _body) = req.into_parts();
 
         if method != hyper::Method::POST {
@@ -19,7 +25,8 @@ pub(super) fn handle(
             ));
         }
 
-        match inner.reprovision_device() {
+        //TODO: get uid from UDS
+        match inner.reprovision_device(auth_id) {
             Ok(()) => (),
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

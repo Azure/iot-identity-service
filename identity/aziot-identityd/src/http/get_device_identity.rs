@@ -9,6 +9,12 @@ pub(super) fn handle(
             return Err(req);
         }
 
+        let user = aziot_identityd::auth::Uid(0);
+        let auth_id = match inner.authenticator.authenticate(user) {
+            Ok(auth_id) => auth_id,
+            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+        };
+
         let (http::request::Parts { method, .. }, body) = req.into_parts();
 
         if method != hyper::Method::GET {
@@ -37,7 +43,8 @@ pub(super) fn handle(
             )),
         };
 
-        let response = match inner.get_device_identity(body.id_type) {
+        //TODO: get uid from UDS
+        let response = match inner.get_device_identity(auth_id,&body.id_type) {
             Ok(v) => v,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

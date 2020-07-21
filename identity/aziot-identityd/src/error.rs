@@ -2,6 +2,8 @@
 
 #[derive(Debug)]
 pub enum Error {
+    Authentication,
+    Authorization,
     Internal(InternalError),
     InvalidParameter(&'static str, Box<dyn std::error::Error + Send + Sync>),
 }
@@ -9,6 +11,8 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::Authentication => f.write_str("authentication error"),
+            Error::Authorization => f.write_str("authorization error"),
             Error::Internal(_) => f.write_str("internal error"),
             Error::InvalidParameter(name, _) => write!(f, "parameter {:?} has an invalid value", name),
         }
@@ -18,6 +22,8 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Error::Authentication |
+            Error::Authorization => None,
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
         }

@@ -18,6 +18,8 @@ pub struct Settings {
     pub hostname: String,
 
     pub homedir: std::path::PathBuf,
+
+    pub principal: Option<Vec<Principal>>,
 }
 
 impl Settings {
@@ -27,6 +29,16 @@ impl Settings {
 
         Ok(settings)
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all="lowercase")]
+pub struct Principal {
+    pub uid: crate::auth::Credentials,
+
+    pub name: aziot_identity_common::ModuleId,
+    #[serde(rename = "idtype")]
+    pub id_type: Option<aziot_identity_common::IdType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
