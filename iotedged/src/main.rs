@@ -224,6 +224,29 @@ async fn main() -> Result<(), Error> {
 		}
 	}
 
+	// Verify encrypt-decrypt
+
+	let key_handle = {
+		key_client.create_key_if_not_exists("crypto-test", aziot_key_common::CreateKeyValue::Generate {length: 32}).await.unwrap()
+	};
+
+	let mut rng = rand::rngs::OsRng;
+
+	let original_plaintext = b"aaaaaa";
+	let iv = {
+		let mut iv = vec![0_u8; 16];
+		rand::RngCore::fill_bytes(&mut rng, &mut iv);
+		iv
+	};
+	let aad = b"$iotedged".to_vec();
+
+	let ciphertext = key_client.encrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
+
+	let new_plaintext = key_client.decrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
+	assert_eq!(original_plaintext, &new_plaintext[..]);
+
+
+	// Verify IoT Hub auth using SAS key
 
 	let mut request: hyper::Request<hyper::Body> = hyper::Request::new(Default::default());
 	*request.uri_mut() =
@@ -238,32 +261,10 @@ async fn main() -> Result<(), Error> {
 		if let Some(key) = sas_key {
 			println!("Using SAS key auth");
 
-
 			let key_handle = {
 				let key = base64::decode(key).unwrap();
 				key_client.create_key_if_not_exists("device-id", aziot_key_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
 			};
-
-
-			// Verify encrypt-decrypt
-
-			let mut rng = rand::rngs::OsRng;
-
-			let original_plaintext = b"aaaaaa";
-			let iv = {
-				let mut iv = vec![0_u8; 16];
-				rand::RngCore::fill_bytes(&mut rng, &mut iv);
-				iv
-			};
-			let aad = b"$iotedged".to_vec();
-
-			let ciphertext = key_client.encrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
-
-			let new_plaintext = key_client.decrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
-			assert_eq!(original_plaintext, &new_plaintext[..]);
-
-
-			// Verify IoT Hub auth using SAS key
 
 			let token = {
 				let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(30)).unwrap();
