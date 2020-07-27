@@ -48,6 +48,8 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 
 			log::debug!("Received request {:?}", req);
 
+			//TODO: Authenticate caller by matching uid with approved Server uid list
+
 			let mut response = None;
 			for route in ROUTES {
 				req = match route(req, inner.clone()).await {
@@ -127,6 +129,13 @@ impl ToHttpResponse for aziot_identityd::error::Error {
 
 			err @ aziot_identityd::error::Error::InvalidParameter(_, _) => err_response(
 				hyper::StatusCode::BAD_REQUEST,
+				None,
+				error_to_message(err).into(),
+			),
+
+			err @ aziot_identityd::error::Error::Authentication |
+			err @ aziot_identityd::error::Error::Authorization => err_response(
+				hyper::StatusCode::UNAUTHORIZED,
 				None,
 				error_to_message(err).into(),
 			),

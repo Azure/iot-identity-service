@@ -9,6 +9,12 @@ pub(super) fn handle(
             return Err(req);
         }
 
+        let user = aziot_identityd::auth::Uid(0);
+        let auth_id = match inner.authenticator.authenticate(user) {
+            Ok(auth_id) => auth_id,
+            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+        };
+
         let (http::request::Parts { method, headers, .. }, body) = req.into_parts();
         let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
 
@@ -46,7 +52,8 @@ pub(super) fn handle(
             )),
         };
 
-        match inner.delete_identity(body.module_id) {
+        //TODO: get uid from UDS
+        match inner.delete_identity(auth_id,&body.id_type, &body.module_id) {
             Ok(()) => (),
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

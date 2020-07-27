@@ -9,8 +9,11 @@ pub(super) fn handle(
             return Err(req);
         }
 
-        //TODO: Insert caller to module_id mapping lookup here
-        let module_id = String::from("callerid");
+        let user = aziot_identityd::auth::Uid(0);
+        let auth_id = match inner.authenticator.authenticate(user) {
+            Ok(auth_id) => auth_id,
+            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+        };
 
         let (http::request::Parts { method, .. }, _) = req.into_parts();
 
@@ -22,7 +25,8 @@ pub(super) fn handle(
             ));
         }
 
-        let response = match inner.get_module_identity(module_id) {
+        //TODO: get uid from UDS
+        let response = match inner.get_caller_identity(auth_id) {
             Ok(v) => v,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
