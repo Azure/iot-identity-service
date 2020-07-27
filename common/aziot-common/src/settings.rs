@@ -38,27 +38,6 @@ pub enum DpsAttestationMethod {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename = "cert_issuance")]
-pub struct CertificateIssuance {
-    #[serde(rename = "device-id")]
-    pub device_identity: CertificateIssuanceType,
-
-    #[serde(rename = "module-id")]
-    pub module_identity: CertificateIssuanceType,
-
-    #[serde(rename = "module-server")]
-    pub module_server: CertificateIssuanceType,
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CertificateIssuanceType {
-    Dps,
-    Est,
-    Local,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
     #[serde(flatten)]
@@ -84,8 +63,6 @@ pub enum ProvisioningType {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
-    pub cert_issuance: CertificateIssuance,
-
     pub provisioning: Provisioning,
 }
 
@@ -100,26 +77,26 @@ impl Settings {
 
 #[cfg(test)]
 mod tests {
-    use super::CertificateIssuanceType;
-    use crate::settings::{ProvisioningType, Settings};
+    use crate::settings::{ProvisioningType, Settings, DpsAttestationMethod, ManualAuthMethod};
 
     #[test]
     fn manual_sas_provisioning_settings_succeeds() {
         let s = Settings::new(std::path::Path::new("test/good_sas_config.toml")).unwrap();
 
-        assert_eq!(
-            s.cert_issuance.device_identity,
-            CertificateIssuanceType::Dps
-        );
-        assert_eq!(
-            s.cert_issuance.module_identity,
-            CertificateIssuanceType::Dps
-        );
-        assert_eq!(s.cert_issuance.module_server, CertificateIssuanceType::Dps);
         assert_eq!(s.provisioning.dynamic_reprovisioning, false);
 
         match s.provisioning.provisioning {
-            ProvisioningType::Manual { authentication: _ } => (),
+            ProvisioningType::Manual { authentication } => {
+                match authentication {
+                    ManualAuthMethod::SharedPrivateKey { 
+                        iothub_hostname: _, 
+                        device_id: _, 
+                        device_id_pk: _,
+                     } => {},
+                    _ => panic!("incorrect provisioning type selected"),
+                     
+                }
+            },
             _ => panic!("incorrect provisioning type selected"),
         };
     }
@@ -128,22 +105,20 @@ mod tests {
     fn manual_dps_provisioning_settings_succeeds() {
         let s = Settings::new(std::path::Path::new("test/good_dps_config.toml")).unwrap();
 
-        assert_eq!(
-            s.cert_issuance.device_identity,
-            CertificateIssuanceType::Dps
-        );
-        assert_eq!(
-            s.cert_issuance.module_identity,
-            CertificateIssuanceType::Dps
-        );
-        assert_eq!(s.cert_issuance.module_server, CertificateIssuanceType::Dps);
-
         match s.provisioning.provisioning {
             ProvisioningType::Dps {
                 global_endpoint: _,
                 scope_id: _,
-                attestation: _,
-            } => (),
+                attestation,
+            } => {
+                match attestation {
+                    DpsAttestationMethod::SymmetricKey {
+                        registration_id: _,
+                        symmetric_key: _,     
+                    } => (),
+                    _ => panic!("incorrect provisioning type selected"),
+                }
+            },
             _ => panic!("incorrect provisioning type selected"),
         };
     }

@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![allow(dead_code)]
-
 use crate::error::Error;
 use crate::auth::Operation;
 

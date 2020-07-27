@@ -26,13 +26,6 @@ name = "hostprocess2"
 idtype = "module"
 uid = 1003
 
-###############################################################################
-# Common configuration
-###############################################################################
-[cert_issuance]
-device-id = "dps"
-module-id = "dps"
-module-server = "dps"
 
 [provisioning]
 source = "manual"
@@ -69,21 +62,4 @@ dynamic_reprovisioning = false
 # "method" = "x509"
 # "identity_cert" = "est"
 # "identity_pk" = "est"
-
-# [cert_issuance]
-# device-ca = "est" # Only needed if one of the others has the value "device-ca"
-# device-id = "est" # or "device-ca" for minting locally
-# module-id = "est" # or "device-ca" for minting locally
-# module-server = "est" # or "device-ca" for minting locally
-
-# [est.url]
-# # Default EST endpoint URL
-# default = "https://estendpoint.com/.well-known/est/simpleenroll"
-
-# # EST endpoint URL specifically for the device-id cert
-# "device-id" = "https://estendpoint.com/.well-known/est/device-id/simpleenroll"
-
-# # EST endpoint URL specifically for the device-ca cert
-# "device-ca" = "https://estendpoint.com/.well-known/est/device-ca/simpleenroll"
-
 

@@ -8,7 +8,7 @@ pub trait Authenticator {
 	/// Authentication error.
 	type Error: std::error::Error + Send;
 
-	/// Authenticates a IS client with given its credentials.
+	/// Authenticates an IS client with given its credentials.
 	fn authenticate(&self, credentials: Uid) -> Result<AuthId, Self::Error>;
 }
 

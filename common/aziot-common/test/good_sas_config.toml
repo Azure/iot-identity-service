@@ -10,14 +10,6 @@ api_uri = "unix:///var/run/aziot/identityd.sock"
 [listen]
 api_uri = "unix:///var/run/aziot/identityd.sock"
 
-###############################################################################
-# Common configuration
-###############################################################################
-[cert_issuance]
-device-id = "dps"
-module-id = "dps"
-module-server = "dps"
-
 [provisioning]
 source = "manual"
 

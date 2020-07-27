@@ -48,7 +48,7 @@ pub enum AuthenticationType {
     X509,
 }
 
-pub struct Uid(i32);
+pub struct Uid(u32);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
