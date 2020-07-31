@@ -59,7 +59,7 @@ impl Client {
 
 		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_key_common_http::load_key_pair::Response = request::<_, (), _>(
+		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
 			&mut stream,
 			&http::Method::GET,
 			&uri,
@@ -127,7 +127,7 @@ impl Client {
 
 		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_key_common_http::load_key::Response = request::<_, (), _>(
+		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
 			&mut stream,
 			&http::Method::GET,
 			&uri,

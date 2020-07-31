@@ -16,7 +16,8 @@ pub(super) fn handle(
 			None => return Err(req),
 		};
 
-		let type_ = captures.get(1)?;
+		let type_ = captures.get(1).expect("cannot fail capture");
+		let type_ = String::from(type_.as_str());
 		let key_id = &captures["keyId"];
 		let key_id = percent_encoding::percent_decode_str(key_id).decode_utf8();
 		let key_id = match key_id {
@@ -41,7 +42,7 @@ pub(super) fn handle(
 		let mut inner = inner.lock().await;
 		let inner = &mut *inner;
 
-		let handle = match type_ {
+		let handle = match type_.as_str() {
 			"keypair" => match inner.load_key_pair(&key_id) {
 				Ok(handle) => handle,
 				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
@@ -50,13 +51,13 @@ pub(super) fn handle(
 				Ok(handle) => handle,
 				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 			},
-			_ => Ok(super::err_response(
+			&_ => return Ok(super::err_response(
 				hyper::StatusCode::BAD_REQUEST,
 				None,
-				"invalid type".into(),
+				"invalid type".into())),
 		};
 
-		let res = aziot_key_common_http::load_key_pair::Response {
+		let res = aziot_key_common_http::load::Response {
 			handle,
 		};
 		let res = super::json_response(hyper::StatusCode::OK, &res);
