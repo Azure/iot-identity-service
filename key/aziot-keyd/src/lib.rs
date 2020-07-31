@@ -106,7 +106,6 @@ impl Server {
 		digest: &[u8],
 	) -> Result<Vec<u8>, Error> {
 		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
-		eprintln!("Id {:?}, mechanism {:?}", id, mechanism);
 		let signature = match (id, mechanism) {
 			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::Ecdsa) =>
 				self.keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,

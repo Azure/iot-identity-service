@@ -2,7 +2,7 @@
 
 lazy_static::lazy_static! {
 	static ref URI_REGEX: regex::Regex =
-		regex::Regex::new("^/((keypair)|(key))/(?P<keyId>[^/]+)$")
+		regex::Regex::new("^/(?P<type>(key|keypair))/(?P<keyId>[^/]+)$")
 		.expect("hard-coded regex must compile");
 }
 
@@ -11,13 +11,14 @@ pub(super) fn handle(
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
 	Box::pin(async move {
-		let captures = match URI_REGEX.captures(req.uri().path()) {
+		let path = req.uri().path().to_owned();
+		let captures = match URI_REGEX.captures(path.as_str()) {
 			Some(captures) => captures,
 			None => return Err(req),
 		};
 
-		let type_ = captures.get(1).expect("cannot fail capture");
-		let type_ = String::from(type_.as_str());
+		let type_ = &captures["type"];
+	
 		let key_id = &captures["keyId"];
 		let key_id = percent_encoding::percent_decode_str(key_id).decode_utf8();
 		let key_id = match key_id {
@@ -42,7 +43,7 @@ pub(super) fn handle(
 		let mut inner = inner.lock().await;
 		let inner = &mut *inner;
 
-		let handle = match type_.as_str() {
+		let handle = match type_ {
 			"keypair" => match inner.load_key_pair(&key_id) {
 				Ok(handle) => handle,
 				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
@@ -54,7 +55,7 @@ pub(super) fn handle(
 			&_ => return Ok(super::err_response(
 				hyper::StatusCode::BAD_REQUEST,
 				None,
-				"invalid type".into())),
+				format!("invalid type {:?}", type_).into())),
 		};
 
 		let res = aziot_key_common_http::load::Response {
