@@ -44,6 +44,10 @@ pub(crate) enum Keys {
 			length: usize,
 		) -> sys::KEYGEN_ERROR,
 
+		load_key: unsafe extern "C" fn(
+			id: *const std::os::raw::c_char,
+		) -> sys::KEYGEN_ERROR,
+
 		import_key: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
 			bytes: *const u8,
@@ -124,6 +128,9 @@ impl Keys {
 
 				create_key_if_not_exists:
 					(*function_list).create_key_if_not_exists.ok_or(LoadLibraryError::MissingFunction("create_key_if_not_exists"))?,
+
+				load_key:
+					(*function_list).load_key.ok_or(LoadLibraryError::MissingFunction("load_key"))?,
 
 				import_key:
 					(*function_list).import_key.ok_or(LoadLibraryError::MissingFunction("import_key"))?,
@@ -385,6 +392,39 @@ impl std::fmt::Display for CreateKeyIfNotExistsError {
 }
 
 impl std::error::Error for CreateKeyIfNotExistsError {
+}
+
+impl Keys {
+	pub(crate) fn load_key(
+		&mut self,
+		id: &std::ffi::CStr,
+	) -> Result<(), LoadKeyError> {
+		unsafe {
+			match self {
+				Keys::V2_0_0_0 { load_key, .. } => {
+					keys_fn(|| load_key(
+						id.as_ptr(),
+					)).map_err(|err| LoadKeyError { err })?;
+
+					Ok(())
+				},
+			}
+		}
+	}
+}
+
+#[derive(Debug)]
+pub struct LoadKeyError {
+	pub err: KeysRawError,
+}
+
+impl std::fmt::Display for LoadKeyError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "could not load key: {}", self.err)
+	}
+}
+
+impl std::error::Error for LoadKeyError {
 }
 
 impl Keys {

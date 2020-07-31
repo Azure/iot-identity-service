@@ -47,6 +47,17 @@ impl Server {
 		Ok(handle)
 	}
 
+	pub fn load_key(
+		&mut self,
+		id: &str,
+	) -> Result<aziot_key_common::KeyHandle, Error> {
+		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
+		self.keys.load_key(&id_cstr)?;
+
+		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
+		Ok(handle)
+	}
+
 	pub fn load_key_pair(
 		&mut self,
 		id: &str,

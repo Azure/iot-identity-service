@@ -119,6 +119,23 @@ impl Client {
 		Ok(res.handle)
 	}
 
+	pub fn load_key(
+		&self,
+		id: &str,
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
+		let mut stream = self.connector.connect()?;
+
+		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
+
+		let res: aziot_key_common_http::load_key::Response = request::<_, (), _>(
+			&mut stream,
+			&http::Method::GET,
+			&uri,
+			None,
+		)?;
+		Ok(res.handle)
+	}
+
 	pub fn sign(
 		&self,
 		handle: &aziot_key_common::KeyHandle,

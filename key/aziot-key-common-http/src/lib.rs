@@ -106,6 +106,14 @@ pub mod get_key_pair_public_parameter {
 	}
 }
 
+pub mod load_key {
+	#[derive(Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Response {
+		#[serde(rename = "keyHandle")]
+		pub handle: aziot_key_common::KeyHandle,
+	}
+}
+
 pub mod load_key_pair {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {

@@ -2,7 +2,7 @@
 
 lazy_static::lazy_static! {
 	static ref URI_REGEX: regex::Regex =
-		regex::Regex::new("^/keypair/(?P<keyId>[^/]+)$")
+		regex::Regex::new("^/((keypair)|(key))/(?P<keyId>[^/]+)$")
 		.expect("hard-coded regex must compile");
 }
 
@@ -16,6 +16,7 @@ pub(super) fn handle(
 			None => return Err(req),
 		};
 
+		let type_ = captures.get(1)?;
 		let key_id = &captures["keyId"];
 		let key_id = percent_encoding::percent_decode_str(key_id).decode_utf8();
 		let key_id = match key_id {
@@ -40,9 +41,19 @@ pub(super) fn handle(
 		let mut inner = inner.lock().await;
 		let inner = &mut *inner;
 
-		let handle = match inner.load_key_pair(&key_id) {
-			Ok(handle) => handle,
-			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+		let handle = match type_ {
+			"keypair" => match inner.load_key_pair(&key_id) {
+				Ok(handle) => handle,
+				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+			},
+			"key" => match inner.load_key(&key_id) {
+				Ok(handle) => handle,
+				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
+			},
+			_ => Ok(super::err_response(
+				hyper::StatusCode::BAD_REQUEST,
+				None,
+				"invalid type".into(),
 		};
 
 		let res = aziot_key_common_http::load_key_pair::Response {
