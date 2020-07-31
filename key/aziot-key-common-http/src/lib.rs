@@ -106,7 +106,7 @@ pub mod get_key_pair_public_parameter {
 	}
 }
 
-pub mod load_key_pair {
+pub mod load {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
 		#[serde(rename = "keyHandle")]

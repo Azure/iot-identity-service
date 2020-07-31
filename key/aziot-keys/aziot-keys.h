@@ -133,6 +133,7 @@ typedef struct {
      */
     KEYGEN_ERROR (*get_key_pair_parameter)(const char *id, KEYGEN_KEY_PAIR_PARAMETER_TYPE type_, unsigned char *value, uintptr_t *value_len);
     KEYGEN_ERROR (*create_key_if_not_exists)(const char *id, uintptr_t length);
+    KEYGEN_ERROR (*load_key)(const char *id);
     KEYGEN_ERROR (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len);
     KEYGEN_ERROR (*sign)(const char *id, KEYGEN_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
     /**

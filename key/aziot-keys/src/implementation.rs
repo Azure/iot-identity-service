@@ -56,6 +56,7 @@ pub(crate) unsafe fn get_function_list(
 			load_key_pair: crate::key_pair::load_key_pair,
 			get_key_pair_parameter: crate::key_pair::get_key_pair_parameter,
 			create_key_if_not_exists: crate::key::create_key_if_not_exists,
+			load_key: crate::key::load_key,
 			import_key: crate::key::import_key,
 			sign,
 			verify,

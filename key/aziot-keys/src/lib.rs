@@ -196,6 +196,10 @@ pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
 		length: usize,
 	) -> KEYGEN_ERROR,
 
+	pub load_key: unsafe extern "C" fn(
+		id: *const std::os::raw::c_char,
+	) -> KEYGEN_ERROR,
+
 	pub import_key: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
 		bytes: *const u8,

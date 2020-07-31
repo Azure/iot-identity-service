@@ -30,6 +30,29 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 	})
 }
 
+pub(crate) unsafe extern "C" fn load_key(
+	id: *const std::os::raw::c_char,
+) -> crate::KEYGEN_ERROR {
+	crate::r#catch(|| {
+		let id = {
+			if id.is_null() {
+				return Err(crate::implementation::err_invalid_parameter("id", "expected non-NULL"));
+			}
+			let id = std::ffi::CStr::from_ptr(id);
+			let id = id.to_str().map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
+			id
+		};
+
+		let locations = crate::implementation::Location::of(id)?;
+
+		if load_inner(&locations)?.is_none() {
+			return Err(crate::implementation::err_invalid_parameter("id", "not found"));
+		}
+
+		Ok(())
+	})
+}
+
 pub(crate) unsafe extern "C" fn import_key(
 	id: *const std::os::raw::c_char,
 	bytes: *const u8,

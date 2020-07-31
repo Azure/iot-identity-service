@@ -42,6 +42,7 @@ pub enum InternalError {
 	Decrypt(crate::keys::DecryptError),
 	Encrypt(crate::keys::EncryptError),
 	GenerateNonce(openssl::error::ErrorStack),
+	LoadKey(crate::keys::LoadKeyError),
 	LoadKeyPair(crate::keys::LoadKeyPairError),
 	LoadLibrary(crate::keys::LoadLibraryError),
 	SetLibraryParameter(crate::keys::SetLibraryParameterError),
@@ -59,6 +60,7 @@ impl std::fmt::Display for InternalError {
 			InternalError::Encrypt(_) => f.write_str("could not encrypt"),
 			InternalError::GetKeyPairPublicParameter(_) => f.write_str("could not get key pair parameter"),
 			InternalError::GenerateNonce(_) => f.write_str("could not generate nonce"),
+			InternalError::LoadKey(_) => f.write_str("could not load key"),
 			InternalError::LoadKeyPair(_) => f.write_str("could not load key pair"),
 			InternalError::LoadLibrary(_) => f.write_str("could not load libaziot-keys"),
 			InternalError::SetLibraryParameter(_) => f.write_str("could not set parameter on libaziot-keys"),
@@ -78,6 +80,7 @@ impl std::error::Error for InternalError {
 			InternalError::Encrypt(err) => Some(err),
 			InternalError::GetKeyPairPublicParameter(err) => Some(err),
 			InternalError::GenerateNonce(err) => Some(err),
+			InternalError::LoadKey(err) => Some(err),
 			InternalError::LoadKeyPair(err) => Some(err),
 			InternalError::LoadLibrary(err) => Some(err),
 			InternalError::SetLibraryParameter(err) => Some(err),
@@ -135,6 +138,15 @@ impl From<crate::keys::CreateKeyIfNotExistsError> for Error {
 		match err.err.0 {
 			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)),
+		}
+	}
+}
+
+impl From<crate::keys::LoadKeyError> for Error {
+	fn from(err: crate::keys::LoadKeyError) -> Self {
+		match err.err.0 {
+			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			_ => Error::Internal(InternalError::LoadKey(err)),
 		}
 	}
 }

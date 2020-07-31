@@ -47,6 +47,17 @@ impl Server {
 		Ok(handle)
 	}
 
+	pub fn load_key(
+		&mut self,
+		id: &str,
+	) -> Result<aziot_key_common::KeyHandle, Error> {
+		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
+		self.keys.load_key(&id_cstr)?;
+
+		let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
+		Ok(handle)
+	}
+
 	pub fn load_key_pair(
 		&mut self,
 		id: &str,
@@ -95,7 +106,6 @@ impl Server {
 		digest: &[u8],
 	) -> Result<Vec<u8>, Error> {
 		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
-
 		let signature = match (id, mechanism) {
 			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::Ecdsa) =>
 				self.keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,

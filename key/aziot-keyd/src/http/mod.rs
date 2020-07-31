@@ -5,7 +5,7 @@ mod create_key_pair_if_not_exists;
 mod decrypt;
 mod encrypt;
 mod get_key_pair_public_parameter;
-mod load_key_pair;
+mod load;
 mod sign;
 
 pub(crate) struct Server {
@@ -40,7 +40,7 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 				decrypt::handle,
 				encrypt::handle,
 				get_key_pair_public_parameter::handle,
-				load_key_pair::handle,
+				load::handle,
 				sign::handle,
 			];
 

@@ -54,7 +54,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
 		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_key_common_http::load_key_pair::Response = request::<_, (), _>(
+		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
 			&self.inner,
 			http::Method::GET,
 			&uri,
@@ -106,6 +106,21 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 			http::Method::POST,
 			"/key",
 			Some(&body),
+		).await?;
+		Ok(res.handle)
+	}
+
+	pub async fn load_key(
+		&self,
+		id: &str,
+	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
+		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
+
+		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
+			&self.inner,
+			http::Method::GET,
+			&uri,
+			None,
 		).await?;
 		Ok(res.handle)
 	}
