@@ -52,7 +52,7 @@ pub(super) fn handle(
 				Ok(handle) => handle,
 				Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
 			},
-			&_ => return Ok(super::err_response(
+			type_ => return Ok(super::err_response(
 				hyper::StatusCode::BAD_REQUEST,
 				None,
 				format!("invalid type {:?}", type_).into())),
