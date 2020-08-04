@@ -36,7 +36,7 @@ async fn main() -> Result<(), Error> {
 		let key_client = aziot_key_client::Client::new(Box::new(Connector));
 		let key_client = std::sync::Arc::new(key_client);
 
-		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(Error::LoadKeyOpenslEngine)?;
+		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(Error::LoadKeyOpensslEngine)?;
 		key_engine
 	};
 
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Error> {
 					create_csr("device-ca", &device_ca_public_key, &device_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 				let device_ca_cert =
-					cert_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+					cert_client.create_cert("device-ca", &csr, None)
 					.await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 				device_ca_cert
 			};
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Error> {
 			create_csr("device-ca", &device_ca_public_key, &device_ca_private_key)
 			.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 		let device_ca_cert =
-			cert_client.create_cert("device-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+			cert_client.create_cert("device-ca", &csr, None)
 			.await.map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 		let device_ca_cert = openssl::x509::X509::stack_from_pem(&device_ca_cert).map_err(|err| Error::CreateOrLoadDeviceCaCert(Box::new(err)))?;
 
@@ -179,7 +179,7 @@ async fn main() -> Result<(), Error> {
 					create_csr("workload-ca", &workload_ca_public_key, &workload_ca_private_key)
 					.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 				let workload_ca_cert =
-					cert_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+					cert_client.create_cert("workload-ca", &csr, None)
 					.await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 				workload_ca_cert
 			};
@@ -209,7 +209,7 @@ async fn main() -> Result<(), Error> {
 			create_csr("workload-ca", &workload_ca_public_key, &workload_ca_private_key)
 			.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 		let workload_ca_cert =
-			cert_client.create_cert("workload-ca", &csr, Some(("device-ca", &device_ca_key_pair_handle)))
+			cert_client.create_cert("workload-ca", &csr, None)
 			.await.map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 		let workload_ca_cert = openssl::x509::X509::stack_from_pem(&*workload_ca_cert).map_err(|err| Error::CreateOrLoadWorkloadCaCert(Box::new(err)))?;
 
@@ -470,7 +470,8 @@ fn verify_workload_ca_cert(
 		return Ok(VerifyWorkloadCaCertResult::NotSignedByDeviceCa);
 	}
 
-	if device_ca_cert.issued(workload_ca_cert) != openssl::x509::X509VerifyResult::OK {
+	let issued_result = device_ca_cert.issued(workload_ca_cert);
+	if issued_result != openssl::x509::X509VerifyResult::OK {
 		return Ok(VerifyWorkloadCaCertResult::NotSignedByDeviceCa);
 	}
 
@@ -489,7 +490,7 @@ enum Error {
 	CreateOrLoadDeviceCaKeyPair(std::io::Error),
 	CreateOrLoadWorkloadCaCert(Box<dyn std::error::Error>),
 	CreateOrLoadWorkloadCaKeyPair(std::io::Error),
-	LoadKeyOpenslEngine(openssl2::Error),
+	LoadKeyOpensslEngine(openssl2::Error),
 	VerifyWorkloadCaCert(openssl::error::ErrorStack),
 }
 
@@ -514,7 +515,7 @@ impl std::fmt::Display for Error {
 			Error::CreateOrLoadDeviceCaKeyPair(_) => f.write_str("could not create or load device CA key pair"),
 			Error::CreateOrLoadWorkloadCaCert(_) => f.write_str("could not create workload CA cert"),
 			Error::CreateOrLoadWorkloadCaKeyPair(_) => f.write_str("could not create or load workload CA key pair"),
-			Error::LoadKeyOpenslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
+			Error::LoadKeyOpensslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
 			Error::VerifyWorkloadCaCert(_) => f.write_str("could not verify workload CA cert signature"),
 		}
 	}
@@ -528,7 +529,7 @@ impl std::error::Error for Error {
 			Error::CreateOrLoadDeviceCaKeyPair(err) => Some(err),
 			Error::CreateOrLoadWorkloadCaCert(err) => Some(&**err),
 			Error::CreateOrLoadWorkloadCaKeyPair(err) => Some(err),
-			Error::LoadKeyOpenslEngine(err) => Some(err),
+			Error::LoadKeyOpensslEngine(err) => Some(err),
 			Error::VerifyWorkloadCaCert(err) => Some(err),
 		}
 	}
@@ -617,7 +618,10 @@ impl std::fmt::Display for Displayable<'_, openssl::x509::X509Ref> {
 
 impl std::fmt::Display for Displayable<'_, [openssl::x509::X509]> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		for cert in self.0 {
+		for (i, cert) in self.0.iter().enumerate() {
+			if i > 0 {
+				f.write_str("; ")?;
+			}
 			Displayable(&**cert).fmt(f)?;
 		}
 

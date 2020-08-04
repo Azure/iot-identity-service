@@ -14,10 +14,12 @@ mod http;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-	// TODO: Read this from config
-	let homedir_path: std::path::PathBuf =
-		std::env::var_os("HOMEDIR_PATH")
-		.ok_or_else(|| aziot_certd::Error::Internal(aziot_certd::InternalError::InvalidConfig("HOMEDIR_PATH not set".to_owned())))?.into();
+	let config_path: std::path::PathBuf =
+		std::env::var_os("CONFIG")
+		.map_or_else(|| "/etc/aziot/certd/config.toml".into(), Into::into);
+
+	let config = std::fs::read(config_path).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;
+	let config: aziot_certd::Config = toml::from_slice(&config).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;
 
 	let key_client = {
 		struct Connector;
@@ -34,18 +36,7 @@ async fn main() -> Result<(), Error> {
 		key_client
 	};
 
-	let mut server = aziot_certd::Server::new(homedir_path, key_client)?;
-
-	for (key, value) in std::env::vars() {
-		if key.starts_with("PRELOADED_CERT:") {
-			let key = key["PRELOADED_CERT:".len()..].to_owned();
-
-			let value: std::path::PathBuf = value.into();
-
-			server.preload_cert(key, value);
-		}
-	}
-
+	let server = aziot_certd::Server::new(config, key_client)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 
 	eprintln!("Starting server...");

@@ -33,12 +33,11 @@ impl std::error::Error for Error {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
-	CreateCert(Box<dyn std::error::Error>),
-	CreateFile(std::io::Error),
+	CreateCert(Box<dyn std::error::Error + Send + Sync>),
 	DeleteFile(std::io::Error),
-	GetPath(openssl::error::ErrorStack),
-	InvalidConfig(String),
-	LoadKeyOpenslEngine(openssl2::Error),
+	GetPath(Box<dyn std::error::Error + Send + Sync>),
+	LoadKeyOpensslEngine(openssl2::Error),
+	ReadConfig(Box<dyn std::error::Error + Send + Sync>),
 	ReadFile(std::io::Error),
 }
 
@@ -46,11 +45,10 @@ impl std::fmt::Display for InternalError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			InternalError::CreateCert(_) => f.write_str("could not create cert"),
-			InternalError::CreateFile(_) => f.write_str("could not create cert file"),
 			InternalError::DeleteFile(_) => f.write_str("could not delete cert file"),
 			InternalError::GetPath(_) => f.write_str("could not get file path corresponding to cert ID"),
-			InternalError::InvalidConfig(err) => write!(f, "invalid config: {}", err),
-			InternalError::LoadKeyOpenslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
+			InternalError::LoadKeyOpensslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
+			InternalError::ReadConfig(_) => f.write_str("could not read config"),
 			InternalError::ReadFile(_) => f.write_str("could not read cert file"),
 		}
 	}
@@ -61,11 +59,10 @@ impl std::error::Error for InternalError {
 		#[allow(clippy::match_same_arms)]
 		match self {
 			InternalError::CreateCert(err) => Some(&**err),
-			InternalError::CreateFile(err) => Some(err),
 			InternalError::DeleteFile(err) => Some(err),
-			InternalError::GetPath(err) => Some(err),
-			InternalError::InvalidConfig(_) => None,
-			InternalError::LoadKeyOpenslEngine(err) => Some(err),
+			InternalError::GetPath(err) => Some(&**err),
+			InternalError::LoadKeyOpensslEngine(err) => Some(err),
+			InternalError::ReadConfig(err) => Some(&**err),
 			InternalError::ReadFile(err) => Some(err),
 		}
 	}

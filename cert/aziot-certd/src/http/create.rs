@@ -45,14 +45,12 @@ pub(super) fn handle(
 			)),
 		};
 
-		let mut inner = inner.lock().await;
-		let inner = &mut *inner;
-
-		let pem = inner.create_cert(
-			&body.cert_id,
-			&body.csr.0,
-			body.issuer.as_ref().map(|aziot_cert_common_http::create_cert::Issuer { cert_id, private_key_handle }| (&**cert_id, private_key_handle)),
-		);
+		let pem = aziot_certd::Server::create_cert(
+			inner,
+			body.cert_id,
+			body.csr.0,
+			body.issuer.map(|aziot_cert_common_http::create_cert::Issuer { cert_id, private_key_handle }| (cert_id, private_key_handle)),
+		).await;
 		let pem = match pem {
 			Ok(pem) => pem,
 			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),

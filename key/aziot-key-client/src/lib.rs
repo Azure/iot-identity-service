@@ -20,11 +20,11 @@ impl<T> Stream for T where T: std::io::Read + std::io::Write {
 }
 
 pub struct Client {
-	connector: Box<dyn Connector>,
+	connector: Box<dyn Connector + Send + Sync>,
 }
 
 impl Client {
-	pub fn new(connector: Box<dyn Connector>) -> Self {
+	pub fn new(connector: Box<dyn Connector + Send + Sync>) -> Self {
 		Client {
 			connector,
 		}
@@ -256,7 +256,6 @@ where
 		write!(stream, "\
 			content-length: {body_len}\r\n\
 			content-type: application/json\r\n\
-			connection: close\r\n\
 			\r\n\
 			{body}
 			",
@@ -268,14 +267,58 @@ where
 		stream.write_all(b"\r\n")?;
 	}
 
-	let mut buf = vec![];
-	stream.read_to_end(&mut buf)?;
+	// While `connection: close` with a `stream.read_to_end(&mut buf)` ought to be sufficient, hyper sometimes fails to close the connection
+	// and causes read_to_end to block indefinitely. Verified through strace that hyper sometimes completes a writev() to write to the socket but
+	// never close()s it.
+	//
+	// So parse more robustly by only reading up to the length expected.
 
+	let mut buf = vec![0_u8; 512];
+	let mut read_so_far = 0;
+
+	let (res_status_code, body) = loop {
+		let new_read = loop {
+			match stream.read(&mut buf[read_so_far..]) {
+				Ok(new_read) => break new_read,
+				Err(err) if err.kind() == std::io::ErrorKind::Interrupted => (),
+				Err(err) => return Err(err),
+			}
+		};
+		read_so_far += new_read;
+
+		if let Some((res_status_code, body)) = try_parse_response(&buf[..read_so_far], new_read)? {
+			break (res_status_code, body);
+		}
+
+		if read_so_far == buf.len() {
+			buf.resize(buf.len() * 2, 0_u8);
+		}
+	};
+
+	let res: TResponse = match res_status_code {
+		Some(200) => {
+			let res = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			res
+		},
+
+		Some(400..=499) | Some(500..=599) => {
+			let res: aziot_key_common_http::Error = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
+		},
+
+		Some(_) | None => return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response")),
+	};
+	Ok(res)
+}
+
+fn try_parse_response(buf: &[u8], new_read: usize) -> std::io::Result<Option<(Option<u16>, &[u8])>> {
 	let mut headers = [httparse::EMPTY_HEADER; 16];
+
 	let mut res = httparse::Response::new(&mut headers);
 
 	let body_start_pos = match res.parse(&buf) {
 		Ok(httparse::Status::Complete(body_start_pos)) => body_start_pos,
+		Ok(httparse::Status::Partial) if new_read == 0 => return Ok(None),
 		Ok(httparse::Status::Partial) => return Err(std::io::ErrorKind::UnexpectedEof.into()),
 		Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
 	};
@@ -306,28 +349,21 @@ where
 	let body =
 		if let Some(content_length) = content_length {
 			if body.len() < content_length {
-				return Err(std::io::ErrorKind::UnexpectedEof.into());
+				return Ok(None);
 			}
 			else {
 				&body[..content_length]
 			}
 		}
 		else {
-			body
+			// Without a content-length, read until there's no more to read.
+			if new_read == 0 {
+				body
+			}
+			else {
+				return Ok(None);
+			}
 		};
 
-	let res: TResponse = match res_status_code {
-		Some(200) => {
-			let res = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-			res
-		},
-
-		Some(400..=499) | Some(500..=599) => {
-			let res: aziot_key_common_http::Error = serde_json::from_slice(body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-			return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
-		},
-
-		Some(_) | None => return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response")),
-	};
-	Ok(res)
+	Ok(Some((res_status_code, body)))
 }

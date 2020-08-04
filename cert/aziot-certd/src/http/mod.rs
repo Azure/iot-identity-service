@@ -111,11 +111,15 @@ trait ToHttpResponse {
 impl ToHttpResponse for aziot_certd::Error {
 	fn to_http_response(&self) -> hyper::Response<hyper::Body> {
 		match self {
-			aziot_certd::Error::Internal(_) => err_response(
-				hyper::StatusCode::INTERNAL_SERVER_ERROR,
-				None,
-				self.to_string().into(), // Do not use error_to_message for Error::Internal because we don't want to leak internal errors
-			),
+			aziot_certd::Error::Internal(err) => {
+				eprintln!("{}", error_to_message(err));
+
+				err_response(
+					hyper::StatusCode::INTERNAL_SERVER_ERROR,
+					None,
+					self.to_string().into(), // Do not use error_to_message for Error::Internal because we don't want to leak internal errors
+				)
+			},
 
 			err @ aziot_certd::Error::InvalidParameter(_, _) => err_response(
 				hyper::StatusCode::BAD_REQUEST,

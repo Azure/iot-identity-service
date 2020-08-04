@@ -148,7 +148,7 @@ DEP_AZIOT_CERT_CLIENT_ASYNC = \
 	$(DEP_HTTP_COMMON) \
 
 DEP_AZIOT_CERTD = \
-	cert/aziot-certd/Cargo.toml cert/aziot-certd/src/*.rs cert/aziot-certd/src/http/*.rs \
+	cert/aziot-certd/Cargo.toml cert/aziot-certd/build/* cert/aziot-certd/src/*.rs cert/aziot-certd/src/http/*.rs \
 	$(DEP_AZIOT_CERT_COMMON_HTTP) \
 	$(DEP_AZIOT_KEY_CLIENT) \
 	$(DEP_AZIOT_KEY_COMMON) \

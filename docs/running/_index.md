@@ -60,35 +60,7 @@
 
     The server will remain running.
 
-1. Start `aziot-certd` in another shell
-
-    ```sh
-    # HOMEDIR_PATH is a directory where cert files will be stored.
-    export HOMEDIR_PATH=~/iotedge/hsm/certs
-    mkdir -p "$HOMEDIR_PATH"
-    ```
-
-    Finally, run the service with parameters corresponding to the auth method of the device identity.
-
-    - If the device identity is set to use the `shared_private_key` auth method, run the service without any parameters:
-
-        ```sh
-        "$PWD/target/debug/aziot-certd"
-        ```
-
-    - If the device identity is set to use the `x509_thumbprint` auth method, preload the device ID cert into `aziot-certd`:
-
-        ```sh
-        env 'PRELOADED_CERT:device-id=/path/to/cert.pem' "$PWD/target/debug/aziot-certd"
-        ```
-
-    - If the device identity is set to use the `x509_ca` auth method, preload the device ID CA cert into `aziot-certd`:
-
-        ```sh
-        env 'PRELOADED_CERT:device-id-ca=/path/to/cert.pem' "$PWD/target/debug/aziot-certd"
-        ```
-
-    The server will remain running.
+1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.md)
 
 1. Run `iotedged` in a third shell
 
