@@ -44,9 +44,6 @@ pub fn init() -> Result<Settings, InternalError> {
 
     let settings = init_idservice(&config_file)?;
 
-    //TODO: Return a common object and call it for provisioning from IS
-    aziot_common::init(&config_file)?;
-
     Ok(settings)
 }
 

@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 mod get_module_identities;
-mod get_module_identity;
-mod delete_module_identity;
+mod get_or_delete_module_identity;
 mod get_trust_bundle;
 mod create_module_identity;
 mod get_device_identity;
@@ -10,7 +9,7 @@ mod get_caller_identity;
 mod reprovision_device;
 
 pub(crate) struct Server {
-	pub(crate) inner: std::sync::Arc<aziot_identityd::Server>,
+	pub(crate) inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
 }
 
 /// A route is an async function that receives the hyper request and the `aziot_identityd::Server` value.
@@ -19,7 +18,7 @@ pub(crate) struct Server {
 type Route =
 	fn(
 		hyper::Request<hyper::Body>,
-		std::sync::Arc<aziot_identityd::Server>,
+		std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
 	) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>>;
 
 impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
@@ -37,8 +36,7 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 		Box::pin(async move {
 			const ROUTES: &[Route] = &[
 				get_module_identities::handle,
-				get_module_identity::handle,
-				delete_module_identity::handle,
+				get_or_delete_module_identity::handle,
 				get_trust_bundle::handle,
 				create_module_identity::handle,
 				get_device_identity::handle,
@@ -47,8 +45,6 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 			];
 
 			log::debug!("Received request {:?}", req);
-
-			//TODO: Authenticate caller by matching uid with approved Server uid list
 
 			let mut response = None;
 			for route in ROUTES {
@@ -127,11 +123,19 @@ impl ToHttpResponse for aziot_identityd::error::Error {
 				self.to_string().into(), // Do not use error_to_message for Error::Internal because we don't want to leak internal errors
 			),
 
-			err @ aziot_identityd::error::Error::InvalidParameter(_, _) => err_response(
+			err @ aziot_identityd::error::Error::InvalidParameter(_, _) |
+			err @ aziot_identityd::error::Error::DeviceNotFound |
+			err @ aziot_identityd::error::Error::ModuleNotFound => err_response(
 				hyper::StatusCode::BAD_REQUEST,
 				None,
 				error_to_message(err).into(),
 			),
+
+			err @ aziot_identityd::error::Error::DPSClient(_) |
+			err @ aziot_identityd::error::Error::HubClient(_) => err_response(
+				hyper::StatusCode::NOT_FOUND, 
+				None, 
+			error_to_message(err).into()),
 
 			err @ aziot_identityd::error::Error::Authentication |
 			err @ aziot_identityd::error::Error::Authorization => err_response(

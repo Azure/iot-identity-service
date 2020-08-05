@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use crate::auth::{Uid, AuthId, Credentials};
 use crate::error::Error;
+use crate::auth::{Uid, AuthId, Credentials};
 
 /// A trait to authenticate IS clients with given user id.
 pub trait Authenticator {

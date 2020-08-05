@@ -3,12 +3,15 @@
 #[allow(clippy::needless_pass_by_value)] // TODO: Remove when the stub is filled out and `inner` actually gets used.
 pub(super) fn handle(
     req: hyper::Request<hyper::Body>,
-    inner: std::sync::Arc<aziot_identityd::Server>,
+    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
     Box::pin(async move {
         if req.uri().path() != "/trust-bundle" {
             return Err(req);
         }
+
+        let mut inner = inner.lock().await;
+		let inner = &mut *inner;
 
         let user = aziot_identityd::auth::Uid(0);
         let auth_id = match inner.authenticator.authenticate(user) {
@@ -27,7 +30,7 @@ pub(super) fn handle(
         }
 
         //TODO: get uid from UDS
-        let response = match inner.get_trust_bundle(auth_id) {
+        let response = match inner.get_trust_bundle(auth_id).await {
             Ok(v) => v,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
