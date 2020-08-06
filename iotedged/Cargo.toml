@@ -8,22 +8,17 @@ edition = "2018"
 base64 = "0.12"
 chrono = "0.4"
 foreign-types-shared = "0.1"
-http = "0.1.18"
 hyper = "0.13"
 hyper-openssl = "0.8"
 openssl = "0.10"
 percent-encoding = "2"
 rand = "0.7"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1.0"
-serde_derive = "1.0"
+serde_json = "1"
 structopt = "0.3"
 tokio = { version = "0.2", features = ["dns", "macros"] }
-typed-headers = "0.1"
 url = "2"
 
 http-common = { path = "../http-common" }
-aziot-hub-client-async =  { path = "../identity/aziot-hub-client-async" }
 aziot-cert-client-async = { path = "../cert/aziot-cert-client-async" }
 aziot-key-client = { path = "../key/aziot-key-client" }
 aziot-key-client-async = { path = "../key/aziot-key-client-async" }

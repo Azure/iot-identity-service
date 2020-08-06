@@ -62,7 +62,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-cert-common-http",
  "aziot-key-common",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "percent-encoding",
@@ -91,11 +91,11 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-openssl-engine",
  "backtrace",
- "base64 0.12.3",
+ "base64",
  "foreign-types-shared",
  "futures-util",
  "hex",
- "http 0.2.1",
+ "http",
  "hyper",
  "hyper-openssl",
  "lazy_static",
@@ -121,10 +121,10 @@ dependencies = [
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-key-openssl-engine",
- "base64 0.12.3",
- "bytes 0.5.6",
+ "base64",
+ "bytes",
  "chrono",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -148,9 +148,9 @@ dependencies = [
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-key-openssl-engine",
- "base64 0.12.3",
+ "base64",
  "chrono",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -200,12 +200,12 @@ dependencies = [
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-key-openssl-engine",
- "base64 0.12.3",
+ "base64",
  "chrono",
  "clap",
  "env_logger",
  "futures-util",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -218,7 +218,6 @@ dependencies = [
  "serde",
  "serde_json",
  "test-case",
- "thiserror",
  "tokio",
  "toml",
  "url",
@@ -230,7 +229,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
- "http 0.2.1",
+ "http",
  "http-common",
  "httparse",
  "percent-encoding",
@@ -244,7 +243,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "percent-encoding",
@@ -274,7 +273,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-client",
  "aziot-key-common",
- "base64 0.12.3",
+ "base64",
  "foreign-types-shared",
  "openssl",
  "openssl-build",
@@ -291,9 +290,9 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "backtrace",
- "base64 0.12.3",
+ "base64",
  "futures-util",
- "http 0.2.1",
+ "http",
  "http-common",
  "hyper",
  "lazy_static",
@@ -341,15 +340,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b25d992356d2eb0ed82172f5248873db5560c4721f564b13cb5193bda5e668e"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
-name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
@@ -367,22 +357,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "byteorder"
-version = "1.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
-
-[[package]]
-name = "bytes"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "206fdffcfa2df7cbe15601ef46c813fce0965eb3286db6b56c583b814b51c81c"
-dependencies = [
- "byteorder",
- "iovec",
 ]
 
 [[package]]
@@ -601,12 +575,12 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79b7246d7e4b979c03fa093da39cfb3617a96bbeee6310af63991668d7e843ff"
 dependencies = [
- "bytes 0.5.6",
+ "bytes",
  "fnv",
  "futures-core",
  "futures-sink",
  "futures-util",
- "http 0.2.1",
+ "http",
  "indexmap",
  "log",
  "slab",
@@ -650,22 +624,11 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6ccf5ede3a895d8856620237b2f02972c1bbc78d2965ad7fe8838d4a0ed41f0"
-dependencies = [
- "bytes 0.4.12",
- "fnv",
- "itoa",
-]
-
-[[package]]
-name = "http"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d569972648b2c512421b5f2a405ad6ac9666547189d0c5477a3f200f3e02f9"
 dependencies = [
- "bytes 0.5.6",
+ "bytes",
  "fnv",
  "itoa",
 ]
@@ -676,15 +639,15 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13d5ff830006f7646652e057693569bfe0d51760c0085a071769d142a205111b"
 dependencies = [
- "bytes 0.5.6",
- "http 0.2.1",
+ "bytes",
+ "http",
 ]
 
 [[package]]
 name = "http-common"
 version = "0.1.0"
 dependencies = [
- "base64 0.12.3",
+ "base64",
  "percent-encoding",
  "serde",
 ]
@@ -710,12 +673,12 @@ version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6e7655b9594024ad0ee439f3b5a7299369dc2a3f459b47c696f9ff676f9aa1f"
 dependencies = [
- "bytes 0.5.6",
+ "bytes",
  "futures-channel",
  "futures-core",
  "futures-util",
  "h2",
- "http 0.2.1",
+ "http",
  "http-body",
  "httparse",
  "itoa",
@@ -735,8 +698,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed123fc8c1833f305468df3c3a6a837c34a7ae616567d40a5e3c2bf3cac2e31d"
 dependencies = [
  "antidote",
- "bytes 0.5.6",
- "http 0.2.1",
+ "bytes",
+ "http",
  "hyper",
  "linked_hash_set",
  "once_cell",
@@ -771,15 +734,13 @@ name = "iotedged"
 version = "0.1.0"
 dependencies = [
  "aziot-cert-client-async",
- "aziot-hub-client-async",
  "aziot-key-client",
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-key-openssl-engine",
- "base64 0.12.3",
+ "base64",
  "chrono",
  "foreign-types-shared",
- "http 0.1.21",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -788,12 +749,9 @@ dependencies = [
  "openssl2",
  "percent-encoding",
  "rand",
- "serde",
- "serde_derive",
  "serde_json",
  "structopt",
  "tokio",
- "typed-headers",
  "url",
 ]
 
@@ -878,12 +836,6 @@ name = "memchr"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3728d817d99e5ac407411fa471ff9800a778d88a24685968b36824eaf4bee400"
-
-[[package]]
-name = "mime"
-version = "0.3.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
 name = "miniz_oxide"
@@ -1117,7 +1069,7 @@ name = "pkcs11-test"
 version = "0.1.0"
 dependencies = [
  "backtrace",
- "bytes 0.5.6",
+ "bytes",
  "futures-core",
  "futures-util",
  "hyper",
@@ -1436,26 +1388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thiserror"
-version = "1.0.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dfdd070ccd8ccb78f4ad66bf1982dc37f620ef696c6b5028fe2ed83dd3d0d08"
-dependencies = [
- "thiserror-impl",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd80fc12f73063ac132ac92aceea36734f04a1d93c1240c6944e23a3b8841793"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "thread_local"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1486,7 +1418,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d099fa27b9702bed751524694adbe393e18b36b204da91eb1cbbbbb4a5ee2d58"
 dependencies = [
- "bytes 0.5.6",
+ "bytes",
  "fnv",
  "futures-core",
  "iovec",
@@ -1525,7 +1457,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be8242891f2b6cbef26a2d7e8605133c2c554cd35b3e4948ea892d6d68436499"
 dependencies = [
- "bytes 0.5.6",
+ "bytes",
  "futures-core",
  "futures-sink",
  "log",
@@ -1553,19 +1485,6 @@ name = "try-lock"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
-
-[[package]]
-name = "typed-headers"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd6f5af532d859106afe9077c8f95bcaa09af272d5d9b338ec1ff05830b5803c"
-dependencies = [
- "base64 0.10.1",
- "bytes 0.4.12",
- "chrono",
- "http 0.1.21",
- "mime",
-]
 
 [[package]]
 name = "typenum"
