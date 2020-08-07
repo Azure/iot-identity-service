@@ -56,7 +56,7 @@ pub(crate) unsafe extern "C" fn load_key(
 pub(crate) unsafe extern "C" fn import_key(
 	id: *const std::os::raw::c_char,
 	bytes: *const u8,
-	bytes_length: usize,
+	bytes_len: usize,
 ) -> crate::KEYGEN_ERROR {
 	crate::r#catch(|| {
 		let id = {
@@ -72,7 +72,7 @@ pub(crate) unsafe extern "C" fn import_key(
 			return Err(crate::implementation::err_invalid_parameter("bytes", "expected non-NULL"));
 		}
 
-		let bytes = std::slice::from_raw_parts(bytes, bytes_length);
+		let bytes = std::slice::from_raw_parts(bytes, bytes_len);
 
 		let locations = crate::implementation::Location::of(id)?;
 
@@ -85,8 +85,62 @@ pub(crate) unsafe extern "C" fn import_key(
 	})
 }
 
+pub(crate) unsafe extern "C" fn derive_key(
+	base_id: *const std::os::raw::c_char,
+	derivation_data: *const u8,
+	derivation_data_len: usize,
+	derived_key: *mut std::os::raw::c_uchar,
+	derived_key_len: *mut usize,
+) -> crate::KEYGEN_ERROR {
+	crate::r#catch(|| {
+		let base_id = {
+			if base_id.is_null() {
+				return Err(crate::implementation::err_invalid_parameter("base_id", "expected non-NULL"));
+			}
+			let base_id = std::ffi::CStr::from_ptr(base_id);
+			let base_id = base_id.to_str().map_err(|err| crate::implementation::err_invalid_parameter("base_id", err))?;
+			base_id
+		};
+
+		let mut derived_key_len_out =
+			std::ptr::NonNull::new(derived_key_len)
+			.ok_or_else(|| crate::implementation::err_invalid_parameter("derived_key_len", "expected non-NULL"))?;
+
+		let locations = crate::implementation::Location::of(base_id)?;
+
+		let base_key = match load_inner(&locations)? {
+			Some(key) => key,
+			None => return Err(crate::implementation::err_invalid_parameter("base_id", "key not found")),
+		};
+
+		let expected_derived_key = derive_key_common(&base_key, derivation_data, derivation_data_len)?;
+		let expected_derived_key_len = expected_derived_key.len();
+
+		let actual_derived_key_len = *derived_key_len_out.as_ref();
+
+		*derived_key_len_out.as_mut() = expected_derived_key_len;
+
+		if !derived_key.is_null() {
+			let expected_derived_key_len = expected_derived_key.len();
+
+			if actual_derived_key_len < expected_derived_key_len {
+				return Err(crate::implementation::err_invalid_parameter("derived_key", "insufficient size"));
+			}
+
+			let derived_key_out = std::slice::from_raw_parts_mut(derived_key, actual_derived_key_len);
+
+			derived_key_out[..expected_derived_key_len].copy_from_slice(&expected_derived_key);
+			*derived_key_len_out.as_mut() = expected_derived_key_len;
+		}
+
+		Ok(())
+	})
+}
+
 pub(crate) unsafe fn sign(
 	locations: &[crate::implementation::Location],
+	mechanism: crate::KEYGEN_SIGN_MECHANISM,
+	parameters: *const std::ffi::c_void,
 	digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
 	use hmac::{Mac, NewMac};
@@ -95,6 +149,18 @@ pub(crate) unsafe fn sign(
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
+
+	let (key, mechanism, _) =
+		if mechanism == crate::KEYGEN_SIGN_MECHANISM_DERIVED {
+			derive_key_for_sign(&key, parameters)?
+		}
+		else {
+			(key, mechanism, parameters)
+		};
+
+	if mechanism != crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 {
+		return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value"));
+	}
 
 	let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key).map_err(crate::implementation::err_external)?;
 
@@ -144,6 +210,14 @@ pub(crate) unsafe fn encrypt(
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
 
+	let (key, mechanism, parameters) =
+		if mechanism == crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED {
+			derive_key_for_encrypt(&key, parameters)?
+		}
+		else {
+			(key, mechanism, parameters)
+		};
+
 	if mechanism != crate::KEYGEN_ENCRYPT_MECHANISM_AEAD {
 		return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value"));
 	}
@@ -182,6 +256,14 @@ pub(crate) unsafe fn decrypt(
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
+
+	let (key, mechanism, parameters) =
+		if mechanism == crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED {
+			derive_key_for_encrypt(&key, parameters)?
+		}
+		else {
+			(key, mechanism, parameters)
+		};
 
 	if mechanism != crate::KEYGEN_ENCRYPT_MECHANISM_AEAD {
 		return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value"));
@@ -248,4 +330,58 @@ fn create_inner(locations: &[crate::implementation::Location], bytes: &[u8]) -> 
 	}
 
 	Err(crate::implementation::err_external("no valid location for symmetric key"))
+}
+
+unsafe fn derive_key_for_sign(
+	key: &[u8],
+	parameters: *const std::ffi::c_void,
+) -> Result<(Vec<u8>, crate::KEYGEN_SIGN_MECHANISM, *const std::ffi::c_void), crate::KEYGEN_ERROR> {
+	if parameters.is_null() {
+		return Err(crate::implementation::err_invalid_parameter("parameters", "expected non-NULL"));
+	}
+
+	let parameters = parameters as *const crate::KEYGEN_SIGN_DERIVED_PARAMETERS;
+	let parameters = &*parameters;
+
+	let signature = derive_key_common(key, parameters.derivation_data, parameters.derivation_data_len)?;
+
+	Ok((signature, parameters.mechanism, parameters.parameters))
+}
+
+unsafe fn derive_key_for_encrypt(
+	key: &[u8],
+	parameters: *const std::ffi::c_void,
+) -> Result<(Vec<u8>, crate::KEYGEN_ENCRYPT_MECHANISM, *const std::ffi::c_void), crate::KEYGEN_ERROR> {
+	if parameters.is_null() {
+		return Err(crate::implementation::err_invalid_parameter("parameters", "expected non-NULL"));
+	}
+
+	let parameters = parameters as *const crate::KEYGEN_ENCRYPT_DERIVED_PARAMETERS;
+	let parameters = &*parameters;
+
+	let signature = derive_key_common(key, parameters.derivation_data, parameters.derivation_data_len)?;
+
+	Ok((signature, parameters.mechanism, parameters.parameters))
+}
+
+unsafe fn derive_key_common(
+	key: &[u8],
+	derivation_data: *const std::os::raw::c_uchar,
+	derivation_data_len: usize,
+) -> Result<Vec<u8>, crate::KEYGEN_ERROR> {
+	use hmac::{Mac, NewMac};
+
+	if derivation_data.is_null() {
+		return Err(crate::implementation::err_invalid_parameter("derivation_data", "expected non-NULL"));
+	}
+
+	let derivation_data = std::slice::from_raw_parts(derivation_data, derivation_data_len);
+
+	let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key).map_err(crate::implementation::err_external)?;
+
+	signer.update(derivation_data);
+
+	let signature = signer.finalize();
+	let signature = signature.into_bytes().to_vec();
+	Ok(signature)
 }

@@ -40,6 +40,7 @@ pub enum InternalError {
 	CreateKeyPairIfNotExists(crate::keys::CreateKeyPairIfNotExistsError),
 	GetKeyPairPublicParameter(crate::keys::GetKeyPairPublicParameterError),
 	Decrypt(crate::keys::DecryptError),
+	DeriveKey(crate::keys::DeriveKeyError),
 	Encrypt(crate::keys::EncryptError),
 	GenerateNonce(openssl::error::ErrorStack),
 	LoadKey(crate::keys::LoadKeyError),
@@ -57,6 +58,7 @@ impl std::fmt::Display for InternalError {
 			InternalError::CreateKeyIfNotExistsImport(_) => f.write_str("could not import key"),
 			InternalError::CreateKeyPairIfNotExists(_) => f.write_str("could not create key pair"),
 			InternalError::Decrypt(_) => f.write_str("could not decrypt"),
+			InternalError::DeriveKey(_) => f.write_str("could not derive key"),
 			InternalError::Encrypt(_) => f.write_str("could not encrypt"),
 			InternalError::GetKeyPairPublicParameter(_) => f.write_str("could not get key pair parameter"),
 			InternalError::GenerateNonce(_) => f.write_str("could not generate nonce"),
@@ -77,6 +79,7 @@ impl std::error::Error for InternalError {
 			InternalError::CreateKeyIfNotExistsImport(err) => Some(err),
 			InternalError::CreateKeyPairIfNotExists(err) => Some(err),
 			InternalError::Decrypt(err) => Some(err),
+			InternalError::DeriveKey(err) => Some(err),
 			InternalError::Encrypt(err) => Some(err),
 			InternalError::GetKeyPairPublicParameter(err) => Some(err),
 			InternalError::GenerateNonce(err) => Some(err),
@@ -156,6 +159,15 @@ impl From<crate::keys::ImportKeyError> for Error {
 		match err.err.0 {
 			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::CreateKeyIfNotExistsImport(err)),
+		}
+	}
+}
+
+impl From<crate::keys::DeriveKeyError> for Error {
+	fn from(err: crate::keys::DeriveKeyError) -> Self {
+		match err.err.0 {
+			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			_ => Error::Internal(InternalError::DeriveKey(err)),
 		}
 	}
 }

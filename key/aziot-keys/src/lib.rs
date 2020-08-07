@@ -206,6 +206,14 @@ pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
 		bytes_len: usize,
 	) -> KEYGEN_ERROR,
 
+	pub derive_key: unsafe extern "C" fn(
+		base_id: *const std::os::raw::c_char,
+		derivation_data: *const u8,
+		derivation_data_len: usize,
+		derived_key: *mut std::os::raw::c_uchar,
+		derived_key_len: *mut usize,
+	) -> KEYGEN_ERROR,
+
 	pub sign: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
 		mechanism: KEYGEN_SIGN_MECHANISM,
@@ -338,6 +346,23 @@ pub const KEYGEN_SIGN_MECHANISM_ECDSA: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHA
 /// HMAC-SHA256
 pub const KEYGEN_SIGN_MECHANISM_HMAC_SHA256: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHANISM { inner: 2 };
 
+/// Sign with a derived key. The `parameters` parameter must be set to a `KEYGEN_SIGN_DERIVED_PARAMETERS` value.
+pub const KEYGEN_SIGN_MECHANISM_DERIVED: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHANISM { inner: 3 };
+
+
+/// Holds parameters for a sign operation with the [`KEYGEN_SIGN_MECHANISM_DERIVED`] mechanism.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub struct KEYGEN_SIGN_DERIVED_PARAMETERS {
+	pub derivation_data: *const std::os::raw::c_uchar,
+	pub derivation_data_len: usize,
+	pub mechanism: KEYGEN_SIGN_MECHANISM,
+	pub parameters: *const std::ffi::c_void,
+}
+
+#[no_mangle]
+pub extern "C" fn cbindgen_unused_KEYGEN_SIGN_DERIVED_PARAMETERS() -> KEYGEN_SIGN_DERIVED_PARAMETERS { unimplemented!(); }
+
 
 /// Represents the mechanism used for an encrypt operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -349,6 +374,9 @@ pub const KEYGEN_ENCRYPT_MECHANISM_AEAD: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRY
 
 /// RSA PKCS1
 pub const KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 2 };
+
+/// Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
+pub const KEYGEN_ENCRYPT_MECHANISM_DERIVED: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 3 };
 
 
 /// Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.
@@ -363,6 +391,20 @@ pub struct KEYGEN_ENCRYPT_AEAD_PARAMETERS {
 
 #[no_mangle]
 pub extern "C" fn cbindgen_unused_KEYGEN_ENCRYPT_AEAD_PARAMETERS() -> KEYGEN_ENCRYPT_AEAD_PARAMETERS { unimplemented!(); }
+
+
+/// Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_DERIVED`] mechanism.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub struct KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+	pub derivation_data: *const std::os::raw::c_uchar,
+	pub derivation_data_len: usize,
+	pub mechanism: KEYGEN_ENCRYPT_MECHANISM,
+	pub parameters: *const std::ffi::c_void,
+}
+
+#[no_mangle]
+pub extern "C" fn cbindgen_unused_KEYGEN_ENCRYPT_DERIVED_PARAMETERS() -> KEYGEN_ENCRYPT_DERIVED_PARAMETERS { unimplemented!(); }
 
 
 /// Catches the error, if any, and returns it. Otherwise returns [`KEYGEN_SUCCESS`].

@@ -8,6 +8,23 @@ pub struct Error {
 	pub message: std::borrow::Cow<'static, str>,
 }
 
+pub mod create_derived_key {
+	#[derive(Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Request {
+		#[serde(rename = "baseKeyHandle")]
+		pub base_handle: aziot_key_common::KeyHandle,
+
+		#[serde(rename = "derivationData")]
+		pub derivation_data: http_common::ByteString,
+	}
+
+	#[derive(Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Response {
+		#[serde(rename = "keyHandle")]
+		pub handle: aziot_key_common::KeyHandle,
+	}
+}
+
 pub mod create_key_if_not_exists {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
@@ -90,6 +107,20 @@ pub mod encrypt {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
 		pub ciphertext: http_common::ByteString,
+	}
+}
+
+pub mod export_derived_key {
+	#[derive(Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Request {
+		#[serde(rename = "keyHandle")]
+		pub handle: aziot_key_common::KeyHandle,
+	}
+
+	#[derive(Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Response {
+		#[serde(rename = "key")]
+		pub key: http_common::ByteString,
 	}
 }
 

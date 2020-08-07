@@ -58,6 +58,7 @@ pub(crate) unsafe fn get_function_list(
 			create_key_if_not_exists: crate::key::create_key_if_not_exists,
 			load_key: crate::key::load_key,
 			import_key: crate::key::import_key,
+			derive_key: crate::key::derive_key,
 			sign,
 			verify,
 			encrypt,
@@ -191,8 +192,9 @@ pub(crate) unsafe extern "C" fn sign(
 			crate::KEYGEN_SIGN_MECHANISM_ECDSA =>
 				crate::key_pair::sign(&locations, mechanism, parameters, digest)?,
 
-			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
-				crate::key::sign(&locations, digest)?,
+			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 |
+			crate::KEYGEN_SIGN_MECHANISM_DERIVED =>
+				crate::key::sign(&locations, mechanism, parameters, digest)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 		};
@@ -309,7 +311,8 @@ pub(crate) unsafe extern "C" fn encrypt(
 		let locations = Location::of(id)?;
 
 		let (expected_ciphertext_len, expected_ciphertext) = match mechanism {
-			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD =>
+			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD |
+			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 =>
@@ -371,7 +374,8 @@ pub(crate) unsafe extern "C" fn decrypt(
 		let locations = Location::of(id)?;
 
 		let (expected_plaintext_len, expected_plaintext) = match mechanism {
-			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD =>
+			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD |
+			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::decrypt(&locations, mechanism, parameters, ciphertext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -444,9 +448,11 @@ impl Location {
 			if let Some(homedir_path) = homedir_path {
 				let mut path = homedir_path.clone();
 
-				let filename = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), id.as_bytes())?;
-				let filename = hex::encode(filename);
-				path.push(format!("{}.key", filename));
+				let id_sanitized: String = id.chars().filter(char::is_ascii_alphanumeric).collect();
+
+				let hash = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), id.as_bytes())?;
+				let hash = hex::encode(hash);
+				path.push(format!("{}-{}.key", id_sanitized, hash));
 
 				locations.push(Location::Filesystem(path));
 			}

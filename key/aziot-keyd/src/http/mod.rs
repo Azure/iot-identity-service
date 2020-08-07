@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+mod create_derived_key;
 mod create_key_if_not_exists;
 mod create_key_pair_if_not_exists;
 mod decrypt;
 mod encrypt;
+mod export_derived_key;
 mod get_key_pair_public_parameter;
 mod load;
 mod sign;
@@ -35,10 +37,12 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 
 		Box::pin(async move {
 			const ROUTES: &[Route] = &[
+				create_derived_key::handle,
 				create_key_if_not_exists::handle,
 				create_key_pair_if_not_exists::handle,
 				decrypt::handle,
 				encrypt::handle,
+				export_derived_key::handle,
 				get_key_pair_public_parameter::handle,
 				load::handle,
 				sign::handle,

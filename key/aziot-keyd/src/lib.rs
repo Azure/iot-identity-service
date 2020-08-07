@@ -10,7 +10,7 @@
 mod error;
 pub use error::{Error, InternalError};
 
-pub mod keys;
+mod keys;
 
 pub struct Server {
 	keys: keys::Keys,
@@ -44,17 +44,6 @@ impl Server {
 		self.keys.create_key_pair_if_not_exists(&id_cstr, preferred_algorithms.as_ref().map(AsRef::as_ref))?;
 
 		let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
-		Ok(handle)
-	}
-
-	pub fn load_key(
-		&mut self,
-		id: &str,
-	) -> Result<aziot_key_common::KeyHandle, Error> {
-		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
-		self.keys.load_key(&id_cstr)?;
-
-		let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
 		Ok(handle)
 	}
 
@@ -99,6 +88,45 @@ impl Server {
 		Ok(handle)
 	}
 
+	pub fn load_key(
+		&mut self,
+		id: &str,
+	) -> Result<aziot_key_common::KeyHandle, Error> {
+		let id_cstr = std::ffi::CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
+		self.keys.load_key(&id_cstr)?;
+
+		let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
+		Ok(handle)
+	}
+
+	pub fn create_derived_key(
+		&mut self,
+		base_handle: &aziot_key_common::KeyHandle,
+		derivation_data: &[u8],
+	) -> Result<aziot_key_common::KeyHandle, Error> {
+		let handle = key_id_to_handle(&KeyId::Derived(std::borrow::Cow::Borrowed(base_handle), derivation_data.into()), &mut self.keys)?;
+		Ok(handle)
+	}
+
+	pub fn export_derived_key(
+		&mut self,
+		handle: &aziot_key_common::KeyHandle,
+	) -> Result<Vec<u8>, Error> {
+		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
+
+		let derived_key =
+			if let KeyId::Derived(_, derivation_data) = id {
+				self.keys.derive_key(
+					&id_cstr,
+					&derivation_data,
+				)?
+			}
+			else {
+				return Err(Error::invalid_parameter("handle", "handle is not for a derived key"));
+			};
+		Ok(derived_key)
+	}
+
 	pub fn sign(
 		&mut self,
 		handle: &aziot_key_common::KeyHandle,
@@ -117,6 +145,22 @@ impl Server {
 					std::ptr::null(),
 					digest,
 				)?,
+
+			(KeyId::Derived(_, derivation_data), aziot_key_common::SignMechanism::HmacSha256) => {
+				let parameters = keys::sys::KEYGEN_SIGN_DERIVED_PARAMETERS {
+					derivation_data: derivation_data.as_ptr(),
+					derivation_data_len: derivation_data.len(),
+					mechanism: keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
+					parameters: std::ptr::null(),
+				};
+
+				self.keys.sign(
+					&id_cstr,
+					keys::sys::KEYGEN_SIGN_MECHANISM_DERIVED,
+					&parameters as *const _ as *const std::ffi::c_void,
+					digest,
+				)?
+			},
 
 			_ => return Err(Error::invalid_parameter("mechanism", "mechanism cannot be used with this key type")),
 		};
@@ -158,6 +202,29 @@ impl Server {
 				)?
 			},
 
+			(KeyId::Derived(_, derivation_data), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
+				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+					iv: iv.as_ptr(),
+					iv_len: iv.len(),
+					aad: aad.as_ptr(),
+					aad_len: aad.len(),
+				};
+
+				let parameters = keys::sys::KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+					derivation_data: derivation_data.as_ptr(),
+					derivation_data_len: derivation_data.len(),
+					mechanism: keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					parameters: &parameters as *const _ as *const std::ffi::c_void,
+				};
+
+				self.keys.encrypt(
+					&id_cstr,
+					keys::sys::KEYGEN_ENCRYPT_MECHANISM_DERIVED,
+					&parameters as *const _ as *const std::ffi::c_void,
+					plaintext,
+				)?
+			},
+
 			_ => return Err(Error::invalid_parameter("mechanism", "mechanism cannot be used with this key type")),
 		};
 
@@ -189,6 +256,29 @@ impl Server {
 				)?
 			},
 
+			(KeyId::Derived(_, derivation_data), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
+				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+					iv: iv.as_ptr(),
+					iv_len: iv.len(),
+					aad: aad.as_ptr(),
+					aad_len: aad.len(),
+				};
+
+				let parameters = keys::sys::KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+					derivation_data: derivation_data.as_ptr(),
+					derivation_data_len: derivation_data.len(),
+					mechanism: keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					parameters: &parameters as *const _ as *const std::ffi::c_void,
+				};
+
+				self.keys.decrypt(
+					&id_cstr,
+					keys::sys::KEYGEN_ENCRYPT_MECHANISM_DERIVED,
+					&parameters as *const _ as *const std::ffi::c_void,
+					ciphertext,
+				)?
+			},
+
 			_ => return Err(Error::invalid_parameter("mechanism", "mechanism cannot be used with this key type")),
 		};
 
@@ -201,13 +291,15 @@ impl Server {
 enum KeyId<'a> {
 	KeyPair(std::borrow::Cow<'a, str>),
 	Key(std::borrow::Cow<'a, str>),
+	Derived(std::borrow::Cow<'a, aziot_key_common::KeyHandle>, std::borrow::Cow<'a, [u8]>),
 }
 
 impl KeyId<'_> {
 	fn borrow(&self) -> KeyId<'_> {
 		match self {
-			KeyId::KeyPair(id) => KeyId::KeyPair(std::borrow::Cow::Borrowed(&*id)),
-			KeyId::Key(id) => KeyId::Key(std::borrow::Cow::Borrowed(&*id)),
+			KeyId::KeyPair(id) => KeyId::KeyPair(std::borrow::Cow::Borrowed(&**id)),
+			KeyId::Key(id) => KeyId::Key(std::borrow::Cow::Borrowed(&**id)),
+			KeyId::Derived(base_handle, derivation_data) => KeyId::Derived(std::borrow::Cow::Borrowed(&**base_handle), std::borrow::Cow::Borrowed(&**derivation_data)),
 		}
 	}
 }
@@ -278,6 +370,11 @@ fn key_handle_to_id(handle: &aziot_key_common::KeyHandle, keys: &mut keys::Keys)
 		KeyId::Key(id) => {
 			let id_cstr = std::ffi::CString::new(id.clone().into_owned()).map_err(|err| Error::invalid_parameter("handle", err))?;
 			id_cstr
+		},
+
+		KeyId::Derived(base_handle, _) => {
+			let (_, base_id_cstr) = key_handle_to_id(&base_handle, keys)?;
+			base_id_cstr
 		},
 	};
 

@@ -226,24 +226,24 @@ async fn main() -> Result<(), Error> {
 
 	// Verify encrypt-decrypt
 
-	let key_handle = {
-		key_client.create_key_if_not_exists("crypto-test", aziot_key_common::CreateKeyValue::Generate {length: 32}).await.unwrap()
-	};
+	// New generated key can decrypt things encrypted with it
+	let test_key_handle =
+		key_client.create_key_if_not_exists("crypto-test", aziot_key_common::CreateKeyValue::Generate { length: 32 }).await.unwrap();
+	verify_encrypt_decrypt(&key_client, &test_key_handle, &test_key_handle).await;
 
-	let mut rng = rand::rngs::OsRng;
 
-	let original_plaintext = b"aaaaaa";
-	let iv = {
-		let mut iv = vec![0_u8; 16];
-		rand::RngCore::fill_bytes(&mut rng, &mut iv);
-		iv
-	};
-	let aad = b"$iotedged".to_vec();
+	// Derived key can decrypt things encrypted with it
+	let test_derived_key_handle = key_client.create_derived_key(&test_key_handle, b"bbbbbb").await.unwrap();
 
-	let ciphertext = key_client.encrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
+	verify_encrypt_decrypt(&key_client, &test_derived_key_handle, &test_derived_key_handle).await;
 
-	let new_plaintext = key_client.decrypt(&key_handle, aziot_key_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
-	assert_eq!(original_plaintext, &new_plaintext[..]);
+	// Derived key can be reimported as a new key, and can decrypt things encrypted with the derived key, and vice versa.
+	let test_derived_key = key_client.export_derived_key(&test_derived_key_handle).await.unwrap();
+	println!("Exported derived key: {}", base64::encode(&test_derived_key));
+	let test_derived_key_handle2 =
+		key_client.create_key_if_not_exists("crypto-test-derived", aziot_key_common::CreateKeyValue::Import { bytes: test_derived_key }).await.unwrap();
+	verify_encrypt_decrypt(&key_client, &test_derived_key_handle, &test_derived_key_handle2).await;
+	verify_encrypt_decrypt(&key_client, &test_derived_key_handle2, &test_derived_key_handle).await;
 
 
 	// Verify IoT Hub auth using SAS key
@@ -483,6 +483,29 @@ enum VerifyWorkloadCaCertResult {
 	Ok,
 	MismatchedKeys,
 	NotSignedByDeviceCa,
+}
+
+async fn verify_encrypt_decrypt(
+	key_client: &aziot_key_client_async::Client<impl hyper::client::connect::Connect + Clone + Send + Sync + 'static>,
+	encrypt_key_handle: &aziot_key_common::KeyHandle,
+	decrypt_key_handle: &aziot_key_common::KeyHandle,
+) {
+	let mut rng = rand::rngs::OsRng;
+
+	let original_plaintext = b"aaaaaa";
+	let iv = {
+		let mut iv = vec![0_u8; 16];
+		rand::RngCore::fill_bytes(&mut rng, &mut iv);
+		iv
+	};
+	let aad = b"$iotedged".to_vec();
+
+	let ciphertext =
+		key_client.encrypt(&encrypt_key_handle, aziot_key_common::EncryptMechanism::Aead { iv: iv.clone(), aad: aad.clone() }, original_plaintext).await.unwrap();
+
+	let new_plaintext =
+		key_client.decrypt(&decrypt_key_handle, aziot_key_common::EncryptMechanism::Aead { iv, aad }, &ciphertext).await.unwrap();
+	assert_eq!(original_plaintext, &new_plaintext[..]);
 }
 
 enum Error {

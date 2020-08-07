@@ -135,6 +135,7 @@ typedef struct {
     KEYGEN_ERROR (*create_key_if_not_exists)(const char *id, uintptr_t length);
     KEYGEN_ERROR (*load_key)(const char *id);
     KEYGEN_ERROR (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len);
+    KEYGEN_ERROR (*derive_key)(const char *base_id, const uint8_t *derivation_data, uintptr_t derivation_data_len, unsigned char *derived_key, uintptr_t *derived_key_len);
     KEYGEN_ERROR (*sign)(const char *id, KEYGEN_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
     /**
      * Verifies the signature of the given digest using the key identified by the specified `id`.
@@ -158,6 +159,16 @@ typedef struct {
 } KEYGEN_FUNCTION_LIST_2_0_0_0;
 
 /**
+ * Holds parameters for a sign operation with the [`KEYGEN_SIGN_MECHANISM_DERIVED`] mechanism.
+ */
+typedef struct {
+    const unsigned char *derivation_data;
+    uintptr_t derivation_data_len;
+    KEYGEN_SIGN_MECHANISM mechanism;
+    const void *parameters;
+} KEYGEN_SIGN_DERIVED_PARAMETERS;
+
+/**
  * Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.
  */
 typedef struct {
@@ -167,12 +178,27 @@ typedef struct {
     uintptr_t aad_len;
 } KEYGEN_ENCRYPT_AEAD_PARAMETERS;
 
+/**
+ * Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_DERIVED`] mechanism.
+ */
+typedef struct {
+    const unsigned char *derivation_data;
+    uintptr_t derivation_data_len;
+    KEYGEN_ENCRYPT_MECHANISM mechanism;
+    const void *parameters;
+} KEYGEN_ENCRYPT_DERIVED_PARAMETERS;
+
 typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
 
 /**
  * AEAD (eg AES-256-GCM)
  */
 #define KEYGEN_ENCRYPT_MECHANISM_AEAD 1
+
+/**
+ * Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
+ */
+#define KEYGEN_ENCRYPT_MECHANISM_DERIVED 3
 
 /**
  * RSA PKCS1
@@ -234,6 +260,11 @@ typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
 #define KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS 4
 
 /**
+ * Sign with a derived key. The `parameters` parameter must be set to a `KEYGEN_SIGN_DERIVED_PARAMETERS` value.
+ */
+#define KEYGEN_SIGN_MECHANISM_DERIVED 3
+
+/**
  * ECDSA
  */
 #define KEYGEN_SIGN_MECHANISM_ECDSA 1
@@ -271,4 +302,6 @@ typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
  */
 KEYGEN_ERROR KEYGEN_get_function_list(KEYGEN_VERSION version,
                                       const KEYGEN_FUNCTION_LIST **pfunction_list);
+
+
 

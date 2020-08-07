@@ -136,6 +136,46 @@ impl Client {
 		Ok(res.handle)
 	}
 
+	pub fn create_derived_key(
+		&self,
+		base_handle: &aziot_key_common::KeyHandle,
+		derivation_data: &[u8],
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
+		let mut stream = self.connector.connect()?;
+
+		let body = aziot_key_common_http::create_derived_key::Request {
+			base_handle: base_handle.clone(),
+			derivation_data: http_common::ByteString(derivation_data.to_owned()),
+		};
+
+		let res: aziot_key_common_http::create_derived_key::Response = request(
+			&mut stream,
+			&http::Method::POST,
+			"/derivedkey",
+			Some(&body),
+		)?;
+		Ok(res.handle)
+	}
+
+	pub fn export_derived_key(
+		&self,
+		handle: &aziot_key_common::KeyHandle,
+	) -> std::io::Result<Vec<u8>> {
+		let mut stream = self.connector.connect()?;
+
+		let body = aziot_key_common_http::export_derived_key::Request {
+			handle: handle.clone(),
+		};
+
+		let res: aziot_key_common_http::export_derived_key::Response = request(
+			&mut stream,
+			&http::Method::POST,
+			"/derivedkey/export",
+			Some(&body),
+		)?;
+		Ok(res.key.0)
+	}
+
 	pub fn sign(
 		&self,
 		handle: &aziot_key_common::KeyHandle,

@@ -33,7 +33,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		&self,
 		id: &str,
 		preferred_algorithms: Option<&str>,
-	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let body = aziot_key_common_http::create_key_pair_if_not_exists::Request {
 			id: id.to_owned(),
 			preferred_algorithms: preferred_algorithms.map(ToOwned::to_owned),
@@ -51,7 +51,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	pub async fn load_key_pair(
 		&self,
 		id: &str,
-	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
 		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
@@ -67,7 +67,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		&self,
 		handle: &aziot_key_common::KeyHandle,
 		parameter_name: &str,
-	) -> Result<String, std::io::Error> {
+	) -> std::io::Result<String> {
 		let uri = format!("/parameters/{}", percent_encoding::percent_encode(parameter_name.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
 		let body = aziot_key_common_http::get_key_pair_public_parameter::Request {
@@ -87,7 +87,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		&self,
 		id: &str,
 		value: aziot_key_common::CreateKeyValue,
-	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let body = match value {
 			aziot_key_common::CreateKeyValue::Generate { length } => aziot_key_common_http::create_key_if_not_exists::Request {
 				id: id.to_owned(),
@@ -113,7 +113,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	pub async fn load_key(
 		&self,
 		id: &str,
-	) -> Result<aziot_key_common::KeyHandle, std::io::Error> {
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
 		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
@@ -125,12 +125,48 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		Ok(res.handle)
 	}
 
+	pub async fn create_derived_key(
+		&self,
+		base_handle: &aziot_key_common::KeyHandle,
+		derivation_data: &[u8],
+	) -> std::io::Result<aziot_key_common::KeyHandle> {
+		let body = aziot_key_common_http::create_derived_key::Request {
+			base_handle: base_handle.clone(),
+			derivation_data: http_common::ByteString(derivation_data.to_owned()),
+		};
+
+		let res: aziot_key_common_http::create_derived_key::Response = request(
+			&self.inner,
+			http::Method::POST,
+			"/derivedkey",
+			Some(&body),
+		).await?;
+		Ok(res.handle)
+	}
+
+	pub async fn export_derived_key(
+		&self,
+		handle: &aziot_key_common::KeyHandle,
+	) -> std::io::Result<Vec<u8>> {
+		let body = aziot_key_common_http::export_derived_key::Request {
+			handle: handle.clone(),
+		};
+
+		let res: aziot_key_common_http::export_derived_key::Response = request(
+			&self.inner,
+			http::Method::POST,
+			"/derivedkey/export",
+			Some(&body),
+		).await?;
+		Ok(res.key.0)
+	}
+
 	pub async fn sign(
 		&self,
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::SignMechanism,
 		digest: &[u8],
-	) -> Result<Vec<u8>, std::io::Error> {
+	) -> std::io::Result<Vec<u8>> {
 		let body = aziot_key_common_http::sign::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
@@ -159,7 +195,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::EncryptMechanism,
 		plaintext: &[u8],
-	) -> Result<Vec<u8>, std::io::Error> {
+	) -> std::io::Result<Vec<u8>> {
 		let body = aziot_key_common_http::encrypt::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {
@@ -188,7 +224,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 		handle: &aziot_key_common::KeyHandle,
 		mechanism: aziot_key_common::EncryptMechanism,
 		ciphertext: &[u8],
-	) -> Result<Vec<u8>, std::io::Error> {
+	) -> std::io::Result<Vec<u8>> {
 		let body = aziot_key_common_http::decrypt::Request {
 			key_handle: handle.clone(),
 			parameters: match mechanism {

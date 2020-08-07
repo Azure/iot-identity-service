@@ -51,7 +51,15 @@ pub(crate) enum Keys {
 		import_key: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
 			bytes: *const u8,
-			bytes_length: usize,
+			bytes_len: usize,
+		) -> sys::KEYGEN_ERROR,
+
+		derive_key: unsafe extern "C" fn(
+			base_id: *const std::os::raw::c_char,
+			derivation_data: *const std::os::raw::c_uchar,
+			derivation_data_len: usize,
+			derived_key: *mut std::os::raw::c_uchar,
+			derived_key_len: *mut usize,
 		) -> sys::KEYGEN_ERROR,
 
 		sign: unsafe extern "C" fn(
@@ -134,6 +142,9 @@ impl Keys {
 
 				import_key:
 					(*function_list).import_key.ok_or(LoadLibraryError::MissingFunction("import_key"))?,
+
+				derive_key:
+					(*function_list).derive_key.ok_or(LoadLibraryError::MissingFunction("derive_key"))?,
 
 				sign:
 					(*function_list).sign.ok_or(LoadLibraryError::MissingFunction("sign"))?,
@@ -461,6 +472,70 @@ impl std::fmt::Display for ImportKeyError {
 }
 
 impl std::error::Error for ImportKeyError {
+}
+
+impl Keys {
+	pub(crate) fn derive_key(
+		&mut self,
+		base_id: &std::ffi::CStr,
+		derivation_data: &[u8],
+	) -> Result<Vec<u8>, DeriveKeyError> {
+		unsafe {
+			match self {
+				Keys::V2_0_0_0 { derive_key, .. } => {
+					let derivation_data_len = std::convert::TryInto::try_into(derivation_data.len()).expect("usize -> c_ulong");
+
+					let mut derived_key_len = 0;
+
+					keys_fn(|| derive_key(
+						base_id.as_ptr(),
+						derivation_data.as_ptr(),
+						derivation_data_len,
+						std::ptr::null_mut(),
+						&mut derived_key_len,
+					)).map_err(|err| DeriveKeyError { err })?;
+
+					let mut derived_key = {
+						let derived_key_len = std::convert::TryInto::try_into(derived_key_len).expect("c_ulong -> usize");
+						vec![0_u8; derived_key_len]
+					};
+
+					keys_fn(|| derive_key(
+						base_id.as_ptr(),
+						derivation_data.as_ptr(),
+						derivation_data_len,
+						derived_key.as_mut_ptr(),
+						&mut derived_key_len,
+					)).map_err(|err| DeriveKeyError { err })?;
+
+					let derived_key_len = std::convert::TryInto::try_into(derived_key_len).expect("c_ulong -> usize");
+
+					if derived_key_len > derived_key.len() {
+						// libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
+						std::process::abort();
+					}
+
+					derived_key.resize(derived_key_len, 0);
+
+					Ok(derived_key)
+				},
+			}
+		}
+	}
+}
+
+#[derive(Debug)]
+pub struct DeriveKeyError {
+	pub err: KeysRawError,
+}
+
+impl std::fmt::Display for DeriveKeyError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "could not derive key: {}", self.err)
+	}
+}
+
+impl std::error::Error for DeriveKeyError {
 }
 
 impl Keys {
