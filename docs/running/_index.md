@@ -62,6 +62,8 @@
 
 1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.md)
 
+1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
+
 1. Run `iotedged` in a third shell
 
     - If the device identity is set to use the `shared_private_key` auth method, run the program with the SAS key:
