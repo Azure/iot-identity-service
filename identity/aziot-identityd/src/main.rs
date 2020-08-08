@@ -27,19 +27,27 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // let authorizer = Box::new(authorizer);
     let authorizer = Box::new(|_| {Ok(true)});
 
-    let server = aziot_identityd::Server::new(authenticator,authorizer)?;
-    let server = std::sync::Arc::new(server);
+    let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
+    let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
+    {
+        log::info!("Provisioning starting..");
+        
+        let mut server_ = server.lock().await;
+        server_.provision_device().await?;
+        log::info!("Provisioning complete.");
+
+    }
 
     log::info!("Identity Service starting..");
-
+    
     let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8901".parse()?)?;
-
+    
     let server =
-        hyper::Server::builder(incoming)
-            .serve(hyper::service::make_service_fn(|_| {
-                let server = http::Server { inner: server.clone() };
-                futures_util::future::ok::<_, std::convert::Infallible>(server)
-            }));
+    hyper::Server::builder(incoming)
+    .serve(hyper::service::make_service_fn(|_| {
+        let server = http::Server { inner: server.clone() };
+        futures_util::future::ok::<_, std::convert::Infallible>(server)
+    }));
     let () = server.await?;
 
     log::info!("Identity Service stopped.");
@@ -83,7 +91,8 @@ mod tests {
     #[test]
     fn convert_to_map_creates_principal_lookup() {
         let p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(IdType::Module)};
-        let (map, _) = convert_to_map(&Some(Vec::from([p.clone()])));
+        let v = vec![p.clone()];
+        let (map, _) = convert_to_map(&Some(v));
 
         assert!(map.contains_key(&Uid(1001)));
         assert_eq!(map.get(&Uid(1001)).unwrap(), &p);

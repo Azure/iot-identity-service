@@ -169,9 +169,26 @@ DEP_IOTEDGED = \
 	$(DEP_OPENSSL_BUILD) \
 	$(DEP_OPENSSL_SYS2) \
 
-DEP_AZIOT_COMMON = \
-	common/aziot-common/Cargo.toml common/aziot-common/src/*.rs \
+DEP_AZIOT_DPS_CLIENT_ASYNC = \
+	identity/aziot-dps-client-async/Cargo.toml identity/aziot-dps-client-async/src/*.rs \
+	$(DEP_AZIOT_CERT_CLIENT_ASYNC) \
+	$(DEP_AZIOT_KEY_CLIENT_ASYNC) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+	$(DEP_HTTP_COMMON) \
 
+DEP_AZIOT_HUB_CLIENT_ASYNC = \
+	identity/aziot-hub-client-async/Cargo.toml identity/aziot-hub-client-async/src/*.rs \
+	$(DEP_AZIOT_CERT_COMMON_HTTP) \
+	$(DEP_AZIOT_CERT_CLIENT_ASYNC) \
+	$(DEP_AZIOT_IDENTITY_COMMON) \
+	$(DEP_AZIOT_KEY_CLIENT) \
+	$(DEP_AZIOT_KEY_CLIENT_ASYNC) \
+	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+	$(DEP_HTTP_COMMON) \
+	$(DEP_OPENSSL2) \
+	
 DEP_AZIOT_IDENTITY_COMMON = \
 	identity/aziot-identity-common/Cargo.toml identity/aziot-identity-common/src/*.rs \
 	$(DEP_AZIOT_KEY_COMMON) \
@@ -187,11 +204,16 @@ DEP_AZIOT_IDENTITY_COMMON_HTTP = \
 DEP_AZIOT_IDENTITYD = \
 	identity/aziot-identityd/Cargo.toml identity/aziot-identityd/src/*.rs identity/aziot-identityd/src/http/*.rs \
 	$(DEP_AZIOT_CERT_COMMON_HTTP) \
-	$(DEP_AZIOT_COMMON) \
+	$(DEP_AZIOT_CERT_CLIENT_ASYNC) \
+	$(DEP_AZIOT_DPS_CLIENT_ASYNC) \
+	$(DEP_AZIOT_HUB_CLIENT_ASYNC) \
 	$(DEP_AZIOT_IDENTITY_COMMON) \
 	$(DEP_AZIOT_IDENTITY_COMMON_HTTP) \
+	$(DEP_AZIOT_KEY_CLIENT) \
+	$(DEP_AZIOT_KEY_CLIENT_ASYNC) \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_HTTP_COMMON) \
+	$(DEP_OPENSSL2) \
 
 .PHONY: clean aziot-certd aziot-identityd aziot-keyd aziot-keys iotedged pkcs11-test test
 

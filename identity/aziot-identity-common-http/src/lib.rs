@@ -78,8 +78,6 @@ pub mod delete_module_identity {
     pub struct Request {
         #[serde(rename = "type")]
         pub id_type: String,
-        #[serde(rename = "moduleId")]
-        pub module_id: String,
     }
 }
 

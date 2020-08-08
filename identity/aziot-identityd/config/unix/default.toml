@@ -29,13 +29,21 @@ uid = 1003
 
 [provisioning]
 source = "manual"
+iothub_hostname = "hubname"
+device_id = "deviceid"
 
 [provisioning.authentication]
 method = "sas"
-iothub_hostname = "hubname"
-device_id = "deviceid"
-device_id_pk = "sas"
+device_id_pk = "device-id"
 dynamic_reprovisioning = false
+
+# [provisioning.authentication]
+# method = "x509"
+# iothub_hostname = "hubname"
+# device_id = "deviceid"
+# device_id_cert = "device-id"
+# device_id_pk = "device-id"
+# dynamic_reprovisioning = false
 
 # [provisioning]
 # "source" = "dps"
@@ -45,7 +53,7 @@ dynamic_reprovisioning = false
 # [provisioning.attestation]
 # "method" = "symmetric_key"
 # "registration_id" = "<ADD REGISTRATION ID HERE>"
-# "symmetric_key" = "dps" #Pre-loaded Key service handle
+# "symmetric_key" = "device-id" #Pre-loaded Key service handle
 #
 # [provisioning.attestation]
 # "method" = "x509"

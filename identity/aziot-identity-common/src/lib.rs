@@ -27,8 +27,8 @@ pub struct AzureIoTSpec {
     pub module_id: Option<ModuleId>,
     #[serde(rename = "genId", skip_serializing_if = "Option::is_none")]
     pub gen_id: Option<GenId>,
-    #[serde(rename = "auth")]
-    pub auth: AuthenticationInfo
+    #[serde(rename = "auth", skip_serializing_if = "Option::is_none")]
+    pub auth: Option<AuthenticationInfo>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -56,4 +56,95 @@ pub enum IdType {
     Device,
     Local,
     Module,
+}
+
+#[derive(Clone)]
+pub struct IoTHubDevice {
+	pub iothub_hostname: String,
+
+	pub device_id: String,
+
+	pub credentials: Credentials,
+}
+
+#[derive(Clone)]
+pub enum Credentials {
+	SharedPrivateKey (String),
+	
+    X509 {
+        identity_cert: String,
+        identity_pk: String,
+    },
+}
+
+impl From<Credentials> for AuthenticationInfo {
+    fn from(c: Credentials) -> Self {
+		match c {
+		    Credentials::SharedPrivateKey(k) => AuthenticationInfo { 
+				auth_type: AuthenticationType::SaS,
+				key_handle: aziot_key_common::KeyHandle(k), 
+				cert_id: None,
+			},
+		    Credentials::X509 { identity_cert, identity_pk } => AuthenticationInfo { 
+				auth_type: AuthenticationType::X509,
+				key_handle: aziot_key_common::KeyHandle(identity_pk), 
+				cert_id: Some(identity_cert),
+			},
+		}
+    }
+}
+
+pub mod hub {
+    #[derive(Clone, Copy, Debug, serde::Deserialize, PartialEq, serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub enum AuthType {
+        None,
+        Sas,
+        X509,
+
+    }
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[serde(rename_all = "camelCase")]
+    pub struct X509Thumbprint {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub primary_thumbprint: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub secondary_thumbprint: Option<String>,
+    }
+
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[serde(rename_all = "camelCase")]
+    pub struct SymmetricKey {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub primary_key: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub secondary_key: Option<String>,
+    }
+
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[serde(rename_all = "camelCase")]
+    pub struct AuthMechanism {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub symmetric_key: Option<SymmetricKey>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub x509_thumbprint: Option<X509Thumbprint>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub type_: Option<AuthType>,
+    }
+
+    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Module {
+        pub module_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub managed_by: Option<String>,
+
+        pub device_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub generation_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub authentication: Option<AuthMechanism>,
+    }
 }

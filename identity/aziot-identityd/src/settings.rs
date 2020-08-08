@@ -4,8 +4,6 @@ use std::fmt::Display;
 use std::path::Path;
 use std::str::FromStr;
 
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use url::Url;
 
 use crate::error::InternalError;
 
@@ -20,6 +18,8 @@ pub struct Settings {
     pub homedir: std::path::PathBuf,
 
     pub principal: Option<Vec<Principal>>,
+
+    pub provisioning: Provisioning,
 }
 
 impl Settings {
@@ -43,14 +43,70 @@ pub struct Principal {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Connect {
-    pub api_uri: Url,
+    pub api_uri: url::Url,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Listen {
-    pub api_uri: Url,
+    pub api_uri: url::Url,
     #[serde(default = "Protocol::default")]
     pub min_tls_version: Protocol,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method")]
+#[serde(rename_all = "lowercase")]
+pub enum ManualAuthMethod {
+    #[serde(rename = "sas")]
+    SharedPrivateKey {
+        device_id_pk: String,
+    },
+    X509 {
+        identity_cert: String,
+        identity_pk: String,
+    },
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method")]
+#[serde(rename_all = "lowercase")]
+pub enum DpsAttestationMethod {
+    #[serde(rename = "symmetric_key")]
+    SymmetricKey {
+        registration_id: String,
+        symmetric_key: String,
+    },
+    X509 {
+        registration_id: String,
+        identity_cert: String,
+        identity_pk: String,
+    },
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub struct Provisioning {
+    #[serde(flatten)]
+    pub provisioning: ProvisioningType,
+
+    #[serde(default)]
+    pub dynamic_reprovisioning: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "source")]
+#[serde(rename_all = "lowercase")]
+pub enum ProvisioningType {
+    Manual {
+        iothub_hostname: String,
+        device_id: String,
+        authentication: ManualAuthMethod,
+    },
+    Dps {
+        global_endpoint: String,
+        scope_id: String,
+        attestation: DpsAttestationMethod,
+    },
 }
 
 //TODO: Keeping this setting around until it is determined HTTPS isn't supported
@@ -90,20 +146,20 @@ impl FromStr for Protocol {
     }
 }
 
-impl<'de> Deserialize<'de> for Protocol {
+impl<'de> serde::Deserialize<'de> for Protocol {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        s.parse().map_err(de::Error::custom)
+        s.parse().map_err(serde::de::Error::custom)
     }
 }
 
-impl Serialize for Protocol {
+impl serde::Serialize for Protocol {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
         serializer.serialize_str(&format!("{}", self))
     }
@@ -112,8 +168,58 @@ impl Serialize for Protocol {
 #[cfg(test)]
 mod tests {
     use test_case::test_case;
-
+    use crate::settings::{ProvisioningType, Settings, DpsAttestationMethod, ManualAuthMethod};
     use super::{FromStr, Protocol};
+
+    #[test]
+    fn manual_sas_provisioning_settings_succeeds() {
+        let s = Settings::new(std::path::Path::new("test/good_sas_config.toml")).unwrap();
+
+        assert_eq!(s.provisioning.dynamic_reprovisioning, false);
+
+        match s.provisioning.provisioning {
+            ProvisioningType::Manual { iothub_hostname:_, device_id:_, authentication } => {
+                match authentication {
+                    ManualAuthMethod::SharedPrivateKey { 
+                        device_id_pk: _,
+                     } => {},
+                    _ => panic!("incorrect provisioning type selected"),
+                     
+                }
+            },
+            _ => panic!("incorrect provisioning type selected"),
+        };
+    }
+
+    #[test]
+    fn manual_dps_provisioning_settings_succeeds() {
+        let s = Settings::new(std::path::Path::new("test/good_dps_config.toml")).unwrap();
+
+        match s.provisioning.provisioning {
+            ProvisioningType::Dps {
+                global_endpoint: _,
+                scope_id: _,
+                attestation,
+            } => {
+                match attestation {
+                    DpsAttestationMethod::SymmetricKey {
+                        registration_id: _,
+                        symmetric_key: _,     
+                    } => (),
+                    _ => panic!("incorrect provisioning type selected"),
+                }
+            },
+            _ => panic!("incorrect provisioning type selected"),
+        };
+    }
+
+    #[test]
+    fn bad_provisioning_settings_fails() {
+        assert!(
+            Settings::new(std::path::Path::new("test/bad_config.toml")).is_err(),
+            "provisioning settings read should fail"
+        );
+    }
 
     #[test_case("tls", Protocol::Tls10; "when tls provided")]
     #[test_case("tls1", Protocol::Tls10; "when tls1 with dot provided")]

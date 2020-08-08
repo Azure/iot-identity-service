@@ -23,7 +23,7 @@ impl<F> Authorizer for F
 	}
 }
 
-/// Default implementation that accepts any operation for all authenticated users.
+// Default implementation that accepts any operation for all authenticated users.
 // TODO: Remove this implementation once Unix Domain Sockets is ported over.
 pub struct DefaultAuthorizer;
 
