@@ -11,11 +11,6 @@ extern "C" {
 	pub fn EVP_PKEY_CTX_get0_pkey(
 		ctx: *mut openssl_sys::EVP_PKEY_CTX,
 	) -> *mut openssl_sys::EVP_PKEY;
-
-	pub fn EVP_PKEY_CTX_get_signature_md_f(
-		ctx: *mut openssl_sys::EVP_PKEY_CTX,
-		pmd: *mut *const openssl_sys::EVP_MD,
-	) -> std::os::raw::c_int;
 }
 
 extern "C" {

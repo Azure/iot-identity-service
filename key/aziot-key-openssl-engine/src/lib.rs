@@ -51,7 +51,6 @@ openssl_errors::openssl_errors! {
 			AZIOT_KEY_EC_SIGN("aziot_key_ec_sign");
 
 			AZIOT_KEY_RSA_PRIV_ENC("aziot_key_rsa_priv_enc");
-			AZIOT_KEY_RSA_SIGN("aziot_key_rsa_sign");
 		}
 
 		reasons {

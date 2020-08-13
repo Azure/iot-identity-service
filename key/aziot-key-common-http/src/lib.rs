@@ -102,6 +102,9 @@ pub mod encrypt {
 
 		#[serde(rename = "RSA-PKCS1")]
 		RsaPkcs1,
+
+		#[serde(rename = "RSA-NO-PADDING")]
+		RsaNoPadding,
 	}
 
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]

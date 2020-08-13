@@ -53,15 +53,3 @@ extern "C" {
 		) -> std::os::raw::c_int,
 	) -> std::os::raw::c_int;
 }
-
-extern "C" {
-	pub fn EVP_PKEY_CTX_get_rsa_mgf1_md_f(
-		ctx: *mut openssl_sys::EVP_PKEY_CTX,
-		pmd: *mut *const openssl_sys::EVP_MD,
-	) -> std::os::raw::c_int;
-
-	pub fn EVP_PKEY_CTX_get_rsa_pss_saltlen_f(
-		ctx: *mut openssl_sys::EVP_PKEY_CTX,
-		plen: *mut std::os::raw::c_int,
-	) -> std::os::raw::c_int;
-}

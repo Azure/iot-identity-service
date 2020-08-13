@@ -202,6 +202,15 @@ impl Server {
 				)?
 			},
 
+			(KeyId::KeyPair(_), aziot_key_common::EncryptMechanism::RsaNoPadding) => {
+				self.keys.encrypt(
+					&id_cstr,
+					keys::sys::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING,
+					std::ptr::null_mut(),
+					plaintext,
+				)?
+			},
+
 			(KeyId::Derived(_, derivation_data), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
 				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
 					iv: iv.as_ptr(),

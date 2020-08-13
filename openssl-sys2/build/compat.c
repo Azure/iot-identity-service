@@ -5,21 +5,6 @@
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 
-// Defined as macros, so wrap them in functions
-
-int EVP_PKEY_CTX_get_signature_md_f(EVP_PKEY_CTX *ctx, EVP_MD **pmd) {
-	return EVP_PKEY_CTX_get_signature_md(ctx, pmd);
-}
-
-int EVP_PKEY_CTX_get_rsa_mgf1_md_f(EVP_PKEY_CTX *ctx, EVP_MD **pmd) {
-	return EVP_PKEY_CTX_get_rsa_mgf1_md(ctx, pmd);
-}
-
-int EVP_PKEY_CTX_get_rsa_pss_saltlen_f(EVP_PKEY_CTX *ctx, int *plen) {
-	return EVP_PKEY_CTX_get_rsa_pss_saltlen(ctx, plen);
-}
-
-
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 RSA_METHOD *RSA_meth_dup(

@@ -315,7 +315,8 @@ pub(crate) unsafe extern "C" fn encrypt(
 			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
 
-			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 =>
+			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 |
+			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING =>
 				crate::key_pair::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),

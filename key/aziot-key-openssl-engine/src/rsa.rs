@@ -34,23 +34,8 @@ unsafe extern "C" fn aziot_key_freef_rsa_ex_data(
 }
 
 #[cfg(ossl110)]
-static mut OPENSSL_EVP_RSA_SIGN: Option<unsafe extern "C" fn (
-	ctx: *mut openssl_sys::EVP_PKEY_CTX,
-	sig: *mut std::os::raw::c_uchar,
-	siglen: *mut usize,
-	tbs: *const std::os::raw::c_uchar,
-	tbslen: usize,
-) -> std::os::raw::c_int> = None;
-
-#[cfg(ossl110)]
 pub(super) unsafe fn get_evp_rsa_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
-	// The default RSA method works fine but for one problem. When signing with a PSS key,
-	// it does the PSS padding itself and then invokes the key's encrypt function with RSA_NO_PADDING for raw encryption.
-	// The PKCS#11 equivalent of RSA_NO_PADDING is the CKM_RSA_X_509 mechanism, 
-	// which PKCS#11 implementations don't necessarily implement for security reasons.
-	//
-	// So we want to override the method, detect that we're doing PSS signing, and directly invoke the Key Service sign operation
-	// with the RsaPss mechanism instead.
+	// The default RSA method is good enough.
 
 	let openssl_method = openssl2::openssl_returns_nonnull_const(openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_RSA))?;
 	let result =
@@ -58,55 +43,7 @@ pub(super) unsafe fn get_evp_rsa_method() -> Result<*const openssl_sys2::EVP_PKE
 			openssl_sys2::EVP_PKEY_meth_new(openssl_sys::EVP_PKEY_RSA, openssl_sys2::EVP_PKEY_FLAG_AUTOARGLEN))?;
 	openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
 
-	let mut openssl_rsa_sign_init = None;
-	openssl_sys2::EVP_PKEY_meth_get_sign(openssl_method, &mut openssl_rsa_sign_init, &mut OPENSSL_EVP_RSA_SIGN);
-	openssl_sys2::EVP_PKEY_meth_set_sign(result, openssl_rsa_sign_init, Some(aziot_key_evp_rsa_sign));
-
 	Ok(result)
-}
-
-#[cfg(ossl110)]
-unsafe extern "C" fn aziot_key_evp_rsa_sign(
-	ctx: *mut openssl_sys::EVP_PKEY_CTX,
-	sig: *mut std::os::raw::c_uchar,
-	siglen: *mut usize,
-	tbs: *const std::os::raw::c_uchar,
-	tbslen: usize,
-) -> std::os::raw::c_int {
-	let result = super::r#catch(Some(|| super::Error::AZIOT_KEY_RSA_SIGN), || {
-		let private_key = openssl2::openssl_returns_nonnull(openssl_sys2::EVP_PKEY_CTX_get0_pkey(ctx))?;
-		let private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private> = foreign_types_shared::ForeignTypeRef::from_ptr(private_key);
-		let rsa = private_key.rsa()?;
-		let crate::ex_data::KeyExData { .. } =
-			if let Ok(ex_data) = crate::ex_data::get(&*foreign_types_shared::ForeignType::as_ptr(&rsa)) {
-				ex_data
-			}
-			else {
-				let openssl_rsa_sign = OPENSSL_EVP_RSA_SIGN.expect("OPENSSL_EVP_RSA_SIGN must have been set by get_evp_rsa_method earlier");
-				match openssl_rsa_sign(ctx, sig, siglen, tbs, tbslen) {
-					result if result <= 0 => return Err(format!("OPENSSL_EVP_RSA_SIGN returned {}", result).into()),
-					_ => return Ok(()),
-				}
-			};
-
-		let mut padding = 0;
-		openssl2::openssl_returns_positive(openssl_sys::EVP_PKEY_CTX_get_rsa_padding(ctx, &mut padding))?;
-
-		// Let openssl handle other schemes, and use the key's encrypt function (aziot_key__rsa_method_priv_enc) as necessary.
-
-		let openssl_evp_rsa_sign = OPENSSL_EVP_RSA_SIGN.expect("OPENSSL_EVP_RSA_SIGN was never set");
-		let result = openssl_evp_rsa_sign(ctx, sig, siglen, tbs, tbslen);
-		if result > 0 {
-			Ok(())
-		}
-		else {
-			Err(format!("openssl_evp_rsa_sign failed with {}", result).into())
-		}
-	});
-	match result {
-		Ok(()) => 1,
-		Err(()) => -1,
-	}
 }
 
 pub(super) unsafe fn aziot_key_rsa_method() -> *const openssl_sys::RSA_METHOD {
@@ -143,6 +80,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
 
 		let mechanism = match padding {
 			openssl_sys::RSA_PKCS1_PADDING => aziot_key_common::EncryptMechanism::RsaPkcs1,
+			openssl_sys::RSA_NO_PADDING => aziot_key_common::EncryptMechanism::RsaNoPadding,
 			padding => return Err(format!("unrecognized RSA padding scheme 0x{:08x}", padding).into()),
 		};
 

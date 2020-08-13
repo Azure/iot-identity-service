@@ -191,17 +191,22 @@ typedef struct {
 typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
 
 /**
- * AEAD (eg AES-256-GCM)
+ * AEAD mechanism, like AES-256-GCM.
  */
 #define KEYGEN_ENCRYPT_MECHANISM_AEAD 1
 
 /**
  * Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
  */
-#define KEYGEN_ENCRYPT_MECHANISM_DERIVED 3
+#define KEYGEN_ENCRYPT_MECHANISM_DERIVED 4
 
 /**
- * RSA PKCS1
+ * RSA with no padding. Padding will have been performed by the caller.
+ */
+#define KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING 3
+
+/**
+ * RSA with PKCS1 padding.
  */
 #define KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 2
 

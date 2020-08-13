@@ -174,7 +174,7 @@ impl Object<openssl::ec::EcKey<openssl::pkey::Private>> {
 
 pub enum RsaSignMechanism {
 	Pkcs1,
-	Pss(pkcs11_sys::CK_RSA_PKCS_PSS_PARAMS),
+	X509,
 }
 
 impl Object<openssl::rsa::Rsa<openssl::pkey::Private>> {
@@ -191,10 +191,10 @@ impl Object<openssl::rsa::Rsa<openssl::pkey::Private>> {
 					ulParameterLen: 0,
 				},
 
-				RsaSignMechanism::Pss(parameter) => pkcs11_sys::CK_MECHANISM_IN {
-					mechanism: pkcs11_sys::CKM_RSA_PKCS_PSS,
-					pParameter: parameter as *const _ as _,
-					ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(parameter)).expect("usize -> CK_ULONG"),
+				RsaSignMechanism::X509 => pkcs11_sys::CK_MECHANISM_IN {
+					mechanism: pkcs11_sys::CKM_RSA_X509,
+					pParameter: std::ptr::null(),
+					ulParameterLen: 0,
 				},
 			};
 			let result =
