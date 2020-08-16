@@ -8,6 +8,7 @@
 	clippy::module_name_repetitions,
 	clippy::must_use_candidate,
 	clippy::too_many_lines,
+	clippy::let_and_return,
 )]
 #![allow(dead_code)]
 
@@ -37,35 +38,12 @@ impl Server {
 	pub fn new(
 		settings: settings::Settings, authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>, authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>) -> Result<Self, Error>
 	{
-		match settings.clone().provisioning.provisioning {
-			settings::ProvisioningType::Manual { iothub_hostname, device_id, authentication } => {
-				let credentials = match authentication {
-					settings::ManualAuthMethod::SharedPrivateKey { device_id_pk } => aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk),
-					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
-				};
-				let id_manager = identity::IdentityManager::new(
-					Some(aziot_identity_common::IoTHubDevice{
-						iothub_hostname,
-						device_id,
-						credentials
-					}
-					));
-				Ok(Server {
-					settings,
-					authenticator,
-					authorizer,
-					id_manager,
-				})
-			},
-			settings::ProvisioningType::Dps { global_endpoint:_, scope_id:_, attestation:_} => {	
-				Ok(Server {
-					settings,
-					authenticator,
-					authorizer,
-					id_manager: identity::IdentityManager::default(),
-				})
-			}
-		}
+		Ok(Server {
+			settings,
+			authenticator,
+			authorizer,
+			id_manager: identity::IdentityManager::default(),
+		})
 	}
 
 	pub async fn get_caller_identity(&self, auth_id: auth::AuthId) -> Result<aziot_identity_common::Identity, Error> {
@@ -85,14 +63,18 @@ impl Server {
 		self.id_manager.get_module_identity(module_id).await
 	}
 
-	pub async fn get_hub_identities(&self, auth_id: auth::AuthId, _idtype: &str) -> Result<Vec<aziot_identity_common::Identity>, Error> {
+	pub async fn get_identities(&self, auth_id: auth::AuthId, id_type: &str) -> Result<Vec<aziot_identity_common::Identity>, Error> {
 
 		if !self.authorizer.authorize(auth::Operation{auth_id, op_type: auth::OperationType::GetAllHubModules })? {
 			return Err(Error::Authorization);
 		}
 
-		//TODO: get identity type and get identities, filtering for appropriate identity manager (Hub or local)
-		self.id_manager.get_module_identities().await
+		if id_type.eq("aziot") {
+			self.id_manager.get_module_identities().await
+		}
+		else {
+			Err(Error::invalid_parameter("id_type", "invalid id_type"))
+		}
 	}
 
 	pub async fn get_device_identity(&self, auth_id: auth::AuthId, _idtype: &str) -> Result<aziot_identity_common::Identity, Error> {
@@ -141,6 +123,36 @@ impl Server {
 		}
 
 		self.provision_device().await
+	}
+
+	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
+		let hub_module_ids = self.id_manager.get_module_identities().await?;
+		for m in hub_module_ids {
+			match m {
+				aziot_identity_common::Identity::Aziot(m) => {
+					match m.module_id {
+						Some(m) => {
+							if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+								self.id_manager.delete_module_identity(&m.0).await?;
+								log::info!("identity {:?} removed", &m.0);
+							}
+							else if current_module_set.contains(&m) {
+								current_module_set.remove(&m);
+								log::info!("identity {:?} already exists", &m.0);
+							}
+						},
+						None => { log::warn!("invalid identity type returned by get_module_identities"); },
+					}
+				}
+			}
+		}
+
+		for m in current_module_set {
+			self.id_manager.create_module_identity(&m.0).await?;
+			log::info!("identity {:?} added", &m.0);
+		}
+
+		Ok(())
 	}
 
 	pub async fn provision_device(&mut self) -> Result<(), Error> {
@@ -328,15 +340,4 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 		}
 		Ok(false)
 	}
-}
-
-fn test_module_identity() -> aziot_identity_common::Identity {
-	aziot_identity_common::Identity::Aziot (
-		aziot_identity_common::AzureIoTSpec {
-			hub_name: "dummyHubName".to_string(),
-			device_id: aziot_identity_common::DeviceId("dummyDeviceId".to_string()),
-			module_id: Some(aziot_identity_common::ModuleId("dummyModuleId".to_string())),
-			gen_id: Some(aziot_identity_common::GenId("dummyGenId".to_string())),
-			auth: None,
-			})
 }

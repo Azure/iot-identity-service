@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-mod get_module_identities;
 mod get_or_delete_module_identity;
 mod get_trust_bundle;
-mod create_module_identity;
+mod create_or_list_module_identity;
 mod get_device_identity;
 mod get_caller_identity;
 mod reprovision_device;
@@ -35,10 +34,9 @@ impl hyper::service::Service<hyper::Request<hyper::Body>> for Server {
 
 		Box::pin(async move {
 			const ROUTES: &[Route] = &[
-				get_module_identities::handle,
+				create_or_list_module_identity::handle,
 				get_or_delete_module_identity::handle,
 				get_trust_bundle::handle,
-				create_module_identity::handle,
 				get_device_identity::handle,
 				get_caller_identity::handle,
 				reprovision_device::handle,

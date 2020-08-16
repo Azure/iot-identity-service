@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::ffi::{OsStr, OsString};
+use std::{path::PathBuf, ffi::{OsStr, OsString}};
 
 use clap::{crate_description, crate_name, crate_version, App, Arg};
 use log::info;
 
 use crate::error::InternalError;
 use crate::logging;
-use crate::settings::Settings;
 
 fn create_app(default_config_file: &OsStr) -> App<'_, '_> {
     App::new(crate_name!())
@@ -24,7 +23,7 @@ fn create_app(default_config_file: &OsStr) -> App<'_, '_> {
         )
 }
 
-pub fn init() -> Result<Settings, InternalError> {
+pub fn init() -> Result<PathBuf, InternalError> {
     let default_config_file = OsString::from("/etc/aziot/identityd/config.toml");
 
     let matches = create_app(&default_config_file).get_matches();
@@ -42,13 +41,6 @@ pub fn init() -> Result<Settings, InternalError> {
 
     info!("Using config file: {}", config_file.display());
 
-    let settings = init_idservice(&config_file)?;
-
-    Ok(settings)
+    Ok(config_file)
 }
 
-fn init_idservice(config_file: &std::path::Path) -> Result<Settings, InternalError> {
-    let settings = Settings::new(&config_file)?;
-
-    Ok(settings)
-}

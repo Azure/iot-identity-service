@@ -49,8 +49,6 @@ pub struct Connect {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Listen {
     pub api_uri: url::Url,
-    #[serde(default = "Protocol::default")]
-    pub min_tls_version: Protocol,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

@@ -17,8 +17,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = read_is_settings()?;
-    let (_pmap, _mset) =  convert_to_map(&settings.principal);
+    let config_file = aziot_identityd::app::init()?;
+
+    let settings = aziot_identityd::settings::Settings::new(&config_file)?;
+    let homedir_path = &settings.homedir.to_owned();
+    
+    let mut prev_settings_path = homedir_path.clone();
+    prev_settings_path.push("prev_state");
+    
+    let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
+    if prev_settings_path.exists() {
+        let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
+        let (_, p) = convert_to_map(&settings.principal);
+            prev_module_set = p;
+    }
+    else {
+        if !homedir_path.exists() {
+            let () = std::fs::create_dir_all(&homedir_path).map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
+        }
+    }
+
+    let (_pmap, module_set) = convert_to_map(&settings.principal);
 
     let authenticator = Box::new(|_| Ok(aziot_identityd::auth::AuthId::Unknown));
 
@@ -33,14 +52,17 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Provisioning starting..");
         
         let mut server_ = server.lock().await;
-        server_.provision_device().await?;
+        let () = server_.provision_device().await?;
         log::info!("Provisioning complete.");
 
+        let () = server_.init_identities(prev_module_set, module_set).await?;
+        log::info!("Identity reconciliation complete.");
+
+        std::fs::copy(config_file, prev_settings_path).map_err(aziot_identityd::error::InternalError::SaveSettings)?;
     }
 
-    log::info!("Identity Service starting..");
-    
     let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8901".parse()?)?;
+    log::info!("Identity Service started.");
     
     let server =
     hyper::Server::builder(incoming)
@@ -55,11 +77,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn read_is_settings() -> Result<aziot_identityd::settings::Settings, Box<dyn std::error::Error>> {
-    let settings = aziot_identityd::app::init()?;
-    Ok(settings)
-}
-
 fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
     -> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
         std::collections::BTreeSet<aziot_identity_common::ModuleId>)
@@ -69,10 +86,8 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 
     if let Some(v) = principal.as_ref() { v.iter()
             .for_each(|p| {
-                let p1 = p.clone();
-                let p2 = p.clone();
-                pmap.insert(p.uid, p1);
-                mset.insert(p2.name);
+                pmap.insert(p.uid, p.clone());
+                if p.id_type == Some(aziot_identity_common::IdType::Module) { mset.insert(p.clone().name); }
             })};
 
     (pmap, mset)
