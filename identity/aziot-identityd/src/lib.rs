@@ -9,6 +9,7 @@
 	clippy::must_use_candidate,
 	clippy::too_many_lines,
 	clippy::let_and_return,
+	clippy::type_complexity,
 )]
 #![allow(dead_code)]
 
@@ -122,7 +123,8 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.provision_device().await
+		let _ = self.provision_device().await?;
+		Ok(())
 	}
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
@@ -130,18 +132,18 @@ impl Server {
 		for m in hub_module_ids {
 			match m {
 				aziot_identity_common::Identity::Aziot(m) => {
-					match m.module_id {
-						Some(m) => {
-							if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-								self.id_manager.delete_module_identity(&m.0).await?;
-								log::info!("identity {:?} removed", &m.0);
-							}
-							else if current_module_set.contains(&m) {
-								current_module_set.remove(&m);
-								log::info!("identity {:?} already exists", &m.0);
-							}
-						},
-						None => { log::warn!("invalid identity type returned by get_module_identities"); },
+					if let Some(m) = m.module_id {
+						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+							self.id_manager.delete_module_identity(&m.0).await?;
+							log::info!("identity {:?} removed", &m.0);
+						}
+						else if current_module_set.contains(&m) {
+							current_module_set.remove(&m);
+							log::info!("identity {:?} already exists", &m.0);
+						}
+					}
+					else {
+						log::warn!("invalid identity type returned by get_module_identities");
 					}
 				}
 			}
@@ -155,22 +157,24 @@ impl Server {
 		Ok(())
 	}
 
-	pub async fn provision_device(&mut self) -> Result<(), Error> {
-		match self.settings.clone().provisioning.provisioning {
+	pub async fn provision_device(&mut self) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+		let device = match self.settings.clone().provisioning.provisioning {
 			settings::ProvisioningType::Manual { iothub_hostname, device_id, authentication } => {
-				match authentication {
+				
+				let credentials = match authentication {
 					settings::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
-						let credentials = aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk);
-						self.id_manager.set_device(aziot_identity_common::IoTHubDevice { iothub_hostname, device_id, credentials });
+						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => { 
-						let credentials = aziot_identity_common::Credentials::X509{identity_cert, identity_pk};
-						self.id_manager.set_device(aziot_identity_common::IoTHubDevice { iothub_hostname, device_id, credentials });
+						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
-				}
+				};
+				let device = aziot_identity_common::IoTHubDevice { iothub_hostname, device_id, credentials };
+				self.id_manager.set_device(&device);
+				device
 			},
 			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation} => {
-				match attestation {
+				let device = match attestation {
 					settings::DpsAttestationMethod::SymmetricKey { registration_id, symmetric_key } => {
 						let result = aziot_dps_client_async::register(
 							global_endpoint.as_str(), 
@@ -226,7 +230,8 @@ impl Server {
 							Err(err) => return Err(Error::DPSClient(err)) 
 						};
 						
-						self.id_manager.set_device(device);
+						self.id_manager.set_device(&device);
+						device
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
 						let result = aziot_dps_client_async::register(
@@ -284,12 +289,14 @@ impl Server {
 							Err(_) => return Err(Error::DeviceNotFound)
 						};
 						
-						self.id_manager.set_device(device);
+						self.id_manager.set_device(&device);
+						device
 					}
-				}
+				};
+				device
 			}
 		};
-		Ok(())
+		Ok(device)
 	}
 }
 

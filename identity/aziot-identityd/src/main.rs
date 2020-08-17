@@ -24,17 +24,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     
     let mut prev_settings_path = homedir_path.clone();
     prev_settings_path.push("prev_state");
+
+    let mut prev_device_info_path = homedir_path.clone();
+    prev_device_info_path.push("device_info");
     
-    let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
-    if prev_settings_path.exists() {
-        let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
-        let (_, p) = convert_to_map(&settings.principal);
-            prev_module_set = p;
-    }
-    else {
-        if !homedir_path.exists() {
+    if !homedir_path.exists() {
             let () = std::fs::create_dir_all(&homedir_path).map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
-        }
     }
 
     let (_pmap, module_set) = convert_to_map(&settings.principal);
@@ -52,12 +47,28 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Provisioning starting..");
         
         let mut server_ = server.lock().await;
-        let () = server_.provision_device().await?;
+        let device = server_.provision_device().await?;
         log::info!("Provisioning complete.");
-
-        let () = server_.init_identities(prev_module_set, module_set).await?;
+        
+        let curr_device_info_state = aziot_identityd::settings::DeviceInfo { hub_name: device.iothub_hostname, device_id: device.device_id };
+        
+        if prev_device_info_path.exists() {
+            let prev_device_info_state = aziot_identityd::settings::DeviceInfo::new(&prev_device_info_path)?;
+            
+            let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
+            if prev_device_info_state.eq(&curr_device_info_state) && prev_settings_path.exists() {
+                let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
+                let (_, p) = convert_to_map(&settings.principal);
+                prev_module_set = p;
+            }
+            
+            let () = server_.init_identities(prev_module_set, module_set).await?;
+        }
+        
         log::info!("Identity reconciliation complete.");
 
+        let curr_device_info_state = toml::to_string(&curr_device_info_state)?;
+        std::fs::write(prev_device_info_path, curr_device_info_state).map_err(aziot_identityd::error::InternalError::SaveDeviceInfo)?;
         std::fs::copy(config_file, prev_settings_path).map_err(aziot_identityd::error::InternalError::SaveSettings)?;
     }
 

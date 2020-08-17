@@ -20,8 +20,8 @@ impl IdentityManager {
 		}
 	}
 
-	pub fn set_device(&mut self, device: aziot_identity_common::IoTHubDevice) {
-		self.iot_hub_device = Some(device);
+	pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
+		self.iot_hub_device = Some(device.clone());
 	}
 
 	pub async fn create_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {		

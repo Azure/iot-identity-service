@@ -31,6 +31,22 @@ impl Settings {
     }
 }
 
+#[derive(Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
+pub struct DeviceInfo {
+    pub hub_name: String,
+
+    pub device_id: String,
+}
+
+impl DeviceInfo {
+    pub fn new(filename: &Path)-> Result<Self, InternalError> {
+        let info = std::fs::read_to_string(filename).map_err(InternalError::LoadDeviceInfo)?;
+        let info = toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?;
+
+        Ok(info)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all="lowercase")]
 pub struct Principal {
