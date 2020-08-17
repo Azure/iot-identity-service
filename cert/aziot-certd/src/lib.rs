@@ -194,14 +194,16 @@ fn create_cert<'a>(
 				.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
 			).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
-			// TODO: Copy key usage and constraints from x509_req to x509 instead of always adding the CA constraint.
-			//
-			// Requires enumerating x509_req.extensions(), but X509Extension is opaque?!
-			let ca_extension =
-				openssl::x509::extension::BasicConstraints::new()
-				.ca()
-				.build().map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-			x509.append_extension(ca_extension).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+			// Copy extensions from x509_req to the new cert.
+			let req_extensions = x509_req.extensions();
+
+			// x509_req.extensions() returns an Err variant if no extensions are present in the req.
+			// Ignore this Err and only copy extensions if provided in the req.
+			if let Ok(req_extensions) = req_extensions {
+				for extension in req_extensions {
+					x509.append_extension(extension).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+				}
+			}
 
 			let issuer_private_key =
 				std::ffi::CString::new(issuer_private_key.0.clone()).map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
