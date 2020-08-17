@@ -18,9 +18,9 @@ homedir_path = "/var/lib/aziot/certd"
 
 - `[preloaded_certs]` - This section defines preloaded certs as a map of cert ID to URI. For example, if you have a device ID cert file that you want the service to make available to the other components, you would register that file in this section.
 
-    Only `file://` URIs are supported at this time.
+    Only `file://` URIs are supported at this time. Files must be in PEM format and can contain one or more certificates.
 
-Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `CONFIG` env var.
+Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `AZIOT_CERTD_CONFIG` env var.
 
 With this basic file, fill it out depending on what workflow you want to test:
 
@@ -130,7 +130,7 @@ With this basic file, fill it out depending on what workflow you want to test:
         identity_pk = "est-id"
 
         [preloaded_certs]
-        est-id = "file:///home/arnavion/Desktop/est/client_cert_ec.pem"
+        est-id = "file:///path/to/est-id.pem"
         ```
 
     1. ... used with X509 auth, with a preloaded bootstrap EST identity cert.
@@ -143,7 +143,7 @@ With this basic file, fill it out depending on what workflow you want to test:
         bootstrap_identity_pk = "est-bootstrap-id"
 
         [preloaded_certs]
-        est-bootstrap-id = "file:///home/arnavion/Desktop/est/client_cert_ec.pem"
+        est-bootstrap-id = "file:///path/to/est-bootstrap-id.pem"
         ```
 
     Note:
@@ -174,10 +174,10 @@ With this basic file, fill it out depending on what workflow you want to test:
 
 1. Finally, run the service.
 
-    As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `CONFIG` env var to its actual path.
+    As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `AZIOT_CERTD_CONFIG` env var to its actual path.
 
     ```sh
-    export CONFIG='...'
+    export AZIOT_CERTD_CONFIG='...'
 
     cargo run -p aziot-certd
     ```

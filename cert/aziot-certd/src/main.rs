@@ -15,7 +15,7 @@ mod http;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
 	let config_path: std::path::PathBuf =
-		std::env::var_os("CONFIG")
+		std::env::var_os("AZIOT_CERTD_CONFIG")
 		.map_or_else(|| "/etc/aziot/certd/config.toml".into(), Into::into);
 
 	let config = std::fs::read(config_path).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;

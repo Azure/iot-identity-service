@@ -44,6 +44,7 @@ export PKCS11_LIB_PATH='/usr/lib/libcryptoauth.so'
 
 # Variables to identify and log in to the PKCS#11 token
 TOKEN_PARAM='slot-id=0'
+PIN_SUFFIX=''
 ```
 </td>
 <td>

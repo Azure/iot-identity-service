@@ -14,43 +14,14 @@ mod http;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-	let mut server = aziot_keyd::Server::new()?;
+	let config_path: std::path::PathBuf =
+		std::env::var_os("AZIOT_KEYD_CONFIG")
+		.map_or_else(|| "/etc/aziot/keyd/config.toml".into(), Into::into);
 
-	// TODO: Read these from config
-	if let Some(value) = std::env::var_os("HOMEDIR_PATH") {
-		let value = std::os::unix::ffi::OsStringExt::into_vec(value);
-		let value = std::ffi::CString::new(value).unwrap();
+	let config = std::fs::read(config_path).map_err(|err| aziot_keyd::Error::Internal(aziot_keyd::InternalError::ReadConfig(Box::new(err))))?;
+	let config: aziot_keyd::Config = toml::from_slice(&config).map_err(|err| aziot_keyd::Error::Internal(aziot_keyd::InternalError::ReadConfig(Box::new(err))))?;
 
-		server.set_parameter(
-			std::ffi::CStr::from_bytes_with_nul(b"HOMEDIR_PATH\0").unwrap(),
-			&value,
-		)?;
-	}
-
-	if let Ok(value) = std::env::var("PKCS11_LIB_PATH") {
-		let value = std::ffi::CString::new(value).unwrap();
-		server.set_parameter(
-			std::ffi::CStr::from_bytes_with_nul(b"PKCS11_LIB_PATH\0").unwrap(),
-			&value,
-		)?;
-	}
-
-	if let Ok(value) = std::env::var("PKCS11_BASE_SLOT") {
-		let value = std::ffi::CString::new(value).unwrap();
-		server.set_parameter(
-			std::ffi::CStr::from_bytes_with_nul(b"PKCS11_BASE_SLOT\0").unwrap(),
-			&value,
-		)?;
-	}
-
-	for (key, value) in std::env::vars() {
-		if key.starts_with("PRELOADED_KEY:") {
-			let key = std::ffi::CString::new(key).unwrap();
-			let value = std::ffi::CString::new(value).unwrap();
-			server.set_parameter(&key, &value)?;
-		}
-	}
-
+	let server = aziot_keyd::Server::new(config)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 
 	eprintln!("Starting server...");

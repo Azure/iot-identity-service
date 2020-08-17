@@ -7,6 +7,9 @@
 	clippy::missing_errors_doc,
 )]
 
+mod config;
+pub use config::Config;
+
 mod error;
 pub use error::{Error, InternalError};
 
@@ -17,17 +20,47 @@ pub struct Server {
 }
 
 impl Server {
-	pub fn new() -> Result<Self, Error> {
-		let keys = keys::Keys::new()?;
+	pub fn new(
+		config: Config,
+	) -> Result<Self, Error> {
+		let mut keys = keys::Keys::new()?;
+
+		for (name, value) in config.aziot_keys {
+			let name =
+				std::ffi::CString::new(name.clone()).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+					"key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+					name, err,
+				).into())))?;
+
+			let value =
+				std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+					"value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+					name, err,
+				).into())))?;
+
+			keys.set_parameter(&name, &value)?;
+		}
+
+		for (key_id, value) in config.preloaded_keys {
+			let name = format!("preloaded_key:{}", key_id);
+			let name =
+				std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+					"key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+					key_id, err,
+				).into())))?;
+
+			let value =
+				std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+					"location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+					key_id, err,
+				).into())))?;
+
+			keys.set_parameter(&name, &value)?;
+		}
 
 		Ok(Server {
 			keys,
 		})
-	}
-
-	pub fn set_parameter(&mut self, name: &std::ffi::CStr, value: &std::ffi::CStr) -> Result<(), Error> {
-		self.keys.set_parameter(name, value)?;
-		Ok(())
 	}
 
 	pub fn create_key_pair_if_not_exists(
