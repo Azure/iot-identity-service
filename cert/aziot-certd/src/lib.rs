@@ -199,9 +199,9 @@ fn create_cert<'a>(
 
 			// x509_req.extensions() returns an Err variant if no extensions are present in the req.
 			// Ignore this Err and only copy extensions if provided in the req.
-			if let Ok(extensions) = req_extensions {
-				for extension in extensions.iter() {
-					x509.append_extension2(extension).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+			if let Ok(req_extensions) = req_extensions {
+				for extension in req_extensions {
+					x509.append_extension(extension).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 				}
 			}
 
