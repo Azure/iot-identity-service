@@ -160,7 +160,7 @@ pub(crate) struct LocalCa {
 }
 
 /// Details for issuing a single cert.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
 pub(crate) struct CertIssuanceOptions {
 	/// The method used to issue a certificate.
 	pub(crate) method: CertIssuanceMethod,
@@ -234,10 +234,10 @@ mod tests {
 homedir_path = "/var/lib/aziot/certd"
 
 [cert_issuance]
-device-ca = "est"
-device-id = "est"
-module-id = "est"
-module-server = "est"
+device-ca = { method = "est", common_name = "custom-name" }
+device-id = { method = "est" }
+module-id = { method = "self_signed", expiry_days = 90, common_name = "custom-name"}
+module-server = { method = "local_ca" }
 
 [cert_issuance.est]
 method = "x509"
@@ -289,12 +289,28 @@ trust-bundle = [
 
 				local_ca: None,
 
-				methods: [
-					("device-ca", super::CertIssuanceMethod::Est),
-					("device-id", super::CertIssuanceMethod::Est),
-					("module-id", super::CertIssuanceMethod::Est),
-					("module-server", super::CertIssuanceMethod::Est),
-				].iter().map(|&(id, method)| (id.to_owned(), method)).collect(),
+				certs: [
+					("device-ca", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::Est,
+						common_name: Some(String::from("custom-name")),
+						expiry_days: None,}
+					),
+					("device-id", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::Est,
+						common_name: None,
+						expiry_days: None,}
+					),
+					("module-id", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::SelfSigned,
+						common_name: Some(String::from("custom-name")),
+						expiry_days: Some(90),}
+					),
+					("module-server", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::LocalCa,
+						common_name: None,
+						expiry_days: None,}
+					),
+				].iter().map(|(id, options)| (String::from(*id), options.clone())).collect(),
 			},
 
 			preloaded_certs: vec![
