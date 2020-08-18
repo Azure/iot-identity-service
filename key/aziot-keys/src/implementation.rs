@@ -451,6 +451,10 @@ impl Location {
 
 				path.push("keys");
 
+				if !path.exists() {
+					let () = std::fs::create_dir_all(&path).map_err(err_external)?;
+				}
+
 				let id_sanitized: String = id.chars().filter(char::is_ascii_alphanumeric).collect();
 
 				let hash = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), id.as_bytes())?;
