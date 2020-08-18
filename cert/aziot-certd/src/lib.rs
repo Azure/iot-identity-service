@@ -190,9 +190,7 @@ fn create_cert<'a>(
 
 			if let Some(options) = cert_options {
 				if let Some(d) = options.expiry_days {
-					if d != 0 {
-						expiry_days = d;
-					}
+					expiry_days = d;
 				}
 
 				if let Some(c) = &options.common_name {
@@ -410,12 +408,7 @@ fn create_cert<'a>(
 											openssl::x509::X509Name::builder()
 											.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
-										let mut common_name = "est-id";
-
-										if let Some(c) = &cert_options.common_name {
-											common_name = c;
-										}
-
+										let common_name = cert_options.common_name.as_deref().unwrap_or("est-id");
 										subject_name.append_entry_by_text("CN", common_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 										let subject_name = subject_name.build();
 										identity_csr.set_subject_name(&subject_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;

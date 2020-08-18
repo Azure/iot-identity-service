@@ -170,7 +170,19 @@ pub(crate) struct CertIssuanceOptions {
 
 	/// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
 	/// If not provided, defaults to 30.
+	#[serde(default, deserialize_with = "deserialize_expiry_days")]
 	pub(crate) expiry_days: Option<u32>,
+}
+
+fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+	where D: serde::de::Deserializer<'de> {
+	let result: Option<u32> = serde::Deserialize::deserialize(deserializer)?;
+
+	if result == Some(0) {
+		return Err(serde::de::Error::custom("expiry_days must be greater than 0"));
+	}
+
+	Ok(result)
 }
 
 /// The method used to issue a certificate.
@@ -292,7 +304,7 @@ trust-bundle = [
 				certs: [
 					("device-ca", super::CertIssuanceOptions {
 						method: super::CertIssuanceMethod::Est,
-						common_name: Some(String::from("custom-name")),
+						common_name: Some("custom-name".to_owned()),
 						expiry_days: None,}
 					),
 					("device-id", super::CertIssuanceOptions {
@@ -302,7 +314,7 @@ trust-bundle = [
 					),
 					("module-id", super::CertIssuanceOptions {
 						method: super::CertIssuanceMethod::SelfSigned,
-						common_name: Some(String::from("custom-name")),
+						common_name: Some("custom-name".to_owned()),
 						expiry_days: Some(90),}
 					),
 					("module-server", super::CertIssuanceOptions {
@@ -310,7 +322,7 @@ trust-bundle = [
 						common_name: None,
 						expiry_days: None,}
 					),
-				].iter().map(|(id, options)| (String::from(*id), options.clone())).collect(),
+				].iter().map(|(id, options)| ((*id).to_owned(), options.clone())).collect(),
 			},
 
 			preloaded_certs: vec![
