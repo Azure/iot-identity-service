@@ -22,9 +22,9 @@ pub(crate) struct CertIssuance {
 	/// Configuration of parameters for issuing certs via a local CA cert.
 	pub(crate) local_ca: Option<LocalCa>,
 
-	/// Map of certificate IDs to the method used to issue them.
+	/// Map of certificate IDs to the details used to issue them.
 	#[serde(flatten)]
-	pub(crate) methods: std::collections::BTreeMap<String, CertIssuanceMethod>,
+	pub(crate) certs: std::collections::BTreeMap<String, CertIssuanceOptions>,
 }
 
 /// Configuration of parameters for issuing certs via EST.
@@ -159,6 +159,32 @@ pub(crate) struct LocalCa {
 	pub(crate) pk: String,
 }
 
+/// Details for issuing a single cert.
+#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
+pub(crate) struct CertIssuanceOptions {
+	/// The method used to issue a certificate.
+	pub(crate) method: CertIssuanceMethod,
+
+	/// Common name for the issued certificate. Defaults to the common name specified in CSR if not provided.
+	pub(crate) common_name: Option<String>,
+
+	/// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
+	/// If not provided, defaults to 30.
+	#[serde(default, deserialize_with = "deserialize_expiry_days")]
+	pub(crate) expiry_days: Option<u32>,
+}
+
+fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+	where D: serde::de::Deserializer<'de> {
+	let result: Option<u32> = serde::Deserialize::deserialize(deserializer)?;
+
+	if result == Some(0) {
+		return Err(serde::de::Error::custom("expiry_days must be greater than 0"));
+	}
+
+	Ok(result)
+}
+
 /// The method used to issue a certificate.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum CertIssuanceMethod {
@@ -220,10 +246,10 @@ mod tests {
 homedir_path = "/var/lib/aziot/certd"
 
 [cert_issuance]
-device-ca = "est"
-device-id = "est"
-module-id = "est"
-module-server = "est"
+device-ca = { method = "est", common_name = "custom-name" }
+device-id = { method = "est" }
+module-id = { method = "self_signed", expiry_days = 90, common_name = "custom-name"}
+module-server = { method = "local_ca" }
 
 [cert_issuance.est]
 method = "x509"
@@ -275,12 +301,28 @@ trust-bundle = [
 
 				local_ca: None,
 
-				methods: [
-					("device-ca", super::CertIssuanceMethod::Est),
-					("device-id", super::CertIssuanceMethod::Est),
-					("module-id", super::CertIssuanceMethod::Est),
-					("module-server", super::CertIssuanceMethod::Est),
-				].iter().map(|&(id, method)| (id.to_owned(), method)).collect(),
+				certs: [
+					("device-ca", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::Est,
+						common_name: Some("custom-name".to_owned()),
+						expiry_days: None,}
+					),
+					("device-id", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::Est,
+						common_name: None,
+						expiry_days: None,}
+					),
+					("module-id", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::SelfSigned,
+						common_name: Some("custom-name".to_owned()),
+						expiry_days: Some(90),}
+					),
+					("module-server", super::CertIssuanceOptions {
+						method: super::CertIssuanceMethod::LocalCa,
+						common_name: None,
+						expiry_days: None,}
+					),
+				].iter().map(|(id, options)| ((*id).to_owned(), options.clone())).collect(),
 			},
 
 			preloaded_certs: vec![
