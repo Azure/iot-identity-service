@@ -171,6 +171,9 @@ fn create_cert<'a>(
 		csr: &[u8],
 		issuer: Option<(&str, &aziot_key_common::KeyHandle)>,
 	) -> Result<Vec<u8>, Error> {
+		// Look up issuance options for this certificate ID.
+		let cert_options = server.config.cert_issuance.certs.get(id);
+
 		if let Some((issuer_id, issuer_private_key)) = issuer {
 			// Issuer is explicitly specified, so load it and use it to sign the CSR.
 
@@ -180,17 +183,38 @@ fn create_cert<'a>(
 				return Err(Error::invalid_parameter("csr", "CSR failed to be verified with its public key"));
 			}
 
+			// If issuance options are not provided for this certificate ID, use defaults.
+			let mut expiry_days = 30;
+			let mut subject_name = x509_req.subject_name();
+			let common_name;
+
+			if let Some(options) = cert_options {
+				if let Some(d) = options.expiry_days {
+					if d != 0 {
+						expiry_days = d;
+					}
+				}
+
+				if let Some(c) = &options.common_name {
+					let mut name_builder = openssl::x509::X509Name::builder()
+						.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
+					name_builder.append_entry_by_text("CN", &c).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+					common_name = name_builder.build();
+					subject_name = &common_name;
+				}
+			}
+
 			let mut x509 = openssl::x509::X509::builder().map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-			x509.set_subject_name(x509_req.subject_name()).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+			x509.set_subject_name(subject_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 			x509.set_pubkey(&x509_req_public_key).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 			x509.set_not_before(
 				&*openssl::asn1::Asn1Time::days_from_now(0)
 				.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
 			).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-			// TODO: Configurable?
 			x509.set_not_after(
-				&*openssl::asn1::Asn1Time::days_from_now(30)
+				&*openssl::asn1::Asn1Time::days_from_now(expiry_days)
 				.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
 			).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -251,10 +275,14 @@ fn create_cert<'a>(
 			Ok(x509)
 		}
 		else {
-			// Issuer is not explicitly specified, so look up the issuance method for this cert from the configuration and apply it.
+			// Issuer is not explicitly specified, so use the issuance options for this cert from the configuration.
 
-			match server.config.cert_issuance.methods.get(id) {
-				Some(config::CertIssuanceMethod::Est) => {
+			let cert_options: &config::CertIssuanceOptions = cert_options.ok_or_else(||
+				Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
+			)?;
+
+			match cert_options.method  {
+				config::CertIssuanceMethod::Est => {
 					let config::Est { auth, trusted_certs, urls } =
 						server.config.cert_issuance.est.as_ref()
 						.ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
@@ -381,8 +409,14 @@ fn create_cert<'a>(
 										let mut subject_name =
 											openssl::x509::X509Name::builder()
 											.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-										// TODO: Configurable?
-										subject_name.append_entry_by_text("CN", "est-id").map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
+										let mut common_name = "est-id";
+
+										if let Some(c) = &cert_options.common_name {
+											common_name = c;
+										}
+
+										subject_name.append_entry_by_text("CN", common_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 										let subject_name = subject_name.build();
 										identity_csr.set_subject_name(&subject_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -476,7 +510,7 @@ fn create_cert<'a>(
 					}
 				},
 
-				Some(config::CertIssuanceMethod::LocalCa) => {
+				config::CertIssuanceMethod::LocalCa => {
 					// Indirect reference to the local CA. Look it up.
 
 					let (issuer_cert, issuer_private_key) = match &server.config.cert_issuance.local_ca {
@@ -498,7 +532,7 @@ fn create_cert<'a>(
 					Ok(x509)
 				},
 
-				Some(config::CertIssuanceMethod::SelfSigned) => {
+				config::CertIssuanceMethod::SelfSigned => {
 					// Since the client did not give us their private key handle, we assume that the key is named the same as the cert.
 					//
 					// TODO: Is there a way to not have to assume this?
@@ -510,9 +544,6 @@ fn create_cert<'a>(
 					let x509 = create_cert(server, id, csr, Some((id, &key_pair_handle))).await?;
 					Ok(x509)
 				},
-
-				// No issuance method configured for this ID either, so we need the caller to give us an issuer explicitly.
-				None => Err(Error::invalid_parameter("issuer", "issuer is required for locally-issued certs"))
 			}
 		}
 	}

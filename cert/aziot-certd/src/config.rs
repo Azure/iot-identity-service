@@ -22,9 +22,9 @@ pub(crate) struct CertIssuance {
 	/// Configuration of parameters for issuing certs via a local CA cert.
 	pub(crate) local_ca: Option<LocalCa>,
 
-	/// Map of certificate IDs to the method used to issue them.
+	/// Map of certificate IDs to the details used to issue them.
 	#[serde(flatten)]
-	pub(crate) methods: std::collections::BTreeMap<String, CertIssuanceMethod>,
+	pub(crate) certs: std::collections::BTreeMap<String, CertIssuanceOptions>,
 }
 
 /// Configuration of parameters for issuing certs via EST.
@@ -157,6 +157,20 @@ pub(crate) struct LocalCa {
 
 	/// Private key ID.
 	pub(crate) pk: String,
+}
+
+/// Details for issuing a single cert.
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub(crate) struct CertIssuanceOptions {
+	/// The method used to issue a certificate.
+	pub(crate) method: CertIssuanceMethod,
+
+	/// Common name for the issued certificate. Defaults to the common name specified in CSR if not provided.
+	pub(crate) common_name: Option<String>,
+
+	/// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
+	/// If not provided, defaults to 30.
+	pub(crate) expiry_days: Option<u32>,
 }
 
 /// The method used to issue a certificate.
