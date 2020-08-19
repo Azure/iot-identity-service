@@ -38,12 +38,12 @@ pub struct Server {
 impl Server {
 	pub fn new(
 		settings: settings::Settings, authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>, authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>) -> Result<Self, Error>
-	{
+	{	
 		Ok(Server {
 			settings,
 			authenticator,
 			authorizer,
-			id_manager: identity::IdentityManager::default(),
+			id_manager: identity::IdentityManager::new(None),
 		})
 	}
 

@@ -47,7 +47,7 @@ pub(super) fn handle(
         };
 
         //TODO: get uid from UDS
-        let response = match inner.get_device_identity(auth_id,&body.id_type).await {
+        let response = match inner.get_device_identity(auth_id, &body.id_type).await {
             Ok(v) => v,
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };

@@ -61,7 +61,7 @@ pub(super) fn handle(
                 };
         
                 //TODO: get uid from UDS
-                let id = match inner.create_identity(auth_id,&body.id_type, &body.module_id).await {
+                let id = match inner.create_identity(auth_id, &body.id_type, &body.module_id).await {
                     Ok(id) => id,
                     Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
                 };
@@ -76,7 +76,7 @@ pub(super) fn handle(
             _ => {
                 return Ok(super::err_response(
                     hyper::StatusCode::METHOD_NOT_ALLOWED,
-                    Some((hyper::header::ALLOW, "POST")),
+                    Some((hyper::header::ALLOW, "GET, POST")),
                     "method not allowed".into(),
                 ));
             }

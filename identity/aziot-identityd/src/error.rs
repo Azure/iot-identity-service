@@ -53,7 +53,7 @@ impl std::error::Error for Error {
 pub enum InternalError {
     CreateHomeDir(std::io::Error),
     InvalidUri(http::uri::InvalidUri),
-	LoadKeyOpenslEngine(openssl2::Error),
+    LoadKeyOpenslEngine(openssl2::Error),
     LoadDeviceInfo(std::io::Error),
     LoadSettings(std::io::Error),
     MasterIdentityKey(std::io::Error),

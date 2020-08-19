@@ -42,7 +42,7 @@ pub(super) fn handle(
         match method {
             hyper::Method::GET => {
                 //TODO: get uid from UDS
-                let response = match inner.get_identity(auth_id,"aziot", &module_id).await {
+                let response = match inner.get_identity(auth_id, "aziot", &module_id).await {
                     Ok(v) => v,
                     Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
                 };
@@ -54,7 +54,7 @@ pub(super) fn handle(
 
             hyper::Method::DELETE => {
                 //TODO: get uid from UDS
-                match inner.delete_identity(auth_id,"aziot", &module_id).await {
+                match inner.delete_identity(auth_id, "aziot", &module_id).await {
                     Ok(()) => (),
                     Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
                 };
@@ -69,7 +69,7 @@ pub(super) fn handle(
 
             _ => Ok(super::err_response(
                 hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "GET")),
+                Some((hyper::header::ALLOW, "GET, DELETE")),
                 "method not allowed".into(),
             )),
         }

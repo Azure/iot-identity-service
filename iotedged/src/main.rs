@@ -369,48 +369,44 @@ async fn main() -> Result<(), Error> {
 
 	// Verify Identity Service
 
-	let mut map = std::collections::HashMap::new();
-	map.insert("type", "aziot");
+	let body = serde_json::json! {{ "type": "aziot" }};
 	let client = reqwest::Client::new();
-	let body = client.post("http://localhost:8901/identities/device")
-	.json(&map)
+	let res = client.post("http://localhost:8901/identities/device")
+	.json(&body)
 	.send()
 	.await.map_err(Error::Reqwest)?
 	.text().await.map_err(Error::Reqwest)?;
 
-	println!("body = {:?}", body);
+	println!("Get provisioned device response: {:?}", res);
 	
 	let client = reqwest::Client::new();
-	let body = client.get("http://localhost:8901/identities/modules")
+	let res = client.get("http://localhost:8901/identities/modules")
 	.send()
 	.await.map_err(Error::Reqwest)?
 	.text().await.map_err(Error::Reqwest)?;
 
-	println!("body = {:?}", body);
+	println!("Get modules response: {:?}", res);
 
-	let mut map = std::collections::HashMap::new();
-	map.insert("type", "aziot");
-	map.insert("moduleId", "newid7");
-
+	let body = serde_json::json! {{ "type": "aziot", "moduleId": "testid" }};
 	let res = client.post("http://localhost:8901/identities/modules")
-	.json(&map)
+	.json(&body)
 	.send()
 	.await.map_err(Error::Reqwest)?;
 
-	println!("{:?}", res);
+	println!("Create module response: {:?}", res);
 
-	let body = client.get("http://localhost:8901/identities/modules/newid7")
+	let res = client.get("http://localhost:8901/identities/modules/testid")
 	.send()
 	.await.map_err(Error::Reqwest)?
 	.text().await.map_err(Error::Reqwest)?;
 
-	println!("body = {:?}", body);
+	println!("Get module response{:?}", res);
 
-	let res = client.delete("http://localhost:8901/identities/modules/newid7")
+	let res = client.delete("http://localhost:8901/identities/modules/testid")
 	.send()
 	.await.map_err(Error::Reqwest)?;
 
-	println!("{:?}", res);
+	println!("Delete module response{:?}", res);
 
 	Ok(())
 }
