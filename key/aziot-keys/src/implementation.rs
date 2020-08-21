@@ -87,7 +87,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
 		let name = name.to_str().map_err(|err| err_invalid_parameter("name", err))?;
 
 		match name {
-			"HOMEDIR_PATH" => {
+			"homedir_path" => {
 				let value = value.as_ref().ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
 				let value = std::ffi::CStr::from_ptr(value);
 				let value = value.to_str().map_err(|err| err_invalid_parameter("value", err))?;
@@ -97,7 +97,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
 				*guard = Some(value);
 			},
 
-			"PKCS11_LIB_PATH" => {
+			"pkcs11_lib_path" => {
 				let value = value.as_ref().ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
 				let value = std::ffi::CStr::from_ptr(value);
 				let value = value.to_str().map_err(|err| err_invalid_parameter("value", err))?;
@@ -107,7 +107,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
 				*guard = Some(value);
 			},
 
-			"PKCS11_BASE_SLOT" => {
+			"pkcs11_base_slot" => {
 				let value = value.as_ref().ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
 				let value = std::ffi::CStr::from_ptr(value);
 				let value = value.to_str().map_err(|err| err_invalid_parameter("value", err))?;
@@ -117,8 +117,8 @@ pub(crate) unsafe extern "C" fn set_parameter(
 				*guard = Some(value);
 			},
 
-			name if name.starts_with("PRELOADED_KEY:") => {
-				let key_id = &name["PRELOADED_KEY:".len()..];
+			name if name.starts_with("preloaded_key:") => {
+				let key_id = &name["preloaded_key:".len()..];
 				if key_id.is_empty() {
 					return Err(err_invalid_parameter("name", "key ID is empty"));
 				}
@@ -315,7 +315,8 @@ pub(crate) unsafe extern "C" fn encrypt(
 			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
 
-			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 =>
+			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 |
+			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING =>
 				crate::key_pair::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -447,6 +448,12 @@ impl Location {
 
 			if let Some(homedir_path) = homedir_path {
 				let mut path = homedir_path.clone();
+
+				path.push("keys");
+
+				if !path.exists() {
+					let () = std::fs::create_dir_all(&path).map_err(err_external)?;
+				}
 
 				let id_sanitized: String = id.chars().filter(char::is_ascii_alphanumeric).collect();
 

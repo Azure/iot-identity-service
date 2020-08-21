@@ -7,6 +7,7 @@
 	clippy::default_trait_access,
 	clippy::doc_markdown, // clippy wants "IoT" in a code fence
 	clippy::let_and_return,
+	clippy::let_unit_value,
 	clippy::missing_safety_doc,
 	clippy::shadow_unrelated,
 	clippy::similar_names,
@@ -369,14 +370,17 @@ pub extern "C" fn cbindgen_unused_KEYGEN_SIGN_DERIVED_PARAMETERS() -> KEYGEN_SIG
 #[repr(transparent)]
 pub struct KEYGEN_ENCRYPT_MECHANISM { inner: std::os::raw::c_uint }
 
-/// AEAD (eg AES-256-GCM)
+/// AEAD mechanism, like AES-256-GCM.
 pub const KEYGEN_ENCRYPT_MECHANISM_AEAD: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 1 };
 
-/// RSA PKCS1
+/// RSA with PKCS1 padding.
 pub const KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 2 };
 
+/// RSA with no padding. Padding will have been performed by the caller.
+pub const KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 3 };
+
 /// Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
-pub const KEYGEN_ENCRYPT_MECHANISM_DERIVED: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 3 };
+pub const KEYGEN_ENCRYPT_MECHANISM_DERIVED: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 4 };
 
 
 /// Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.

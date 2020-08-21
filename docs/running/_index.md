@@ -14,59 +14,13 @@
 
     For `x509_thumbprint` and `x509_ca`, you can use hardware-backed private keys for the certs if you're using PKCS#11.
 
-1. Start `aziot-keyd` in one shell.
-
-    ```sh
-    # The directory where key files will be stored. The service will read this env var.
-    export HOMEDIR_PATH=~/iotedge/hsm/keys
-    mkdir -p "$HOMEDIR_PATH"
-    ```
-
-    If you want to use PKCS#11:
-
-    ```sh
-    # Ensure the PKCS11_LIB_PATH env var is set. You should've set it as part of step 2.
-    echo "$PKCS11_LIB_PATH"
-
-    # PKCS11_BASE_SLOT is the PKCS#11 URI of a slot that will be used to store new keys.
-    #
-    # TOKEN_PARAM and PIN_SUFFIX were set as part of step 2.
-    export PKCS11_BASE_SLOT="pkcs11:$TOKEN_PARAM$PIN_SUFFIX"
-
-    # The service will read these two env vars.
-
-    # If you're using the tpm2-pkcs11 library, remember to also export the `TPM2_PKCS11_STORE` env var.
-    ```
-
-    Finally, run the service with parameters corresponding to the auth method of the device identity.
-
-    - If the device identity is set to use the `shared_private_key` auth method, run the service without any parameters:
-
-        ```sh
-        "$PWD/target/debug/aziot-keyd"
-        ```
-
-    - If the device identity is set to use the `x509_thumbprint` auth method, preload the private key of the device ID cert into `aziot-keyd`:
-
-        ```sh
-        env 'PRELOADED_KEY:device-id=file:///path/to/key.pem' "$PWD/target/debug/aziot-keyd"
-        ```
-
-    - If the device identity is set to use the `x509_ca` auth method, preload the private key of the device ID CA cert into `aziot-keyd`:
-
-        ```sh
-        env 'PRELOADED_KEY:device-id-ca=file:///path/to/key.pem' "$PWD/target/debug/aziot-keyd"
-        ```
-
-    For `x509_thumbprint` and `x509_ca`, if the keys are backed by hardware, use a `pkcs11:` URI instead of a `file://` URI.
-
-    The server will remain running.
+1. Start `aziot-keyd` in one shell. See [Configuring and running `aziot-keyd`](aziot-keyd.md)
 
 1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.md)
 
 1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
 
-1. Run `iotedged` in a third shell
+1. Run `iotedged` in another shell.
 
     - If the device identity is set to use the `shared_private_key` auth method, run the program with the SAS key:
 

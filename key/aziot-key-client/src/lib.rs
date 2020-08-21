@@ -224,6 +224,8 @@ impl Client {
 				},
 
 				aziot_key_common::EncryptMechanism::RsaPkcs1 => aziot_key_common_http::encrypt::Parameters::RsaPkcs1,
+
+				aziot_key_common::EncryptMechanism::RsaNoPadding => aziot_key_common_http::encrypt::Parameters::RsaNoPadding,
 			},
 			plaintext: http_common::ByteString(plaintext.to_owned()),
 		};
@@ -255,6 +257,8 @@ impl Client {
 				},
 
 				aziot_key_common::EncryptMechanism::RsaPkcs1 => aziot_key_common_http::encrypt::Parameters::RsaPkcs1,
+
+				aziot_key_common::EncryptMechanism::RsaNoPadding => aziot_key_common_http::encrypt::Parameters::RsaNoPadding,
 			},
 			ciphertext: http_common::ByteString(ciphertext.to_owned()),
 		};

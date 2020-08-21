@@ -273,9 +273,11 @@ pub(crate) unsafe fn encrypt(
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
 
-	if mechanism != crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 {
-		return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value"));
-	}
+	let padding = match mechanism {
+		crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 => openssl::rsa::Padding::PKCS1,
+		crate::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING => openssl::rsa::Padding::NONE,
+		_ => return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value")),
+	};
 
 	let rsa = private_key.rsa().map_err(|_| crate::implementation::err_invalid_parameter("mechanism", "not an RSA key"))?;
 
@@ -284,7 +286,7 @@ pub(crate) unsafe fn encrypt(
 		.map_err(|err| crate::implementation::err_external(format!("RSA_size returned invalid value: {}", err)))?;
 	let mut result = vec![0_u8; result_len];
 
-	let result_len = rsa.private_encrypt(plaintext, &mut result, openssl::rsa::Padding::PKCS1)?;
+	let result_len = rsa.private_encrypt(plaintext, &mut result, padding)?;
 
 	Ok((result_len, result))
 }

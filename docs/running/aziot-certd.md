@@ -12,15 +12,20 @@ homedir_path = "/var/lib/aziot/certd"
 
 - `homedir_path` - This is the home directory of the service, and where dynamically generated cert files will be stored. Ensure that this directory exists, and that it is readable and writable by the user you will run the service as.
 
-- `[cert_issuance]` - This section defines how dynamically-generated certs should be issued. It is a map of cert IDs to the name of the method, `"local_ca"` or `"est"` or `"self_signed"`.
+- `[cert_issuance]` - This section defines how dynamically-generated certs should be issued. It is a map of cert IDs to the options used to issue certificates.
 
     It also contains optional `[cert_issuance.local_ca]` and `[cert_issuance.est]` subsections to configure parameters of those issuance methods.
 
+    Each certificate ID maps to a struct of options. Currently supported certificate options are:
+    - `method`: Method of cert issuance. Always required. Valid values are `"est`, `"local_ca"`, or `"self_signed"`.
+    - `common_name`: Common name for certificate. Optional; if not provided, CSR subject or a default provided by aziot-certd is used. Applies to all methods.
+    - `expiry_days`: Number of days between certificate issuance and expiry. Applies to `self_signed` and `local_ca` methods only.
+
 - `[preloaded_certs]` - This section defines preloaded certs as a map of cert ID to URI. For example, if you have a device ID cert file that you want the service to make available to the other components, you would register that file in this section.
 
-    Only `file://` URIs are supported at this time.
+    Only `file://` URIs are supported at this time. Files must be in PEM format and can contain one or more certificates.
 
-Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `CONFIG` env var.
+Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `AZIOT_CERTD_CONFIG` env var.
 
 With this basic file, fill it out depending on what workflow you want to test:
 
@@ -31,8 +36,8 @@ With this basic file, fill it out depending on what workflow you want to test:
 
         ```toml
         [cert_issuance]
-        device-ca = "self_signed"
-        workload-ca = "local_ca"
+        device-ca = { method = "self_signed" }
+        workload-ca = { method = "local_ca" }
 
         [cert_issuance.local_ca]
         cert = "device-ca"
@@ -43,7 +48,7 @@ With this basic file, fill it out depending on what workflow you want to test:
 
         ```toml
         [cert_issuance]
-        workload-ca = "local_ca"
+        workload-ca = { method = "local_ca" }
 
         [cert_issuance.local_ca]
         cert = "device-ca"
@@ -57,7 +62,7 @@ With this basic file, fill it out depending on what workflow you want to test:
 
         ```toml
         [cert_issuance]
-        device-ca = "est"
+        device-ca = { method = "est" }
         workload-ca = "local_ca"
 
         [cert_issuance.local_ca]
@@ -71,6 +76,13 @@ With this basic file, fill it out depending on what workflow you want to test:
         device-ca = "https://127.0.0.1:8085/.well-known/est"
         ```
 
+    1. ... issued with custom options instead of the defaults.
+
+        ```toml
+        [cert_issuance]
+        device-ca = { method = "est", common_name = "custom-name-1" }
+        workload-ca = { method = "local_ca", expiry_days = 90, common_name = "custom-name-2" }
+        ```
 
 1. Device ID cert is...
 
@@ -101,7 +113,7 @@ With this basic file, fill it out depending on what workflow you want to test:
 
         ```toml
         [cert_issuance]
-        device-id = "est"
+        device-id = { method = "est" }
 
         [cert_issuance.est]
         ...
@@ -130,7 +142,7 @@ With this basic file, fill it out depending on what workflow you want to test:
         identity_pk = "est-id"
 
         [preloaded_certs]
-        est-id = "file:///home/arnavion/Desktop/est/client_cert_ec.pem"
+        est-id = "file:///path/to/est-id.pem"
         ```
 
     1. ... used with X509 auth, with a preloaded bootstrap EST identity cert.
@@ -143,7 +155,7 @@ With this basic file, fill it out depending on what workflow you want to test:
         bootstrap_identity_pk = "est-bootstrap-id"
 
         [preloaded_certs]
-        est-bootstrap-id = "file:///home/arnavion/Desktop/est/client_cert_ec.pem"
+        est-bootstrap-id = "file:///path/to/est-bootstrap-id.pem"
         ```
 
     Note:
@@ -174,10 +186,10 @@ With this basic file, fill it out depending on what workflow you want to test:
 
 1. Finally, run the service.
 
-    As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `CONFIG` env var to its actual path.
+    As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `AZIOT_CERTD_CONFIG` env var to its actual path.
 
     ```sh
-    export CONFIG='...'
+    export AZIOT_CERTD_CONFIG='...'
 
     cargo run -p aziot-certd
     ```

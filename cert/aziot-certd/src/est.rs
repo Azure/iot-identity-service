@@ -30,26 +30,6 @@ pub(crate) async fn create_cert(
 		for chain_cert in certs {
 			tls_connector.add_extra_chain_cert(chain_cert).map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
 		}
-
-		// TODO:
-		//
-		// openssl 1.1.0 onwards support TLS 1.3. TLS 1.3 with RSA keys means that RSA+PSS signature algorithm must be used.
-		// But aziot-key-openssl-engine does not support RSA-PSS. Even if it did, if the underlying key is provided by PKCS#11,
-		// some PKCS#11 implementations themselves don't support RSA-PSS. Eg https://github.com/tpm2-software/tpm2-pkcs11/issues/553
-		//
-		// It doesn't seem possible to work around this without disabling TLS 1.3 entirely.
-		//
-		// It might work to implement RSA_NO_PADDING instead, so that instead of handling RSA_PKCS1_PSS_PADDING via C_SignInit(CKM_RSA_PKCS_PSS)
-		// the engine lets openssl do the PSS work and only handles the final RSA_NO_PADDING signature via C_SignInit(CKM_RSA_X_509).
-		// Originally the pkcs11 openssl engine actually did do this, but tpm2-pkcs11 did not support CKM_RSA_X_509 at the time, so it was modified to
-		// handle RSA_PKCS1_PSS_PADDING instead. But it appears tpm2-pkcs11 does support it now, with
-		// https://github.com/tpm2-software/tpm2-pkcs11/commit/39849dff9695f39dd187622436b47cdea78b79a9 , so it might work to revert to the old behavior.
-		#[cfg(ossl110)]
-		if private_key.rsa().is_ok() {
-			tls_connector
-				.set_max_proto_version(Some(openssl::ssl::SslVersion::TLS1_2))
-				.map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
-		}
 	}
 
 	let mut http_connector = hyper::client::HttpConnector::new();

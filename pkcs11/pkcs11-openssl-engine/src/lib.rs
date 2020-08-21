@@ -49,7 +49,6 @@ openssl_errors::openssl_errors! {
 			PKCS11_EC_SIGN("pkcs11_ec_sign");
 
 			PKCS11_RSA_PRIV_ENC("pkcs11_rsa_priv_enc");
-			PKCS11_RSA_SIGN("pkcs11_rsa_sign");
 		}
 
 		reasons {
