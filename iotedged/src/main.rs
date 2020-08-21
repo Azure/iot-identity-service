@@ -371,40 +371,45 @@ async fn main() -> Result<(), Error> {
 
 	let body = serde_json::json! {{ "type": "aziot" }};
 	let client = reqwest::Client::new();
-	let res = client.post("http://localhost:8901/identities/device")
-	.json(&body)
-	.send()
-	.await.map_err(Error::Reqwest)?
-	.text().await.map_err(Error::Reqwest)?;
+	let res = 
+		client.post("http://localhost:8901/identities/device")
+		.json(&body)
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
 
 	println!("Get provisioned device response: {:?}", res);
 	
 	let client = reqwest::Client::new();
-	let res = client.get("http://localhost:8901/identities/modules")
-	.send()
-	.await.map_err(Error::Reqwest)?
-	.text().await.map_err(Error::Reqwest)?;
+	let res = 
+		client.get("http://localhost:8901/identities/modules")
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
 
 	println!("Get modules response: {:?}", res);
 
 	let body = serde_json::json! {{ "type": "aziot", "moduleId": "testid" }};
-	let res = client.post("http://localhost:8901/identities/modules")
-	.json(&body)
-	.send()
-	.await.map_err(Error::Reqwest)?;
+	let res = 
+		client.post("http://localhost:8901/identities/modules")
+		.json(&body)
+		.send()
+		.await.map_err(Error::Reqwest)?;
 
 	println!("Create module response: {:?}", res);
 
-	let res = client.get("http://localhost:8901/identities/modules/testid")
-	.send()
-	.await.map_err(Error::Reqwest)?
-	.text().await.map_err(Error::Reqwest)?;
+	let res = 
+		client.get("http://localhost:8901/identities/modules/testid")
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
 
 	println!("Get module response{:?}", res);
 
-	let res = client.delete("http://localhost:8901/identities/modules/testid")
-	.send()
-	.await.map_err(Error::Reqwest)?;
+	let res = 
+		client.delete("http://localhost:8901/identities/modules/testid")
+		.send()
+		.await.map_err(Error::Reqwest)?;
 
 	println!("Delete module response{:?}", res);
 
