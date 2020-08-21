@@ -149,9 +149,13 @@ wait $(jobs -pr)
     make "-j$(nproc)"
     sudo make install
 )
+
+export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
 ```
 
 The library should now be configured completely.
+
+The `TPM2_PKCS11_STORE` environment variable is needed for any process that loads the `tpm2-pkcs11` library, like `pkcs11-tool`, `p11tool` and `aziot-keyd` itself.
 
 
 ## Miscellaneous

@@ -34,6 +34,8 @@
     export PKCS11_BASE_SLOT="pkcs11:$TOKEN_PARAM$PIN_SUFFIX"
 
     # The service will read these two env vars.
+
+    # If you're using the tpm2-pkcs11 library, remember to also export the `TPM2_PKCS11_STORE` env var.
     ```
 
     Finally, run the service with parameters corresponding to the auth method of the device identity.
