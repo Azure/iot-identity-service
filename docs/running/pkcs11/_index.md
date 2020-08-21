@@ -85,14 +85,17 @@ rm -f /var/lib/cryptoauthlib/0.*.conf
 
 ```sh
 sudo tpm2_clear
+
 # This is the directory tpm2-pkcs11 was configured to use.
-rm -f /opt/tpm2-pkcs11/tpm2_pkcs11.sqlite3
+export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
+
+rm -f "$TPM2_PKCS11_STORE/tpm2_pkcs11.sqlite3"
 (
     cd ~/src/tpm2-pkcs11/tools &&
-    ./tpm2_ptool init --primary-auth '1234' --path /opt/tpm2-pkcs11/ &&
+    ./tpm2_ptool init --primary-auth '1234' &&
     ./tpm2_ptool addtoken \
         --sopin "so$PIN" --userpin "$PIN" \
-        --label "$TOKEN" --pid '1' --path /opt/tpm2-pkcs11/
+        --label "$TOKEN" --pid '1'
 )
 ```
 </td>
@@ -102,6 +105,18 @@ rm -f /opt/tpm2-pkcs11/tpm2_pkcs11.sqlite3
 
 The hardware and PKCS#11 library has now been configured.
 
+To test with `pkcs11-tool`, run `pkcs11-tool --module /path/to/library ...`. For example, `pkcs11-tool --module /path/to/library -T` will show information about the "Key pairs" token that was created above.
+
+To test it with `p11tool`, run `p11tool --provider /path/to/library ...`. For example, `p11tool --provider=/path/to/library --list-token-urls` will show the token URL for the "Key pairs" token that was created above.
+
+Another alternative for `p11tool` is to create a `.module` file so that you don't need to pass in `--provider` for every invocation:
+
+```sh
+sudo mkdir -p /etc/pkcs11/modules
+echo 'module: /usr/local/lib/libtpm2_pkcs11.so' | sudo tee /etc/pkcs11/modules/tpm2-pkcs11.module
+```
+
+However, `--provider` is still useful to filter out tokens from other PKCS#11 libraries.
 
 ---
 

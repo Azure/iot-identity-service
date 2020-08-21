@@ -263,7 +263,7 @@ async fn main() -> Result<(), Error> {
 
 			let key_handle = {
 				let key = base64::decode(key).unwrap();
-				key_client.create_key_if_not_exists("device-id", aziot_key_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
+				key_client.create_key_if_not_exists("device-id-iotedged", aziot_key_common::CreateKeyValue::Import { bytes: key }).await.unwrap()
 			};
 
 			let token = {
@@ -305,7 +305,7 @@ async fn main() -> Result<(), Error> {
 
 					let device_id_ca_key_handle = key_client.load_key_pair(&preloaded_device_id_ca_cert).await.unwrap();
 
-					let device_id = "device-id";
+					let device_id = "device-id-iotedged";
 
 					let device_id_key_pair_handle =
 						key_client.create_key_pair_if_not_exists(device_id, Some("ec-p256:rsa-2048:*")).await.unwrap();
@@ -366,6 +366,52 @@ async fn main() -> Result<(), Error> {
 	let response: serde_json::Value = serde_json::from_slice(&response).unwrap();
 	println!("{:#?}", response);
 
+
+	// Verify Identity Service
+
+	let body = serde_json::json! {{ "type": "aziot" }};
+	let client = reqwest::Client::new();
+	let res = 
+		client.post("http://localhost:8901/identities/device")
+		.json(&body)
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
+
+	println!("Get provisioned device response: {:?}", res);
+	
+	let client = reqwest::Client::new();
+	let res = 
+		client.get("http://localhost:8901/identities/modules")
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
+
+	println!("Get modules response: {:?}", res);
+
+	let body = serde_json::json! {{ "type": "aziot", "moduleId": "testid" }};
+	let res = 
+		client.post("http://localhost:8901/identities/modules")
+		.json(&body)
+		.send()
+		.await.map_err(Error::Reqwest)?;
+
+	println!("Create module response: {:?}", res);
+
+	let res = 
+		client.get("http://localhost:8901/identities/modules/testid")
+		.send()
+		.await.map_err(Error::Reqwest)?
+		.text().await.map_err(Error::Reqwest)?;
+
+	println!("Get module response{:?}", res);
+
+	let res = 
+		client.delete("http://localhost:8901/identities/modules/testid")
+		.send()
+		.await.map_err(Error::Reqwest)?;
+
+	println!("Delete module response{:?}", res);
 
 	Ok(())
 }
@@ -514,6 +560,7 @@ enum Error {
 	CreateOrLoadWorkloadCaCert(Box<dyn std::error::Error>),
 	CreateOrLoadWorkloadCaKeyPair(std::io::Error),
 	LoadKeyOpensslEngine(openssl2::Error),
+	Reqwest(reqwest::Error),
 	VerifyWorkloadCaCert(openssl::error::ErrorStack),
 }
 
@@ -539,6 +586,7 @@ impl std::fmt::Display for Error {
 			Error::CreateOrLoadWorkloadCaCert(_) => f.write_str("could not create workload CA cert"),
 			Error::CreateOrLoadWorkloadCaKeyPair(_) => f.write_str("could not create or load workload CA key pair"),
 			Error::LoadKeyOpensslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
+			Error::Reqwest(_) => f.write_str("could not get response from Identity Service"),
 			Error::VerifyWorkloadCaCert(_) => f.write_str("could not verify workload CA cert signature"),
 		}
 	}
@@ -553,6 +601,7 @@ impl std::error::Error for Error {
 			Error::CreateOrLoadWorkloadCaCert(err) => Some(&**err),
 			Error::CreateOrLoadWorkloadCaKeyPair(err) => Some(err),
 			Error::LoadKeyOpensslEngine(err) => Some(err),
+			Error::Reqwest(err) => Some(err),
 			Error::VerifyWorkloadCaCert(err) => Some(err),
 		}
 	}

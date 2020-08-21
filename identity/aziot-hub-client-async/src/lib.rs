@@ -266,6 +266,8 @@ where
 		};
 	let mut req = req.expect("cannot fail to create hyper request");
 
+	req.headers_mut().insert(hyper::header::IF_MATCH, hyper::header::HeaderValue::from_static("*"));
+
 	let connector = 
 		match hub_device.credentials.clone() {
 			aziot_identity_common::Credentials::SharedPrivateKey(key) => {					

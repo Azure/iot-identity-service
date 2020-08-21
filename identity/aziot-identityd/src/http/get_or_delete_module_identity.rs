@@ -37,30 +37,12 @@ pub(super) fn handle(
             Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
         };
 
-        let (http::request::Parts { method, .. }, body) = req.into_parts();
-        
-        let body = match hyper::body::to_bytes(body).await {
-            Ok(body) => body,
-            Err(err) => return Ok(super::err_response(
-                hyper::StatusCode::BAD_REQUEST,
-                None,
-                super::error_to_message(&err).into(),
-            )),
-        };
+        let (http::request::Parts { method, .. }, ..) = req.into_parts();
         
         match method {
             hyper::Method::GET => {
-                let body: aziot_identity_common_http::get_module_identity::Request = match serde_json::from_slice(&body) {
-                    Ok(body) => body,
-                    Err(err) => return Ok(super::err_response(
-                        hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                        None,
-                        super::error_to_message(&err).into(),
-                    )),
-                };
-
                 //TODO: get uid from UDS
-                let response = match inner.get_identity(auth_id,&body.id_type, &module_id).await {
+                let response = match inner.get_identity(auth_id, "aziot", &module_id).await {
                     Ok(v) => v,
                     Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
                 };
@@ -71,17 +53,8 @@ pub(super) fn handle(
             },
 
             hyper::Method::DELETE => {
-                let body: aziot_identity_common_http::delete_module_identity::Request = match serde_json::from_slice(&body) {
-                    Ok(body) => body,
-                    Err(err) => return Ok(super::err_response(
-                        hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                        None,
-                        super::error_to_message(&err).into(),
-                    )),
-                };
-        
                 //TODO: get uid from UDS
-                match inner.delete_identity(auth_id,&body.id_type, &module_id).await {
+                match inner.delete_identity(auth_id, "aziot", &module_id).await {
                     Ok(()) => (),
                     Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
                 };
@@ -96,7 +69,7 @@ pub(super) fn handle(
 
             _ => Ok(super::err_response(
                 hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "GET")),
+                Some((hyper::header::ALLOW, "GET, DELETE")),
                 "method not allowed".into(),
             )),
         }

@@ -27,7 +27,7 @@ sudo apt install \
     autoconf automake doxygen libtool \
     libcurl4-openssl-dev libdbus-1-dev libgcrypt-dev \
     libglib2.0-dev libjson-c-dev libsqlite3-dev libssl-dev \
-    python3-cryptography python3-yaml uuid-dev libyaml-dev
+    python3-cryptography python3-pyasn1-modules python3-yaml uuid-dev libyaml-dev
 
 
 # Create base source directory
@@ -149,9 +149,13 @@ wait $(jobs -pr)
     make "-j$(nproc)"
     sudo make install
 )
+
+export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
 ```
 
 The library should now be configured completely.
+
+The `TPM2_PKCS11_STORE` environment variable is needed for any process that loads the `tpm2-pkcs11` library, like `pkcs11-tool`, `p11tool` and `aziot-keyd` itself.
 
 
 ## Miscellaneous

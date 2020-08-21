@@ -116,9 +116,9 @@ pub mod hub {
     #[serde(rename_all = "camelCase")]
     pub struct SymmetricKey {
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub primary_key: Option<String>,
+        pub primary_key: Option<http_common::ByteString>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub secondary_key: Option<String>,
+        pub secondary_key: Option<http_common::ByteString>,
     }
 
     #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]

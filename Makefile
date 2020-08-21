@@ -192,6 +192,7 @@ DEP_AZIOT_HUB_CLIENT_ASYNC = \
 DEP_AZIOT_IDENTITY_COMMON = \
 	identity/aziot-identity-common/Cargo.toml identity/aziot-identity-common/src/*.rs \
 	$(DEP_AZIOT_KEY_COMMON) \
+	$(DEP_HTTP_COMMON) \
 
 DEP_AZIOT_IDENTITY_COMMON_HTTP = \
 	identity/aziot-identity-common-http/Cargo.toml identity/aziot-identity-common-http/src/*.rs \

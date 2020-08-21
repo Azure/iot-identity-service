@@ -99,6 +99,12 @@ Assuming you're using Microsoft's implementation of `libaziot-keys.so`, start wi
 
 1. Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/keyd/config.toml`, but it can be given a different path by setting the `AZIOT_KEYD_CONFIG` env var.
 
+1. If you're using PKCS#11 and specifically the `tpm2-pkcs11` library, remember to also export the `TPM2_PKCS11_STORE` env var.
+
+    ```sh
+    export TPM2_PKCS11_STORE=/opt/tpm2-pkcs11
+    ```
+
 1. Run the service, setting the `AZIOT_KEYD_CONFIG` env var if necessary.
 
     ```sh
