@@ -160,7 +160,7 @@ The `TPM2_PKCS11_STORE` environment variable is needed for any process that load
 
 ## Miscellaneous
 
-1. When using the Infineon SLB9670 with a MikroElektronika Click Shield on a Raspberry Pi, connect the TPM to the right slot of the click shield and ensure `/boot/config.txt` contains:
+1. When using the Infineon SLM9670 with a MikroElektronika Click Shield on a Raspberry Pi, connect the TPM to the right slot of the click shield and ensure `/boot/config.txt` contains:
 
     ```
     dtdebug=on
@@ -171,3 +171,6 @@ The `TPM2_PKCS11_STORE` environment variable is needed for any process that load
     If you did it correctly, the kernel should recognize the TPM and create `/dev/tpm0`
 
     Do **not** connect the TPM to the left slot of the click shield. The `tpm-slb9670` overlay uses the chip-enable pin that ends up being mapped to the right slot.
+
+
+1. If you want to use the TPM simulator, see [`ibmswtpm2`](./ibmswtpm2.md)
