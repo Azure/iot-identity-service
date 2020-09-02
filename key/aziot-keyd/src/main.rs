@@ -19,15 +19,18 @@ async fn main() -> Result<(), Error> {
 		.map_or_else(|| "/etc/aziot/keyd/config.toml".into(), Into::into);
 
 	let config = std::fs::read(config_path).map_err(|err| aziot_keyd::Error::Internal(aziot_keyd::InternalError::ReadConfig(Box::new(err))))?;
-	let config: aziot_keyd::Config = toml::from_slice(&config).map_err(|err| aziot_keyd::Error::Internal(aziot_keyd::InternalError::ReadConfig(Box::new(err))))?;
+	let aziot_keyd::Config {
+		aziot_keys,
+		preloaded_keys,
+		endpoints: aziot_keyd::Endpoints { aziot_keyd: connector },
+	} = toml::from_slice(&config).map_err(|err| aziot_keyd::Error::Internal(aziot_keyd::InternalError::ReadConfig(Box::new(err))))?;
 
-	let server = aziot_keyd::Server::new(config)?;
+	let server = aziot_keyd::Server::new(aziot_keys, preloaded_keys)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 
 	eprintln!("Starting server...");
 
-	let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8888".parse()?)?;
-
+	let incoming = connector.incoming().await?;
 	let server =
 		hyper::Server::builder(incoming)
 		.serve(hyper::service::make_service_fn(|_| {

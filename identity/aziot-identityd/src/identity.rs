@@ -8,43 +8,24 @@ const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
 
 pub struct IdentityManager {
 	locks: std::sync::Mutex<std::collections::BTreeMap<String, std::sync::Arc<std::sync::Mutex<()>>>>,
-	key_client: std::sync::Arc<aziot_key_client_async::Client<KSConnector>>,
+	key_client: std::sync::Arc<aziot_key_client_async::Client>,
+	key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+	cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
 	iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
 }
 
-#[derive(Clone, Copy)]
-struct KSConnector;
-
-impl hyper::service::Service<hyper::Uri> for KSConnector {
-	type Response = tokio::net::TcpStream;
-	type Error = std::io::Error;
-	type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-	fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-		std::task::Poll::Ready(Ok(()))
-	}
-
-	fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-		let f = async {
-			let stream: tokio::net::TcpStream = tokio::net::TcpStream::connect(("localhost", 8888)).await?;
-			Ok(stream)
-		};
-		Box::pin(f)
-	}
-}
-
 impl IdentityManager {
-	pub fn new(iot_hub_device: Option<aziot_identity_common::IoTHubDevice>) -> Self {
-		
-		let key_client = {
-			let key_client = aziot_key_client_async::Client::new(KSConnector);
-			let key_client = std::sync::Arc::new(key_client);
-			key_client
-		};
-		
+	pub fn new(
+		key_client: std::sync::Arc<aziot_key_client_async::Client>,
+		key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+		cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+		iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+	) -> Self {
 		IdentityManager {
 			locks: Default::default(),
 			key_client,
+			key_engine,
+			cert_client,
 			iot_hub_device, //set by Server over futures channel
 		}
 	}
@@ -60,7 +41,13 @@ impl IdentityManager {
 		
 		match &self.iot_hub_device {
 			Some(device) => {
-				let client = aziot_hub_client_async::Client::new(device.clone());
+				let client =
+					aziot_hub_client_async::Client::new(
+						device.clone(),
+						self.key_client.clone(),
+						self.key_engine.clone(),
+						self.cert_client.clone(),
+					);
 				let new_module  = client.create_module(&*module_id, None, None).await
 					.map_err(Error::HubClient)?;
 				
@@ -118,7 +105,13 @@ impl IdentityManager {
 		
 		match &self.iot_hub_device {
 			Some(device) => {
-				let client = aziot_hub_client_async::Client::new(device.clone());
+				let client =
+					aziot_hub_client_async::Client::new(
+						device.clone(),
+						self.key_client.clone(),
+						self.key_engine.clone(),
+						self.cert_client.clone(),
+					);
 				let module  = client.get_module(&*module_id).await
 					.map_err(Error::HubClient)?;
 
@@ -144,7 +137,14 @@ impl IdentityManager {
 	pub async fn get_module_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error> {		
 		match &self.iot_hub_device {
 			Some(device) => {
-				let client = aziot_hub_client_async::Client::new(device.clone());
+				let client =
+					aziot_hub_client_async::Client::new(
+						device.clone(),
+						self.key_client.clone(),
+						self.key_engine.clone(),
+						self.cert_client.clone(),
+					);
+
 				let response  = client.get_modules().await
 					.map_err(Error::HubClient)?;
 
@@ -169,7 +169,13 @@ impl IdentityManager {
 		
 		match &self.iot_hub_device {
 			Some(device) => {
-				let client = aziot_hub_client_async::Client::new(device.clone());
+				let client =
+					aziot_hub_client_async::Client::new(
+						device.clone(),
+						self.key_client.clone(),
+						self.key_engine.clone(),
+						self.cert_client.clone(),
+					);
 				client.delete_module(&*module_id).await.map_err(Error::HubClient)
 			},
 			None => Err(Error::DeviceNotFound)

@@ -153,6 +153,7 @@ DEP_AZIOT_CERTD = \
 	$(DEP_AZIOT_KEY_CLIENT) \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
+	$(DEP_HTTP_COMMON) \
 	$(DEP_OPENSSL2) \
 	$(DEP_OPENSSL_BUILD) \
 	$(DEP_OPENSSL_SYS2) \
@@ -176,6 +177,7 @@ DEP_AZIOT_DPS_CLIENT_ASYNC = \
 	$(DEP_AZIOT_KEY_COMMON) \
 	$(DEP_AZIOT_KEY_OPENSSL_ENGINE) \
 	$(DEP_HTTP_COMMON) \
+	$(DEP_OPENSSL2) \
 
 DEP_AZIOT_HUB_CLIENT_ASYNC = \
 	identity/aziot-hub-client-async/Cargo.toml identity/aziot-hub-client-async/src/*.rs \

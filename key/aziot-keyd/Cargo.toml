@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 backtrace = "0.3"
 base64 = "0.12"
-futures-util = { version = "0.3", features = [] }
+futures-util = "0.3"
 http = "0.2"
 hyper = "0.13"
 lazy_static = "1"

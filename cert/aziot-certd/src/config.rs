@@ -3,19 +3,22 @@
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct Config {
 	/// Path of home directory.
-	pub(crate) homedir_path: std::path::PathBuf,
+	pub homedir_path: std::path::PathBuf,
 
 	/// Configuration of how new certificates should be issued.
-	pub(crate) cert_issuance: CertIssuance,
+	pub cert_issuance: CertIssuance,
 
 	/// Map of preloaded certs from their ID to their location.
 	#[serde(default)]
-	pub(crate) preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
+	pub preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
+
+	/// Map of service names to endpoint URIs.
+	pub endpoints: Endpoints,
 }
 
 /// Configuration of how new certificates should be issued.
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub(crate) struct CertIssuance {
+pub struct CertIssuance {
 	/// Configuration of parameters for issuing certs via EST.
 	pub(crate) est: Option<Est>,
 
@@ -226,7 +229,7 @@ impl<'de> serde::Deserialize<'de> for CertIssuanceMethod {
 /// The location of a preloaded cert.
 #[derive(Debug, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
-pub(crate) enum PreloadedCert {
+pub enum PreloadedCert {
 	/// A URI for the location.
 	///
 	/// Only `file://` URIs are supported.
@@ -236,6 +239,16 @@ pub(crate) enum PreloadedCert {
 	///
 	/// If an element of the list references a preloaded cert's ID, that preloaded cert must be a URI rather than another list.
 	Ids(Vec<String>),
+}
+
+/// Map of service names to endpoint URIs.
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct Endpoints {
+	/// The endpoint that the certd service binds to.
+	pub aziot_certd: http_common::Connector,
+
+	/// The endpoint that the keyd service binds to.
+	pub aziot_keyd: http_common::Connector,
 }
 
 #[cfg(test)]
@@ -273,6 +286,10 @@ est-ca = "file:///var/secrets/est-ca.cer"
 trust-bundle = [
 	"est-ca",
 ]
+
+[endpoints]
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"
+aziot_certd = "unix:///var/run/aziot/certd.sock"
 "#;
 
 		let actual: super::Config = toml::from_str(actual).unwrap();
@@ -330,6 +347,11 @@ trust-bundle = [
 				("est-ca".to_owned(), super::PreloadedCert::Uri("file:///var/secrets/est-ca.cer".parse().unwrap())),
 				("trust-bundle".to_owned(), super::PreloadedCert::Ids(vec!["est-ca".to_owned()])),
 			].into_iter().collect(),
+
+			endpoints: super::Endpoints {
+				aziot_certd: http_common::Connector::new(&"unix:///var/run/aziot/certd.sock".parse().unwrap()).unwrap(),
+				aziot_keyd: http_common::Connector::new(&"unix:///var/run/aziot/keyd.sock".parse().unwrap()).unwrap(),
+			},
 		});
 	}
 }

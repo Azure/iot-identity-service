@@ -96,6 +96,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http",
+ "http-common",
  "hyper",
  "hyper-openssl",
  "lazy_static",
@@ -130,6 +131,7 @@ dependencies = [
  "hyper-openssl",
  "log",
  "openssl",
+ "openssl2",
  "percent-encoding",
  "serde",
  "serde_json",
@@ -150,6 +152,7 @@ dependencies = [
  "aziot-key-openssl-engine",
  "base64",
  "chrono",
+ "futures-util",
  "http",
  "http-common",
  "hyper",
@@ -687,8 +690,13 @@ name = "http-common"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "futures-util",
+ "hyper",
  "percent-encoding",
  "serde",
+ "serde_json",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -947,6 +955,17 @@ dependencies = [
  "net2",
  "slab",
  "winapi 0.2.8",
+]
+
+[[package]]
+name = "mio-uds"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afcb699eb26d4332647cc848492bbc15eafb26f08d0304550d5aa1f612e066f0"
+dependencies = [
+ "iovec",
+ "libc",
+ "mio",
 ]
 
 [[package]]
@@ -1635,8 +1654,10 @@ dependencies = [
  "futures-core",
  "iovec",
  "lazy_static",
+ "libc",
  "memchr",
  "mio",
+ "mio-uds",
  "pin-project-lite",
  "slab",
  "tokio-macros",

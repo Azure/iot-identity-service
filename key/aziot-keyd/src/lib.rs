@@ -8,7 +8,7 @@
 )]
 
 mod config;
-pub use config::Config;
+pub use config::{Config, Endpoints};
 
 mod error;
 pub use error::{Error, InternalError};
@@ -21,11 +21,12 @@ pub struct Server {
 
 impl Server {
 	pub fn new(
-		config: Config,
+		aziot_keys: std::collections::BTreeMap<String, String>,
+		preloaded_keys: std::collections::BTreeMap<String, String>,
 	) -> Result<Self, Error> {
 		let mut keys = keys::Keys::new()?;
 
-		for (name, value) in config.aziot_keys {
+		for (name, value) in aziot_keys {
 			let name =
 				std::ffi::CString::new(name.clone()).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
 					"key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
@@ -41,7 +42,7 @@ impl Server {
 			keys.set_parameter(&name, &value)?;
 		}
 
-		for (key_id, value) in config.preloaded_keys {
+		for (key_id, value) in preloaded_keys {
 			let name = format!("preloaded_key:{}", key_id);
 			let name =
 				std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(

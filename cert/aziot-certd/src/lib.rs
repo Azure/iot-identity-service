@@ -12,7 +12,7 @@
 )]
 
 mod config;
-pub use config::Config;
+pub use config::{Config, Endpoints};
 
 mod error;
 pub use error::{Error, InternalError};
@@ -20,20 +20,28 @@ pub use error::{Error, InternalError};
 mod est;
 
 pub struct Server {
-	config: Config,
+	homedir_path: std::path::PathBuf,
+	cert_issuance: crate::config::CertIssuance,
+	preloaded_certs: std::collections::BTreeMap<String, crate::config::PreloadedCert>,
+
 	key_client: std::sync::Arc<aziot_key_client::Client>,
 	key_engine: openssl2::FunctionalEngine,
 }
 
 impl Server {
 	pub fn new(
-		config: Config,
+		homedir_path: std::path::PathBuf,
+		cert_issuance: crate::config::CertIssuance,
+		preloaded_certs: std::collections::BTreeMap<String, crate::config::PreloadedCert>,
 		key_client: std::sync::Arc<aziot_key_client::Client>,
 	) -> Result<Self, Error> {
 		let key_engine = aziot_key_openssl_engine::load(key_client.clone()).map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
 		Ok(Server {
-			config,
+			homedir_path,
+			cert_issuance,
+			preloaded_certs,
+
 			key_client,
 			key_engine,
 		})
@@ -65,7 +73,7 @@ impl Server {
 		id: &str,
 		pem: &[u8],
 	) -> Result<(), Error> {
-		let path = get_path(&self.config.homedir_path, &self.config.preloaded_certs, id)?;
+		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 		std::fs::write(path, pem).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 		Ok(())
 	}
@@ -74,7 +82,9 @@ impl Server {
 		&mut self,
 		id: &str,
 	) -> Result<Vec<u8>, Error> {
-		let bytes = get_cert_inner(&self.config, id)?.ok_or_else(|| Error::invalid_parameter("id", "not found"))?;
+		let bytes =
+			get_cert_inner(&self.homedir_path, &self.preloaded_certs, id)?
+			.ok_or_else(|| Error::invalid_parameter("id", "not found"))?;
 		Ok(bytes)
 	}
 
@@ -82,7 +92,7 @@ impl Server {
 		&mut self,
 		id: &str,
 	) -> Result<(), Error> {
-		let path = get_path(&self.config.homedir_path, &self.config.preloaded_certs, id)?;
+		let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
 		match std::fs::remove_file(path) {
 			Ok(()) => Ok(()),
 			Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -172,7 +182,7 @@ fn create_cert<'a>(
 		issuer: Option<(&str, &aziot_key_common::KeyHandle)>,
 	) -> Result<Vec<u8>, Error> {
 		// Look up issuance options for this certificate ID.
-		let cert_options = server.config.cert_issuance.certs.get(id);
+		let cert_options = server.cert_issuance.certs.get(id);
 
 		if let Some((issuer_id, issuer_private_key)) = issuer {
 			// Issuer is explicitly specified, so load it and use it to sign the CSR.
@@ -246,7 +256,7 @@ fn create_cert<'a>(
 				else {
 					// Load the issuer and use it to sign the CSR.
 
-					let issuer_path = get_path(&server.config.homedir_path, &server.config.preloaded_certs, issuer_id)?;
+					let issuer_path = get_path(&server.homedir_path, &server.preloaded_certs, issuer_id)?;
 					let issuer_x509_pem =
 						load_inner(&issuer_path)
 						.map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
@@ -267,7 +277,7 @@ fn create_cert<'a>(
 					x509
 				};
 
-			let path = get_path(&server.config.homedir_path, &server.config.preloaded_certs, id)?;
+			let path = get_path(&server.homedir_path, &server.preloaded_certs, id)?;
 			std::fs::write(path, &x509).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 			Ok(x509)
@@ -282,7 +292,7 @@ fn create_cert<'a>(
 			match cert_options.method  {
 				config::CertIssuanceMethod::Est => {
 					let config::Est { auth, trusted_certs, urls } =
-						server.config.cert_issuance.est.as_ref()
+						server.cert_issuance.est.as_ref()
 						.ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
 							"cert {:?} is configured to be issued by EST, but EST is not configured",
 							id,
@@ -301,7 +311,8 @@ fn create_cert<'a>(
 					let mut trusted_certs_x509 = vec![];
 					for trusted_cert in trusted_certs {
 						let pem =
-							get_cert_inner(&server.config, trusted_cert)?.ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
+							get_cert_inner(&server.homedir_path, &server.preloaded_certs, trusted_cert)?
+							.ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
 								"cert_issuance.est.trusted_certs contains unreadable cert {:?}",
 								trusted_cert,
 							).into())))?;
@@ -316,7 +327,7 @@ fn create_cert<'a>(
 						//
 						// Try to load the EST identity cert.
 
-						let identity = match get_cert_inner(&server.config, identity_cert) {
+						let identity = match get_cert_inner(&server.homedir_path, &server.preloaded_certs, identity_cert) {
 							Ok(Some(identity_cert)) => match server.key_client.load_key_pair(identity_private_key) {
 								Ok(identity_private_key) => Ok((identity_cert, identity_private_key)),
 								Err(err) => Err(format!("could not get EST identity cert private key: {}", err)),
@@ -342,7 +353,7 @@ fn create_cert<'a>(
 									trusted_certs_x509,
 								).await?;
 
-								let path = get_path(&server.config.homedir_path, &server.config.preloaded_certs, id)?;
+								let path = get_path(&server.homedir_path, &server.preloaded_certs, id)?;
 								std::fs::write(path, &x509).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 								Ok(x509)
@@ -352,7 +363,7 @@ fn create_cert<'a>(
 								// EST identity cert could not be loaded. We need to issue a new one using the EST bootstrap identity cert.
 								let bootstrap_identity =
 									if let Some((bootstrap_identity_cert, bootstrap_identity_private_key)) = bootstrap_identity {
-										match get_cert_inner(&server.config, bootstrap_identity_cert) {
+										match get_cert_inner(&server.homedir_path, &server.preloaded_certs, bootstrap_identity_cert) {
 											Ok(Some(bootstrap_identity_cert)) => match server.key_client.load_key_pair(bootstrap_identity_private_key) {
 												Ok(bootstrap_identity_private_key) => Ok((bootstrap_identity_cert, bootstrap_identity_private_key)),
 												Err(err) => Err(format!("could not get EST bootstrap identity cert private key: {}", err)),
@@ -461,7 +472,7 @@ fn create_cert<'a>(
 											trusted_certs_x509,
 										).await?;
 
-										let path = get_path(&server.config.homedir_path, &server.config.preloaded_certs, identity_cert)?;
+										let path = get_path(&server.homedir_path, &server.preloaded_certs, identity_cert)?;
 										std::fs::write(path, &x509).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 
@@ -496,7 +507,7 @@ fn create_cert<'a>(
 							trusted_certs_x509,
 						).await?;
 
-						let path = get_path(&server.config.homedir_path, &server.config.preloaded_certs, id)?;
+						let path = get_path(&server.homedir_path, &server.preloaded_certs, id)?;
 						std::fs::write(path, &x509).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
 						Ok(x509)
@@ -506,7 +517,7 @@ fn create_cert<'a>(
 				config::CertIssuanceMethod::LocalCa => {
 					// Indirect reference to the local CA. Look it up.
 
-					let (issuer_cert, issuer_private_key) = match &server.config.cert_issuance.local_ca {
+					let (issuer_cert, issuer_private_key) = match &server.cert_issuance.local_ca {
 						Some(config::LocalCa { cert, pk }) => {
 							let private_key = server.key_client.load_key_pair(pk).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 							(cert.clone(), private_key)
@@ -545,10 +556,11 @@ fn create_cert<'a>(
 }
 
 fn get_cert_inner(
-	config: &Config,
+	homedir_path: &std::path::Path,
+	preloaded_certs: &std::collections::BTreeMap<String, crate::config::PreloadedCert>,
 	id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
-	let path = get_path(&config.homedir_path, &config.preloaded_certs, id)?;
+	let path = get_path(homedir_path, preloaded_certs, id)?;
 	let bytes = load_inner(&path)?;
 	Ok(bytes)
 }

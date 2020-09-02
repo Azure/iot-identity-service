@@ -7,29 +7,23 @@
 	clippy::let_and_return,
 	clippy::let_unit_value,
 	clippy::missing_errors_doc,
+	clippy::must_use_candidate,
 	clippy::similar_names,
 )]
 
-pub struct Client<C> {
-	inner: hyper::Client<C, hyper::Body>,
+#[derive(Debug)]
+pub struct Client {
+	inner: hyper::Client<http_common::Connector, hyper::Body>,
 }
 
-impl<C> Client<C> where C: hyper::client::connect::Connect + Clone {
-	pub fn new(connect: C) -> Self {
-		let inner = hyper::Client::builder().build(connect);
+impl Client {
+	pub fn new(connector: http_common::Connector) -> Self {
+		let inner = hyper::Client::builder().build(connector);
 		Client {
 			inner,
 		}
 	}
-}
 
-impl<C> std::fmt::Debug for Client<C> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Client").finish()
-	}
-}
-
-impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync + 'static {
 	pub async fn create_cert(
 		&self,
 		id: &str,
@@ -80,7 +74,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	) -> Result<Vec<u8>, std::io::Error> {
 		let uri = format!("/certificates/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_cert_common_http::get_cert::Response = request::<_, (), _>(
+		let res: aziot_cert_common_http::get_cert::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
 			&uri,
@@ -95,7 +89,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	) -> Result<(), std::io::Error> {
 		let uri = format!("/certificates/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let () = request_no_content::<_, ()>(
+		let () = request_no_content::<()>(
 			&self.inner,
 			http::Method::DELETE,
 			&uri,
@@ -105,14 +99,13 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	}
 }
 
-async fn request<TConnect, TRequest, TResponse>(
-	client: &hyper::Client<TConnect, hyper::Body>,
+async fn request<TRequest, TResponse>(
+	client: &hyper::Client<http_common::Connector, hyper::Body>,
 	method: http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
-	TConnect: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
@@ -170,14 +163,13 @@ where
 	Ok(res)
 }
 
-async fn request_no_content<TConnect, TRequest>(
-	client: &hyper::Client<TConnect, hyper::Body>,
+async fn request_no_content<TRequest>(
+	client: &hyper::Client<http_common::Connector, hyper::Body>,
 	method: http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
 ) -> std::io::Result<()>
 where
-	TConnect: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 	TRequest: serde::Serialize,
 {
 	let uri = format!("http://foo{}", uri);

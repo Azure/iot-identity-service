@@ -7,27 +7,35 @@ Basic Identity Service configuration file consists of following mandatory settin
     hostname = "devicehostname"
     homedir = "/var/lib/aziot/identityd"
 
-    [connect]
-
-    [listen]
-
     [provisioning]
-    
+
     [[principal]]
+
+    [endpoints]
+    aziot_certd = "unix:///var/lib/aziot/certd.sock"
+    aziot_identityd = "http://localhost:8901"
+    aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 ```
+
 - `hostname` is the device's network hostname. This setting is used for nested topology configuration. 
 
 - `homedir` is the folder path that stores Identity Service persistent state. This setting is used for storing Identity Service state. 
-
-- `[connect]` contains the Unix domain socket address where Identity Service clients can access its APIs. This setting is reserved for future use for UDS configuration. 
-
-- `[listen]` contains the listening address for Identity Service clients. This setting is reserved for future use for systemd / UDS configuration.
 
 - `[provisioning]` contains the device provisioning endpoint and credential settings. The Identity Service supports DPS and manual provisioning modes.
 
     Depending on the provisioning `source` type, one of `[provisioning.attestation]` (for `dps` source) or `[provisioning.authentication]` (for `manual` source) subsections must be provided.
 
 - `[[principal]]` contains a table of host-process client information. The Identity Service uses the information to provision cloud identities for host processes (using the `name` property), authenticate API clients (using the `uid` property) and manage API access to identity resources (using the `idtype` property).
+
+- `[endpoints]` - This section defines endpoints for the services. For this service, there are three endpoints:
+
+    - The `aziot_keyd` value denotes the endpoint that the `aziot-keyd` service is accepting connections on (the same value as its own `endpoints.aziot_keyd` config)
+
+    - The `aziot_certd` value denotes the endpoint that the `aziot-certd` service is accepting connections on (the same value as its own `endpoints.aziot_certd` config)
+
+    - The `aziot_identityd` value denotes the endpoint that this service will accept connections on.
+
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
 
 ## Configuring device provisioning
 
@@ -98,8 +106,6 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 - The `provisioning.authentication.device_id_cert` value is a preloaded cert ID in the Certificate Service.
 
 ## Configuring host process clients
-
-> Dev Note: Currently, host process clients connect over TCP port 8091. This section is applicable after final packaging and Unix Domain Socket support is enabled in IS.
 
 The table of principal accounts in Identity Service configuration represents each host process client of the Identity Service (known as `principal`s). The `principal` table entries are used to map access to one or more identity resources to a Unix user`uid`. Each `principal` table entry is configured using one of the following methods:
 

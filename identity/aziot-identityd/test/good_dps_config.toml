@@ -4,12 +4,6 @@
 hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
-[connect]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
-[listen]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
 [provisioning]
 source = "dps"
 "global_endpoint" = "http://globaldevices.net"
@@ -19,3 +13,8 @@ source = "dps"
 method = "symmetric_key"
 registration_id = "regid"
 symmetric_key = "dps"
+
+[endpoints]
+aziot_certd = "unix:///var/run/aziot/certd.sock"
+aziot_identityd = "http://localhost:8901"
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"

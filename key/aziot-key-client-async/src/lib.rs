@@ -6,29 +6,23 @@
 	clippy::default_trait_access,
 	clippy::let_and_return,
 	clippy::missing_errors_doc,
+	clippy::must_use_candidate,
 	clippy::similar_names,
 )]
 
-pub struct Client<C> {
-	inner: hyper::Client<C, hyper::Body>,
+#[derive(Debug)]
+pub struct Client {
+	inner: hyper::Client<http_common::Connector, hyper::Body>,
 }
 
-impl<C> Client<C> where C: hyper::client::connect::Connect + Clone {
-	pub fn new(connect: C) -> Self {
-		let inner = hyper::Client::builder().build(connect);
+impl Client {
+	pub fn new(connector: http_common::Connector) -> Self {
+		let inner = hyper::Client::builder().build(connector);
 		Client {
 			inner,
 		}
 	}
-}
 
-impl<C> std::fmt::Debug for Client<C> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Client").finish()
-	}
-}
-
-impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync + 'static {
 	pub async fn create_key_pair_if_not_exists(
 		&self,
 		id: &str,
@@ -54,7 +48,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
+		let res: aziot_key_common_http::load::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
 			&uri,
@@ -116,7 +110,7 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	) -> std::io::Result<aziot_key_common::KeyHandle> {
 		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
 
-		let res: aziot_key_common_http::load::Response = request::<_, (), _>(
+		let res: aziot_key_common_http::load::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
 			&uri,
@@ -253,14 +247,13 @@ impl<C> Client<C> where C: hyper::client::connect::Connect + Clone + Send + Sync
 	}
 }
 
-async fn request<TConnect, TRequest, TResponse>(
-	client: &hyper::Client<TConnect, hyper::Body>,
+async fn request<TRequest, TResponse>(
+	client: &hyper::Client<http_common::Connector, hyper::Body>,
 	method: http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
-	TConnect: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {

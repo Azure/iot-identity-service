@@ -4,12 +4,6 @@
 hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
-[connect]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
-[listen]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
 [provisioning]
 source = "manual"
 iothub_hostname = "hubname"
@@ -19,3 +13,8 @@ device_id = "deviceid"
 method = "sas"
 device_id_pk = "sas"
 dynamic_reprovisioning = false
+
+[endpoints]
+aziot_certd = "unix:///var/run/aziot/certd.sock"
+aziot_identityd = "http://localhost:8901"
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"

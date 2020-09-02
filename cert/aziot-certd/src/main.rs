@@ -19,30 +19,25 @@ async fn main() -> Result<(), Error> {
 		.map_or_else(|| "/etc/aziot/certd/config.toml".into(), Into::into);
 
 	let config = std::fs::read(config_path).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;
-	let config: aziot_certd::Config = toml::from_slice(&config).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;
+	let aziot_certd::Config {
+		homedir_path,
+		cert_issuance,
+		preloaded_certs,
+		endpoints: aziot_certd::Endpoints { aziot_certd: connector, aziot_keyd: key_connector },
+	} = toml::from_slice(&config).map_err(|err| aziot_certd::Error::Internal(aziot_certd::InternalError::ReadConfig(Box::new(err))))?;
 
 	let key_client = {
-		struct Connector;
-
-		impl aziot_key_client::Connector for Connector {
-			fn connect(&self) -> std::io::Result<Box<dyn aziot_key_client::Stream>> {
-				let stream = std::net::TcpStream::connect(("localhost", 8888))?;
-				Ok(Box::new(stream))
-			}
-		}
-
-		let key_client = aziot_key_client::Client::new(Box::new(Connector));
+		let key_client = aziot_key_client::Client::new(key_connector);
 		let key_client = std::sync::Arc::new(key_client);
 		key_client
 	};
 
-	let server = aziot_certd::Server::new(config, key_client)?;
+	let server = aziot_certd::Server::new(homedir_path, cert_issuance, preloaded_certs, key_client)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 
 	eprintln!("Starting server...");
 
-	let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8889".parse()?)?;
-
+	let incoming = connector.incoming().await?;
 	let server =
 		hyper::Server::builder(incoming)
 		.serve(hyper::service::make_service_fn(|_| {

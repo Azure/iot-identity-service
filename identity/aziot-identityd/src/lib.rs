@@ -20,7 +20,7 @@ pub mod identity;
 mod logging;
 pub mod settings;
 
-pub use error::Error;
+pub use error::{Error, InternalError};
 
 /// This is the interval at which to poll DPS for registration assignment status
 const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
@@ -33,17 +33,54 @@ pub struct Server {
 	pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>,
 	pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>,
 	pub id_manager: identity::IdentityManager,
+
+	key_client: std::sync::Arc<aziot_key_client_async::Client>,
+	key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+	cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
 }
 
 impl Server {
 	pub fn new(
-		settings: settings::Settings, authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>, authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>) -> Result<Self, Error>
-	{	
+		settings: settings::Settings,
+		authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
+		authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>,
+	) -> Result<Self, Error> {
+		let key_service_connector = settings.endpoints.aziot_keyd.clone();
+
+		let key_client = {
+			let key_client = aziot_key_client_async::Client::new(key_service_connector.clone());
+			let key_client = std::sync::Arc::new(key_client);
+			key_client
+		};
+
+		let key_engine = {
+			let key_client = aziot_key_client::Client::new(key_service_connector);
+			let key_client = std::sync::Arc::new(key_client);
+			let key_engine =
+				aziot_key_openssl_engine::load(key_client)
+				.map_err(|err| Error::Internal(InternalError::LoadKeyOpenslEngine(err)))?;
+			let key_engine = std::sync::Arc::new(futures_util::lock::Mutex::new(key_engine));
+			key_engine
+		};
+
+		let cert_client = {
+			let cert_service_connector = settings.endpoints.aziot_certd.clone();
+			let cert_client = aziot_cert_client_async::Client::new(cert_service_connector);
+			let cert_client = std::sync::Arc::new(cert_client);
+			cert_client
+		};
+
+		let id_manager = identity::IdentityManager::new(key_client.clone(), key_engine.clone(), cert_client.clone(), None);
+
 		Ok(Server {
 			settings,
 			authenticator,
 			authorizer,
-			id_manager: identity::IdentityManager::new(None),
+			id_manager,
+
+			key_client,
+			key_engine,
+			cert_client,
 		})
 	}
 
@@ -176,13 +213,20 @@ impl Server {
 			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation} => {
 				let device = match attestation {
 					settings::DpsAttestationMethod::SymmetricKey { registration_id, symmetric_key } => {
-						let result = aziot_dps_client_async::register(
-							global_endpoint.as_str(), 
-							&scope_id, 
-							&registration_id,
-							Some(symmetric_key.clone()),
-							None,
-							None).await;
+						let result = {
+							let mut key_engine = self.key_engine.lock().await;
+							aziot_dps_client_async::register(
+								global_endpoint.as_str(), 
+								&scope_id, 
+								&registration_id,
+								Some(symmetric_key.clone()),
+								None,
+								None,
+								&self.key_client,
+								&mut *key_engine,
+								&self.cert_client,
+							).await
+						};
 						let device = match result
 						{
 							Ok(operation) => {
@@ -193,14 +237,21 @@ impl Server {
 										return Err(Error::DeviceNotFound);
 									}
 									let credential_clone = credential.clone();
-									let result = aziot_dps_client_async::get_operation_status(
-										global_endpoint.as_str(), 
-										&scope_id, 
-										&registration_id,
-										&operation.operation_id,
-										Some(symmetric_key.clone()),
-										None,
-										None).await;
+									let result = {
+										let mut key_engine = self.key_engine.lock().await;
+										aziot_dps_client_async::get_operation_status(
+											global_endpoint.as_str(), 
+											&scope_id, 
+											&registration_id,
+											&operation.operation_id,
+											Some(symmetric_key.clone()),
+											None,
+											None,
+											&self.key_client,
+											&mut *key_engine,
+											&self.cert_client,
+										).await
+									};
 
 									match result {
 										Ok(reg_status) => {
@@ -234,13 +285,20 @@ impl Server {
 						device
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
-						let result = aziot_dps_client_async::register(
-							global_endpoint.as_str(), 
-							&scope_id, 
-							&registration_id,
-							None,
-							Some(identity_cert.clone()),
-							Some(identity_pk.clone())).await;
+						let result = {
+							let mut key_engine = self.key_engine.lock().await;
+							aziot_dps_client_async::register(
+								global_endpoint.as_str(), 
+								&scope_id, 
+								&registration_id,
+								None,
+								Some(identity_cert.clone()),
+								Some(identity_pk.clone()),
+								&self.key_client,
+								&mut *key_engine,
+								&self.cert_client,
+							).await
+						};
 
 						let device = match result
 						{
@@ -252,14 +310,21 @@ impl Server {
 										return Err(Error::DeviceNotFound);
 									}
 									let credential_clone = credential.clone();
-									let result = aziot_dps_client_async::get_operation_status(
-										global_endpoint.as_str(), 
-										&scope_id, 
-										&registration_id,
-										&operation.operation_id,
-										None,
-										Some(identity_cert.clone()),
-										Some(identity_pk.clone())).await;
+									let result = {
+										let mut key_engine = self.key_engine.lock().await;
+										aziot_dps_client_async::get_operation_status(
+											global_endpoint.as_str(), 
+											&scope_id, 
+											&registration_id,
+											&operation.operation_id,
+											None,
+											Some(identity_cert.clone()),
+											Some(identity_pk.clone()),
+											&self.key_client,
+											&mut *key_engine,
+											&self.cert_client,
+										).await
+									};
 
 									match result {
 										Ok(reg_status) => {

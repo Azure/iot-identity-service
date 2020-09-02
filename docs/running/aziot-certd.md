@@ -8,6 +8,10 @@ homedir_path = "/var/lib/aziot/certd"
 [cert_issuance]
 
 [preloaded_certs]
+
+[endpoints]
+aziot_certd = "unix:///var/lib/aziot/certd.sock"
+aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 ```
 
 - `homedir_path` - This is the home directory of the service, and where dynamically generated cert files will be stored. Ensure that this directory exists, and that it is readable and writable by the user you will run the service as.
@@ -24,6 +28,14 @@ homedir_path = "/var/lib/aziot/certd"
 - `[preloaded_certs]` - This section defines preloaded certs as a map of cert ID to URI. For example, if you have a device ID cert file that you want the service to make available to the other components, you would register that file in this section.
 
     Only `file://` URIs are supported at this time. Files must be in PEM format and can contain one or more certificates.
+
+- `[endpoints]` - This section defines endpoints for the services. For this service, there are two endpoints:
+
+    - The `aziot_keyd` value denotes the endpoint that the `aziot-keyd` service is accepting connections on (the same value as its own `endpoints.aziot_keyd` config)
+
+    - The `aziot_certd` value denotes the endpoint that this service will accept connections on.
+
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
 
 Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `AZIOT_CERTD_CONFIG` env var.
 

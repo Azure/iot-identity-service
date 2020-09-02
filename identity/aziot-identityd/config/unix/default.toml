@@ -70,3 +70,8 @@ dynamic_reprovisioning = false
 # "method" = "x509"
 # "identity_cert" = "est"
 # "identity_pk" = "est"
+
+[endpoints]
+aziot_certd = "unix:///var/run/aziot/certd.sock"
+aziot_identityd = "http://localhost:8901"
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"

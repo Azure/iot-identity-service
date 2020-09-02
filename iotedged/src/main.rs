@@ -23,17 +23,9 @@ async fn main() -> Result<(), Error> {
 	} = structopt::StructOpt::from_args();
 
 
+	let key_connector = http_common::Connector::new(&"unix:///var/lib/aziot/keyd.sock".parse().unwrap()).unwrap();
 	let mut key_engine = {
-		struct Connector;
-
-		impl aziot_key_client::Connector for Connector {
-			fn connect(&self) -> std::io::Result<Box<dyn aziot_key_client::Stream>> {
-				let stream = std::net::TcpStream::connect(("localhost", 8888))?;
-				Ok(Box::new(stream))
-			}
-		}
-
-		let key_client = aziot_key_client::Client::new(Box::new(Connector));
+		let key_client = aziot_key_client::Client::new(key_connector.clone());
 		let key_client = std::sync::Arc::new(key_client);
 
 		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(Error::LoadKeyOpensslEngine)?;
@@ -41,55 +33,14 @@ async fn main() -> Result<(), Error> {
 	};
 
 	let key_client = {
-		#[derive(Clone, Copy)]
-		struct Connector;
-
-		impl hyper::service::Service<hyper::Uri> for Connector {
-			type Response = tokio::net::TcpStream;
-			type Error = std::io::Error;
-			type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-			fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-				std::task::Poll::Ready(Ok(()))
-			}
-
-			fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-				let f = async {
-					let stream = tokio::net::TcpStream::connect(("localhost", 8888)).await?;
-					Ok(stream)
-				};
-				Box::pin(f)
-			}
-		}
-
-		let key_client = aziot_key_client_async::Client::new(Connector);
+		let key_client = aziot_key_client_async::Client::new(key_connector);
 		let key_client = std::sync::Arc::new(key_client);
 		key_client
 	};
 
 	let cert_client = {
-		#[derive(Clone, Copy)]
-		struct Connector;
-
-		impl hyper::service::Service<hyper::Uri> for Connector {
-			type Response = tokio::net::TcpStream;
-			type Error = std::io::Error;
-			type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-			fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-				std::task::Poll::Ready(Ok(()))
-			}
-
-			fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-				let f = async {
-					let stream = tokio::net::TcpStream::connect(("localhost", 8889)).await?;
-					Ok(stream)
-				};
-				Box::pin(f)
-			}
-		}
-
-		let cert_client = aziot_cert_client_async::Client::new(Connector);
+		let cert_connector = http_common::Connector::new(&"unix:///var/lib/aziot/certd.sock".parse().unwrap()).unwrap();
+		let cert_client = aziot_cert_client_async::Client::new(cert_connector);
 		let cert_client = std::sync::Arc::new(cert_client);
 		cert_client
 	};
@@ -532,7 +483,7 @@ enum VerifyWorkloadCaCertResult {
 }
 
 async fn verify_encrypt_decrypt(
-	key_client: &aziot_key_client_async::Client<impl hyper::client::connect::Connect + Clone + Send + Sync + 'static>,
+	key_client: &aziot_key_client_async::Client,
 	encrypt_key_handle: &aziot_key_common::KeyHandle,
 	decrypt_key_handle: &aziot_key_common::KeyHandle,
 ) {

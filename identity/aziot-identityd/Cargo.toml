@@ -13,7 +13,7 @@ base64 = "0.12"
 chrono = "0.4"
 clap = "2.31"
 env_logger = "0.5"
-futures-util = { version = "0.3", features = [] }
+futures-util = "0.3"
 http = "0.2"
 hyper = "0.13"
 hyper-openssl = "0.8"

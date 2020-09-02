@@ -9,22 +9,12 @@
 	clippy::shadow_unrelated,
 )]
 
-pub trait Connector {
-	fn connect(&self) -> std::io::Result<Box<dyn Stream>>;
-}
-
-pub trait Stream: std::io::Read + std::io::Write {
-}
-
-impl<T> Stream for T where T: std::io::Read + std::io::Write {
-}
-
 pub struct Client {
-	connector: Box<dyn Connector + Send + Sync>,
+	connector: http_common::Connector,
 }
 
 impl Client {
-	pub fn new(connector: Box<dyn Connector + Send + Sync>) -> Self {
+	pub fn new(connector: http_common::Connector) -> Self {
 		Client {
 			connector,
 		}

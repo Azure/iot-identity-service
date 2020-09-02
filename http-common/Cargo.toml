@@ -6,5 +6,12 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.12"
+futures-util = "0.3"
+hyper = "0.13"
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
+tokio = { version = "0.2", features = ["dns", "tcp", "uds"] }
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+serde_json = "1"

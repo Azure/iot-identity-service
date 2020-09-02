@@ -9,10 +9,6 @@ use crate::error::InternalError;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
-    pub connect: Connect,
-
-    pub listen: Listen,
-
     pub hostname: String,
 
     pub homedir: std::path::PathBuf,
@@ -20,6 +16,8 @@ pub struct Settings {
     pub principal: Option<Vec<Principal>>,
 
     pub provisioning: Provisioning,
+
+    pub endpoints: Endpoints,
 }
 
 impl Settings {
@@ -55,16 +53,6 @@ pub struct Principal {
     pub name: aziot_identity_common::ModuleId,
     #[serde(rename = "idtype")]
     pub id_type: Option<aziot_identity_common::IdType>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct Connect {
-    pub api_uri: url::Url,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct Listen {
-    pub api_uri: url::Url,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -121,6 +109,13 @@ pub enum ProvisioningType {
         scope_id: String,
         attestation: DpsAttestationMethod,
     },
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct Endpoints {
+    pub aziot_certd: http_common::Connector,
+    pub aziot_identityd: http_common::Connector,
+    pub aziot_keyd: http_common::Connector,
 }
 
 //TODO: Keeping this setting around until it is determined HTTPS isn't supported

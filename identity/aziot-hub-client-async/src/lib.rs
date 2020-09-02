@@ -19,13 +19,24 @@ pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
 
 pub struct Client {
 	device: aziot_identity_common::IoTHubDevice,
+	key_client: std::sync::Arc<aziot_key_client_async::Client>,
+	key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+	cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
 }
 
 impl Client {
 	#[must_use]
-	pub fn new(device: aziot_identity_common::IoTHubDevice) -> Self {
+	pub fn new(
+		device: aziot_identity_common::IoTHubDevice,
+		key_client: std::sync::Arc<aziot_key_client_async::Client>,
+		key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+		cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+	) -> Self {
 		Client {
 			device,
+			key_client,
+			key_engine,
+			cert_client,
 		}
 	}
 }
@@ -50,12 +61,17 @@ impl Client {
 		    authentication: authentication_type,
 		};
 
+		let mut key_engine = self.key_engine.lock().await;
+
 		let res: aziot_identity_common::hub::Module = request(
 			&self.device,
 			http::Method::PUT,
 			&uri,
 			Some(&body),
 			false,
+			&self.key_client,
+			&mut *key_engine,
+			&self.cert_client,
 		).await?;
 
 		Ok(res) 
@@ -80,12 +96,17 @@ impl Client {
 		    authentication: authentication_type,
 		};
 
+		let mut key_engine = self.key_engine.lock().await;
+
 		let res: aziot_identity_common::hub::Module = request(
 			&self.device,
 			http::Method::PUT,
 			&uri,
 			Some(&body),
 			true,
+			&self.key_client,
+			&mut *key_engine,
+			&self.cert_client,
 		).await?;
 		Ok(res)
 	}
@@ -99,12 +120,17 @@ impl Client {
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
 
+		let mut key_engine = self.key_engine.lock().await;
+
 		let res: aziot_identity_common::hub::Module = request::<(), _>(
 			&self.device,
 			http::Method::GET,
 			&uri,
 			None,
 			false,
+			&self.key_client,
+			&mut *key_engine,
+			&self.cert_client,
 		).await?;
 		Ok(res)
 	}
@@ -116,12 +142,17 @@ impl Client {
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
 
+		let mut key_engine = self.key_engine.lock().await;
+
 		let res: Vec<aziot_identity_common::hub::Module> = request::<(), _>(
 			&self.device,
 			http::Method::GET,
 			&uri,
 			None,
 			false,
+			&self.key_client,
+			&mut *key_engine,
+			&self.cert_client,
 		).await?;
 		Ok(res)
 	}
@@ -135,11 +166,16 @@ impl Client {
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
 
+		let mut key_engine = self.key_engine.lock().await;
+
 		let () = request_no_content::<()>(
 			&self.device,
 			http::Method::DELETE,
 			&uri,
 			None,
+			&self.key_client,
+			&mut *key_engine,
+			&self.cert_client,
 		).await?;
 		Ok(())
 	}
@@ -156,6 +192,9 @@ async fn request<TRequest, TResponse>(
 	uri: &str,
 	body: Option<&TRequest>,
 	add_if_match: bool,
+	key_client: &aziot_key_client_async::Client,
+	key_engine: &mut openssl2::FunctionalEngineRef,
+	cert_client: &aziot_cert_client_async::Client,
 ) -> std::io::Result<TResponse>
 where
 	TRequest: serde::Serialize,
@@ -186,16 +225,22 @@ where
 
 	let connector = 
 		match hub_device.credentials.clone() {
-			aziot_identity_common::Credentials::SharedPrivateKey(key) => {					
-
-				let (connector, token) = get_sas_connector(hub_device.iothub_hostname.clone(), hub_device.device_id.clone(), key).await?;
+			aziot_identity_common::Credentials::SharedPrivateKey(key) => {
+				let (connector, token) =
+					get_sas_connector(
+						hub_device.iothub_hostname.clone(),
+						hub_device.device_id.clone(),
+						key,
+						key_client,
+					).await?;
 
 				let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
 					.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 				req.headers_mut().append(hyper::header::AUTHORIZATION, authorization_header_value);
 				connector
 			},
-			aziot_identity_common::Credentials::X509 { identity_cert, identity_pk } => get_x509_connector(identity_cert, identity_pk).await?
+			aziot_identity_common::Credentials::X509 { identity_cert, identity_pk } =>
+				get_x509_connector(identity_cert, identity_pk, key_client, key_engine, cert_client).await?
 		};
 
 	let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
@@ -244,6 +289,9 @@ async fn request_no_content<TRequest>(
 	method: http::Method,
 	uri: &str,
 	body: Option<&TRequest>,
+	key_client: &aziot_key_client_async::Client,
+	key_engine: &mut openssl2::FunctionalEngineRef,
+	cert_client: &aziot_cert_client_async::Client,
 ) -> std::io::Result<()>
 where
 	TRequest: serde::Serialize,
@@ -272,14 +320,21 @@ where
 		match hub_device.credentials.clone() {
 			aziot_identity_common::Credentials::SharedPrivateKey(key) => {					
 
-				let (connector, token) = get_sas_connector(hub_device.iothub_hostname.clone(), hub_device.device_id.clone(), key).await?;
+				let (connector, token) =
+					get_sas_connector(
+						hub_device.iothub_hostname.clone(),
+						hub_device.device_id.clone(),
+						key,
+						key_client,
+					).await?;
 
 				let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
 					.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 				req.headers_mut().append(hyper::header::AUTHORIZATION, authorization_header_value);
 				connector
 			},
-			aziot_identity_common::Credentials::X509 { identity_cert, identity_pk } => get_x509_connector(identity_cert, identity_pk).await?
+			aziot_identity_common::Credentials::X509 { identity_cert, identity_pk } =>
+				get_x509_connector(identity_cert, identity_pk, key_client, key_engine, cert_client).await?
 		};
 
 	let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
@@ -319,34 +374,8 @@ async fn get_sas_connector(
 	hub_name: String,
 	device_id: String,
 	key_handle: String,
+	key_client: &aziot_key_client_async::Client,
 ) -> Result<(hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, String), std::io::Error> {
-	let key_client = {
-		#[derive(Clone, Copy)]
-		struct Connector;
-
-		impl hyper::service::Service<hyper::Uri> for Connector {
-			type Response = tokio::net::TcpStream;
-			type Error = std::io::Error;
-			type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-			fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-				std::task::Poll::Ready(Ok(()))
-			}
-
-			fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-				let f = async {
-					let stream: tokio::net::TcpStream = tokio::net::TcpStream::connect(("localhost", 8888)).await?;
-					Ok(stream)
-				};
-				Box::pin(f)
-			}
-		}
-
-		let key_client = aziot_key_client_async::Client::new(Connector);
-		let key_client = std::sync::Arc::new(key_client);
-		key_client
-	};
-	
 	let key_handle = key_client.load_key(&*key_handle).await?;
 	
 	let token = {
@@ -381,79 +410,10 @@ async fn get_sas_connector(
 async fn get_x509_connector(
 	identity_cert: String,
 	identity_pk: String,
+	key_client: &aziot_key_client_async::Client,
+	key_engine: &mut openssl2::FunctionalEngineRef,
+	cert_client: &aziot_cert_client_async::Client,
 ) -> Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, std::io::Error> {
-	let key_client = {
-		#[derive(Clone, Copy)]
-		struct Connector;
-
-		impl hyper::service::Service<hyper::Uri> for Connector {
-			type Response = tokio::net::TcpStream;
-			type Error = std::io::Error;
-			type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-			fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-				std::task::Poll::Ready(Ok(()))
-			}
-
-			fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-				let f = async {
-					let stream: tokio::net::TcpStream = tokio::net::TcpStream::connect(("localhost", 8888)).await?;
-					Ok(stream)
-				};
-				Box::pin(f)
-			}
-		}
-
-		let key_client = aziot_key_client_async::Client::new(Connector);
-		let key_client = std::sync::Arc::new(key_client);
-		key_client
-	};
-
-	let mut key_engine = {
-		struct Connector;
-
-		impl aziot_key_client::Connector for Connector {
-			fn connect(&self) -> std::io::Result<Box<dyn aziot_key_client::Stream>> {
-				let stream: std::net::TcpStream = std::net::TcpStream::connect(("localhost", 8888))?;
-				Ok(Box::new(stream))
-			}
-		}
-
-		let key_client = aziot_key_client::Client::new(Box::new(Connector));
-		let key_client = std::sync::Arc::new(key_client);
-
-		let key_engine = aziot_key_openssl_engine::load(key_client)
-			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-		key_engine
-	};
-	
-	let cert_client = {
-		#[derive(Clone, Copy)]
-		struct Connector;
-
-		impl hyper::service::Service<hyper::Uri> for Connector {
-			type Response = tokio::net::TcpStream;
-			type Error = std::io::Error;
-			type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-			fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-				std::task::Poll::Ready(Ok(()))
-			}
-
-			fn call(&mut self, _req: hyper::Uri) -> Self::Future {
-				let f = async {
-					let stream: tokio::net::TcpStream = tokio::net::TcpStream::connect(("localhost", 8889)).await?;
-					Ok(stream)
-				};
-				Box::pin(f)
-			}
-		}
-
-		let cert_client = aziot_cert_client_async::Client::new(Connector);
-		let cert_client = std::sync::Arc::new(cert_client);
-		cert_client
-	};
-	
 	let connector = {
 		let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())
 			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;

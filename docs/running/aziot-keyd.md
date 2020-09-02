@@ -6,9 +6,12 @@ A basic configuration looks like:
 [aziot_keys]
 
 [preloaded_keys]
+
+[endpoints]
+aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 ```
 
-- The `aziot_keys` section contains arbitrary key-value pairs of string type that are passed down to the `libaziot-keys.so` library. The names and values of these parameters depend on the library.
+- `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot-keys.so` library. The names and values of these parameters depend on the library.
 
     When using Microsoft's library, the following parameters can be specified:
 
@@ -43,6 +46,12 @@ A basic configuration looks like:
     For `file://` URIs, asymmetric keys must be in PEM format, and symmetric key must be in raw bytes format.
 
     For `pkcs11:` URIs, only the `object`, `slot-id`, `token` and `pin-value` parameters are supported. Note that the PKCS#11 objects will always be loaded using the library specified by the `pkcs11_lib_path` parameter, so using one PKCS#11 library for preloaded keys and another for dynamically generated keys is not possible.
+
+- `[endpoints]` - This section defines endpoints for the services. For this service, there is only one endpoint:
+
+    - The `aziot_keyd` value denotes the endpoint that this service will accept connections on.
+
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
 
 Assuming you're using Microsoft's implementation of `libaziot-keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 

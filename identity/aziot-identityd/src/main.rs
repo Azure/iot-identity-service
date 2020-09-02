@@ -21,7 +21,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let settings = aziot_identityd::settings::Settings::new(&config_file)?;
     let homedir_path = &settings.homedir.to_owned();
-    
+    let connector = settings.endpoints.aziot_identityd.clone();
+
     let mut prev_settings_path = homedir_path.clone();
     prev_settings_path.push("prev_state");
 
@@ -72,7 +73,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::copy(config_file, prev_settings_path).map_err(aziot_identityd::error::InternalError::SaveSettings)?;
     }
 
-    let incoming = hyper::server::conn::AddrIncoming::bind(&"0.0.0.0:8901".parse()?)?;
+    let incoming = connector.incoming().await?;
     log::info!("Identity Service started.");
     
     let server =
