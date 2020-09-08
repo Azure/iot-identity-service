@@ -33,7 +33,7 @@ pub struct Server {
 	pub settings: settings::Settings,
 	pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>,
 	pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>,
-	pub id_manager: identity::HubIdentityManager,
+	pub hub_id_manager: identity::HubIdentityManager,
 
 	key_client: std::sync::Arc<aziot_key_client_async::Client>,
 	key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -71,13 +71,13 @@ impl Server {
 			cert_client
 		};
 
-		let id_manager = identity::HubIdentityManager::new(key_client.clone(), key_engine.clone(), cert_client.clone(), None);
+		let hub_id_manager = identity::HubIdentityManager::new(key_client.clone(), key_engine.clone(), cert_client.clone(), None);
 
 		Ok(Server {
 			settings,
 			authenticator,
 			authorizer,
-			id_manager,
+			hub_id_manager,
 
 			key_client,
 			key_engine,
@@ -91,7 +91,7 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_device_identity().await
+		self.hub_id_manager.get_device_identity().await
 	}
 	pub async fn get_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 
@@ -99,7 +99,7 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_identity(module_id).await
+		self.hub_id_manager.get_identity(module_id).await
 	}
 
 	pub async fn get_identities(&self, auth_id: auth::AuthId, id_type: &str) -> Result<Vec<aziot_identity_common::Identity>, Error> {
@@ -109,7 +109,7 @@ impl Server {
 		}
 
 		if id_type.eq("aziot") {
-			self.id_manager.get_all_identities().await
+			self.hub_id_manager.get_all_identities().await
 		}
 		else {
 			Err(Error::invalid_parameter("id_type", "invalid id_type"))
@@ -122,7 +122,7 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_device_identity().await
+		self.hub_id_manager.get_device_identity().await
 	}
 
 	pub async fn create_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
@@ -132,7 +132,7 @@ impl Server {
 		}
 
 		//TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-		self.id_manager.create_identity(module_id).await
+		self.hub_id_manager.create_identity(module_id).await
 	}
 
 	pub async fn delete_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<(), Error> {
@@ -142,7 +142,7 @@ impl Server {
 		}
 
 		//TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-		self.id_manager.delete_identity(module_id).await
+		self.hub_id_manager.delete_identity(module_id).await
 	}
 
 	pub async fn get_trust_bundle(&self, auth_id: auth::AuthId) -> Result<aziot_cert_common_http::Pem, Error> {
@@ -166,13 +166,13 @@ impl Server {
 	}
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
-		let hub_module_ids = self.id_manager.get_all_identities().await?;
+		let hub_module_ids = self.hub_id_manager.get_all_identities().await?;
 		for m in hub_module_ids {
 			match m {
 				aziot_identity_common::Identity::Aziot(m) => {
 					if let Some(m) = m.module_id {
 						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-							self.id_manager.delete_identity(&m.0).await?;
+							self.hub_id_manager.delete_identity(&m.0).await?;
 							log::info!("identity {:?} removed", &m.0);
 						}
 						else if current_module_set.contains(&m) {
@@ -188,7 +188,7 @@ impl Server {
 		}
 
 		for m in current_module_set {
-			self.id_manager.create_identity(&m.0).await?;
+			self.hub_id_manager.create_identity(&m.0).await?;
 			log::info!("identity {:?} added", &m.0);
 		}
 
@@ -208,7 +208,7 @@ impl Server {
 					}
 				};
 				let device = aziot_identity_common::IoTHubDevice { iothub_hostname, device_id, credentials };
-				self.id_manager.set_device(&device);
+				self.hub_id_manager.set_device(&device);
 				device
 			},
 			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation} => {
@@ -282,7 +282,7 @@ impl Server {
 							Err(err) => return Err(Error::DPSClient(err))
 						};
 
-						self.id_manager.set_device(&device);
+						self.hub_id_manager.set_device(&device);
 						device
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
@@ -355,7 +355,7 @@ impl Server {
 							Err(_) => return Err(Error::DeviceNotFound)
 						};
 
-						self.id_manager.set_device(&device);
+						self.hub_id_manager.set_device(&device);
 						device
 					}
 				};
