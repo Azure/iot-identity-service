@@ -203,7 +203,6 @@ impl Server {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => { 
-						
 						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
