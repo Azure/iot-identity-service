@@ -21,6 +21,7 @@ mod logging;
 pub mod settings;
 
 pub use error::{Error, InternalError};
+use identity::IdentityManager;
 
 /// This is the interval at which to poll DPS for registration assignment status
 const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
@@ -98,7 +99,7 @@ impl Server {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_module_identity(module_id).await
+		self.id_manager.get_identity(module_id).await
 	}
 
 	pub async fn get_identities(&self, auth_id: auth::AuthId, id_type: &str) -> Result<Vec<aziot_identity_common::Identity>, Error> {
@@ -108,7 +109,7 @@ impl Server {
 		}
 
 		if id_type.eq("aziot") {
-			self.id_manager.get_module_identities().await
+			self.id_manager.get_all_identities().await
 		}
 		else {
 			Err(Error::invalid_parameter("id_type", "invalid id_type"))
@@ -131,7 +132,7 @@ impl Server {
 		}
 
 		//TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-		self.id_manager.create_module_identity(module_id).await
+		self.id_manager.create_identity(module_id).await
 	}
 
 	pub async fn delete_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<(), Error> {
@@ -141,7 +142,7 @@ impl Server {
 		}
 
 		//TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-		self.id_manager.delete_module_identity(module_id).await
+		self.id_manager.delete_identity(module_id).await
 	}
 
 	pub async fn get_trust_bundle(&self, auth_id: auth::AuthId) -> Result<aziot_cert_common_http::Pem, Error> {
@@ -165,13 +166,13 @@ impl Server {
 	}
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
-		let hub_module_ids = self.id_manager.get_module_identities().await?;
+		let hub_module_ids = self.id_manager.get_all_identities().await?;
 		for m in hub_module_ids {
 			match m {
 				aziot_identity_common::Identity::Aziot(m) => {
 					if let Some(m) = m.module_id {
 						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-							self.id_manager.delete_module_identity(&m.0).await?;
+							self.id_manager.delete_identity(&m.0).await?;
 							log::info!("identity {:?} removed", &m.0);
 						}
 						else if current_module_set.contains(&m) {
@@ -187,7 +188,7 @@ impl Server {
 		}
 
 		for m in current_module_set {
-			self.id_manager.create_module_identity(&m.0).await?;
+			self.id_manager.create_identity(&m.0).await?;
 			log::info!("identity {:?} added", &m.0);
 		}
 

@@ -6,6 +6,14 @@ const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
 	&http_common::PATH_SEGMENT_ENCODE_SET
 	.add(b'=');
 
+#[async_trait::async_trait]
+pub trait IdentityManager {
+	async fn create_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error>;
+	async fn get_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error>;
+	async fn get_all_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error>;
+	async fn delete_identity(&self, module_id: &str) -> Result<(), Error>;
+}
+
 pub struct HubIdentityManager {
 	locks: std::sync::Mutex<std::collections::BTreeMap<String, std::sync::Arc<std::sync::Mutex<()>>>>,
 	key_client: std::sync::Arc<aziot_key_client_async::Client>,
@@ -14,27 +22,9 @@ pub struct HubIdentityManager {
 	iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
 }
 
-impl HubIdentityManager {
-	pub fn new(
-		key_client: std::sync::Arc<aziot_key_client_async::Client>,
-		key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
-		cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
-		iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
-	) -> Self {
-		HubIdentityManager {
-			locks: Default::default(),
-			key_client,
-			key_engine,
-			cert_client,
-			iot_hub_device, //set by Server over futures channel
-		}
-	}
-
-	pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
-		self.iot_hub_device = Some(device.clone());
-	}
-
-	pub async fn create_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
+#[async_trait::async_trait]
+impl IdentityManager for HubIdentityManager {
+	async fn create_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
@@ -82,23 +72,7 @@ impl HubIdentityManager {
 		}
 	}
 
-	pub async fn get_device_identity(&self) -> Result<aziot_identity_common::Identity, Error> {
-		match &self.iot_hub_device {
-			Some(device) => Ok(aziot_identity_common::Identity::Aziot(
-				aziot_identity_common::AzureIoTSpec {
-					hub_name: device.iothub_hostname.clone(),
-					device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
-					module_id: None,
-					gen_id: None,
-					auth: Some(aziot_identity_common::AuthenticationInfo::from(device.credentials.clone())),
-					}
-			)),
-			None => Err(Error::DeviceNotFound)
-		}
-
-	}
-
-	pub async fn get_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
+	async fn get_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
@@ -134,7 +108,7 @@ impl HubIdentityManager {
 		}
 	}
 
-	pub async fn get_module_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error> {
+	async fn get_all_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error> {
 		match &self.iot_hub_device {
 			Some(device) => {
 				let client =
@@ -162,7 +136,7 @@ impl HubIdentityManager {
 		}
 	}
 
-	pub async fn delete_module_identity(&self, module_id: &str) -> Result<(), Error> {
+	async fn delete_identity(&self, module_id: &str) -> Result<(), Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
@@ -178,6 +152,42 @@ impl HubIdentityManager {
 					);
 				client.delete_module(&*module_id).await.map_err(Error::HubClient)
 			},
+			None => Err(Error::DeviceNotFound)
+		}
+	}
+}
+
+impl HubIdentityManager {
+	pub fn new(
+		key_client: std::sync::Arc<aziot_key_client_async::Client>,
+		key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+		cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+		iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+	) -> Self {
+		HubIdentityManager {
+			locks: Default::default(),
+			key_client,
+			key_engine,
+			cert_client,
+			iot_hub_device, //set by Server over futures channel
+		}
+	}
+
+	pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
+		self.iot_hub_device = Some(device.clone());
+	}
+
+	pub async fn get_device_identity(&self) -> Result<aziot_identity_common::Identity, Error> {
+		match &self.iot_hub_device {
+			Some(device) => Ok(aziot_identity_common::Identity::Aziot(
+				aziot_identity_common::AzureIoTSpec {
+					hub_name: device.iothub_hostname.clone(),
+					device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
+					module_id: None,
+					gen_id: None,
+					auth: Some(aziot_identity_common::AuthenticationInfo::from(device.credentials.clone())),
+					}
+			)),
 			None => Err(Error::DeviceNotFound)
 		}
 	}
