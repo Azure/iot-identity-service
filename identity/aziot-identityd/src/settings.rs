@@ -52,7 +52,7 @@ pub struct Principal {
 
     pub name: aziot_identity_common::ModuleId,
     #[serde(rename = "idtype")]
-    pub id_type: Option<aziot_identity_common::IdType>,
+    pub id_type: Option<Vec<aziot_identity_common::IdType>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -189,11 +189,11 @@ mod tests {
         match s.provisioning.provisioning {
             ProvisioningType::Manual { iothub_hostname:_, device_id:_, authentication } => {
                 match authentication {
-                    ManualAuthMethod::SharedPrivateKey { 
+                    ManualAuthMethod::SharedPrivateKey {
                         device_id_pk: _,
                      } => {},
                     _ => panic!("incorrect provisioning type selected"),
-                     
+
                 }
             },
             _ => panic!("incorrect provisioning type selected"),
@@ -213,7 +213,7 @@ mod tests {
                 match attestation {
                     DpsAttestationMethod::SymmetricKey {
                         registration_id: _,
-                        symmetric_key: _,     
+                        symmetric_key: _,
                     } => (),
                     _ => panic!("incorrect provisioning type selected"),
                 }
