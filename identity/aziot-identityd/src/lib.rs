@@ -203,6 +203,7 @@ impl Server {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => { 
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
 				};
@@ -285,6 +286,8 @@ impl Server {
 						device
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id).await?;
+
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
 							aziot_dps_client_async::register(
@@ -363,6 +366,82 @@ impl Server {
 		};
 		Ok(device)
 	}
+
+	async fn create_identity_cert_if_not_exist_or_expired(
+		&self,
+		identity_pk: &str,
+		identity_cert: &str,
+		subject: &str,
+	) -> Result<(), Error> {
+		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
+		let create_cert = match device_id_cert {
+			Ok(device_id_cert) => { 
+				let x509_req = openssl::x509::X509::from_pem(&device_id_cert).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				let cert_expiration = x509_req.as_ref().not_after();
+				let current_time = openssl::asn1::Asn1Time::days_from_now(0)
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				let expiration_time = current_time.diff(cert_expiration)
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				expiration_time.days < 1
+			},
+			Err(_) => {
+				true
+			}
+		};
+
+		if create_cert {
+			let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						
+			let csr = {
+				let mut key_engine = self.key_engine.lock().await;
+		
+				let (identity_public_key, identity_private_key) = {
+					let identity_pk = std::ffi::CString::new(identity_pk_key_handle.0.clone())
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+					let identity_public_key = key_engine.load_public_key(&identity_pk)
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+					let identity_private_key = key_engine.load_private_key(&identity_pk)
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+		
+					(identity_public_key, identity_private_key)
+				};
+		
+				let csr = create_csr(
+					&subject, 
+					&identity_public_key, 
+					&identity_private_key)
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				csr
+			};
+		
+			let _new_cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
+				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))));
+		}
+		
+		Ok(())
+	}
+}
+
+fn create_csr(
+	subject: &str,
+	public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
+	private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+) -> Result<Vec<u8>, openssl::error::ErrorStack> {
+	let mut csr = openssl::x509::X509Req::builder()?;
+
+	csr.set_version(0)?;
+
+	let mut subject_name = openssl::x509::X509Name::builder()?;
+	subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
+	let subject_name = subject_name.build();
+	csr.set_subject_name(&subject_name)?;
+	csr.set_pubkey(public_key)?;
+	csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
+
+	let csr = csr.build();
+	let csr = csr.to_pem()?;
+	Ok(csr)
 }
 
 pub struct SettingsAuthorizer {

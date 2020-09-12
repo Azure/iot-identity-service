@@ -51,6 +51,7 @@ impl std::error::Error for Error {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
+    CreateCertificate(Box<dyn std::error::Error + Send + Sync>),
     CreateHomeDir(std::io::Error),
     InvalidUri(http::uri::InvalidUri),
     LoadKeyOpenslEngine(openssl2::Error),
@@ -66,6 +67,7 @@ pub enum InternalError {
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
             InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
             InternalError::InvalidUri(_) => f.write_str("invalid resource uri"),
             InternalError::LoadKeyOpenslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
@@ -84,6 +86,7 @@ impl std::error::Error for InternalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 		#[allow(clippy::match_same_arms)]
         match self {
+            InternalError::CreateCertificate(err) => Some(&**err),
             InternalError::CreateHomeDir(err) => Some(err),
             InternalError::InvalidUri(err) => Some(err),
             InternalError::LoadKeyOpenslEngine(err) => Some(err),
