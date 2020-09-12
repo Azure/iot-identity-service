@@ -12,12 +12,14 @@ pub enum Stream {
 	Unix(std::os::unix::net::UnixStream),
 }
 
+#[cfg(feature = "tokio02")]
 #[derive(Debug)]
 pub enum AsyncStream {
 	Http(tokio::net::TcpStream),
 	Unix(tokio::net::UnixStream),
 }
 
+#[cfg(feature = "tokio02")]
 #[derive(Debug)]
 pub enum Incoming {
 	Http(tokio::net::TcpListener),
@@ -62,6 +64,7 @@ impl Connector {
 		}
 	}
 
+	#[cfg(feature = "tokio02")]
 	pub async fn incoming(self) -> std::io::Result<Incoming> {
 		match self {
 			Connector::Http { host, port } => {
@@ -83,6 +86,7 @@ impl Connector {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 impl hyper::server::accept::Accept for Incoming {
 	type Conn = AsyncStream;
 	type Error = std::io::Error;
@@ -127,6 +131,7 @@ impl hyper::server::accept::Accept for Incoming {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 impl hyper::service::Service<hyper::Uri> for Connector {
 	type Response = AsyncStream;
 	type Error = std::io::Error;
@@ -246,6 +251,7 @@ impl std::io::Write for Stream {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 impl tokio::io::AsyncRead for AsyncStream {
 	fn poll_read(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut [u8]) -> std::task::Poll<std::io::Result<usize>> {
 		match &mut *self {
@@ -262,6 +268,7 @@ impl tokio::io::AsyncRead for AsyncStream {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 impl tokio::io::AsyncWrite for AsyncStream {
 	fn poll_write(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &[u8]) -> std::task::Poll<std::io::Result<usize>> {
 		match &mut *self {
@@ -285,6 +292,7 @@ impl tokio::io::AsyncWrite for AsyncStream {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 impl hyper::client::connect::Connection for AsyncStream {
 	fn connected(&self) -> hyper::client::connect::Connected {
 		match self {

@@ -280,6 +280,7 @@ pub struct Error {
 	pub message: std::borrow::Cow<'static, str>,
 }
 
+#[cfg(feature = "tokio02")]
 impl Error {
 	pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
 		let body = crate::ErrorBody {
@@ -290,6 +291,7 @@ impl Error {
 	}
 }
 
+#[cfg(feature = "tokio02")]
 pub fn json_response(status_code: hyper::StatusCode, body: Option<&impl serde::Serialize>) -> hyper::Response<hyper::Body> {
 	if let Some(body) = body {
 		let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
