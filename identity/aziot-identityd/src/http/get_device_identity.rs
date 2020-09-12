@@ -1,59 +1,65 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub(super) fn handle(
-    req: hyper::Request<hyper::Body>,
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-    Box::pin(async move {
-        if req.uri().path() != "/identities/device" {
-            return Err(req);
-        }
+pub(super) struct Route {
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
+}
 
-        let mut inner = inner.lock().await;
-		let inner = &mut *inner;
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_identity_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_identity_common_http::ApiVersion::V2020_09_01)..(aziot_identity_common_http::ApiVersion::Max)
+	}
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
-            Ok(auth_id) => auth_id,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		if path != "/identities/device" {
+			return None;
+		}
 
-        let (http::request::Parts { method, .. }, body) = req.into_parts();
+		Some(Route {
+			inner: server.inner.clone(),
+		})
+	}
 
-        if method != hyper::Method::POST {
-            return Ok(super::err_response(
-                hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "POST")),
-                "method not allowed".into(),
-            ));
-        }
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
 
-        let body = match hyper::body::to_bytes(body).await {
-            Ok(body) => body,
-            Err(err) => return Ok(super::err_response(
-                hyper::StatusCode::BAD_REQUEST,
-                None,
-                super::error_to_message(&err).into(),
-            )),
-        };
+	type GetResponse = ();
 
-        let body: aziot_identity_common_http::get_device_identity::Request = match serde_json::from_slice(&body) {
-            Ok(body) => body,
-            Err(err) => return Ok(super::err_response(
-                hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                None,
-                super::error_to_message(&err).into(),
-            )),
-        };
+	type PostBody = aziot_identity_common_http::get_device_identity::Request;
+	type PostResponse = aziot_identity_common_http::get_device_identity::Response;
+	fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+		Box::pin(async move {
+			let body = body.ok_or_else(|| http_common::server::Error {
+				status_code: http::StatusCode::BAD_REQUEST,
+				message: "missing request body".into(),
+			})?;
 
-        //TODO: get uid from UDS
-        let response = match inner.get_device_identity(auth_id, &body.id_type).await {
-            Ok(v) => v,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
-        let response = aziot_identity_common_http::get_device_identity::Response { identity: response };
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
 
-        let response = super::json_response(hyper::StatusCode::OK, &response);
-        Ok(response)
-    })
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			//TODO: get uid from UDS
+			let identity = match inner.get_device_identity(auth_id, &body.id_type).await {
+				Ok(v) => v,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+			let res = aziot_identity_common_http::get_device_identity::Response {
+				identity,
+			};
+			Ok((hyper::StatusCode::OK, Some(res)))
+		})
+	}
+
+	type PutBody = serde::de::IgnoredAny;
+	type PutResponse = ();
 }

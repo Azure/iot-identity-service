@@ -12,13 +12,15 @@
 
 #[derive(Debug)]
 pub struct Client {
+	api_version: aziot_key_common_http::ApiVersion,
 	inner: hyper::Client<http_common::Connector, hyper::Body>,
 }
 
 impl Client {
-	pub fn new(connector: http_common::Connector) -> Self {
+	pub fn new(api_version: aziot_key_common_http::ApiVersion, connector: http_common::Connector) -> Self {
 		let inner = hyper::Client::builder().build(connector);
 		Client {
+			api_version,
 			inner,
 		}
 	}
@@ -36,7 +38,7 @@ impl Client {
 		let res: aziot_key_common_http::create_key_pair_if_not_exists::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/keypair",
+			&format!("http://foo/keypair?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		Ok(res.handle)
@@ -46,12 +48,14 @@ impl Client {
 		&self,
 		id: &str,
 	) -> std::io::Result<aziot_key_common::KeyHandle> {
-		let uri = format!("/keypair/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let res: aziot_key_common_http::load::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
-			&uri,
+			&format!(
+				"http://foo/keypair/{}?api-version={}",
+				percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			None,
 		).await?;
 		Ok(res.handle)
@@ -62,8 +66,6 @@ impl Client {
 		handle: &aziot_key_common::KeyHandle,
 		parameter_name: &str,
 	) -> std::io::Result<String> {
-		let uri = format!("/parameters/{}", percent_encoding::percent_encode(parameter_name.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let body = aziot_key_common_http::get_key_pair_public_parameter::Request {
 			key_handle: handle.clone(),
 		};
@@ -71,7 +73,11 @@ impl Client {
 		let res: aziot_key_common_http::get_key_pair_public_parameter::Response = request(
 			&self.inner,
 			http::Method::POST,
-			&uri,
+			&format!(
+				"http://foo/parameters/{}?api-version={}",
+				percent_encoding::percent_encode(parameter_name.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			Some(&body),
 		).await?;
 		Ok(res.value)
@@ -98,7 +104,7 @@ impl Client {
 		let res: aziot_key_common_http::create_key_if_not_exists::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/key",
+			&format!("http://foo/key?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		Ok(res.handle)
@@ -108,12 +114,14 @@ impl Client {
 		&self,
 		id: &str,
 	) -> std::io::Result<aziot_key_common::KeyHandle> {
-		let uri = format!("/key/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let res: aziot_key_common_http::load::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
-			&uri,
+			&format!(
+				"http://foo/key/{}?api-version={}",
+				percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			None,
 		).await?;
 		Ok(res.handle)
@@ -132,7 +140,7 @@ impl Client {
 		let res: aziot_key_common_http::create_derived_key::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/derivedkey",
+			&format!("http://foo/derivedkey?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		Ok(res.handle)
@@ -149,7 +157,7 @@ impl Client {
 		let res: aziot_key_common_http::export_derived_key::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/derivedkey/export",
+			&format!("http://foo/derivedkey/export?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		Ok(res.key.0)
@@ -177,7 +185,7 @@ impl Client {
 		let res: aziot_key_common_http::sign::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/sign",
+			&format!("http://foo/sign?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		let signature = res.signature.0;
@@ -208,7 +216,7 @@ impl Client {
 		let res: aziot_key_common_http::encrypt::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/encrypt",
+			&format!("http://foo/encrypt?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		let ciphertext = res.ciphertext.0;
@@ -239,7 +247,7 @@ impl Client {
 		let res: aziot_key_common_http::decrypt::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/decrypt",
+			&format!("http://foo/decrypt?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		let plaintext = res.plaintext.0;
@@ -257,8 +265,6 @@ where
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
-	let uri = format!("http://foo{}", uri);
-
 	let req =
 		hyper::Request::builder()
 		.method(method)
@@ -302,7 +308,7 @@ where
 		},
 
 		res_status_code if res_status_code.is_client_error() || res_status_code.is_server_error() => {
-			let res: aziot_key_common_http::Error = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			let res: http_common::ErrorBody<'static> = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
 		},
 

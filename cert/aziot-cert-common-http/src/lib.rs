@@ -3,6 +3,32 @@
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ApiVersion {
+	V2020_09_01,
+	Max,
+}
+
+impl std::fmt::Display for ApiVersion {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(match self {
+			ApiVersion::V2020_09_01 => "2020-09-01",
+			ApiVersion::Max => "MAX",
+		})
+	}
+}
+
+impl std::str::FromStr for ApiVersion {
+	type Err = ();
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"2020-09-01" => Ok(ApiVersion::V2020_09_01),
+			_ => Err(()),
+		}
+	}
+}
+
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pem(pub Vec<u8>);
 
@@ -35,11 +61,6 @@ impl serde::Serialize for Pem {
 		let s = std::str::from_utf8(&self.0).map_err(serde::ser::Error::custom)?;
 		s.serialize(serializer)
 	}
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Error {
-	pub message: std::borrow::Cow<'static, str>,
 }
 
 pub mod create_cert {

@@ -1,47 +1,61 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[allow(clippy::needless_pass_by_value)] // TODO: Remove when the stub is filled out and `inner` actually gets used.
-pub(super) fn handle(
-    req: hyper::Request<hyper::Body>,
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-    Box::pin(async move {
-        if req.uri().path() != "/trust-bundle" {
-            return Err(req);
-        }
+pub(super) struct Route {
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
+}
 
-        let mut inner = inner.lock().await;
-		let inner = &mut *inner;
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_identity_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_identity_common_http::ApiVersion::V2020_09_01)..(aziot_identity_common_http::ApiVersion::Max)
+	}
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
-            Ok(auth_id) => auth_id,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		if path != "/trust-bundle" {
+			return None;
+		}
 
-        let (http::request::Parts { method, .. }, _body) = req.into_parts();
+		Some(Route {
+			inner: server.inner.clone(),
+		})
+	}
 
-        if method != hyper::Method::GET {
-            return Ok(super::err_response(
-                hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "GET")),
-                "method not allowed".into(),
-            ));
-        }
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
 
-        //TODO: get uid from UDS
-        let response = match inner.get_trust_bundle(auth_id).await {
-            Ok(v) => v,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
+	type GetResponse = aziot_identity_common_http::get_trust_bundle::Response;
+	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
 
-        let response = aziot_identity_common_http::get_trust_bundle::Response {
-            certificate: response
-        };
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
 
-        let response = super::json_response(hyper::StatusCode::OK, &response);
-        Ok(response)
+			//TODO: get uid from UDS
+			let certificate = match inner.get_trust_bundle(auth_id).await {
+				Ok(v) => v,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
 
-        }
-    )
+			let res = aziot_identity_common_http::get_trust_bundle::Response {
+				certificate,
+			};
+			Ok((hyper::StatusCode::OK, res))
+		})
+	}
+
+	type PostBody = serde::de::IgnoredAny;
+	type PostResponse = ();
+
+	type PutBody = serde::de::IgnoredAny;
+	type PutResponse = ();
 }

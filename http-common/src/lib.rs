@@ -3,14 +3,19 @@
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(
+	clippy::default_trait_access,
+	clippy::let_and_return,
 	clippy::missing_errors_doc,
 	clippy::module_name_repetitions,
+	clippy::must_use_candidate,
 	clippy::similar_names,
 	clippy::type_complexity,
 )]
 
 mod connector;
-pub use connector::{ AsyncStream, Connector, ConnectorError, Stream };
+pub use connector::{AsyncStream, Connector, ConnectorError, Stream};
+
+pub mod server;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
 pub const PATH_SEGMENT_ENCODE_SET: &percent_encoding::AsciiSet =
@@ -46,4 +51,9 @@ impl serde::Serialize for ByteString {
 	fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> where S: serde::Serializer {
 		base64::encode_config(&self.0, base64::STANDARD).serialize(serializer)
 	}
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ErrorBody<'a> {
+	pub message: std::borrow::Cow<'a, str>,
 }

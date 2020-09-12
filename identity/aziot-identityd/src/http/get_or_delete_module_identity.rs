@@ -6,74 +6,84 @@ lazy_static::lazy_static! {
 		.expect("hard-coded regex must compile");
 }
 
-pub(super) fn handle(
-    req: hyper::Request<hyper::Body>,
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-    Box::pin(async move {
+pub(super) struct Route {
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
+	module_id: String,
+}
 
-        let captures = match URI_REGEX.captures(req.uri().path()) {
-            Some(captures) => captures,
-            None => return Err(req),
-        };
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_identity_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_identity_common_http::ApiVersion::V2020_09_01)..(aziot_identity_common_http::ApiVersion::Max)
+	}
 
-        let mut inner = inner.lock().await;
-		let inner = &mut *inner;
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		let captures = URI_REGEX.captures(path)?;
 
-        let module_id = &captures["moduleId"];
-        let module_id = percent_encoding::percent_decode_str(module_id).decode_utf8();
-        let module_id = match module_id {
-            Ok(module_id) => module_id.into_owned(),
-            Err(err) => return Ok(super::err_response(
-                hyper::StatusCode::BAD_REQUEST,
-                None,
-                super::error_to_message(&err).into(),
-            )),
-        };
+		let module_id = &captures["moduleId"];
+		let module_id = percent_encoding::percent_decode_str(module_id).decode_utf8().ok()?;
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
-            Ok(auth_id) => auth_id,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
+		Some(Route {
+			inner: server.inner.clone(),
+			module_id: module_id.into_owned(),
+		})
+	}
 
-        let (http::request::Parts { method, .. }, ..) = req.into_parts();
-        
-        match method {
-            hyper::Method::GET => {
-                //TODO: get uid from UDS
-                let response = match inner.get_identity(auth_id, "aziot", &module_id).await {
-                    Ok(v) => v,
-                    Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-                };
-                let response = aziot_identity_common_http::get_module_identity::Response { identity: response };
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
+	fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
 
-                let response = super::json_response(hyper::StatusCode::OK, &response);
-                Ok(response)
-            },
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
 
-            hyper::Method::DELETE => {
-                //TODO: get uid from UDS
-                match inner.delete_identity(auth_id, "aziot", &module_id).await {
-                    Ok(()) => (),
-                    Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-                };
-        
-                let response =
-                    hyper::Response::builder()
-                        .status(hyper::StatusCode::NO_CONTENT)
-                        .body(hyper::body::Body::default())
-                        .expect("cannot fail to serialize hyper response");
-                Ok(response)
-            },
+			//TODO: get uid from UDS
+			match inner.delete_identity(auth_id, "aziot", &self.module_id).await {
+				Ok(()) => (),
+				Err(err) => return Err(super::to_http_error(&err)),
+			}
 
-            _ => Ok(super::err_response(
-                hyper::StatusCode::METHOD_NOT_ALLOWED,
-                Some((hyper::header::ALLOW, "GET, DELETE")),
-                "method not allowed".into(),
-            )),
-        }
+			Ok((hyper::StatusCode::NO_CONTENT, None))
+		})
+	}
 
-    
-    })
+	type GetResponse = aziot_identity_common_http::get_module_identity::Response;
+	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
+
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			//TODO: get uid from UDS
+			let identity = match inner.get_identity(auth_id, "aziot", &self.module_id).await {
+				Ok(v) => v,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+			let res = aziot_identity_common_http::get_module_identity::Response {
+				identity,
+			};
+			Ok((hyper::StatusCode::OK, res))
+		})
+	}
+
+	type PostBody = serde::de::IgnoredAny;
+	type PostResponse = ();
+
+	type PutBody = serde::de::IgnoredAny;
+	type PutResponse = ();
 }

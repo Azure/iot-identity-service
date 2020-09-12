@@ -6,75 +6,58 @@ lazy_static::lazy_static! {
 		.expect("hard-coded regex must compile");
 }
 
-pub(super) fn handle(
-	req: hyper::Request<hyper::Body>,
+pub(super) struct Route {
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-	Box::pin(async move {
-		let captures = match URI_REGEX.captures(req.uri().path()) {
-			Some(captures) => captures,
-			None => return Err(req),
-		};
+	cert_id: String,
+}
+
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_cert_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_cert_common_http::ApiVersion::V2020_09_01)..(aziot_cert_common_http::ApiVersion::Max)
+	}
+
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		let captures = URI_REGEX.captures(path)?;
 
 		let cert_id = &captures["certId"];
-		let cert_id = percent_encoding::percent_decode_str(cert_id).decode_utf8();
-		let cert_id = match cert_id {
-			Ok(cert_id) => cert_id.into_owned(),
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::BAD_REQUEST,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
+		let cert_id = percent_encoding::percent_decode_str(cert_id).decode_utf8().ok()?;
 
-		let (http::request::Parts { method, headers, .. }, body) = req.into_parts();
-		let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+		Some(Route {
+			inner: server.inner.clone(),
+			cert_id: cert_id.into_owned(),
+		})
+	}
 
-		if method != hyper::Method::PUT {
-			return Ok(super::err_response(
-				hyper::StatusCode::METHOD_NOT_ALLOWED,
-				Some((hyper::header::ALLOW, "PUT")),
-				"method not allowed".into(),
-			));
-		}
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
 
-		if content_type.as_deref() != Some("application/json") {
-			return Ok(super::err_response(
-				hyper::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-				None,
-				"request body must be application/json".into(),
-			));
-		}
+	type GetResponse = ();
 
-		let body = match hyper::body::to_bytes(body).await {
-			Ok(body) => body,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::BAD_REQUEST,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
-		let body: aziot_cert_common_http::import_cert::Request = match serde_json::from_slice(&body) {
-			Ok(body) => body,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
+	type PostBody = serde::de::IgnoredAny;
+	type PostResponse = ();
 
-		let mut inner = inner.lock().await;
-		let inner = &mut *inner;
+	type PutBody = aziot_cert_common_http::import_cert::Request;
+	type PutResponse = aziot_cert_common_http::import_cert::Response;
+	fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
 
-		match inner.import_cert(&cert_id, &body.pem.0) {
-			Ok(()) => (),
-			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-		};
+			match inner.import_cert(&self.cert_id, &body.pem.0) {
+				Ok(()) => (),
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
 
-		let res = aziot_cert_common_http::import_cert::Response {
-			pem: body.pem,
-		};
-		let res = super::json_response(hyper::StatusCode::CREATED, &res);
-		Ok(res)
-	})
+			let res = aziot_cert_common_http::import_cert::Response {
+				pem: body.pem,
+			};
+			Ok((hyper::StatusCode::CREATED, res))
+		})
+	}
 }

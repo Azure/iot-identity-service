@@ -89,6 +89,7 @@ dependencies = [
  "aziot-cert-common-http",
  "aziot-key-client",
  "aziot-key-common",
+ "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "backtrace",
  "base64",
@@ -203,6 +204,7 @@ dependencies = [
  "aziot-key-client",
  "aziot-key-client-async",
  "aziot-key-common",
+ "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "base64",
  "chrono",
@@ -308,6 +310,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml",
+ "url",
 ]
 
 [[package]]
@@ -691,6 +694,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "futures-util",
+ "http",
  "hyper",
  "percent-encoding",
  "serde",
@@ -794,9 +798,11 @@ name = "iotedged"
 version = "0.1.0"
 dependencies = [
  "aziot-cert-client-async",
+ "aziot-cert-common-http",
  "aziot-key-client",
  "aziot-key-client-async",
  "aziot-key-common",
+ "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "base64",
  "chrono",

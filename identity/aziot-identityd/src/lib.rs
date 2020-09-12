@@ -48,13 +48,13 @@ impl Server {
 		let key_service_connector = settings.endpoints.aziot_keyd.clone();
 
 		let key_client = {
-			let key_client = aziot_key_client_async::Client::new(key_service_connector.clone());
+			let key_client = aziot_key_client_async::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_service_connector.clone());
 			let key_client = std::sync::Arc::new(key_client);
 			key_client
 		};
 
 		let key_engine = {
-			let key_client = aziot_key_client::Client::new(key_service_connector);
+			let key_client = aziot_key_client::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_service_connector);
 			let key_client = std::sync::Arc::new(key_client);
 			let key_engine =
 				aziot_key_openssl_engine::load(key_client)
@@ -65,7 +65,7 @@ impl Server {
 
 		let cert_client = {
 			let cert_service_connector = settings.endpoints.aziot_certd.clone();
-			let cert_client = aziot_cert_client_async::Client::new(cert_service_connector);
+			let cert_client = aziot_cert_client_async::Client::new(aziot_cert_common_http::ApiVersion::V2020_09_01, cert_service_connector);
 			let cert_client = std::sync::Arc::new(cert_client);
 			cert_client
 		};

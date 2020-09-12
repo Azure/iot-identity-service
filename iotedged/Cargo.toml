@@ -21,9 +21,11 @@ url = "2"
 
 http-common = { path = "../http-common" }
 aziot-cert-client-async = { path = "../cert/aziot-cert-client-async" }
+aziot-cert-common-http = { path = "../cert/aziot-cert-common-http" }
 aziot-key-client = { path = "../key/aziot-key-client" }
 aziot-key-client-async = { path = "../key/aziot-key-client-async" }
 aziot-key-common = { path = "../key/aziot-key-common" }
+aziot-key-common-http = { path = "../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../key/aziot-key-openssl-engine" }
 openssl2 = { path = "../openssl2" }
 openssl-sys2 = { path = "../openssl-sys2" }

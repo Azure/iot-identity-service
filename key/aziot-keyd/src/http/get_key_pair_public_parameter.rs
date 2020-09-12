@@ -6,75 +6,63 @@ lazy_static::lazy_static! {
 		.expect("hard-coded regex must compile");
 }
 
-pub(super) fn handle(
-	req: hyper::Request<hyper::Body>,
+pub(super) struct Route {
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-	Box::pin(async move {
-		let captures = match URI_REGEX.captures(req.uri().path()) {
-			Some(captures) => captures,
-			None => return Err(req),
-		};
+	parameter_name: String,
+}
+
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_key_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_key_common_http::ApiVersion::V2020_09_01)..(aziot_key_common_http::ApiVersion::Max)
+	}
+
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		let captures = URI_REGEX.captures(path)?;
 
 		let parameter_name = &captures["parameterName"];
-		let parameter_name = percent_encoding::percent_decode_str(parameter_name).decode_utf8();
-		let parameter_name = match parameter_name {
-			Ok(parameter_name) => parameter_name.into_owned(),
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::BAD_REQUEST,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
+		let parameter_name = percent_encoding::percent_decode_str(parameter_name).decode_utf8().ok()?;
 
-		let (http::request::Parts { method, headers, .. }, body) = req.into_parts();
-		let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+		Some(Route {
+			inner: server.inner.clone(),
+			parameter_name: parameter_name.into_owned(),
+		})
+	}
 
-		if method != hyper::Method::POST {
-			return Ok(super::err_response(
-				hyper::StatusCode::METHOD_NOT_ALLOWED,
-				Some((hyper::header::ALLOW, "POST")),
-				"method not allowed".into(),
-			));
-		}
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
 
-		if content_type.as_deref() != Some("application/json") {
-			return Ok(super::err_response(
-				hyper::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-				None,
-				"request body must be application/json".into(),
-			));
-		}
+	type GetResponse = ();
 
-		let body = match hyper::body::to_bytes(body).await {
-			Ok(body) => body,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::BAD_REQUEST,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
-		let body: aziot_key_common_http::get_key_pair_public_parameter::Request = match serde_json::from_slice(&body) {
-			Ok(body) => body,
-			Err(err) => return Ok(super::err_response(
-				hyper::StatusCode::UNPROCESSABLE_ENTITY,
-				None,
-				super::error_to_message(&err).into(),
-			)),
-		};
+	type PostBody = aziot_key_common_http::get_key_pair_public_parameter::Request;
+	type PostResponse = aziot_key_common_http::get_key_pair_public_parameter::Response;
+	fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+		Box::pin(async move {
+			let body = body.ok_or_else(|| http_common::server::Error {
+				status_code: http::StatusCode::BAD_REQUEST,
+				message: "missing request body".into(),
+			})?;
 
-		let mut inner = inner.lock().await;
-		let inner = &mut *inner;
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
 
-		let parameter_value = match inner.get_key_pair_public_parameter(&body.key_handle, &parameter_name) {
-			Ok(parameter_value) => parameter_value,
-			Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-		};
+			let parameter_value = match inner.get_key_pair_public_parameter(&body.key_handle, &self.parameter_name) {
+				Ok(parameter_value) => parameter_value,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
 
-		let res = aziot_key_common_http::get_key_pair_public_parameter::Response {
-			value: parameter_value,
-		};
-		let res = super::json_response(hyper::StatusCode::OK, &res);
-		Ok(res)
-	})
+			let res = aziot_key_common_http::get_key_pair_public_parameter::Response {
+				value: parameter_value,
+			};
+			Ok((hyper::StatusCode::OK, Some(res)))
+		})
+	}
+
+	type PutBody = serde::de::IgnoredAny;
+	type PutResponse = ();
 }

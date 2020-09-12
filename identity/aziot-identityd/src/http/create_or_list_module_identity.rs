@@ -1,85 +1,88 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub(super) fn handle(
-    req: hyper::Request<hyper::Body>,
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, hyper::Request<hyper::Body>>> + Send>> {
-    Box::pin(async move {
-        if req.uri().path() != "/identities/modules" {
-            return Err(req);
-        }
-        
-        let mut inner = inner.lock().await;
-        let inner = &mut *inner;
+pub(super) struct Route {
+	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
+}
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
-            Ok(auth_id) => auth_id,
-            Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-        };
+impl http_common::server::Route for Route {
+	type ApiVersion = aziot_identity_common_http::ApiVersion;
+	fn api_version() -> std::ops::Range<Self::ApiVersion> {
+		(aziot_identity_common_http::ApiVersion::V2020_09_01)..(aziot_identity_common_http::ApiVersion::Max)
+	}
 
-        let (http::request::Parts { method, headers, .. }, body) = req.into_parts();
-        let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+	type Server = super::Server;
+	fn from_uri(
+		server: &Self::Server,
+		path: &str,
+		_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+	) -> Option<Self> {
+		if path != "/identities/modules" {
+			return None;
+		}
 
-        match method {
-            hyper::Method::GET => {
-                //TODO: get uid from UDS
-                let response = match inner.get_identities(auth_id, "aziot").await {
-                    Ok(v) => v,
-                    Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-                };
-                let response = aziot_identity_common_http::get_module_identities::Response { identities: response };
-        
-                let response = super::json_response(hyper::StatusCode::OK, &response);
-                Ok(response)
-            },
-            hyper::Method::POST => {
-                if content_type.as_deref() != Some("application/json") {
-                    return Ok(super::err_response(
-                        hyper::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                        None,
-                        "request body must be application/json".into(),
-                    ));
-                }
-        
-                let body = match hyper::body::to_bytes(body).await {
-                    Ok(body) => body,
-                    Err(err) => return Ok(super::err_response(
-                        hyper::StatusCode::BAD_REQUEST,
-                        None,
-                        super::error_to_message(&err).into(),
-                    )),
-                };
-        
-                let body: aziot_identity_common_http::create_module_identity::Request = match serde_json::from_slice(&body) {
-                    Ok(body) => body,
-                    Err(err) => return Ok(super::err_response(
-                        hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                        None,
-                        super::error_to_message(&err).into(),
-                    )),
-                };
-        
-                //TODO: get uid from UDS
-                let id = match inner.create_identity(auth_id, &body.id_type, &body.module_id).await {
-                    Ok(id) => id,
-                    Err(err) => return Ok(super::ToHttpResponse::to_http_response(&err)),
-                };
-        
-                let response = aziot_identity_common_http::create_module_identity::Response {
-                    identity: id
-                };
-        
-                let response = super::json_response(hyper::StatusCode::OK, &response);
-                Ok(response)
-            },
-            _ => {
-                return Ok(super::err_response(
-                    hyper::StatusCode::METHOD_NOT_ALLOWED,
-                    Some((hyper::header::ALLOW, "GET, POST")),
-                    "method not allowed".into(),
-                ));
-            }
-        }
-    })
+		Some(Route {
+			inner: server.inner.clone(),
+		})
+	}
+
+	type DeleteBody = serde::de::IgnoredAny;
+	type DeleteResponse = ();
+
+	type GetResponse = aziot_identity_common_http::get_module_identities::Response;
+	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
+
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			//TODO: get uid from UDS
+			let identities = match inner.get_identities(auth_id, "aziot").await {
+				Ok(v) => v,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+			let res = aziot_identity_common_http::get_module_identities::Response {
+				identities,
+			};
+			Ok((hyper::StatusCode::OK, res))
+		})
+	}
+
+	type PostBody = aziot_identity_common_http::create_module_identity::Request;
+	type PostResponse = aziot_identity_common_http::create_module_identity::Response;
+	fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+		Box::pin(async move {
+			let body = body.ok_or_else(|| http_common::server::Error {
+				status_code: http::StatusCode::BAD_REQUEST,
+				message: "missing request body".into(),
+			})?;
+
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
+
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			//TODO: get uid from UDS
+			let identity = match inner.create_identity(auth_id, &body.id_type, &body.module_id).await {
+				Ok(id) => id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			let res = aziot_identity_common_http::create_module_identity::Response {
+				identity,
+			};
+			Ok((hyper::StatusCode::OK, Some(res)))
+		})
+	}
+
+	type PutBody = serde::de::IgnoredAny;
+	type PutResponse = ();
 }

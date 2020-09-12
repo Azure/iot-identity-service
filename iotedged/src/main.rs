@@ -25,7 +25,7 @@ async fn main() -> Result<(), Error> {
 
 	let key_connector = http_common::Connector::new(&"unix:///var/lib/aziot/keyd.sock".parse().unwrap()).unwrap();
 	let mut key_engine = {
-		let key_client = aziot_key_client::Client::new(key_connector.clone());
+		let key_client = aziot_key_client::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_connector.clone());
 		let key_client = std::sync::Arc::new(key_client);
 
 		let key_engine = aziot_key_openssl_engine::load(key_client).map_err(Error::LoadKeyOpensslEngine)?;
@@ -33,14 +33,14 @@ async fn main() -> Result<(), Error> {
 	};
 
 	let key_client = {
-		let key_client = aziot_key_client_async::Client::new(key_connector);
+		let key_client = aziot_key_client_async::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_connector);
 		let key_client = std::sync::Arc::new(key_client);
 		key_client
 	};
 
 	let cert_client = {
 		let cert_connector = http_common::Connector::new(&"unix:///var/lib/aziot/certd.sock".parse().unwrap()).unwrap();
-		let cert_client = aziot_cert_client_async::Client::new(cert_connector);
+		let cert_client = aziot_cert_client_async::Client::new(aziot_cert_common_http::ApiVersion::V2020_09_01, cert_connector);
 		let cert_client = std::sync::Arc::new(cert_client);
 		cert_client
 	};

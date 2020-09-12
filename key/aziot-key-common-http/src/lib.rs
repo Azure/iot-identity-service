@@ -3,9 +3,30 @@
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Error {
-	pub message: std::borrow::Cow<'static, str>,
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ApiVersion {
+	V2020_09_01,
+	Max,
+}
+
+impl std::fmt::Display for ApiVersion {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(match self {
+			ApiVersion::V2020_09_01 => "2020-09-01",
+			ApiVersion::Max => "MAX",
+		})
+	}
+}
+
+impl std::str::FromStr for ApiVersion {
+	type Err = ();
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"2020-09-01" => Ok(ApiVersion::V2020_09_01),
+			_ => Err(()),
+		}
+	}
 }
 
 pub mod create_derived_key {

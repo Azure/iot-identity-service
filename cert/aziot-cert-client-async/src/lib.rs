@@ -13,13 +13,15 @@
 
 #[derive(Debug)]
 pub struct Client {
+	api_version: aziot_cert_common_http::ApiVersion,
 	inner: hyper::Client<http_common::Connector, hyper::Body>,
 }
 
 impl Client {
-	pub fn new(connector: http_common::Connector) -> Self {
+	pub fn new(api_version: aziot_cert_common_http::ApiVersion, connector: http_common::Connector) -> Self {
 		let inner = hyper::Client::builder().build(connector);
 		Client {
+			api_version,
 			inner,
 		}
 	}
@@ -42,7 +44,7 @@ impl Client {
 		let res: aziot_cert_common_http::get_cert::Response = request(
 			&self.inner,
 			http::Method::POST,
-			"/certificates",
+			&format!("http://foo/certificates?api-version={}", self.api_version),
 			Some(&body),
 		).await?;
 		Ok(res.pem.0)
@@ -53,8 +55,6 @@ impl Client {
 		id: &str,
 		pem: &[u8],
 	) -> Result<Vec<u8>, std::io::Error> {
-		let uri = format!("/certificates/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let body = aziot_cert_common_http::import_cert::Request {
 			pem: aziot_cert_common_http::Pem(pem.to_owned()),
 		};
@@ -62,7 +62,11 @@ impl Client {
 		let res: aziot_cert_common_http::import_cert::Response = request(
 			&self.inner,
 			http::Method::PUT,
-			&uri,
+			&format!(
+				"http://foo/certificates/{}?api-version={}",
+				percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			Some(&body),
 		).await?;
 		Ok(res.pem.0)
@@ -72,12 +76,14 @@ impl Client {
 		&self,
 		id: &str,
 	) -> Result<Vec<u8>, std::io::Error> {
-		let uri = format!("/certificates/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let res: aziot_cert_common_http::get_cert::Response = request::<(), _>(
 			&self.inner,
 			http::Method::GET,
-			&uri,
+			&format!(
+				"http://foo/certificates/{}?api-version={}",
+				percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			None,
 		).await?;
 		Ok(res.pem.0)
@@ -87,12 +93,14 @@ impl Client {
 		&self,
 		id: &str,
 	) -> Result<(), std::io::Error> {
-		let uri = format!("/certificates/{}", percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET));
-
 		let () = request_no_content::<()>(
 			&self.inner,
 			http::Method::DELETE,
-			&uri,
+			&format!(
+				"http://foo/certificates/{}?api-version={}",
+				percent_encoding::percent_encode(id.as_bytes(), http_common::PATH_SEGMENT_ENCODE_SET),
+				self.api_version,
+			),
 			None,
 		).await?;
 		Ok(())
@@ -109,8 +117,6 @@ where
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
-	let uri = format!("http://foo{}", uri);
-
 	let req =
 		hyper::Request::builder()
 		.method(method)
@@ -154,7 +160,7 @@ where
 		},
 
 		res_status_code if res_status_code.is_client_error() || res_status_code.is_server_error() => {
-			let res: aziot_cert_common_http::Error = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			let res: http_common::ErrorBody<'static> = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
 		},
 
@@ -214,7 +220,7 @@ where
 				return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response"));
 			}
 
-			let res: aziot_cert_common_http::Error = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			let res: http_common::ErrorBody<'static> = serde_json::from_slice(&body).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			Err(std::io::Error::new(std::io::ErrorKind::Other, res.message))
 		},
 
