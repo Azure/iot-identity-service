@@ -197,12 +197,12 @@ impl Server {
 	pub async fn provision_device(&mut self) -> Result<aziot_identity_common::IoTHubDevice, Error> {
 		let device = match self.settings.clone().provisioning.provisioning {
 			settings::ProvisioningType::Manual { iothub_hostname, device_id, authentication } => {
-				
+
 				let credentials = match authentication {
 					settings::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
-					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => { 
+					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => {
 						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
@@ -217,8 +217,8 @@ impl Server {
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
 							aziot_dps_client_async::register(
-								global_endpoint.as_str(), 
-								&scope_id, 
+								global_endpoint.as_str(),
+								&scope_id,
 								&registration_id,
 								Some(symmetric_key.clone()),
 								None,
@@ -241,8 +241,8 @@ impl Server {
 									let result = {
 										let mut key_engine = self.key_engine.lock().await;
 										aziot_dps_client_async::get_operation_status(
-											global_endpoint.as_str(), 
-											&scope_id, 
+											global_endpoint.as_str(),
+											&scope_id,
 											&registration_id,
 											&operation.operation_id,
 											Some(symmetric_key.clone()),
@@ -262,11 +262,11 @@ impl Server {
 														let mut state = reg_status.registration_state.ok_or(Error::DeviceNotFound)?;
 															let iothub_hostname = state.assigned_hub.get_or_insert("".into());
 															let device_id = state.device_id.get_or_insert("".into());
-															let device = aziot_identity_common::IoTHubDevice { 
-																iothub_hostname: iothub_hostname.clone(), 
+															let device = aziot_identity_common::IoTHubDevice {
+																iothub_hostname: iothub_hostname.clone(),
 																device_id: device_id.clone(),
 																credentials: credential_clone };
-														
+
 														break device;
 													}
 												}
@@ -279,9 +279,9 @@ impl Server {
 									tokio::time::delay_for(tokio::time::Duration::from_secs(DPS_ASSIGNMENT_RETRY_INTERVAL_SECS)).await;
 								}
 							},
-							Err(err) => return Err(Error::DPSClient(err)) 
+							Err(err) => return Err(Error::DPSClient(err))
 						};
-						
+
 						self.id_manager.set_device(&device);
 						device
 					},
@@ -291,8 +291,8 @@ impl Server {
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
 							aziot_dps_client_async::register(
-								global_endpoint.as_str(), 
-								&scope_id, 
+								global_endpoint.as_str(),
+								&scope_id,
 								&registration_id,
 								None,
 								Some(identity_cert.clone()),
@@ -316,8 +316,8 @@ impl Server {
 									let result = {
 										let mut key_engine = self.key_engine.lock().await;
 										aziot_dps_client_async::get_operation_status(
-											global_endpoint.as_str(), 
-											&scope_id, 
+											global_endpoint.as_str(),
+											&scope_id,
 											&registration_id,
 											&operation.operation_id,
 											None,
@@ -337,11 +337,11 @@ impl Server {
 														let mut state = reg_status.registration_state.ok_or(Error::DeviceNotFound)?;
 															let iothub_hostname = state.assigned_hub.get_or_insert("".into());
 															let device_id = state.device_id.get_or_insert("".into());
-															let device = aziot_identity_common::IoTHubDevice { 
-																iothub_hostname: iothub_hostname.clone(), 
+															let device = aziot_identity_common::IoTHubDevice {
+																iothub_hostname: iothub_hostname.clone(),
 																device_id: device_id.clone(),
 																credentials: credential_clone };
-														
+
 														break device;
 													}
 												}
@@ -356,7 +356,7 @@ impl Server {
 							},
 							Err(_) => return Err(Error::DeviceNotFound)
 						};
-						
+
 						self.id_manager.set_device(&device);
 						device
 					}
@@ -375,7 +375,7 @@ impl Server {
 	) -> Result<(), Error> {
 		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
 		let create_cert = match device_id_cert {
-			Ok(device_id_cert) => { 
+			Ok(device_id_cert) => {
 				let x509_req = openssl::x509::X509::from_pem(&device_id_cert).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				let cert_expiration = x509_req.as_ref().not_after();
 				let current_time = openssl::asn1::Asn1Time::days_from_now(0)
@@ -392,10 +392,10 @@ impl Server {
 		if create_cert {
 			let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-						
+
 			let csr = {
 				let mut key_engine = self.key_engine.lock().await;
-		
+
 				let (identity_public_key, identity_private_key) = {
 					let identity_pk = std::ffi::CString::new(identity_pk_key_handle.0.clone())
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
@@ -403,22 +403,22 @@ impl Server {
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 					let identity_private_key = key_engine.load_private_key(&identity_pk)
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-		
+
 					(identity_public_key, identity_private_key)
 				};
-		
+
 				let csr = create_csr(
-					&subject, 
-					&identity_public_key, 
+					&subject,
+					&identity_public_key,
 					&identity_private_key)
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				csr
 			};
-		
+
 			let _new_cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))));
 		}
-		
+
 		Ok(())
 	}
 }
@@ -458,14 +458,20 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 			crate::auth::OperationType::GetModule(m) => {
 				if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
 					if let Some(p) = self.pmap.get(&crate::auth::Uid(creds.0)) {
-						return Ok(p.name.0 == m && p.id_type == Some(aziot_identity_common::IdType::Module))
+						let allow_id_type = p.id_type.clone()
+							.map_or(false, |i| i.contains(&aziot_identity_common::IdType::Module));
+
+						return Ok(p.name.0 == m && allow_id_type)
 					}
 				}
 			},
 			crate::auth::OperationType::GetDevice => {
 				if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
 					if let Some(p) = self.pmap.get(&crate::auth::Uid(creds.0)) {
-						return Ok(p.id_type == None || p.id_type == Some(aziot_identity_common::IdType::Device))
+						let allow_id_type = p.id_type.clone()
+							.map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device));
+
+						return Ok(allow_id_type)
 					}
 				}
 			},

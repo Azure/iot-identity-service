@@ -12,12 +12,12 @@ uid = 1001
 
 [[principal]]
 name = "hostprocess1"
-idtype = "device"
+idtype = ["device"]
 uid = 1002
 
 [[principal]]
 name = "hostprocess2"
-idtype = "module"
+idtype = ["module", "local"]
 uid = 1003
 
 

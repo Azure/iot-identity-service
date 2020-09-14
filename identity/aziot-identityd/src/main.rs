@@ -28,7 +28,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut prev_device_info_path = homedir_path.clone();
     prev_device_info_path.push("device_info");
-    
+
     if !homedir_path.exists() {
             let () = std::fs::create_dir_all(&homedir_path).map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
     }
@@ -46,26 +46,26 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
     {
         log::info!("Provisioning starting..");
-        
+
         let mut server_ = server.lock().await;
         let device = server_.provision_device().await?;
         log::info!("Provisioning complete.");
-        
+
         let curr_device_info_state = aziot_identityd::settings::DeviceInfo { hub_name: device.iothub_hostname, device_id: device.device_id };
-        
+
         if prev_device_info_path.exists() {
             let prev_device_info_state = aziot_identityd::settings::DeviceInfo::new(&prev_device_info_path)?;
-            
+
             let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
             if prev_device_info_state.eq(&curr_device_info_state) && prev_settings_path.exists() {
                 let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
                 let (_, p) = convert_to_map(&settings.principal);
                 prev_module_set = p;
             }
-            
+
             let () = server_.init_identities(prev_module_set, module_set).await?;
         }
-        
+
         log::info!("Identity reconciliation complete.");
 
         let curr_device_info_state = toml::to_string(&curr_device_info_state)?;
@@ -75,7 +75,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let incoming = connector.incoming().await?;
     log::info!("Identity Service started.");
-    
+
     let server =
     hyper::Server::builder(incoming)
     .serve(hyper::service::make_service_fn(|_| {
@@ -90,19 +90,29 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
-    -> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
-        std::collections::BTreeSet<aziot_identity_common::ModuleId>)
+	-> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
+		std::collections::BTreeSet<aziot_identity_common::ModuleId>)
 {
-    let mut pmap = std::collections::BTreeMap::new();
-    let mut mset = std::collections::BTreeSet::new();
+	let mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
+		principal.as_ref().map_or(
+			std::collections::BTreeSet::new(),
+			|v| v.iter().filter_map( |p|
+				if p.id_type.clone().map_or(false, |t| t.contains(&aziot_identity_common::IdType::Module)) {
+					Some(p.name.clone())
+				} else {
+					None
+				}
+			).collect()
+		);
 
-    if let Some(v) = principal.as_ref() { v.iter()
-            .for_each(|p| {
-                pmap.insert(p.uid, p.clone());
-                if p.id_type == Some(aziot_identity_common::IdType::Module) { mset.insert(p.clone().name); }
-            })};
+	let pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> =
+		principal.as_ref().map_or(
+			std::collections::BTreeMap::new(),
+			|v| v.iter()
+				.map(|p| (p.uid, p.clone())).collect::<std::collections::BTreeMap<_,_>>()
+	);
 
-    (pmap, mset)
+	(pmap, mset)
 }
 
 #[cfg(test)]
@@ -117,7 +127,7 @@ mod tests {
 
     #[test]
     fn convert_to_map_creates_principal_lookup() {
-        let p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(IdType::Module)};
+        let p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module])};
         let v = vec![p.clone()];
         let (map, _) = convert_to_map(&Some(v));
 
@@ -134,7 +144,7 @@ mod tests {
         assert!(map.contains_key(&Uid(1003)));
         assert_eq!(map.get(&Uid(1003)).unwrap().uid, Uid(1003));
         assert_eq!(map.get(&Uid(1003)).unwrap().name, ModuleId(String::from("hostprocess2")));
-        assert_eq!(map.get(&Uid(1003)).unwrap().id_type, Some(IdType::Module));
+        assert_eq!(map.get(&Uid(1003)).unwrap().id_type, Some(vec![IdType::Module, IdType::Local]));
     }
 
     #[test]
