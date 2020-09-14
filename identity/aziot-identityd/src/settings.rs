@@ -9,24 +9,48 @@ use crate::error::InternalError;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
-    pub hostname: String,
+	pub hostname: String,
 
-    pub homedir: std::path::PathBuf,
+	pub homedir: std::path::PathBuf,
 
-    pub principal: Option<Vec<Principal>>,
+	pub principal: Option<Vec<Principal>>,
 
-    pub provisioning: Provisioning,
+	pub provisioning: Provisioning,
 
-    pub endpoints: Endpoints,
+	pub endpoints: Endpoints,
+
+	pub localid: Option<LocalId>,
 }
 
 impl Settings {
-    pub fn new(filename: &Path) -> Result<Self, InternalError> {
-        let settings = std::fs::read_to_string(filename).map_err(InternalError::LoadSettings)?;
-        let settings = toml::from_str(&settings).map_err(InternalError::ParseSettings)?;
+	pub fn new(filename: &Path) -> Result<Self, InternalError> {
+		let settings = std::fs::read_to_string(filename).map_err(InternalError::LoadSettings)?;
+		let settings: Settings = toml::from_str(&settings).map_err(InternalError::ParseSettings)?;
 
-        Ok(settings)
-    }
+		settings.check()
+	}
+
+	fn check(self) -> Result<Self, InternalError> {
+
+		// Require localid in config if any principal has local id_type.
+		if let Some(principal) = &self.principal {
+			let local_id_exists = self.localid.is_some();
+
+			for p in principal {
+				if let Some(t) = &p.id_type {
+					if t.contains(&aziot_identity_common::IdType::Local) && !local_id_exists {
+						return Err(InternalError::BadSettings(std::io::Error::new(
+								std::io::ErrorKind::InvalidInput,
+								"local id type requires localid config"
+							))
+						);
+					}
+				}
+			}
+		}
+
+		Ok(self)
+	}
 }
 
 #[derive(Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
@@ -53,6 +77,11 @@ pub struct Principal {
     pub name: aziot_identity_common::ModuleId,
     #[serde(rename = "idtype")]
     pub id_type: Option<Vec<aziot_identity_common::IdType>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct LocalId {
+	pub domain: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -229,6 +258,14 @@ mod tests {
             "provisioning settings read should fail"
         );
     }
+
+	#[test]
+	fn bad_local_id_settings_fails() {
+		assert!(
+			Settings::new(std::path::Path::new("test/bad_local_config.toml")).is_err(),
+			"bad_local_config.toml read should fail"
+		);
+	}
 
     #[test_case("tls", Protocol::Tls10; "when tls provided")]
     #[test_case("tls1", Protocol::Tls10; "when tls1 with dot provided")]

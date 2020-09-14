@@ -4,6 +4,10 @@
 hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
+# Local ID settings
+[localid]
+domain = "example.com"
+
 # Identity service configuration used to associate provisioned device and module identities to host-level processes.
 # This configuration will also be used to generate new module identities, if not created in Azure IoT Hub already.
 [[principal]]
@@ -19,7 +23,6 @@ uid = 1002
 name = "hostprocess2"
 idtype = ["module", "local"]
 uid = 1003
-
 
 [provisioning]
 source = "manual"

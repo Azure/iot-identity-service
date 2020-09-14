@@ -119,7 +119,7 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 mod tests {
     use aziot_identityd::auth::{Operation, OperationType, AuthId, Uid};
     use aziot_identityd::SettingsAuthorizer;
-    use aziot_identityd::settings::{Principal, Settings};
+    use aziot_identityd::settings::{Principal, Settings, LocalId};
     use crate::convert_to_map;
     use aziot_identityd::auth::authorization::Authorizer;
     use aziot_identity_common::{IdType, ModuleId};
@@ -135,17 +135,22 @@ mod tests {
         assert_eq!(map.get(&Uid(1001)).unwrap(), &p);
     }
 
-    #[test]
-    fn settings_test() {
-        let settings = Settings::new(Path::new("test/good_auth_settings.toml")).unwrap();
+	#[test]
+	fn settings_test() {
+		let settings = Settings::new(Path::new("test/good_auth_settings.toml")).unwrap();
 
-        let (map, _) = convert_to_map(&settings.principal);
-        assert_eq!(map.len(), 3);
-        assert!(map.contains_key(&Uid(1003)));
-        assert_eq!(map.get(&Uid(1003)).unwrap().uid, Uid(1003));
-        assert_eq!(map.get(&Uid(1003)).unwrap().name, ModuleId(String::from("hostprocess2")));
-        assert_eq!(map.get(&Uid(1003)).unwrap().id_type, Some(vec![IdType::Module, IdType::Local]));
-    }
+		let localid = settings.localid.unwrap();
+		assert_eq!(localid, LocalId {
+			domain: "example.com".to_owned(),
+		});
+
+		let (map, _) = convert_to_map(&settings.principal);
+		assert_eq!(map.len(), 3);
+		assert!(map.contains_key(&Uid(1003)));
+		assert_eq!(map.get(&Uid(1003)).unwrap().uid, Uid(1003));
+		assert_eq!(map.get(&Uid(1003)).unwrap().name, ModuleId(String::from("hostprocess2")));
+		assert_eq!(map.get(&Uid(1003)).unwrap().id_type, Some(vec![IdType::Module, IdType::Local]));
+	}
 
     #[test]
     fn empty_auth_settings_deny_any_action() {
