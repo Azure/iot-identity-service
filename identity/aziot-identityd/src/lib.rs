@@ -458,10 +458,8 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 			crate::auth::OperationType::GetModule(m) => {
 				if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
 					if let Some(p) = self.pmap.get(&crate::auth::Uid(creds.0)) {
-						let allow_id_type = match &p.id_type {
-							Some(i) => i.contains(&aziot_identity_common::IdType::Module),
-							None => false,
-						};
+						let allow_id_type = p.id_type.clone()
+							.map_or(false, |i| i.contains(&aziot_identity_common::IdType::Module));
 
 						return Ok(p.name.0 == m && allow_id_type)
 					}
@@ -470,10 +468,8 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 			crate::auth::OperationType::GetDevice => {
 				if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
 					if let Some(p) = self.pmap.get(&crate::auth::Uid(creds.0)) {
-						let allow_id_type = match &p.id_type {
-							Some(i) => i.contains(&aziot_identity_common::IdType::Device),
-							None => true,
-						};
+						let allow_id_type = p.id_type.clone()
+							.map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device));
 
 						return Ok(allow_id_type)
 					}

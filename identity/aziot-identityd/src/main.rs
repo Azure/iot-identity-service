@@ -93,19 +93,24 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 	-> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
 		std::collections::BTreeSet<aziot_identity_common::ModuleId>)
 {
-	let mut pmap = std::collections::BTreeMap::new();
-	let mut mset = std::collections::BTreeSet::new();
-
-	if let Some(v) = principal.as_ref() { v.iter()
-			.for_each(|p| {
-				pmap.insert(p.uid, p.clone());
-
-				if let Some(id_type) = &p.id_type {
-					if id_type.contains(&aziot_identity_common::IdType::Module) {
-						mset.insert(p.clone().name);
-					}
+	let mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
+		principal.as_ref().map_or(
+			std::collections::BTreeSet::new(),
+			|v| v.iter().filter_map( |p|
+				if p.id_type.clone().map_or(false, |t| t.contains(&aziot_identity_common::IdType::Module)) {
+					Some(p.name.clone())
+				} else {
+					None
 				}
-			})};
+			).collect()
+		);
+
+	let pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> =
+		principal.as_ref().map_or(
+			std::collections::BTreeMap::new(),
+			|v| v.iter()
+				.map(|p| (p.uid, p.clone())).collect::<std::collections::BTreeMap<_,_>>()
+	);
 
 	(pmap, mset)
 }
