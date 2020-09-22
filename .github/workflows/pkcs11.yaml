@@ -1,6 +1,7 @@
 name: 'pkcs11'
 
 on:
+- 'pull_request'
 - 'push'
 
 jobs:
