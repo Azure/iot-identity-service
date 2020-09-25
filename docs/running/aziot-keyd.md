@@ -11,7 +11,7 @@ A basic configuration looks like:
 aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 ```
 
-- `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot-keys.so` library. The names and values of these parameters depend on the library.
+- `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot_keys.so` library. The names and values of these parameters depend on the library.
 
     When using Microsoft's library, the following parameters can be specified:
 
@@ -53,7 +53,7 @@ aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 
     Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
 
-Assuming you're using Microsoft's implementation of `libaziot-keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
+Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 
 1. Set `aziot_keys.homedir_path`
 

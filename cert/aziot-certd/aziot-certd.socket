@@ -1,0 +1,13 @@
+[Unit]
+Description=Azure IoT Certificates Service API socket
+PartOf=aziot-certd.service
+
+[Socket]
+ListenStream=/var/run/aziot/certd.sock
+SocketMode=0660
+DirectoryMode=0755
+SocketUser=aziotcs
+SocketGroup=aziotcs
+
+[Install]
+WantedBy=sockets.target

@@ -216,34 +216,37 @@ KEY_3_TYPE='rsa-2048'
 # export PKCS11_SPY_PATH='/usr/lib64/pkcs11/pkcs11-spy.so'
 # export PKCS11_SPY_PATH='/usr/lib/arm-linux-gnueabihf/pkcs11/pkcs11-spy.so'
 
+PKCS11_TEST_PATH="$PWD/target/x86_64-unknown-linux-gnu/debug/pkcs11-test"
+# PKCS11_TEST_PATH="$PWD/target/armv7-unknown-linux-gnueabhif/debug/pkcs11-test"
+
 # Generate three asymmetric keys to be used as the private keys for the three certs
-"$PWD/target/debug/pkcs11-test" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_1$PIN_SUFFIX" --type "$KEY_1_TYPE" &&
-"$PWD/target/debug/pkcs11-test" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_2$PIN_SUFFIX" --type "$KEY_2_TYPE" &&
-"$PWD/target/debug/pkcs11-test" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_3$PIN_SUFFIX" --type "$KEY_3_TYPE" &&
+"$PKCS11_TEST_PATH" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_1$PIN_SUFFIX" --type "$KEY_1_TYPE" &&
+"$PKCS11_TEST_PATH" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_2$PIN_SUFFIX" --type "$KEY_2_TYPE" &&
+"$PKCS11_TEST_PATH" generate-key-pair --key "pkcs11:$TOKEN_PARAM;object=$LABEL_3$PIN_SUFFIX" --type "$KEY_3_TYPE" &&
 
 # Load them and print them
-"$PWD/target/debug/pkcs11-test" load --keys "pkcs11:$TOKEN_PARAM;object=$LABEL_1" "pkcs11:$TOKEN_PARAM;object=$LABEL_2" "pkcs11:$TOKEN_PARAM;object=$LABEL_3" &&
+"$PKCS11_TEST_PATH" load --keys "pkcs11:$TOKEN_PARAM;object=$LABEL_1" "pkcs11:$TOKEN_PARAM;object=$LABEL_2" "pkcs11:$TOKEN_PARAM;object=$LABEL_3" &&
 
 # Generate the CA cert
-"$PWD/target/debug/pkcs11-test" generate-ca-cert \
+"$PKCS11_TEST_PATH" generate-ca-cert \
     --key "pkcs11:$TOKEN_PARAM;object=$LABEL_1$PIN_SUFFIX" --subject 'CA Inc' \
     --out-file "$PWD/ca.pem" &&
 
 # Generate the server cert
-"$PWD/target/debug/pkcs11-test" generate-server-cert \
+"$PKCS11_TEST_PATH" generate-server-cert \
     --key "pkcs11:$TOKEN_PARAM;object=$LABEL_2$PIN_SUFFIX" --subject 'Server LLC' \
     --ca-cert "$PWD/ca.pem" --ca-key "pkcs11:$TOKEN_PARAM;object=$LABEL_1$PIN_SUFFIX" \
     --out-file "$PWD/server.pem" &&
 
 # Generate the client cert
-"$PWD/target/debug/pkcs11-test" generate-client-cert \
+"$PKCS11_TEST_PATH" generate-client-cert \
     --key "pkcs11:$TOKEN_PARAM;object=$LABEL_3$PIN_SUFFIX" --subject 'Client GmbH' \
     --ca-cert "$PWD/ca.pem" --ca-key "pkcs11:$TOKEN_PARAM;object=$LABEL_1$PIN_SUFFIX" \
     --out-file "$PWD/client.pem" &&
 
 # Start a hello-world web server that serves HTTPS on port 8443 using the server cert.
 # The server will remain running.
-"$PWD/target/debug/pkcs11-test" web-server --cert "$PWD/server.pem" --key "pkcs11:$TOKEN_PARAM;object=$LABEL_2$PIN_SUFFIX"
+"$PKCS11_TEST_PATH" web-server --cert "$PWD/server.pem" --key "pkcs11:$TOKEN_PARAM;object=$LABEL_2$PIN_SUFFIX"
 
 # In another shell, connect to the server in various ways to verify that TLS works.
 #
@@ -256,7 +259,7 @@ curl -kD - https://127.0.0.1:8443 &&
 # 3. `pkcs11-test web-client`. This uses the client cert for TLS client authentication. It should receive an HTTP 200 response with the body "Hello, world!"
 #
 # Both the client and the server will also print the cert chain of the other, and assert that the other's cert is signed by the CA cert.
-"$PWD/target/debug/pkcs11-test" web-client \
+"$PKCS11_TEST_PATH" web-client \
     --cert "$PWD/client.pem" --key "pkcs11:$TOKEN_PARAM;object=$LABEL_3$PIN_SUFFIX"
 ```
 </td>

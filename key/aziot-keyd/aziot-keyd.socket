@@ -1,0 +1,13 @@
+[Unit]
+Description=Azure IoT Keys Service API socket
+PartOf=aziot-keyd.service
+
+[Socket]
+ListenStream=/var/run/aziot/keyd.sock
+SocketMode=0660
+DirectoryMode=0755
+SocketUser=aziotks
+SocketGroup=aziotks
+
+[Install]
+WantedBy=sockets.target

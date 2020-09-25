@@ -1,0 +1,60 @@
+name: 'packages'
+
+on:
+- 'pull_request'
+- 'push'
+
+jobs:
+  packages:
+    runs-on: 'ubuntu-18.04'
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container_os:
+        - 'centos:7'
+        - 'debian:9-slim'
+        - 'debian:10-slim'
+        - 'ubuntu:18.04'
+        - 'ubuntu:20.04'
+        arch:
+        - 'amd64'
+        - 'arm32v7'
+        - 'aarch64'
+        exclude:
+        # CentOS 7 does not have functioning cross compilers. The Azure/iotedge repo builds CentOS 7 arm32v7 and aarch64 packages
+        # by running the arm32v7 / aarch64 containers under qemu. For now we don't care to replicate that here.
+        - container_os: 'centos:7'
+          arch: 'arm32v7'
+        - container_os: 'centos:7'
+          arch: 'aarch64'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+    - name: 'Run'
+      run: |
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE:/src" \
+          -e "CONTAINER_OS=$CONTAINER_OS" \
+          -e "ARCH=$ARCH" \
+          -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
+          -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
+          "${{ matrix.container_os }}" \
+          '/src/ci/package.sh'
+      env:
+        CONTAINER_OS: "${{ matrix.container_os }}"
+        ARCH: "${{ matrix.arch }}"
+        PACKAGE_VERSION: '1.1.0'
+        PACKAGE_RELEASE: '0'
+    - name: 'Generate artifact properties'
+      id: 'generate-artifact-properties'
+      run: |
+        container_os="${{ matrix.container_os }}"
+        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
+        echo "::set-output name=artifact-name::packages_${container_os}_${{ matrix.arch }}"
+    - name: 'Upload'
+      uses: 'actions/upload-artifact@v1'
+      with:
+        name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
+        path: 'packages'

@@ -111,7 +111,7 @@ where
 	TRequest: serde::Serialize,
 	TResponse: serde::de::DeserializeOwned,
 {
-	let uri = format!("https://{}{}", global_endpoint, uri);
+	let uri = format!("{}{}", global_endpoint, uri);
 	
 	let req =
 		hyper::Request::builder()

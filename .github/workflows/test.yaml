@@ -5,7 +5,7 @@ on:
 - 'push'
 
 jobs:
-  test:
+  basic:
     runs-on: 'ubuntu-18.04'
 
     strategy:
@@ -16,21 +16,16 @@ jobs:
         - 'centos:7'
         - 'debian:9-slim'
         - 'debian:10-slim'
-        openssl_version:
-        - '1.0'
-        - '1.1.0'
-        - '1.1.1'
+        - 'ubuntu:18.04'
+        - 'ubuntu:20.04'
+        arch:
+        - 'amd64'
+        - 'arm32v7'
+        - 'aarch64'
         exclude:
-        - container_os: 'centos:7'
-          openssl_version: '1.1.0'
-        - container_os: 'centos:7'
-          openssl_version: '1.1.1'
-        - container_os: 'debian:9-slim'
-          openssl_version: '1.1.1'
-        - container_os: 'debian:10-slim'
-          openssl_version: '1.0'
-        - container_os: 'debian:10-slim'
-          openssl_version: '1.1.0'
+        # TODO: support running CI tests for arm32v7 and aarch64
+        - arch: 'arm32v7'
+        - arch: 'aarch64'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -39,9 +34,100 @@ jobs:
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "CONTAINER_OS=$CONTAINER_OS" \
-          -e "OPENSSL_VERSION=$OPENSSL_VERSION" \
+          -e "ARCH=$ARCH" \
           "${{ matrix.container_os }}" \
-          '/src/ci/test.sh'
+          '/src/ci/test-basic.sh'
       env:
         CONTAINER_OS: "${{ matrix.container_os }}"
-        OPENSSL_VERSION: "${{ matrix.openssl_version }}"
+        ARCH: "${{ matrix.arch }}"
+    - name: 'Generate artifact properties'
+      id: 'generate-artifact-properties'
+      run: |
+        container_os="${{ matrix.container_os }}"
+        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
+        echo "::set-output name=artifact-name::pkcs11-test_${container_os}_${{ matrix.arch }}"
+
+        case "${{ matrix.arch }}" in
+          'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
+          'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
+          'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
+        esac
+        echo "::set-output name=pkcs11-test-path::target/$target_dir/debug/pkcs11-test"
+    - name: 'Upload'
+      uses: 'actions/upload-artifact@v1'
+      with:
+        name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
+        path: '${{ steps.generate-artifact-properties.outputs.pkcs11-test-path }}'
+
+
+  pkcs11-softhsm:
+    runs-on: 'ubuntu-18.04'
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container_os:
+        - 'centos:7'
+        - 'debian:9-slim'
+        - 'debian:10-slim'
+        - 'ubuntu:18.04'
+        - 'ubuntu:20.04'
+        key_type:
+        - 'ec-p256'
+        - 'ec-p384'
+        - 'ec-p521'
+        - 'rsa-2048'
+        - 'rsa-4096'
+        arch:
+        - 'amd64'
+        - 'arm32v7'
+        - 'aarch64'
+        exclude:
+        # softhsm 2.2 and earlier do not support P-521.
+        #
+        # CentOS 7 has 2.1
+        - container_os: 'centos:7'
+          key_type: 'ec-p521'
+        # Ubuntu 18.04 has 2.2
+        - container_os: 'ubuntu:18.04'
+          key_type: 'ec-p521'
+        # TODO: support running CI tests for arm32v7 and aarch64
+        - arch: 'arm32v7'
+        - arch: 'aarch64'
+
+    needs: 'basic'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+    - name: 'Generate artifact properties'
+      id: 'generate-artifact-properties'
+      run: |
+        container_os="${{ matrix.container_os }}"
+        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
+        echo "::set-output name=artifact-name::pkcs11-test_${container_os}_${{ matrix.arch }}"
+
+        case "${{ matrix.arch }}" in
+          'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
+          'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
+          'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
+        esac
+        echo "::set-output name=pkcs11-test-directory::target/$target_dir/debug"
+    - name: 'Download'
+      uses: 'actions/download-artifact@v1'
+      with:
+        name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
+        path: '${{ steps.generate-artifact-properties.outputs.pkcs11-test-directory }}'
+    - name: 'Run'
+      run: |
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE:/src" \
+          -e "CONTAINER_OS=$CONTAINER_OS" \
+          -e "ARCH=$ARCH" \
+          -e "KEY_TYPE=$KEY_TYPE" \
+          "${{ matrix.container_os }}" \
+          '/src/ci/test-pkcs11-softhsm.sh'
+      env:
+        CONTAINER_OS: "${{ matrix.container_os }}"
+        ARCH: "${{ matrix.arch }}"
+        KEY_TYPE: "${{ matrix.key_type }}"
