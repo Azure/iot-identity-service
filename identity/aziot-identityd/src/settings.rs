@@ -81,6 +81,7 @@ pub struct Principal {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LocalId {
+	/// Identifier for a group of local identity certificates, suffixed to the common name
 	pub domain: String,
 }
 
