@@ -10,12 +10,25 @@ cd /src
 
 # softhsm tests
 
-chmod +x "$PWD/target/debug/pkcs11-test"
+case "$ARCH" in
+    'amd64')
+        PKCS11_TEST_PATH="$PWD/target/x86_64-unknown-linux-gnu/debug/pkcs11-test"
+        ;;
+    'arm32v7')
+        PKCS11_TEST_PATH="$PWD/target/armv7-unknown-linux-gnueabihf/debug/pkcs11-test"
+        ;;
+    'aarch64')
+        PKCS11_TEST_PATH="$PWD/target/aarch64-unknown-linux-gnu/debug/pkcs11-test"
+        ;;
+esac
+
+chmod +x "$PKCS11_TEST_PATH"
 
 TOKEN='Key pairs'
 USER_PIN='1234'
 
 LABEL_1='CA'
+# shellcheck disable=SC2153
 KEY_1_TYPE="$KEY_TYPE"
 
 LABEL_2='Server'
@@ -28,30 +41,30 @@ SO_PIN="so$USER_PIN"
 
 softhsm2-util --init-token --free --label "$TOKEN" --so-pin "$SO_PIN" --pin "$USER_PIN"
 
-"$PWD/target/debug/pkcs11-test" generate-key-pair \
+"$PKCS11_TEST_PATH" generate-key-pair \
     --key "pkcs11:token=$TOKEN;object=$LABEL_1?pin-value=$USER_PIN" --type "$KEY_1_TYPE"
-"$PWD/target/debug/pkcs11-test" generate-key-pair \
+"$PKCS11_TEST_PATH" generate-key-pair \
     --key "pkcs11:token=$TOKEN;object=$LABEL_2?pin-value=$USER_PIN" --type "$KEY_2_TYPE"
-"$PWD/target/debug/pkcs11-test" generate-key-pair \
+"$PKCS11_TEST_PATH" generate-key-pair \
     --key "pkcs11:token=$TOKEN;object=$LABEL_3?pin-value=$USER_PIN" --type "$KEY_3_TYPE"
 
-"$PWD/target/debug/pkcs11-test" load \
+"$PKCS11_TEST_PATH" load \
     --keys "pkcs11:token=$TOKEN;object=$LABEL_1" "pkcs11:token=$TOKEN;object=$LABEL_2" "pkcs11:token=$TOKEN;object=$LABEL_3"
 
-"$PWD/target/debug/pkcs11-test" generate-ca-cert \
+"$PKCS11_TEST_PATH" generate-ca-cert \
     --key "pkcs11:token=$TOKEN;object=$LABEL_1?pin-value=$USER_PIN" \
     --subject 'CA Inc' \
     --out-file "$PWD/ca.pem"
 [ -f "$PWD/ca.pem" ]
 
-"$PWD/target/debug/pkcs11-test" generate-server-cert \
+"$PKCS11_TEST_PATH" generate-server-cert \
     --key "pkcs11:token=$TOKEN;object=$LABEL_2?pin-value=$USER_PIN" \
     --subject 'Server LLC' \
     --ca-cert "$PWD/ca.pem" --ca-key "pkcs11:token=$TOKEN;object=$LABEL_1?pin-value=$USER_PIN" \
     --out-file "$PWD/server.pem"
 [ -f "$PWD/server.pem" ]
 
-"$PWD/target/debug/pkcs11-test" generate-client-cert \
+"$PKCS11_TEST_PATH" generate-client-cert \
     --key "pkcs11:token=$TOKEN;object=$LABEL_3?pin-value=$USER_PIN" \
     --subject 'Client GmbH' \
     --ca-cert "$PWD/ca.pem" --ca-key "pkcs11:token=$TOKEN;object=$LABEL_1?pin-value=$USER_PIN" \

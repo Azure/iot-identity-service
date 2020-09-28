@@ -1,13 +1,9 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 cd /src
 
-
 . ./ci/install-build-deps.sh
 
-
-# Build
-
-make V=1 pkcs11-test
+make V=1 test

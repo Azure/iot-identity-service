@@ -1,0 +1,9 @@
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+# pkcs11_lib_path = "..."
+# pkcs11_base_slot = "..."
+
+# [preloaded_keys]
+
+[endpoints]
+aziot_keyd = @keyd_endpoint@

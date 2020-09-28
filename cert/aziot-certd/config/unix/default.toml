@@ -1,0 +1,9 @@
+homedir_path = "/var/lib/aziot/certd"
+
+# [cert_issuance]
+
+# [preloaded_certs]
+
+[endpoints]
+aziot_certd = @certd_endpoint@
+aziot_keyd = @keyd_endpoint@

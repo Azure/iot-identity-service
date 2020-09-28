@@ -4,38 +4,32 @@
 hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
-[connect]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
-[listen]
-api_uri = "unix:///var/run/aziot/identityd.sock"
-
 # Identity service configuration used to associate provisioned device and module identities to host-level processes.
 # This configuration will also be used to generate new module identities, if not created in Azure IoT Hub already.
-[[principal]]
-name = "hostdaemon1"
-uid = 1001
+# [[principal]]
+# name = "hostdaemon1"
+# uid = 1001
 
-[[principal]]
-name = "hostprocess1"
-idtype = "device"
-uid = 1002
+# [[principal]]
+# name = "hostprocess1"
+# idtype = "device"
+# uid = 1002
 
-[[principal]]
-name = "hostprocess2"
-idtype = "module"
-uid = 1003
+# [[principal]]
+# name = "hostprocess2"
+# idtype = "module"
+# uid = 1003
 
 
-[provisioning]
-source = "manual"
-iothub_hostname = "hubname"
-device_id = "deviceid"
+# [provisioning]
+# source = "manual"
+# iothub_hostname = "hubname"
+# device_id = "deviceid"
 
-[provisioning.authentication]
-method = "sas"
-device_id_pk = "device-id"
-dynamic_reprovisioning = false
+# [provisioning.authentication]
+# method = "sas"
+# device_id_pk = "device-id"
+# dynamic_reprovisioning = false
 
 # [provisioning.authentication]
 # method = "x509"
@@ -47,7 +41,7 @@ dynamic_reprovisioning = false
 
 # [provisioning]
 # "source" = "dps"
-# "global_endpoint" = "http://globaldevices.net"
+# "global_endpoint" = "https://global.azure-devices-provisioning.net"
 # "scope_id" = "<ADD DPS SCOPE ID HERE>"
 
 # [provisioning.attestation]
@@ -72,6 +66,6 @@ dynamic_reprovisioning = false
 # "identity_pk" = "est"
 
 [endpoints]
-aziot_certd = "unix:///var/run/aziot/certd.sock"
-aziot_identityd = "http://localhost:8901"
-aziot_keyd = "unix:///var/run/aziot/keyd.sock"
+aziot_certd = @certd_endpoint@
+aziot_identityd = @identityd_endpoint@
+aziot_keyd = @keyd_endpoint@
