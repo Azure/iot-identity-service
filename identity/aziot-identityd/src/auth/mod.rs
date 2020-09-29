@@ -35,4 +35,3 @@ pub struct Operation {
 pub struct Uid(pub i32);
 
 pub type Credentials = Uid;
-

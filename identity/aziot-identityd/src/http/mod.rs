@@ -40,7 +40,7 @@ fn to_http_error(err: &aziot_identityd::Error) -> http_common::server::Error {
 
 		err @ aziot_identityd::error::Error::DPSClient(_) |
 		err @ aziot_identityd::error::Error::HubClient(_) => http_common::server::Error {
-			status_code: hyper::StatusCode::NOT_FOUND, 
+			status_code: hyper::StatusCode::NOT_FOUND,
 			message: http_common::server::error_to_message(err).into()
 		},
 

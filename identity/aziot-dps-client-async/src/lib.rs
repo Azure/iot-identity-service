@@ -33,9 +33,9 @@ pub async fn register(
 	let resource_uri = format!(
 		"/{}/registrations/{}/register?api-version=2018-11-01", scope_id, registration_id
 	);
-	
+
 	let body = model::DeviceRegistration { registration_id: Some(registration_id.into()) };
-	
+
 	let res: model::RegistrationOperationStatus = request(
 		uri,
 		scope_id,
@@ -50,7 +50,7 @@ pub async fn register(
 		key_engine,
 		cert_client,
 	).await?;
-	
+
 	Ok(res)
 }
 
@@ -69,7 +69,7 @@ pub async fn get_operation_status(
 	let resource_uri = format!(
 		"/{}/registrations/{}/operations/{}?api-version=2018-11-01", scope_id, registration_id, operation_id
 	);
-	
+
 	let res: model::RegistrationOperationStatus = request::<(),_>(
 		uri,
 		scope_id,
@@ -84,7 +84,7 @@ pub async fn get_operation_status(
 		key_engine,
 		cert_client,
 	).await?;
-	
+
 	Ok(res)
 }
 
@@ -112,12 +112,12 @@ where
 	TResponse: serde::de::DeserializeOwned,
 {
 	let uri = format!("{}{}", global_endpoint, uri);
-	
+
 	let req =
 		hyper::Request::builder()
 		.method(method)
 		.uri(uri);
-	let req = 
+	let req =
 		if let Some(body) = body {
 			let body = serde_json::to_vec(body).expect("serializing request body to JSON cannot fail").into();
 			req
@@ -127,9 +127,9 @@ where
 		else {
 			req.body(hyper::Body::default())
 		};
-	
+
 	let mut req = req.expect("cannot fail to create hyper request");
-	
+
 	let connector =
 		if let Some(key) = sas_key.clone() {
 			let (connector, token) = get_sas_connector(scope_id.into(), registration_id.into(), key, key_client).await?;
@@ -139,25 +139,25 @@ where
 			req.headers_mut().append(hyper::header::AUTHORIZATION, authorization_header_value);
 			connector
 		}
-		else { 
+		else {
 			get_x509_connector(
 				identity_cert.expect("device identity certificate not found"),
 				identity_pk.expect("device private key not found"),
 				key_client,
 				key_engine,
 				cert_client,
-			).await? 
+			).await?
 		};
 
 	let client = hyper::Client::builder().build(connector);
 	log::debug!("DPS request {:?}", req);
-	
+
 	let res = client.request(req).await.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
 	let (http::response::Parts { status: res_status_code, headers, .. }, body) = res.into_parts();
 	log::debug!("DPS response status {:?}", res_status_code);
 	log::debug!("DPS response headers{:?}", headers);
-	
+
 	let mut is_json = false;
 	for (header_name, header_value) in headers {
 		if header_name == Some(hyper::header::CONTENT_TYPE) {
@@ -167,7 +167,7 @@ where
 			}
 		}
 	}
-	
+
 	let body = hyper::body::to_bytes(body).await.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 	log::debug!("DPS response body {:?}", body);
 
@@ -187,7 +187,7 @@ where
 
 		_ => return Err(std::io::Error::new(std::io::ErrorKind::Other, "malformed HTTP response")),
 	};
-	
+
 	Ok(res)
 }
 
@@ -198,7 +198,7 @@ async fn get_sas_connector(
 	key_client: &aziot_key_client_async::Client,
 ) -> Result<(hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, String), std::io::Error> {
 	let key_handle = key_client.load_key(&*key_handle).await?;
-	
+
 	let token = {
 		let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(30)).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 		let expiry = expiry.timestamp().to_string();
@@ -209,7 +209,7 @@ async fn get_sas_connector(
 
 		let signature = key_client.sign(&key_handle, aziot_key_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await
 			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-		
+
 		let signature = base64::encode(&signature);
 
 		let token =
@@ -221,7 +221,7 @@ async fn get_sas_connector(
 	};
 
 	let token = format!("SharedAccessSignature {}", token);
-	
+
 
 	let tls_connector = hyper_openssl::HttpsConnector::new()
 		.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
