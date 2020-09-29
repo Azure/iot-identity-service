@@ -58,7 +58,7 @@ impl Server {
 			let key_client = std::sync::Arc::new(key_client);
 			let key_engine =
 				aziot_key_openssl_engine::load(key_client)
-				.map_err(|err| Error::Internal(InternalError::LoadKeyOpenslEngine(err)))?;
+				.map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 			let key_engine = std::sync::Arc::new(futures_util::lock::Mutex::new(key_engine));
 			key_engine
 		};
