@@ -87,7 +87,13 @@ default:
 			$(BINDGEN_EXTRA_FLAGS); \
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
-	$(CARGO) build -p aziot-certd -p aziot-identityd -p aziot-keyd -p aziot-keys $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+	$(CARGO) build \
+		-p aziot-certd \
+		-p aziot-identityd \
+		-p aziot-keyd \
+		-p aziot-key-openssl-engine-shared \
+		-p aziot-keys \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
 clean:
@@ -105,7 +111,10 @@ pkcs11-test:
 
 test: default iotedged pkcs11-test
 test:
-	set -o pipefail; $(CARGO) test --all $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
+	set -o pipefail; \
+	$(CARGO) test --all --exclude aziot-key-openssl-engine-shared \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
+		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
 	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
@@ -123,7 +132,7 @@ test:
 		done
 
 	$(CARGO) clippy --all $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-	$(CARGO) clippy --all --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
@@ -258,6 +267,11 @@ sysconfdir = $(prefix)/etc
 
 unitdir = $(libdir)/systemd/system
 
+# Note: This default is almost certainly wrong for most distros and architectures, so it ought to be overridden by the caller of `make`.
+#
+# The correct value is the one output by `openssl version -e`, but we can't invoke that ourselves since we could be cross-compiling.
+OPENSSL_ENGINES_DIR = $(libdir)/engines-1.1
+
 # Ref: https://www.gnu.org/software/make/manual/html_node/Command-Variables.html
 INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
@@ -298,6 +312,11 @@ ifeq ($(SOCKET_ACTIVATION_SUPPORTED), 0)
 endif
 
 install-deb: install-common
+	# libaziot-key-openssl-engine-shared
+	$(INSTALL_PROGRAM) -D \
+		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
+		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
+
 	# Sockets
 	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.socket $(DESTDIR)$(unitdir)/aziot-certd.socket
 	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.socket $(DESTDIR)$(unitdir)/aziot-identityd.socket
@@ -312,6 +331,11 @@ install-deb: install-common
 	$(INSTALL_DATA) -D key/aziot-keys/aziot-keys.h $(DESTDIR)$(includedir)/aziot-identity-service/aziot-keys.h
 
 install-rpm: install-common
+	# libaziot-key-openssl-engine-shared
+	$(INSTALL_PROGRAM) -D \
+		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
+		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/libaziot_keys.so
+
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 
 	# devel

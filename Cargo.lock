@@ -290,6 +290,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aziot-key-openssl-engine-shared"
+version = "0.1.0"
+dependencies = [
+ "aziot-key-client",
+ "aziot-key-common-http",
+ "aziot-key-openssl-engine",
+ "http-common",
+ "openssl-build",
+ "openssl-errors",
+ "openssl-sys",
+ "openssl-sys2",
+ "url",
+]
+
+[[package]]
 name = "aziot-keyd"
 version = "0.1.0"
 dependencies = [
