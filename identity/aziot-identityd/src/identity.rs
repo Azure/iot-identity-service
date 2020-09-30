@@ -34,11 +34,11 @@ impl IdentityManager {
 		self.iot_hub_device = Some(device.clone());
 	}
 
-	pub async fn create_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {		
+	pub async fn create_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
-		
+
 		match &self.iot_hub_device {
 			Some(device) => {
 				let client =
@@ -50,38 +50,38 @@ impl IdentityManager {
 					);
 				let new_module  = client.create_module(&*module_id, None, None).await
 					.map_err(Error::HubClient)?;
-				
+
 				let master_id_key_handle = self.get_master_identity_key().await?;
-				let (primary_key_handle, _, primary_key, secondary_key) = 
+				let (primary_key_handle, _, primary_key, secondary_key) =
 					self.get_module_derived_keys(master_id_key_handle,new_module.clone()).await?;
 				let module_credentials = aziot_identity_common::Credentials::SharedPrivateKey(primary_key_handle.0);
 
 				let response  = client.update_module(
 					&*new_module.module_id,
 						Some(aziot_identity_common::hub::AuthMechanism {
-							symmetric_key: Some(aziot_identity_common::hub::SymmetricKey { 
-								primary_key: Some(http_common::ByteString(primary_key)), 
+							symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
+								primary_key: Some(http_common::ByteString(primary_key)),
 								secondary_key: Some(http_common::ByteString(secondary_key)),
 							}),
-							x509_thumbprint: None, 
+							x509_thumbprint: None,
 							type_: Some(aziot_identity_common::hub::AuthType::Sas),
 						}),
 		None).await
 					.map_err(Error::HubClient)?;
-					
+
 				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
 					hub_name: device.iothub_hostname.clone(),
 					device_id: aziot_identity_common::DeviceId(response.device_id),
 					module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
 					gen_id: response.generation_id.map(aziot_identity_common::GenId),
 					auth: Some(aziot_identity_common::AuthenticationInfo::from(module_credentials)),
-					});	
+					});
 				Ok(identity)
 			},
 			None => Err(Error::DeviceNotFound)
 		}
 	}
-	
+
 	pub async fn get_device_identity(&self) -> Result<aziot_identity_common::Identity, Error> {
 		match &self.iot_hub_device {
 			Some(device) => Ok(aziot_identity_common::Identity::Aziot(
@@ -95,14 +95,14 @@ impl IdentityManager {
 			)),
 			None => Err(Error::DeviceNotFound)
 		}
-		
+
 	}
 
-	pub async fn get_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {		
+	pub async fn get_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
-		
+
 		match &self.iot_hub_device {
 			Some(device) => {
 				let client =
@@ -116,10 +116,10 @@ impl IdentityManager {
 					.map_err(Error::HubClient)?;
 
 				let master_id_key_handle = self.get_master_identity_key().await?;
-				let (primary_key_handle, _, _, _) = 
+				let (primary_key_handle, _, _, _) =
 					self.get_module_derived_keys(master_id_key_handle,module.clone()).await?;
 				let module_credentials = aziot_identity_common::Credentials::SharedPrivateKey(primary_key_handle.0);
-				
+
 				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
 					hub_name: device.iothub_hostname.clone(),
 					device_id: aziot_identity_common::DeviceId(module.device_id),
@@ -127,14 +127,14 @@ impl IdentityManager {
 					gen_id: module.generation_id.map(aziot_identity_common::GenId),
 					auth: Some(aziot_identity_common::AuthenticationInfo::from(module_credentials)),
 					});
-				
+
 				Ok(identity)
 			},
 			None => Err(Error::DeviceNotFound)
 		}
 	}
 
-	pub async fn get_module_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error> {		
+	pub async fn get_module_identities(&self) -> Result<Vec<aziot_identity_common::Identity>, Error> {
 		match &self.iot_hub_device {
 			Some(device) => {
 				let client =
@@ -162,11 +162,11 @@ impl IdentityManager {
 		}
 	}
 
-	pub async fn delete_module_identity(&self, module_id: &str) -> Result<(), Error> {		
+	pub async fn delete_module_identity(&self, module_id: &str) -> Result<(), Error> {
 		if module_id.trim().is_empty() {
 			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
 		}
-		
+
 		match &self.iot_hub_device {
 			Some(device) => {
 				let client =

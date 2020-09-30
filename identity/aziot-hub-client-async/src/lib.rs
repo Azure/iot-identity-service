@@ -48,17 +48,17 @@ impl Client {
 		authentication_type: Option<aziot_identity_common::hub::AuthMechanism>,
 		managed_by: Option<String>,
 	) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
-		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview", 
+		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview",
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
-		
+
 		let body = aziot_identity_common::hub::Module {
-		    module_id: module_id.into(),
-		    managed_by,
-		    device_id: self.device.device_id.clone(),
-		    generation_id: None,
-		    authentication: authentication_type,
+			module_id: module_id.into(),
+			managed_by,
+			device_id: self.device.device_id.clone(),
+			generation_id: None,
+			authentication: authentication_type,
 		};
 
 		let mut key_engine = self.key_engine.lock().await;
@@ -74,7 +74,7 @@ impl Client {
 			&self.cert_client,
 		).await?;
 
-		Ok(res) 
+		Ok(res)
 	}
 
 	pub async fn update_module(
@@ -83,17 +83,17 @@ impl Client {
 		authentication_type: Option<aziot_identity_common::hub::AuthMechanism>,
 		managed_by: Option<String>,
 	) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
-		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview", 
+		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview",
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
 
 		let body = aziot_identity_common::hub::Module {
-		    module_id: module_id.into(),
-		    managed_by,
-		    device_id: self.device.device_id.clone(),
-		    generation_id: None,
-		    authentication: authentication_type,
+			module_id: module_id.into(),
+			managed_by,
+			device_id: self.device.device_id.clone(),
+			generation_id: None,
+			authentication: authentication_type,
 		};
 
 		let mut key_engine = self.key_engine.lock().await;
@@ -115,7 +115,7 @@ impl Client {
 		&self,
 		module_id: &str,
 	) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
-		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview", 
+		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview",
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
@@ -134,11 +134,11 @@ impl Client {
 		).await?;
 		Ok(res)
 	}
-    
-    pub async fn get_modules(
+
+	pub async fn get_modules(
 		&self,
 	) -> Result<Vec<aziot_identity_common::hub::Module>, std::io::Error>{
-		let uri = format!("/devices/{}/modules?api-version=2017-11-08-preview", 
+		let uri = format!("/devices/{}/modules?api-version=2017-11-08-preview",
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
 
@@ -161,7 +161,7 @@ impl Client {
 		&self,
 		module_id: &str,
 	) -> Result<(), std::io::Error> {
-		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview", 
+		let uri = format!("/devices/{}/modules/{}?api-version=2017-11-08-preview",
 			percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
 			percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
 		);
@@ -206,7 +206,7 @@ where
 		hyper::Request::builder()
 		.method(method)
 		.uri(uri);
-	let req = 
+	let req =
 		if let Some(body) = body {
 			let body = serde_json::to_vec(body).expect("serializing request body to JSON cannot fail").into();
 			req
@@ -216,14 +216,14 @@ where
 		else {
 			req.body(hyper::Body::default())
 		};
-	
+
 	let mut req = req.expect("cannot fail to create hyper request");
 
 	if add_if_match {
 		req.headers_mut().insert(hyper::header::IF_MATCH, hyper::header::HeaderValue::from_static("*"));
 	}
 
-	let connector = 
+	let connector =
 		match hub_device.credentials.clone() {
 			aziot_identity_common::Credentials::SharedPrivateKey(key) => {
 				let (connector, token) =
@@ -316,9 +316,9 @@ where
 
 	req.headers_mut().insert(hyper::header::IF_MATCH, hyper::header::HeaderValue::from_static("*"));
 
-	let connector = 
+	let connector =
 		match hub_device.credentials.clone() {
-			aziot_identity_common::Credentials::SharedPrivateKey(key) => {					
+			aziot_identity_common::Credentials::SharedPrivateKey(key) => {
 
 				let (connector, token) =
 					get_sas_connector(
@@ -377,7 +377,7 @@ async fn get_sas_connector(
 	key_client: &aziot_key_client_async::Client,
 ) -> Result<(hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, String), std::io::Error> {
 	let key_handle = key_client.load_key(&*key_handle).await?;
-	
+
 	let token = {
 		let expiry = chrono::Utc::now() + chrono::Duration::from_std(std::time::Duration::from_secs(30)).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 		let expiry = expiry.timestamp().to_string();
@@ -388,7 +388,7 @@ async fn get_sas_connector(
 
 		let signature = key_client.sign(&key_handle, aziot_key_common::SignMechanism::HmacSha256, sig_data.as_bytes()).await
 			.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-		
+
 		let signature = base64::encode(&signature);
 
 		let token =
@@ -400,7 +400,7 @@ async fn get_sas_connector(
 	};
 
 	let token = format!("SharedAccessSignature {}", token);
-	
+
 
 	let tls_connector = hyper_openssl::HttpsConnector::new()
 		.map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
