@@ -31,17 +31,31 @@ impl Settings {
 	}
 
 	fn check(self) -> Result<Self, InternalError> {
-
-		// Require localid in config if any principal has local id_type.
 		if let Some(principal) = &self.principal {
-			let local_id_exists = self.localid.is_some();
-
 			for p in principal {
 				if let Some(t) = &p.id_type {
-					if t.contains(&aziot_identity_common::IdType::Local) && !local_id_exists {
+					// Require localid in config if any principal has local id_type.
+					if t.contains(&aziot_identity_common::IdType::Local) && self.localid.is_none() {
 						return Err(InternalError::BadSettings(std::io::Error::new(
 								std::io::ErrorKind::InvalidInput,
-								"local id type requires localid config"
+								format!("invalid config for {}: local id type requires localid config", p.name.0)
+							))
+						);
+					}
+
+					// Require provisioning if any module or device identities are present.
+					let provisioning_valid = match self.provisioning.provisioning {
+						ProvisioningType::None => {
+							!t.contains(&aziot_identity_common::IdType::Module) &&
+							!t.contains(&aziot_identity_common::IdType::Device)
+						},
+						_ => true,
+					};
+
+					if !provisioning_valid {
+						return Err(InternalError::BadSettings(std::io::Error::new(
+								std::io::ErrorKind::InvalidInput,
+								format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
 							))
 						);
 					}
@@ -81,7 +95,7 @@ pub struct Principal {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LocalId {
-	/// Identifier for a group of local identity certificates, suffixed to the common name
+	/// Identifier for a group of local identity certificates, suffixed to the common name.
 	pub domain: String,
 }
 
@@ -139,6 +153,9 @@ pub enum ProvisioningType {
 		scope_id: String,
 		attestation: DpsAttestationMethod,
 	},
+
+	/// Disables provisioning with IoT Hub for devices that use local identities only.
+	None,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

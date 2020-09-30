@@ -166,6 +166,7 @@ impl Server {
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
 		let hub_module_ids = self.id_manager.get_module_identities().await?;
+
 		for m in hub_module_ids {
 			match m {
 				aziot_identity_common::Identity::Aziot(m) => {
@@ -211,7 +212,7 @@ impl Server {
 				self.id_manager.set_device(&device);
 				device
 			},
-			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation} => {
+			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation } => {
 				let device = match attestation {
 					settings::DpsAttestationMethod::SymmetricKey { registration_id, symmetric_key } => {
 						let result = {
@@ -362,7 +363,10 @@ impl Server {
 					}
 				};
 				device
-			}
+			},
+			settings::ProvisioningType::None => {
+				return Err(Error::DeviceNotFound);
+			},
 		};
 		Ok(device)
 	}
