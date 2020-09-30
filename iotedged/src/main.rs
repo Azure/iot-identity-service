@@ -17,16 +17,16 @@ async fn main() -> Result<(), Error> {
 	let Options {
 		hub_id,
 		device_id,
-		keyd_url,
-		certd_url,
-		identityd_url,
+		keyd_uri,
+		certd_uri,
+		identityd_uri,
 		preloaded_device_id_ca_cert,
 		preloaded_device_id_cert,
 		sas_key,
 	} = structopt::StructOpt::from_args();
 
 
-	let key_connector = http_common::Connector::new(&keyd_url).unwrap();
+	let key_connector = http_common::Connector::new(&keyd_uri).unwrap();
 	let mut key_engine = {
 		let key_client = aziot_key_client::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_connector.clone());
 		let key_client = std::sync::Arc::new(key_client);
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Error> {
 	};
 
 	let cert_client = {
-		let cert_connector = http_common::Connector::new(&certd_url).unwrap();
+		let cert_connector = http_common::Connector::new(&certd_uri).unwrap();
 		let cert_client = aziot_cert_client_async::Client::new(aziot_cert_common_http::ApiVersion::V2020_09_01, cert_connector);
 		let cert_client = std::sync::Arc::new(cert_client);
 		cert_client
@@ -326,7 +326,7 @@ async fn main() -> Result<(), Error> {
 	let body = serde_json::json! {{ "type": "aziot" }};
 	let client = reqwest::Client::new();
 	let res =
-		client.post(identityd_url.join("/identities/device").unwrap())
+		client.post(identityd_uri.join("/identities/device").unwrap())
 		.json(&body)
 		.send()
 		.await.map_err(Error::Reqwest)?
@@ -336,7 +336,7 @@ async fn main() -> Result<(), Error> {
 
 	let client = reqwest::Client::new();
 	let res =
-		client.get(identityd_url.join("/identities/modules").unwrap())
+		client.get(identityd_uri.join("/identities/modules").unwrap())
 		.send()
 		.await.map_err(Error::Reqwest)?
 		.text().await.map_err(Error::Reqwest)?;
@@ -345,7 +345,7 @@ async fn main() -> Result<(), Error> {
 
 	let body = serde_json::json! {{ "type": "aziot", "moduleId": "testid" }};
 	let res =
-		client.post(identityd_url.join("/identities/modules").unwrap())
+		client.post(identityd_uri.join("/identities/modules").unwrap())
 		.json(&body)
 		.send()
 		.await.map_err(Error::Reqwest)?;
@@ -353,7 +353,7 @@ async fn main() -> Result<(), Error> {
 	println!("Create module response: {:?}", res);
 
 	let res =
-		client.get(identityd_url.join("/identities/modules/testid").unwrap())
+		client.get(identityd_uri.join("/identities/modules/testid").unwrap())
 		.send()
 		.await.map_err(Error::Reqwest)?
 		.text().await.map_err(Error::Reqwest)?;
@@ -361,7 +361,7 @@ async fn main() -> Result<(), Error> {
 	println!("Get module response{:?}", res);
 
 	let res =
-		client.delete(identityd_url.join("/identities/modules/testid").unwrap())
+		client.delete(identityd_uri.join("/identities/modules/testid").unwrap())
 		.send()
 		.await.map_err(Error::Reqwest)?;
 
@@ -381,17 +381,17 @@ struct Options {
 	#[structopt(long)]
 	device_id: String,
 
-	/// `keyd` API endpoint
+	/// `keyd` API endpoint.
 	#[structopt(long, default_value = "unix:///var/lib/aziot/keyd.sock")]
-	keyd_url: url::Url,
+	keyd_uri: url::Url,
 
-	/// `certd` API endpoint
+	/// `certd` API endpoint.
 	#[structopt(long, default_value = "unix:///var/lib/aziot/certd.sock")]
-	certd_url: url::Url,
+	certd_uri: url::Url,
 
-	/// `identityd` API endpoint
+	/// `identityd` API endpoint. At the moment, this must be a "http://" URI.
 	#[structopt(long, default_value = "http://localhost:8901")]
-	identityd_url: url::Url,
+	identityd_uri: url::Url,
 
 	/// ID of a device ID CA cert that has been preloaded into the KS and CS.
 	///
