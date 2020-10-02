@@ -46,13 +46,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 	{
 		let mut server_ = server.lock().await;
-		let device_status;
 
 		log::info!("Provisioning starting..");
 		let provisioning = server_.provision_device().await?;
 		log::info!("Provisioning complete.");
 
-		if let aziot_identity_common::ProvisioningStatus::Provisioned(device) = provisioning {
+		let device_status = if let aziot_identity_common::ProvisioningStatus::Provisioned(device) = provisioning {
 			let curr_hub_device_info = aziot_identityd::settings::HubDeviceInfo {
 				hub_name: device.iothub_hostname,
 				device_id: device.device_id
@@ -75,11 +74,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 			log::info!("Identity reconciliation with IoT Hub complete.");
 
-			device_status = toml::to_string(&curr_hub_device_info)?;
+			toml::to_string(&curr_hub_device_info)?
 		}
 		else {
-			device_status = aziot_identityd::settings::HubDeviceInfo::unprovisioned();
-		}
+			aziot_identityd::settings::HubDeviceInfo::unprovisioned()
+		};
 
 		std::fs::write(prev_device_info_path, device_status).map_err(aziot_identityd::error::InternalError::SaveDeviceInfo)?;
 		std::fs::copy(config_file, prev_settings_path).map_err(aziot_identityd::error::InternalError::SaveSettings)?;
