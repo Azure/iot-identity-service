@@ -195,7 +195,7 @@ impl Server {
 		Ok(())
 	}
 
-	pub async fn provision_device(&mut self) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+	pub async fn provision_device(&mut self) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
 		let device = match self.settings.clone().provisioning.provisioning {
 			settings::ProvisioningType::Manual { iothub_hostname, device_id, authentication } => {
 
@@ -210,7 +210,7 @@ impl Server {
 				};
 				let device = aziot_identity_common::IoTHubDevice { iothub_hostname, device_id, credentials };
 				self.id_manager.set_device(&device);
-				device
+				aziot_identity_common::ProvisioningStatus::Provisioned(device)
 			},
 			settings::ProvisioningType::Dps { global_endpoint, scope_id, attestation } => {
 				let device = match attestation {
@@ -284,7 +284,7 @@ impl Server {
 						};
 
 						self.id_manager.set_device(&device);
-						device
+						aziot_identity_common::ProvisioningStatus::Provisioned(device)
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
 						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id).await?;
@@ -359,13 +359,15 @@ impl Server {
 						};
 
 						self.id_manager.set_device(&device);
-						device
+						aziot_identity_common::ProvisioningStatus::Provisioned(device)
 					}
 				};
 				device
 			},
 			settings::ProvisioningType::None => {
-				return Err(Error::DeviceNotFound);
+				log::info!("Skipping provisioning with IoT Hub.");
+
+				aziot_identity_common::ProvisioningStatus::Unprovisioned
 			},
 		};
 		Ok(device)

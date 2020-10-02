@@ -67,19 +67,27 @@ impl Settings {
 	}
 }
 
-#[derive(Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
-pub struct DeviceInfo {
+#[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
+pub struct HubDeviceInfo {
 	pub hub_name: String,
 
 	pub device_id: String,
 }
 
-impl DeviceInfo {
-	pub fn new(filename: &Path)-> Result<Self, InternalError> {
+impl HubDeviceInfo {
+	pub fn new(filename: &Path)-> Result<Option<Self>, InternalError> {
 		let info = std::fs::read_to_string(filename).map_err(InternalError::LoadDeviceInfo)?;
-		let info = toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?;
+
+		let info = match info.as_str() {
+			"unprovisioned" => None,
+			_ => Some(toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?)
+		};
 
 		Ok(info)
+	}
+
+	pub fn unprovisioned() -> String {
+		"unprovisioned".to_owned()
 	}
 }
 
