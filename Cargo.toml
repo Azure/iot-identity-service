@@ -20,6 +20,8 @@ members = [
 	"key/aziot-key-common",
 	"key/aziot-key-common-http",
 	"key/aziot-keyd",
+	"key/aziot-key-openssl-engine",
+	"key/aziot-key-openssl-engine-shared",
 	"key/aziot-keys",
 
 	"openssl2",

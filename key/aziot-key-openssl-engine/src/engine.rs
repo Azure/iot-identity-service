@@ -5,9 +5,9 @@ pub(super) struct Engine {
 }
 
 impl Engine {
-	pub(super) unsafe fn load(client: std::sync::Arc<aziot_key_client::Client>) -> Result<openssl2::FunctionalEngine, openssl2::Error> {
-		const ENGINE_ID: &[u8] = b"aziot-key-openssl-engine\0";
+	const ENGINE_ID: &'static [u8] = b"aziot-key-openssl-engine\0";
 
+	pub(super) unsafe fn load(client: std::sync::Arc<aziot_key_client::Client>) -> Result<openssl2::FunctionalEngine, openssl2::Error> {
 		static REGISTER: std::sync::Once = std::sync::Once::new();
 
 		REGISTER.call_once(|| {
@@ -19,26 +19,7 @@ impl Engine {
 				let e: openssl2::StructuralEngine = foreign_types_shared::ForeignType::from_ptr(e);
 				let e = foreign_types_shared::ForeignType::as_ptr(&e);
 
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_id(
-					e,
-					std::ffi::CStr::from_bytes_with_nul(ENGINE_ID)
-						.expect("hard-coded engine ID is valid CStr")
-						.as_ptr(),
-				))?;
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_name(
-					e,
-					std::ffi::CStr::from_bytes_with_nul(b"An openssl engine that talks to the Azure IoT Keys Service\0")
-						.expect("hard-coded engine name is valid CStr")
-						.as_ptr(),
-				))?;
-
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_privkey_function(e, engine_load_privkey))?;
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_pubkey_function(e, engine_load_pubkey))?;
-				#[cfg(ossl110)]
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_pkey_meths(e, engine_pkey_meths))?;
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_flags(e, openssl_sys2::ENGINE_FLAGS_BY_ID_COPY))?;
-
-				openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+				Self::register(e, None)?;
 
 				Ok(())
 			});
@@ -46,16 +27,56 @@ impl Engine {
 
 		let e =
 			openssl2::StructuralEngine::by_id(
-				std::ffi::CStr::from_bytes_with_nul(ENGINE_ID).expect("hard-coded engine ID is valid CStr"),
+				std::ffi::CStr::from_bytes_with_nul(Self::ENGINE_ID).expect("hard-coded engine ID is valid CStr"),
 			)?;
 		let e: openssl2::FunctionalEngine = std::convert::TryInto::try_into(e)?;
 
+		Self::init(foreign_types_shared::ForeignType::as_ptr(&e), client)?;
+
+		Ok(e)
+	}
+
+	pub(super) unsafe fn register(
+		e: *mut openssl_sys::ENGINE,
+		init: Option<openssl_sys2::ENGINE_GEN_INT_FUNC_PTR>,
+	) -> Result<(), openssl2::Error> {
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_id(
+			e,
+			std::ffi::CStr::from_bytes_with_nul(Self::ENGINE_ID)
+				.expect("hard-coded engine ID is valid CStr")
+				.as_ptr(),
+		))?;
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_name(
+			e,
+			std::ffi::CStr::from_bytes_with_nul(b"An openssl engine that talks to the Azure IoT Keys Service\0")
+				.expect("hard-coded engine name is valid CStr")
+				.as_ptr(),
+		))?;
+
+		if let Some(init) = init {
+			openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_init_function(e, init))?;
+		}
+
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_privkey_function(e, engine_load_privkey))?;
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_pubkey_function(e, engine_load_pubkey))?;
+		#[cfg(ossl110)]
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_pkey_meths(e, engine_pkey_meths))?;
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_flags(e, openssl_sys2::ENGINE_FLAGS_BY_ID_COPY))?;
+
+		openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+
+		Ok(())
+	}
+
+	pub(super) unsafe fn init(
+		e: *mut openssl_sys::ENGINE,
+		client: std::sync::Arc<aziot_key_client::Client>,
+	) -> Result<(), openssl2::Error> {
 		let engine = Engine {
 			client,
 		};
-		crate::ex_data::set(foreign_types_shared::ForeignType::as_ptr(&e), engine)?;
-
-		Ok(e)
+		crate::ex_data::set(e, engine)?;
+		Ok(())
 	}
 }
 

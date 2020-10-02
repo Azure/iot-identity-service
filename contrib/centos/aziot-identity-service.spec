@@ -26,7 +26,10 @@ This package contains the Azure IoT device runtime, comprised of the following s
 - aziot-certd - The Azure IoT Certificates Service
 - aziot-keyd - The Azure IoT Keys Service
 
-This package also contains the libaziot-keys library used by the Keys Service to communicate with HSMs for key operations.
+This package also contains the following libraries:
+
+- libaziot_keys.so - The library used by the Keys Service to communicate with HSMs for key operations.
+- <openssl engines directory>/openssl/engines/libaziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
 
 
 %package devel
@@ -64,6 +67,7 @@ make -j \
     localstatedir=%{_localstatedir} \
     sysconfdir=%{_sysconfdir} \
     unitdir=%{_unitdir} \
+    OPENSSL_ENGINES_DIR=/usr/lib64/openssl/engines \
     RELEASE=1 \
     V=1 \
     SOCKET_ACTIVATION_SUPPORTED=0 \
@@ -113,6 +117,9 @@ mkdir -p /var/lib/aziot/keyd
 
 # libaziot-keys
 %{_libdir}/libaziot_keys.so
+
+# libaziot-key-openssl-engine-shared
+%{_libdir}/openssl/engines/libaziot_keys.so
 
 # Default configs
 %attr(400, aziotcs, aziotcs) %{_sysconfdir}/aziot/certd/config.toml.default

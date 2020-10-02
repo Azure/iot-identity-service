@@ -39,6 +39,28 @@ pub fn load(client: std::sync::Arc<aziot_key_client::Client>) -> Result<openssl2
 	}
 }
 
+/// Register the openssl engine with the given init function on the given structural instance.
+///
+/// This is intended to be used by aziot-key-engine-shared.
+#[doc(hidden)]
+pub unsafe fn register(
+	e: *mut openssl_sys::ENGINE,
+	init: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
+) -> Result<(), openssl2::Error> {
+	engine::Engine::register(e, Some(init))
+}
+
+/// Initialize an existing structural instance of the openssl engine with the given Keys Service client.
+///
+/// This is intended to be used by aziot-key-engine-shared.
+#[doc(hidden)]
+pub unsafe fn init(
+	e: *mut openssl_sys::ENGINE,
+	client: std::sync::Arc<aziot_key_client::Client>,
+) -> Result<(), openssl2::Error> {
+	engine::Engine::init(e, client)
+}
+
 openssl_errors::openssl_errors! {
 	#[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
 	library Error("aziot_key_openssl_engine") {

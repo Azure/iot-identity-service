@@ -19,4 +19,7 @@ Description: Azure IoT Identity Service and related services
  - aziot-certd - The Azure IoT Certificates Service
  - aziot-keyd - The Azure IoT Keys Service
  .
- This package also contains the libaziot-keys library used by the Keys Service to communicate with HSMs for key operations.
+ This package also contains the following libraries:
+ .
+ - libaziot_keys.so - The library used by the Keys Service to communicate with HSMs for key operations.
+ - <openssl engines directory>/aziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
