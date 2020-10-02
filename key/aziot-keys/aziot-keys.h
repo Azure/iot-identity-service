@@ -6,12 +6,12 @@
  *
  * # API conventions
  *
- * All functions return an `unsigned int` to indicate success or failure. See the [`KEYGEN_ERROR`] type's docs for details about these constants.
+ * All functions return an `unsigned int` to indicate success or failure. See the [`AZIOT_KEYS_STATUS`] type's docs for details about these constants.
  *
- * The only function exported by this library is [`KEYGEN_get_function_list`]. Call this function to get the version of the API
+ * The only function exported by this library is [`aziot_keys_get_function_list`]. Call this function to get the version of the API
  * that this library exports, as well as the function pointers to the key operations. See its docs for more details.
  *
- * All calls to [`KEYGEN_get_function_list`] or any function in [`KEYGEN_FUNCTION_LIST`] are serialized, ie a function will not be called
+ * All calls to [`aziot_keys_get_function_list`] or any function in [`AZIOT_KEYS_FUNCTION_LIST`] are serialized, ie a function will not be called
  * while another function is running. However, it is not guaranteed that all function calls will be made from the same operating system thread.
  * Thus, implementations do not need to worry about locking to prevent concurrent access, but should also not store data in thread-local storage.
  */
@@ -21,7 +21,7 @@
 /**
  * Represents the version of the API exported by this library.
  */
-typedef unsigned int KEYGEN_VERSION;
+typedef unsigned int AZIOT_KEYS_VERSION;
 
 /**
  * The base struct of all of function lists.
@@ -30,38 +30,38 @@ typedef struct {
     /**
      * The version of the API represented in this function list.
      *
-     * The specific subtype of `KEYGEN_FUNCTION_LIST` can be determined by inspecting this value.
+     * The specific subtype of `AZIOT_KEYS_FUNCTION_LIST` can be determined by inspecting this value.
      */
-    KEYGEN_VERSION version;
-} KEYGEN_FUNCTION_LIST;
+    AZIOT_KEYS_VERSION version;
+} AZIOT_KEYS_FUNCTION_LIST;
 
 /**
  * Error type. This is a transparent wrapper around a `std::os::raw::c_uint` (`unsigned int`).
  *
- * Either `KEYGEN_SUCCESS` or one of the `KEYGEN_ERROR_*` constants.
+ * Either `AZIOT_KEYS_SUCCESS` or one of the `AZIOT_KEYS_ERROR_*` constants.
  */
-typedef unsigned int KEYGEN_ERROR;
+typedef unsigned int AZIOT_KEYS_STATUS;
 
-typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_TYPE;
+typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE;
 
 /**
  * Represents the mechanism used for a sign operation.
  */
-typedef unsigned int KEYGEN_SIGN_MECHANISM;
+typedef unsigned int AZIOT_KEYS_SIGN_MECHANISM;
 
 /**
  * Represents the mechanism used for an encrypt operation.
  */
-typedef unsigned int KEYGEN_ENCRYPT_MECHANISM;
+typedef unsigned int AZIOT_KEYS_ENCRYPT_MECHANISM;
 
 /**
- * The specific implementation of [`KEYGEN_FUNCTION_LIST`] for API version 2.0.0.0
+ * The specific implementation of [`AZIOT_KEYS_FUNCTION_LIST`] for API version 2.0.0.0
  */
 typedef struct {
     /**
-     * The value of `base.version` must be [`KEYGEN_VERSION_2_0_0_0`].
+     * The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_0_0_0`].
      */
-    KEYGEN_FUNCTION_LIST base;
+    AZIOT_KEYS_FUNCTION_LIST base;
     /**
      * Set a parameter on this library.
      *
@@ -74,14 +74,14 @@ typedef struct {
      *
      * # Errors
      *
-     * - `KEYGEN_ERROR_INVALID_PARAMETER`:
+     * - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
      *   - `name` is `NULL`.
      *   - `name` is not recognized by this implementation.
      *   - `value` is invalid.
      *
-     * - `KEYGEN_ERROR_FATAL`
+     * - `AZIOT_KEYS_ERROR_FATAL`
      */
-    KEYGEN_ERROR (*set_parameter)(const char *name, const char *value);
+    AZIOT_KEYS_STATUS (*set_parameter)(const char *name, const char *value);
     /**
      * Create or load a key identified by the specified `id`.
      *
@@ -108,186 +108,186 @@ typedef struct {
      *
      * # Errors
      *
-     * - `KEYGEN_ERROR_INVALID_PARAMETER`:
+     * - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
      *   - `id` is NULL.
      *   - `ppublic_key` is `NULL`.
      *   - `pprivate_key` is `NULL`.
      *
-     * - `KEYGEN_ERROR_EXTERNAL`
+     * - `AZIOT_KEYS_ERROR_EXTERNAL`
      */
-    KEYGEN_ERROR (*create_key_pair_if_not_exists)(const char *id, const char *preferred_algorithms);
-    KEYGEN_ERROR (*load_key_pair)(const char *id);
+    AZIOT_KEYS_STATUS (*create_key_pair_if_not_exists)(const char *id, const char *preferred_algorithms);
+    AZIOT_KEYS_STATUS (*load_key_pair)(const char *id);
     /**
      * Gets the value of a parameter of the key identified by the specified `id`.
      *
-     * `type_` must be set to one of the `KEYGEN_KEY_PAIR_PARAMETER_TYPE_*` constants.
+     * `type_` must be set to one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_*` constants.
      *
      * # Errors
      *
-     * - `KEYGEN_ERROR_INVALID_PARAMETER`:
+     * - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
      *   - `id` is NULL.
      *   - The key specified by `id` does not exist.
      *   - `type_` is not a valid parameter type for the key specified by `id`.
      *
-     * - `KEYGEN_ERROR_EXTERNAL`
+     * - `AZIOT_KEYS_ERROR_EXTERNAL`
      */
-    KEYGEN_ERROR (*get_key_pair_parameter)(const char *id, KEYGEN_KEY_PAIR_PARAMETER_TYPE type_, unsigned char *value, uintptr_t *value_len);
-    KEYGEN_ERROR (*create_key_if_not_exists)(const char *id, uintptr_t length);
-    KEYGEN_ERROR (*load_key)(const char *id);
-    KEYGEN_ERROR (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len);
-    KEYGEN_ERROR (*derive_key)(const char *base_id, const uint8_t *derivation_data, uintptr_t derivation_data_len, unsigned char *derived_key, uintptr_t *derived_key_len);
-    KEYGEN_ERROR (*sign)(const char *id, KEYGEN_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
+    AZIOT_KEYS_STATUS (*get_key_pair_parameter)(const char *id, AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE type_, unsigned char *value, uintptr_t *value_len);
+    AZIOT_KEYS_STATUS (*create_key_if_not_exists)(const char *id, uintptr_t length);
+    AZIOT_KEYS_STATUS (*load_key)(const char *id);
+    AZIOT_KEYS_STATUS (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len);
+    AZIOT_KEYS_STATUS (*derive_key)(const char *base_id, const uint8_t *derivation_data, uintptr_t derivation_data_len, unsigned char *derived_key, uintptr_t *derived_key_len);
+    AZIOT_KEYS_STATUS (*sign)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
     /**
      * Verifies the signature of the given digest using the key identified by the specified `id`.
      *
-     * `mechanism` must be set to one of the `KEYGEN_SIGN_MECHANISM_*` constants.
+     * `mechanism` must be set to one of the `AZIOT_KEYS_SIGN_MECHANISM_*` constants.
      *
-     * If the function returns `KEYGEN_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
+     * If the function returns `AZIOT_KEYS_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
      *
      * # Errors
      *
-     * - `KEYGEN_ERROR_INVALID_PARAMETER`:
+     * - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
      *   - `id` is NULL.
      *   - The key specified by `id` does not exist.
      *   - `mechanism` is not a valid parameter type for the key specified by `id`.
      *
-     * - `KEYGEN_ERROR_EXTERNAL`
+     * - `AZIOT_KEYS_ERROR_EXTERNAL`
      */
-    KEYGEN_ERROR (*verify)(const char *id, KEYGEN_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, const unsigned char *signature, uintptr_t signature_len, int *ok);
-    KEYGEN_ERROR (*encrypt)(const char *id, KEYGEN_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *plaintext, uintptr_t plaintext_len, unsigned char *ciphertext, uintptr_t *ciphertext_len);
-    KEYGEN_ERROR (*decrypt)(const char *id, KEYGEN_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *ciphertext, uintptr_t ciphertext_len, unsigned char *plaintext, uintptr_t *plaintext_len);
-} KEYGEN_FUNCTION_LIST_2_0_0_0;
+    AZIOT_KEYS_STATUS (*verify)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, const unsigned char *signature, uintptr_t signature_len, int *ok);
+    AZIOT_KEYS_STATUS (*encrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *plaintext, uintptr_t plaintext_len, unsigned char *ciphertext, uintptr_t *ciphertext_len);
+    AZIOT_KEYS_STATUS (*decrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *ciphertext, uintptr_t ciphertext_len, unsigned char *plaintext, uintptr_t *plaintext_len);
+} AZIOT_KEYS_FUNCTION_LIST_2_0_0_0;
 
 /**
- * Holds parameters for a sign operation with the [`KEYGEN_SIGN_MECHANISM_DERIVED`] mechanism.
+ * Holds parameters for a sign operation with the [`AZIOT_KEYS_SIGN_MECHANISM_DERIVED`] mechanism.
  */
 typedef struct {
     const unsigned char *derivation_data;
     uintptr_t derivation_data_len;
-    KEYGEN_SIGN_MECHANISM mechanism;
+    AZIOT_KEYS_SIGN_MECHANISM mechanism;
     const void *parameters;
-} KEYGEN_SIGN_DERIVED_PARAMETERS;
+} AZIOT_KEYS_SIGN_DERIVED_PARAMETERS;
 
 /**
- * Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.
+ * Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD`] mechanism.
  */
 typedef struct {
     const unsigned char *iv;
     uintptr_t iv_len;
     const unsigned char *aad;
     uintptr_t aad_len;
-} KEYGEN_ENCRYPT_AEAD_PARAMETERS;
+} AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS;
 
 /**
- * Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_DERIVED`] mechanism.
+ * Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED`] mechanism.
  */
 typedef struct {
     const unsigned char *derivation_data;
     uintptr_t derivation_data_len;
-    KEYGEN_ENCRYPT_MECHANISM mechanism;
+    AZIOT_KEYS_ENCRYPT_MECHANISM mechanism;
     const void *parameters;
-} KEYGEN_ENCRYPT_DERIVED_PARAMETERS;
+} AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS;
 
-typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
+typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
 
 /**
  * AEAD mechanism, like AES-256-GCM.
  */
-#define KEYGEN_ENCRYPT_MECHANISM_AEAD 1
+#define AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD 1
 
 /**
- * Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
+ * Encrypt with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS` value.
  */
-#define KEYGEN_ENCRYPT_MECHANISM_DERIVED 4
+#define AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED 4
 
 /**
  * RSA with no padding. Padding will have been performed by the caller.
  */
-#define KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING 3
+#define AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING 3
 
 /**
  * RSA with PKCS1 padding.
  */
-#define KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 2
+#define AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 2
 
 /**
  * The library encountered an error with an external resource, such as an I/O error or RPC error.
  */
-#define KEYGEN_ERROR_EXTERNAL 3
+#define AZIOT_KEYS_ERROR_EXTERNAL 3
 
 /**
  * The library encountered an unrecoverable error. The process should exit as soon as possible.
  */
-#define KEYGEN_ERROR_FATAL 1
+#define AZIOT_KEYS_ERROR_FATAL 1
 
 /**
  * The operation failed because a parameter has an invalid value.
  */
-#define KEYGEN_ERROR_INVALID_PARAMETER 2
+#define AZIOT_KEYS_ERROR_INVALID_PARAMETER 2
 
-#define KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_EC 1
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC 1
 
-#define KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_RSA 2
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA 2
 
 /**
  * Used as the parameter type with `get_key_pair_parameter` to get the key algorithm.
  *
- * The value returned by `get_key_pair_parameter` will be one of the `KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_*` constants.
+ * The value returned by `get_key_pair_parameter` will be one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_*` constants.
  */
-#define KEYGEN_KEY_PAIR_PARAMETER_TYPE_ALGORITHM 1
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM 1
 
 /**
  * Used as the parameter type with `get_key_pair_parameter` to get the curve OID of an EC key.
  *
  * The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded OID.
  */
-#define KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID 2
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID 2
 
 /**
  * Used as the parameter type with `get_key_pair_parameter` to get the point of an EC key.
  *
  * The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded octet string in RFC 5490 format.
  */
-#define KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_POINT 3
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT 3
 
 /**
  * Used as the parameter type with `get_key_pair_parameter` to get the exponent of an RSA key.
  *
  * The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
  */
-#define KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT 5
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT 5
 
 /**
  * Used as the parameter type with `get_key_pair_parameter` to get the modulus of an RSA key.
  *
  * The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
  */
-#define KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS 4
+#define AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS 4
 
 /**
- * Sign with a derived key. The `parameters` parameter must be set to a `KEYGEN_SIGN_DERIVED_PARAMETERS` value.
+ * Sign with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_SIGN_DERIVED_PARAMETERS` value.
  */
-#define KEYGEN_SIGN_MECHANISM_DERIVED 3
+#define AZIOT_KEYS_SIGN_MECHANISM_DERIVED 3
 
 /**
  * ECDSA
  */
-#define KEYGEN_SIGN_MECHANISM_ECDSA 1
+#define AZIOT_KEYS_SIGN_MECHANISM_ECDSA 1
 
 /**
  * HMAC-SHA256
  */
-#define KEYGEN_SIGN_MECHANISM_HMAC_SHA256 2
+#define AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256 2
 
 /**
  * The operation succeeded.
  */
-#define KEYGEN_SUCCESS 0
+#define AZIOT_KEYS_SUCCESS 0
 
 /**
  * Version 2.0.0.0
  */
-#define KEYGEN_VERSION_2_0_0_0 33554432
+#define AZIOT_KEYS_VERSION_2_0_0_0 33554432
 
 
 /**
@@ -301,12 +301,12 @@ typedef unsigned int KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM;
  *
  * # Errors
  *
- * - `KEYGEN_ERROR_INVALID_PARAMETER`:
+ * - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
  *   - `version` is not recognized by this implementation.
  *   - `pfunction_list` is NULL.
  */
-KEYGEN_ERROR KEYGEN_get_function_list(KEYGEN_VERSION version,
-                                      const KEYGEN_FUNCTION_LIST **pfunction_list);
+AZIOT_KEYS_STATUS aziot_keys_get_function_list(AZIOT_KEYS_VERSION version,
+                                               const AZIOT_KEYS_FUNCTION_LIST **pfunction_list);
 
 
 

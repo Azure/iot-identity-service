@@ -111,7 +111,7 @@ impl From<crate::keys::SetLibraryParameterError> for Error {
 impl From<crate::keys::CreateKeyPairIfNotExistsError> for Error {
 	fn from(err: crate::keys::CreateKeyPairIfNotExistsError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::CreateKeyPairIfNotExists(err)),
 		}
 	}
@@ -120,7 +120,7 @@ impl From<crate::keys::CreateKeyPairIfNotExistsError> for Error {
 impl From<crate::keys::LoadKeyPairError> for Error {
 	fn from(err: crate::keys::LoadKeyPairError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::LoadKeyPair(err)),
 		}
 	}
@@ -130,7 +130,7 @@ impl From<crate::keys::GetKeyPairPublicParameterError> for Error {
 	fn from(err: crate::keys::GetKeyPairPublicParameterError) -> Self {
 		match err {
 			crate::keys::GetKeyPairPublicParameterError::Api {
-				err: crate::keys::KeysRawError(crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER),
+				err: crate::keys::KeysRawError(crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER),
 			} =>
 				Error::InvalidParameter(None),
 
@@ -142,7 +142,7 @@ impl From<crate::keys::GetKeyPairPublicParameterError> for Error {
 impl From<crate::keys::CreateKeyIfNotExistsError> for Error {
 	fn from(err: crate::keys::CreateKeyIfNotExistsError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)),
 		}
 	}
@@ -151,7 +151,7 @@ impl From<crate::keys::CreateKeyIfNotExistsError> for Error {
 impl From<crate::keys::LoadKeyError> for Error {
 	fn from(err: crate::keys::LoadKeyError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::LoadKey(err)),
 		}
 	}
@@ -160,7 +160,7 @@ impl From<crate::keys::LoadKeyError> for Error {
 impl From<crate::keys::ImportKeyError> for Error {
 	fn from(err: crate::keys::ImportKeyError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::CreateKeyIfNotExistsImport(err)),
 		}
 	}
@@ -169,7 +169,7 @@ impl From<crate::keys::ImportKeyError> for Error {
 impl From<crate::keys::DeriveKeyError> for Error {
 	fn from(err: crate::keys::DeriveKeyError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::DeriveKey(err)),
 		}
 	}
@@ -178,7 +178,7 @@ impl From<crate::keys::DeriveKeyError> for Error {
 impl From<crate::keys::SignError> for Error {
 	fn from(err: crate::keys::SignError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::Sign(err)),
 		}
 	}
@@ -187,7 +187,7 @@ impl From<crate::keys::SignError> for Error {
 impl From<crate::keys::VerifyError> for Error {
 	fn from(err: crate::keys::VerifyError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::Verify(err)),
 		}
 	}
@@ -196,7 +196,7 @@ impl From<crate::keys::VerifyError> for Error {
 impl From<crate::keys::EncryptError> for Error {
 	fn from(err: crate::keys::EncryptError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::Encrypt(err)),
 		}
 	}
@@ -205,7 +205,7 @@ impl From<crate::keys::EncryptError> for Error {
 impl From<crate::keys::DecryptError> for Error {
 	fn from(err: crate::keys::DecryptError) -> Self {
 		match err.err.0 {
-			crate::keys::sys::KEYGEN_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
+			crate::keys::sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => Error::InvalidParameter(None),
 			_ => Error::Internal(InternalError::Decrypt(err)),
 		}
 	}

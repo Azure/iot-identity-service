@@ -2,7 +2,7 @@
 name = "openssl2"
 version = "0.1.0"
 license = "MIT"
-authors = ["Arnav Singh <arsing@microsoft.com>"]
+authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 build = "build/main.rs"
 

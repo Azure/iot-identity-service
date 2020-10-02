@@ -3,7 +3,7 @@
 pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 	id: *const std::os::raw::c_char,
 	preferred_algorithms: *const std::os::raw::c_char,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -31,7 +31,7 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 
 pub(crate) unsafe extern "C" fn load_key_pair(
 	id: *const std::os::raw::c_char,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -54,10 +54,10 @@ pub(crate) unsafe extern "C" fn load_key_pair(
 
 pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 	id: *const std::os::raw::c_char,
-	r#type: crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE,
+	r#type: crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
 	value: *mut std::os::raw::c_uchar,
 	value_len: *mut usize,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -75,8 +75,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 		let (public_key, _) = load_inner(&locations)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
 		match r#type {
-			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_ALGORITHM => {
-				let expected_value_len = std::mem::size_of::<crate::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM>();
+			crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM => {
+				let expected_value_len = std::mem::size_of::<crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM>();
 				let actual_value_len = *value_len_out.as_ref();
 
 				*value_len_out.as_mut() = expected_value_len;
@@ -90,10 +90,10 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
 					let value =
 						if public_key.ec_key().is_ok() {
-							crate::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_EC
+							crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC
 						}
 						else if public_key.rsa().is_ok() {
-							crate::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_RSA
+							crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA
 						}
 						else {
 							return Err(crate::implementation::err_invalid_parameter("id", "key is neither RSA nor EC"));
@@ -105,7 +105,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 				Ok(())
 			},
 
-			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID => {
+			crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID => {
 				let ec_key =
 					if let Ok(ec_key) = public_key.ec_key() {
 						ec_key
@@ -136,7 +136,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 				Ok(())
 			},
 
-			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_POINT => {
+			crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT => {
 				let ec_key =
 					if let Ok(ec_key) = public_key.ec_key() {
 						ec_key
@@ -168,7 +168,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 				Ok(())
 			},
 
-			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS => {
+			crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS => {
 				let rsa =
 					if let Ok(rsa) = public_key.rsa() {
 						rsa
@@ -197,7 +197,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 				Ok(())
 			},
 
-			crate::KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT => {
+			crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT => {
 				let rsa =
 					if let Ok(rsa) = public_key.rsa() {
 						rsa
@@ -233,14 +233,14 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
 pub(crate) unsafe fn sign(
 	locations: &[crate::implementation::Location],
-	mechanism: crate::KEYGEN_SIGN_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_SIGN_MECHANISM,
 	_parameters: *const std::ffi::c_void,
 	digest: &[u8],
-) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
 	let (_, private_key) = load_inner(locations)?.ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
 	let (signature_len, signature) = match (mechanism, private_key.ec_key(), private_key.rsa()) {
-		(crate::KEYGEN_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
+		(crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
 			let signature_len = {
 				let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
 				let signature_len = openssl_sys2::ECDSA_size(ec_key);
@@ -264,18 +264,18 @@ pub(crate) unsafe fn sign(
 
 pub(crate) unsafe fn encrypt(
 	locations: &[crate::implementation::Location],
-	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
 	_parameters: *const std::ffi::c_void,
 	plaintext: &[u8],
-) -> Result<(usize, Vec<u8>), crate::KEYGEN_ERROR> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
 	let (_, private_key) = match load_inner(locations)? {
 		Some(key) => key,
 		None => return Err(crate::implementation::err_invalid_parameter("id", "key not found")),
 	};
 
 	let padding = match mechanism {
-		crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 => openssl::rsa::Padding::PKCS1,
-		crate::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING => openssl::rsa::Padding::NONE,
+		crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 => openssl::rsa::Padding::PKCS1,
+		crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => openssl::rsa::Padding::NONE,
 		_ => return Err(crate::implementation::err_invalid_parameter("mechanism", "unrecognized value")),
 	};
 
@@ -294,7 +294,7 @@ pub(crate) unsafe fn encrypt(
 fn load_inner(locations: &[crate::implementation::Location]) ->
 	Result<
 		Option<(openssl::pkey::PKey<openssl::pkey::Public>, openssl::pkey::PKey<openssl::pkey::Private>)>,
-		crate::KEYGEN_ERROR,
+		crate::AZIOT_KEYS_STATUS,
 	>
 {
 	let location = locations.first().ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
@@ -344,7 +344,7 @@ fn load_inner(locations: &[crate::implementation::Location]) ->
 	}
 }
 
-fn create_inner(locations: &[crate::implementation::Location], preferred_algorithms: &[PreferredAlgorithm]) -> Result<(), crate::KEYGEN_ERROR> {
+fn create_inner(locations: &[crate::implementation::Location], preferred_algorithms: &[PreferredAlgorithm]) -> Result<(), crate::AZIOT_KEYS_STATUS> {
 	let location = locations.first().ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
 	match location {
 		crate::implementation::Location::Filesystem(path) => {

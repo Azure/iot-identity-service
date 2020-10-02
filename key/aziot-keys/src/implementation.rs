@@ -42,13 +42,13 @@ impl std::str::FromStr for PreloadedKeyLocation {
 }
 
 pub(crate) unsafe fn get_function_list(
-	version: crate::KEYGEN_VERSION,
-	pfunction_list: *mut *const crate::KEYGEN_FUNCTION_LIST,
-) -> crate::KEYGEN_ERROR {
+	version: crate::AZIOT_KEYS_VERSION,
+	pfunction_list: *mut *const crate::AZIOT_KEYS_FUNCTION_LIST,
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
-		static KEYGEN_FUNCTION_LIST_2_0_0_0: crate::KEYGEN_FUNCTION_LIST_2_0_0_0 = crate::KEYGEN_FUNCTION_LIST_2_0_0_0 {
-			base: crate::KEYGEN_FUNCTION_LIST {
-				version: crate::KEYGEN_VERSION_2_0_0_0,
+		static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0: crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 = crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+			base: crate::AZIOT_KEYS_FUNCTION_LIST {
+				version: crate::AZIOT_KEYS_VERSION_2_0_0_0,
 			},
 
 			set_parameter,
@@ -66,9 +66,9 @@ pub(crate) unsafe fn get_function_list(
 		};
 
 		match version {
-			crate::KEYGEN_VERSION_2_0_0_0 => {
+			crate::AZIOT_KEYS_VERSION_2_0_0_0 => {
 				let mut function_list_out = std::ptr::NonNull::new(pfunction_list).ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-				*function_list_out.as_mut() = &KEYGEN_FUNCTION_LIST_2_0_0_0 as *const _ as *const _;
+				*function_list_out.as_mut() = &AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 as *const _ as *const _;
 				Ok(())
 			},
 
@@ -80,7 +80,7 @@ pub(crate) unsafe fn get_function_list(
 pub(crate) unsafe extern "C" fn set_parameter(
 	name: *const std::os::raw::c_char,
 	value: *const std::os::raw::c_char,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let name = name.as_ref().ok_or_else(|| err_invalid_parameter("name", "expected non-NULL"))?;
 		let name = std::ffi::CStr::from_ptr(name);
@@ -159,13 +159,13 @@ pub(crate) unsafe extern "C" fn set_parameter(
 
 pub(crate) unsafe extern "C" fn sign(
 	id: *const std::os::raw::c_char,
-	mechanism: crate::KEYGEN_SIGN_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_SIGN_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	digest: *const std::os::raw::c_uchar,
 	digest_len: usize,
 	signature: *mut std::os::raw::c_uchar,
 	signature_len: *mut usize,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -189,11 +189,11 @@ pub(crate) unsafe extern "C" fn sign(
 		let locations = Location::of(id)?;
 
 		let (expected_signature_len, expected_signature) = match mechanism {
-			crate::KEYGEN_SIGN_MECHANISM_ECDSA =>
+			crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA =>
 				crate::key_pair::sign(&locations, mechanism, parameters, digest)?,
 
-			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 |
-			crate::KEYGEN_SIGN_MECHANISM_DERIVED =>
+			crate::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256 |
+			crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED =>
 				crate::key::sign(&locations, mechanism, parameters, digest)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -222,14 +222,14 @@ pub(crate) unsafe extern "C" fn sign(
 
 pub(crate) unsafe extern "C" fn verify(
 	id: *const std::os::raw::c_char,
-	mechanism: crate::KEYGEN_SIGN_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_SIGN_MECHANISM,
 	_parameters: *const std::ffi::c_void, // Currently unused, but may be used in the future
 	digest: *const std::os::raw::c_uchar,
 	digest_len: usize,
 	signature: *const std::os::raw::c_uchar,
 	signature_len: usize,
 	ok: *mut std::os::raw::c_int,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -264,10 +264,10 @@ pub(crate) unsafe extern "C" fn verify(
 		let ok = match mechanism {
 			// Verify is not supported for asymmetric keys.
 			// Clients can verify signatures themselves from the public parameters of the key pair.
-			crate::KEYGEN_SIGN_MECHANISM_ECDSA =>
+			crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA =>
 				return Err(err_invalid_parameter("mechanism", "unrecognized value")),
 
-			crate::KEYGEN_SIGN_MECHANISM_HMAC_SHA256 =>
+			crate::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256 =>
 				crate::key::verify(&locations, digest, signature)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -281,13 +281,13 @@ pub(crate) unsafe extern "C" fn verify(
 
 pub(crate) unsafe extern "C" fn encrypt(
 	id: *const std::os::raw::c_char,
-	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	plaintext: *const std::os::raw::c_uchar,
 	plaintext_len: usize,
 	ciphertext: *mut std::os::raw::c_uchar,
 	ciphertext_len: *mut usize,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -311,12 +311,12 @@ pub(crate) unsafe extern "C" fn encrypt(
 		let locations = Location::of(id)?;
 
 		let (expected_ciphertext_len, expected_ciphertext) = match mechanism {
-			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD |
-			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD |
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::encrypt(&locations, mechanism, parameters, plaintext)?,
 
-			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1 |
-			crate::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING =>
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 |
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING =>
 				crate::key_pair::encrypt(&locations, mechanism, parameters, plaintext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -345,13 +345,13 @@ pub(crate) unsafe extern "C" fn encrypt(
 
 pub(crate) unsafe extern "C" fn decrypt(
 	id: *const std::os::raw::c_char,
-	mechanism: crate::KEYGEN_ENCRYPT_MECHANISM,
+	mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
 	parameters: *const std::ffi::c_void,
 	ciphertext: *const std::os::raw::c_uchar,
 	ciphertext_len: usize,
 	plaintext: *mut std::os::raw::c_uchar,
 	plaintext_len: *mut usize,
-) -> crate::KEYGEN_ERROR {
+) -> crate::AZIOT_KEYS_STATUS {
 	crate::r#catch(|| {
 		let id = {
 			if id.is_null() {
@@ -375,8 +375,8 @@ pub(crate) unsafe extern "C" fn decrypt(
 		let locations = Location::of(id)?;
 
 		let (expected_plaintext_len, expected_plaintext) = match mechanism {
-			crate::KEYGEN_ENCRYPT_MECHANISM_AEAD |
-			crate::KEYGEN_ENCRYPT_MECHANISM_DERIVED =>
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD |
+			crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED =>
 				crate::key::decrypt(&locations, mechanism, parameters, ciphertext)?,
 
 			_ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
@@ -410,7 +410,7 @@ pub(crate) enum Location {
 }
 
 impl Location {
-	pub(crate) fn of(id: &str) -> Result<Vec<Self>, crate::KEYGEN_ERROR> {
+	pub(crate) fn of(id: &str) -> Result<Vec<Self>, crate::AZIOT_KEYS_STATUS> {
 		let homedir_path_guard = HOMEDIR_PATH.read().map_err(err_fatal)?;
 		let homedir_path = homedir_path_guard.as_ref();
 
@@ -474,35 +474,35 @@ impl Location {
 	}
 }
 
-impl From<openssl::error::Error> for crate::KEYGEN_ERROR {
+impl From<openssl::error::Error> for crate::AZIOT_KEYS_STATUS {
 	fn from(err: openssl::error::Error) -> Self {
 		err_external(err)
 	}
 }
 
-impl From<openssl::error::ErrorStack> for crate::KEYGEN_ERROR {
+impl From<openssl::error::ErrorStack> for crate::AZIOT_KEYS_STATUS {
 	fn from(err: openssl::error::ErrorStack) -> Self {
 		err_external(err)
 	}
 }
 
-impl From<openssl2::Error> for crate::KEYGEN_ERROR {
+impl From<openssl2::Error> for crate::AZIOT_KEYS_STATUS {
 	fn from(err: openssl2::Error) -> Self {
 		err_external(err)
 	}
 }
 
-pub(crate) fn err_external<E>(err: E) -> crate::KEYGEN_ERROR where E: std::fmt::Display {
+pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_STATUS where E: std::fmt::Display {
 	eprintln!("{}", err);
-	crate::KEYGEN_ERROR_EXTERNAL
+	crate::AZIOT_KEYS_ERROR_EXTERNAL
 }
 
-pub(crate) fn err_fatal<E>(err: E) -> crate::KEYGEN_ERROR where E: std::fmt::Display {
+pub(crate) fn err_fatal<E>(err: E) -> crate::AZIOT_KEYS_STATUS where E: std::fmt::Display {
 	eprintln!("{}", err);
-	crate::KEYGEN_ERROR_EXTERNAL
+	crate::AZIOT_KEYS_ERROR_EXTERNAL
 }
 
-pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::KEYGEN_ERROR where E: std::fmt::Display {
+pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_STATUS where E: std::fmt::Display {
 	eprintln!("invalid parameter {:?}: {}", name, err);
-	crate::KEYGEN_ERROR_INVALID_PARAMETER
+	crate::AZIOT_KEYS_ERROR_INVALID_PARAMETER
 }
