@@ -2,14 +2,14 @@
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug)]
-pub struct KeysRawError(pub(crate) sys::KEYGEN_ERROR);
+pub struct KeysRawError(pub(crate) sys::AZIOT_KEYS_STATUS);
 
 impl std::fmt::Display for KeysRawError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self.0 {
-			sys::KEYGEN_ERROR_FATAL => f.write_str("KEYGEN_ERROR_FATAL"),
-			sys::KEYGEN_ERROR_INVALID_PARAMETER => f.write_str("KEYGEN_ERROR_INVALID_PARAMETER"),
-			sys::KEYGEN_ERROR_EXTERNAL => f.write_str("KEYGEN_ERROR_EXTERNAL"),
+			sys::AZIOT_KEYS_ERROR_FATAL => f.write_str("AZIOT_KEYS_ERROR_FATAL"),
+			sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => f.write_str("AZIOT_KEYS_ERROR_INVALID_PARAMETER"),
+			sys::AZIOT_KEYS_ERROR_EXTERNAL => f.write_str("AZIOT_KEYS_ERROR_EXTERNAL"),
 			err => write!(f, "0x{:08x}", err),
 		}
 	}
@@ -21,38 +21,38 @@ pub(crate) enum Keys {
 		set_parameter: unsafe extern "C" fn(
 			name: *const std::os::raw::c_char,
 			value: *const std::os::raw::c_char,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		create_key_pair_if_not_exists: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
 			preferred_algorithms: *const std::os::raw::c_char,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		load_key_pair: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		get_key_pair_parameter: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-			r#type: sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE,
+			r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
 			value: *mut std::os::raw::c_uchar,
 			value_len: *mut usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		create_key_if_not_exists: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
 			length: usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		load_key: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		import_key: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
 			bytes: *const u8,
 			bytes_len: usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		derive_key: unsafe extern "C" fn(
 			base_id: *const std::os::raw::c_char,
@@ -60,66 +60,66 @@ pub(crate) enum Keys {
 			derivation_data_len: usize,
 			derived_key: *mut std::os::raw::c_uchar,
 			derived_key_len: *mut usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		sign: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-			mechanism: sys::KEYGEN_SIGN_MECHANISM,
+			mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 			parameters: *const std::ffi::c_void,
 			digest: *const std::os::raw::c_uchar,
 			digest_len: usize,
 			signature: *mut std::os::raw::c_uchar,
 			signature_len: *mut usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		verify: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-			mechanism: sys::KEYGEN_SIGN_MECHANISM,
+			mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 			parameters: *const std::ffi::c_void,
 			digest: *const std::os::raw::c_uchar,
 			digest_len: usize,
 			signature: *const std::os::raw::c_uchar,
 			signature_len: usize,
 			ok: *mut std::os::raw::c_int,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		encrypt: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-			mechanism: sys::KEYGEN_SIGN_MECHANISM,
+			mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 			parameters: *const std::ffi::c_void,
 			plaintext: *const std::os::raw::c_uchar,
 			plaintext_len: usize,
 			ciphertext: *mut std::os::raw::c_uchar,
 			ciphertext_len: *mut usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 
 		decrypt: unsafe extern "C" fn(
 			id: *const std::os::raw::c_char,
-			mechanism: sys::KEYGEN_SIGN_MECHANISM,
+			mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 			parameters: *const std::ffi::c_void,
 			ciphertext: *const std::os::raw::c_uchar,
 			ciphertext_len: usize,
 			plaintext: *mut std::os::raw::c_uchar,
 			plaintext_len: *mut usize,
-		) -> sys::KEYGEN_ERROR,
+		) -> sys::AZIOT_KEYS_STATUS,
 	},
 }
 
 impl Keys {
 	pub(crate) fn new() -> Result<Self, LoadLibraryError> {
 		unsafe {
-			let mut function_list: *const sys::KEYGEN_FUNCTION_LIST = std::ptr::null_mut();
-			keys_fn(|| sys::KEYGEN_get_function_list(sys::KEYGEN_VERSION_2_0_0_0, &mut function_list)).map_err(LoadLibraryError::GetFunctionList)?;
+			let mut function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST = std::ptr::null_mut();
+			keys_ok(sys::aziot_keys_get_function_list(sys::AZIOT_KEYS_VERSION_2_0_0_0, &mut function_list)).map_err(LoadLibraryError::GetFunctionList)?;
 
 			let api_version = (*function_list).version;
-			if api_version != sys::KEYGEN_VERSION_2_0_0_0 {
+			if api_version != sys::AZIOT_KEYS_VERSION_2_0_0_0 {
 				return Err(LoadLibraryError::UnsupportedApiVersion(api_version));
 			}
 
-			// KEYGEN_FUNCTION_LIST has looser alignment than KEYGEN_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
+			// AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
 			// so it will be correctly aligned already.
 			#[allow(clippy::cast_ptr_alignment)]
-			let function_list: *const sys::KEYGEN_FUNCTION_LIST_2_0_0_0 = function_list as _;
+			let function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 = function_list as _;
 
 			let result = Keys::V2_0_0_0 {
 				set_parameter:
@@ -170,7 +170,7 @@ impl Keys {
 pub enum LoadLibraryError {
 	GetFunctionList(KeysRawError),
 	MissingFunction(&'static str),
-	UnsupportedApiVersion(sys::KEYGEN_VERSION),
+	UnsupportedApiVersion(sys::AZIOT_KEYS_VERSION),
 }
 
 impl std::fmt::Display for LoadLibraryError {
@@ -191,7 +191,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { set_parameter, .. } => {
-					keys_fn(|| set_parameter(
+					keys_ok(set_parameter(
 						name.as_ptr(),
 						value.as_ptr(),
 					)).map_err(|err| SetLibraryParameterError { name: name.to_string_lossy().into_owned(), err })?;
@@ -227,7 +227,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { create_key_pair_if_not_exists, .. } => {
-					keys_fn(|| create_key_pair_if_not_exists(
+					keys_ok(create_key_pair_if_not_exists(
 						id.as_ptr(),
 						preferred_algorithms.map_or(std::ptr::null(), std::ffi::CStr::as_ptr),
 					)).map_err(|err| CreateKeyPairIfNotExistsError { err })?;
@@ -261,7 +261,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { load_key_pair, .. } => {
-					keys_fn(|| load_key_pair(
+					keys_ok(load_key_pair(
 						id.as_ptr(),
 					)).map_err(|err| LoadKeyPairError { err })?;
 
@@ -297,12 +297,12 @@ impl Keys {
 				Keys::V2_0_0_0 { get_key_pair_parameter, .. } => {
 					match parameter_name {
 						"algorithm" => {
-							let mut algorithm: sys::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM = 0;
+							let mut algorithm: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = 0;
 							let mut algorithm_len = std::mem::size_of_val(&algorithm);
 
-							keys_fn(|| get_key_pair_parameter(
+							keys_ok(get_key_pair_parameter(
 								id.as_ptr(),
-								sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
+								sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
 								&mut algorithm as *mut _ as _,
 								&mut algorithm_len,
 							)).map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
@@ -312,8 +312,8 @@ impl Keys {
 							}
 
 							let algorithm = match algorithm {
-								sys::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_EC => "ECDSA".to_owned(),
-								sys::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_RSA => "RSA".to_owned(),
+								sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC => "ECDSA".to_owned(),
+								sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA => "RSA".to_owned(),
 								algorithm => return Err(GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithm { algorithm }),
 							};
 							Ok(algorithm)
@@ -323,11 +323,11 @@ impl Keys {
 							// These are all byte-buf parameters, so they can be handled identically.
 
 							let parameter_type = match parameter_name {
-								"ec-curve-oid" => sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID,
-								"ec-point" => sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_POINT,
-								"rsa-modulus" => sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS,
-								"rsa-exponent" => sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT,
-								_ => return Err(GetKeyPairPublicParameterError::Api { err: KeysRawError(sys::KEYGEN_ERROR_INVALID_PARAMETER) }),
+								"ec-curve-oid" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID,
+								"ec-point" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT,
+								"rsa-modulus" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS,
+								"rsa-exponent" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT,
+								_ => return Err(GetKeyPairPublicParameterError::Api { err: KeysRawError(sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER) }),
 							};
 
 							let parameter_value =
@@ -350,7 +350,7 @@ impl Keys {
 #[derive(Debug)]
 pub enum GetKeyPairPublicParameterError {
 	Api { err: KeysRawError },
-	UnrecognizedKeyAlgorithm { algorithm: sys::KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM },
+	UnrecognizedKeyAlgorithm { algorithm: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM },
 	UnrecognizedKeyAlgorithmLength { algorithm_len: usize },
 }
 
@@ -379,7 +379,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { create_key_if_not_exists, .. } => {
-					keys_fn(|| create_key_if_not_exists(
+					keys_ok(create_key_if_not_exists(
 						id.as_ptr(),
 						length,
 					)).map_err(|err| CreateKeyIfNotExistsError { err })?;
@@ -413,7 +413,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { load_key, .. } => {
-					keys_fn(|| load_key(
+					keys_ok(load_key(
 						id.as_ptr(),
 					)).map_err(|err| LoadKeyError { err })?;
 
@@ -447,7 +447,7 @@ impl Keys {
 		unsafe {
 			match self {
 				Keys::V2_0_0_0 { import_key, .. } => {
-					keys_fn(|| import_key(
+					keys_ok(import_key(
 						id.as_ptr(),
 						bytes.as_ptr(),
 						bytes.len(),
@@ -487,7 +487,7 @@ impl Keys {
 
 					let mut derived_key_len = 0;
 
-					keys_fn(|| derive_key(
+					keys_ok(derive_key(
 						base_id.as_ptr(),
 						derivation_data.as_ptr(),
 						derivation_data_len,
@@ -500,7 +500,7 @@ impl Keys {
 						vec![0_u8; derived_key_len]
 					};
 
-					keys_fn(|| derive_key(
+					keys_ok(derive_key(
 						base_id.as_ptr(),
 						derivation_data.as_ptr(),
 						derivation_data_len,
@@ -542,7 +542,7 @@ impl Keys {
 	pub(crate) fn sign(
 		&mut self,
 		id: &std::ffi::CStr,
-		mechanism: sys::KEYGEN_SIGN_MECHANISM,
+		mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		digest: &[u8],
 	) -> Result<Vec<u8>, SignError> {
@@ -553,7 +553,7 @@ impl Keys {
 
 					let mut signature_len = 0;
 
-					keys_fn(|| sign(
+					keys_ok(sign(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -568,7 +568,7 @@ impl Keys {
 						vec![0_u8; signature_len]
 					};
 
-					keys_fn(|| sign(
+					keys_ok(sign(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -612,7 +612,7 @@ impl Keys {
 	pub(crate) fn verify(
 		&mut self,
 		id: &std::ffi::CStr,
-		mechanism: sys::KEYGEN_SIGN_MECHANISM,
+		mechanism: sys::AZIOT_KEYS_SIGN_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		digest: &[u8],
 		signature: &[u8],
@@ -625,7 +625,7 @@ impl Keys {
 
 					let mut ok = 0;
 
-					keys_fn(|| verify(
+					keys_ok(verify(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -662,7 +662,7 @@ impl Keys {
 	pub(crate) fn encrypt(
 		&mut self,
 		id: &std::ffi::CStr,
-		mechanism: sys::KEYGEN_ENCRYPT_MECHANISM,
+		mechanism: sys::AZIOT_KEYS_ENCRYPT_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		plaintext: &[u8],
 	) -> Result<Vec<u8>, EncryptError> {
@@ -673,7 +673,7 @@ impl Keys {
 
 					let mut ciphertext_len = 0;
 
-					keys_fn(|| encrypt(
+					keys_ok(encrypt(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -688,7 +688,7 @@ impl Keys {
 						vec![0_u8; ciphertext_len]
 					};
 
-					keys_fn(|| encrypt(
+					keys_ok(encrypt(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -732,7 +732,7 @@ impl Keys {
 	pub(crate) fn decrypt(
 		&mut self,
 		id: &std::ffi::CStr,
-		mechanism: sys::KEYGEN_ENCRYPT_MECHANISM,
+		mechanism: sys::AZIOT_KEYS_ENCRYPT_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		ciphertext: &[u8],
 	) -> Result<Vec<u8>, DecryptError> {
@@ -743,7 +743,7 @@ impl Keys {
 
 					let mut plaintext_len = 0;
 
-					keys_fn(|| decrypt(
+					keys_ok(decrypt(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -758,7 +758,7 @@ impl Keys {
 						vec![0_u8; plaintext_len]
 					};
 
-					keys_fn(|| decrypt(
+					keys_ok(decrypt(
 						id.as_ptr(),
 						mechanism,
 						parameters,
@@ -798,9 +798,9 @@ impl std::fmt::Display for DecryptError {
 impl std::error::Error for DecryptError {
 }
 
-fn keys_fn(f: impl FnOnce() -> sys::KEYGEN_ERROR) -> Result<(), KeysRawError> {
-	match f() {
-		sys::KEYGEN_SUCCESS => Ok(()),
+fn keys_ok(result: sys::AZIOT_KEYS_STATUS) -> Result<(), KeysRawError> {
+	match result {
+		sys::AZIOT_KEYS_SUCCESS => Ok(()),
 		err => Err(KeysRawError(err)),
 	}
 }
@@ -808,16 +808,16 @@ fn keys_fn(f: impl FnOnce() -> sys::KEYGEN_ERROR) -> Result<(), KeysRawError> {
 unsafe fn get_key_pair_parameter_byte_buf(
 	get_key_pair_parameter: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		r#type: sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE,
+		r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
 		value: *mut std::os::raw::c_uchar,
 		value_len: *mut usize,
-	) -> sys::KEYGEN_ERROR,
+	) -> sys::AZIOT_KEYS_STATUS,
 	id: &std::ffi::CStr,
-	r#type: sys::KEYGEN_KEY_PAIR_PARAMETER_TYPE,
+	r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
 ) -> Result<Vec<u8>, KeysRawError> {
 	let mut value_len: usize = 0;
 
-	keys_fn(|| get_key_pair_parameter(
+	keys_ok(get_key_pair_parameter(
 		id.as_ptr(),
 		r#type,
 		std::ptr::null_mut(),
@@ -826,7 +826,7 @@ unsafe fn get_key_pair_parameter_byte_buf(
 
 	let mut value = vec![0_u8; value_len];
 
-	keys_fn(|| get_key_pair_parameter(
+	keys_ok(get_key_pair_parameter(
 		id.as_ptr(),
 		r#type,
 		value.as_mut_ptr(),

@@ -24,33 +24,51 @@
 //!
 //! # API conventions
 //!
-//! All functions return a `u32` to indicate success or failure. See the [`KEYGEN_ERROR`] type's docs for details about these constants.
+//! All functions return an `unsigned int` to indicate success or failure. See the [`AZIOT_KEYS_STATUS`] type's docs for details about these constants.
 //!
 //! Unless specified otherwise, all C strings in the API are NUL-terminated UTF-8-encoded strings.
 //!
-//! The only function exported by this library is [`KEYGEN_get_function_list`]. Call this function to get the version of the API
+//! The only function exported by this library is [`aziot_keys_get_function_list`]. Call this function to get the version of the API
 //! that this library exports, as well as the function pointers to the key operations. See its docs for more details.
 //!
-//! All calls to [`KEYGEN_get_function_list`] or any function in [`KEYGEN_FUNCTION_LIST`] are serialized, ie a function will not be called
+//! All calls to [`aziot_keys_get_function_list`] or any function in [`AZIOT_KEYS_FUNCTION_LIST`] are serialized, ie a function will not be called
 //! while another function is running. However, it is not guaranteed that all function calls will be made from the same operating system thread.
 //! Thus, implementations do not need to worry about locking to prevent concurrent access, but should also not store data in thread-local storage.
 
 // DEVNOTE:
 //
-// Keep the above header in sync with cbindgen.prelude.h
+// Keep the above doc header in sync with cbindgen.prelude.h
+
+// DEVNOTE:
+//
+// Transparent newtypes around integers must be specified as non-tuple structs.
+// Eg `struct AZIOT_KEYS_STATUS { inner: c_uint }`, not `struct AZIOT_KEYS_STATUS(c_uint)`.
+// This is because cbindgen requires constants to be assigned with struct expressions like `AZIOT_KEYS_STATUS { inner: 0 }`,
+// whereas `AZIOT_KEYS_STATUS(0)` is a call expression that makes cbindgen ignore the constant.
 
 // DEVNOTE:
 //
 // Some structs have a corresponding fn item like
 //
+//    #[cfg(any())]
 //    #[no_mangle]
 //    pub extern "C" fn cbindgen_unused_STRUCT() -> STRUCT { unimplemented!(); }
 //
-// These functions are required so that cbindgen emits them in the C header file. This is because cbindgen doesn't emit all pub structs that it finds,
-// but only the ones that are referenced by pub fns.
+// These functions are required so that cbindgen emits the corresponding structs in the C header file. This is because cbindgen doesn't emit
+// all pub structs that it finds, but only the ones that are referenced by pub fns. So for structs that are not referenced directly by any pub fns,
+// we need these fake functions to reference them.
 //
-// But this means cbindgen will also emit these fns in the C header, which we don't want. So the Makefile runs a post-processing step to strip them.
-
+// Since cbindgen doesn't expand macros by default, we need to write these functions manually, as opposed to using a macro to generate them.
+//
+// The functions aren't actually part of the API of course, so the Makefile runs a post-processing step to strip these functions from the C header file
+// and leave the structs. Specifically, it strips all functions whose names start with `cbindgen_unused_`, so ensure that all such functions follow
+// this convention.
+//
+// The `#[cfg(any())]` on the functions is a cfg that always evaluates to false, so the functions don't actually get compiled into the final cdylib.
+// cbindgen doesn't notice this.
+//
+// (Incidentally, this would backfire if we did use a macro to generate the fns and enabled expansion in the cbindgen config. This is because
+// cbindgen does expansion via `rustc --pretty=expanded`, which also resolves `cfg()`s, so these fns would end up getting ignored by cbindgen too.
 
 
 mod key;
@@ -58,58 +76,51 @@ mod key_pair;
 mod implementation;
 
 
-// DEVNOTE:
-//
-// Transparent newtypes around integers must be specified as non-tuple structs. Eg `struct KEYGEN_ERROR { inner: u32 }`, not `struct KEYGEN_ERROR(u32)`.
-// This is because cbindgen requires constants to be assigned with struct expressions like `KEYGEN_ERROR { inner: 0 }`,
-// whereas `KEYGEN_ERROR(0)` is a call expression that makes cbindgen ignore the constant.
-
-
 /// Error type. This is a transparent wrapper around a `std::os::raw::c_uint` (`unsigned int`).
 ///
-/// Either `KEYGEN_SUCCESS` or one of the `KEYGEN_ERROR_*` constants.
+/// Either `AZIOT_KEYS_SUCCESS` or one of the `AZIOT_KEYS_ERROR_*` constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_ERROR { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_STATUS { inner: std::os::raw::c_uint }
 
 /// The operation succeeded.
-pub const KEYGEN_SUCCESS: KEYGEN_ERROR = KEYGEN_ERROR { inner: 0 };
+pub const AZIOT_KEYS_SUCCESS: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 0 };
 
 /// The library encountered an unrecoverable error. The process should exit as soon as possible.
-pub const KEYGEN_ERROR_FATAL: KEYGEN_ERROR = KEYGEN_ERROR { inner: 1 };
+pub const AZIOT_KEYS_ERROR_FATAL: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 1 };
 
 /// The operation failed because a parameter has an invalid value.
-pub const KEYGEN_ERROR_INVALID_PARAMETER: KEYGEN_ERROR = KEYGEN_ERROR { inner: 2 };
+pub const AZIOT_KEYS_ERROR_INVALID_PARAMETER: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 2 };
 
 /// The library encountered an error with an external resource, such as an I/O error or RPC error.
-pub const KEYGEN_ERROR_EXTERNAL: KEYGEN_ERROR = KEYGEN_ERROR { inner: 3 };
+pub const AZIOT_KEYS_ERROR_EXTERNAL: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 3 };
 
 
 /// Represents the version of the API exported by this library.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_VERSION { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_VERSION { inner: std::os::raw::c_uint }
 
 /// Version 2.0.0.0
-pub const KEYGEN_VERSION_2_0_0_0: KEYGEN_VERSION = KEYGEN_VERSION { inner: 0x02_00_00_00 };
+pub const AZIOT_KEYS_VERSION_2_0_0_0: AZIOT_KEYS_VERSION = AZIOT_KEYS_VERSION { inner: 0x02_00_00_00 };
 
 
 /// The base struct of all of function lists.
 #[derive(Debug)]
 #[repr(C)]
-pub struct KEYGEN_FUNCTION_LIST {
+pub struct AZIOT_KEYS_FUNCTION_LIST {
 	/// The version of the API represented in this function list.
 	///
-	/// The specific subtype of `KEYGEN_FUNCTION_LIST` can be determined by inspecting this value.
-	pub version: KEYGEN_VERSION,
+	/// The specific subtype of `AZIOT_KEYS_FUNCTION_LIST` can be determined by inspecting this value.
+	pub version: AZIOT_KEYS_VERSION,
 }
 
-/// The specific implementation of [`KEYGEN_FUNCTION_LIST`] for API version 2.0.0.0
+/// The specific implementation of [`AZIOT_KEYS_FUNCTION_LIST`] for API version 2.0.0.0
 #[derive(Debug)]
 #[repr(C)]
-pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
-	/// The value of `base.version` must be [`KEYGEN_VERSION_2_0_0_0`].
-	pub base: KEYGEN_FUNCTION_LIST,
+pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+	/// The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_0_0_0`].
+	pub base: AZIOT_KEYS_FUNCTION_LIST,
 
 	/// Set a parameter on this library.
 	///
@@ -122,16 +133,16 @@ pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
 	///
 	/// # Errors
 	///
-	/// - `KEYGEN_ERROR_INVALID_PARAMETER`:
+	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
 	///   - `name` is `NULL`.
 	///   - `name` is not recognized by this implementation.
 	///   - `value` is invalid.
 	///
-	/// - `KEYGEN_ERROR_FATAL`
+	/// - `AZIOT_KEYS_ERROR_FATAL`
 	pub set_parameter: unsafe extern "C" fn(
 		name: *const std::os::raw::c_char,
 		value: *const std::os::raw::c_char,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	/// Create or load a key identified by the specified `id`.
 	///
@@ -158,54 +169,54 @@ pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
 	///
 	/// # Errors
 	///
-	/// - `KEYGEN_ERROR_INVALID_PARAMETER`:
+	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
 	///   - `id` is NULL.
 	///   - `ppublic_key` is `NULL`.
 	///   - `pprivate_key` is `NULL`.
 	///
-	/// - `KEYGEN_ERROR_EXTERNAL`
+	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
 	pub create_key_pair_if_not_exists: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
 		preferred_algorithms: *const std::os::raw::c_char,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub load_key_pair: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	/// Gets the value of a parameter of the key identified by the specified `id`.
 	///
-	/// `type_` must be set to one of the `KEYGEN_KEY_PAIR_PARAMETER_TYPE_*` constants.
+	/// `type_` must be set to one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_*` constants.
 	///
 	/// # Errors
 	///
-	/// - `KEYGEN_ERROR_INVALID_PARAMETER`:
+	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
 	///   - `id` is NULL.
 	///   - The key specified by `id` does not exist.
 	///   - `type_` is not a valid parameter type for the key specified by `id`.
 	///
-	/// - `KEYGEN_ERROR_EXTERNAL`
+	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
 	pub get_key_pair_parameter: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		type_: KEYGEN_KEY_PAIR_PARAMETER_TYPE, // Would be nice to be able to use r#type, but https://github.com/eqrion/cbindgen/issues/410
+		type_: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE, // Would be nice to be able to use r#type, but https://github.com/eqrion/cbindgen/issues/410
 		value: *mut std::os::raw::c_uchar,
 		value_len: *mut usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub create_key_if_not_exists: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
 		length: usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub load_key: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub import_key: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
 		bytes: *const u8,
 		bytes_len: usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub derive_key: unsafe extern "C" fn(
 		base_id: *const std::os::raw::c_char,
@@ -213,66 +224,67 @@ pub struct KEYGEN_FUNCTION_LIST_2_0_0_0 {
 		derivation_data_len: usize,
 		derived_key: *mut std::os::raw::c_uchar,
 		derived_key_len: *mut usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub sign: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		mechanism: KEYGEN_SIGN_MECHANISM,
+		mechanism: AZIOT_KEYS_SIGN_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		digest: *const std::os::raw::c_uchar,
 		digest_len: usize,
 		signature: *mut std::os::raw::c_uchar,
 		signature_len: *mut usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	/// Verifies the signature of the given digest using the key identified by the specified `id`.
 	///
-	/// `mechanism` must be set to one of the `KEYGEN_SIGN_MECHANISM_*` constants.
+	/// `mechanism` must be set to one of the `AZIOT_KEYS_SIGN_MECHANISM_*` constants.
 	///
-	/// If the function returns `KEYGEN_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
+	/// If the function returns `AZIOT_KEYS_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
 	///
 	/// # Errors
 	///
-	/// - `KEYGEN_ERROR_INVALID_PARAMETER`:
+	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
 	///   - `id` is NULL.
 	///   - The key specified by `id` does not exist.
 	///   - `mechanism` is not a valid parameter type for the key specified by `id`.
 	///
-	/// - `KEYGEN_ERROR_EXTERNAL`
+	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
 	pub verify: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		mechanism: KEYGEN_SIGN_MECHANISM,
+		mechanism: AZIOT_KEYS_SIGN_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		digest: *const std::os::raw::c_uchar,
 		digest_len: usize,
 		signature: *const std::os::raw::c_uchar,
 		signature_len: usize,
 		ok: *mut std::os::raw::c_int,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub encrypt: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		mechanism: KEYGEN_ENCRYPT_MECHANISM,
+		mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		plaintext: *const std::os::raw::c_uchar,
 		plaintext_len: usize,
 		ciphertext: *mut std::os::raw::c_uchar,
 		ciphertext_len: *mut usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 
 	pub decrypt: unsafe extern "C" fn(
 		id: *const std::os::raw::c_char,
-		mechanism: KEYGEN_ENCRYPT_MECHANISM,
+		mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
 		parameters: *const std::ffi::c_void,
 		ciphertext: *const std::os::raw::c_uchar,
 		ciphertext_len: usize,
 		plaintext: *mut std::os::raw::c_uchar,
 		plaintext_len: *mut usize,
-	) -> KEYGEN_ERROR,
+	) -> AZIOT_KEYS_STATUS,
 }
 
+#[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_KEYGEN_FUNCTION_LIST_2_0_0_0() -> KEYGEN_FUNCTION_LIST_2_0_0_0 { unimplemented!(); }
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0() -> AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 { unimplemented!(); }
 
 
 /// Get the list of functions for operations corresponding to the specified version.
@@ -285,136 +297,139 @@ pub extern "C" fn cbindgen_unused_KEYGEN_FUNCTION_LIST_2_0_0_0() -> KEYGEN_FUNCT
 ///
 /// # Errors
 ///
-/// - `KEYGEN_ERROR_INVALID_PARAMETER`:
+/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
 ///   - `version` is not recognized by this implementation.
 ///   - `pfunction_list` is NULL.
 #[no_mangle]
-pub unsafe extern "C" fn KEYGEN_get_function_list(
-	version: KEYGEN_VERSION,
-	pfunction_list: *mut *const KEYGEN_FUNCTION_LIST,
-) -> KEYGEN_ERROR {
+pub unsafe extern "C" fn aziot_keys_get_function_list(
+	version: AZIOT_KEYS_VERSION,
+	pfunction_list: *mut *const AZIOT_KEYS_FUNCTION_LIST,
+) -> AZIOT_KEYS_STATUS {
 	implementation::get_function_list(version, pfunction_list)
 }
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: std::os::raw::c_uint }
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the key algorithm.
 ///
-/// The value returned by `get_key_pair_parameter` will be one of the `KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_*` constants.
-pub const KEYGEN_KEY_PAIR_PARAMETER_TYPE_ALGORITHM: KEYGEN_KEY_PAIR_PARAMETER_TYPE = KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: 1 };
+/// The value returned by `get_key_pair_parameter` will be one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_*` constants.
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 1 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the curve OID of an EC key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded OID.
-pub const KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID: KEYGEN_KEY_PAIR_PARAMETER_TYPE = KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: 2 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 2 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the point of an EC key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded octet string in RFC 5490 format.
-pub const KEYGEN_KEY_PAIR_PARAMETER_TYPE_EC_POINT: KEYGEN_KEY_PAIR_PARAMETER_TYPE = KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: 3 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 3 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the modulus of an RSA key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
-pub const KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS: KEYGEN_KEY_PAIR_PARAMETER_TYPE = KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: 4 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 4 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the exponent of an RSA key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
-pub const KEYGEN_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT: KEYGEN_KEY_PAIR_PARAMETER_TYPE = KEYGEN_KEY_PAIR_PARAMETER_TYPE { inner: 5 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 5 };
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: std::os::raw::c_uint }
 
-pub const KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_EC: KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM = KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM { inner: 1 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 1 };
 
-pub const KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM_RSA: KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM = KEYGEN_KEY_PAIR_PARAMETER_ALGORITHM { inner: 2 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 2 };
 
 
 /// Represents the mechanism used for a sign operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_SIGN_MECHANISM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_SIGN_MECHANISM { inner: std::os::raw::c_uint }
 
 /// ECDSA
-pub const KEYGEN_SIGN_MECHANISM_ECDSA: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHANISM { inner: 1 };
+pub const AZIOT_KEYS_SIGN_MECHANISM_ECDSA: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 1 };
 
 /// HMAC-SHA256
-pub const KEYGEN_SIGN_MECHANISM_HMAC_SHA256: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHANISM { inner: 2 };
+pub const AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 2 };
 
-/// Sign with a derived key. The `parameters` parameter must be set to a `KEYGEN_SIGN_DERIVED_PARAMETERS` value.
-pub const KEYGEN_SIGN_MECHANISM_DERIVED: KEYGEN_SIGN_MECHANISM = KEYGEN_SIGN_MECHANISM { inner: 3 };
+/// Sign with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_SIGN_DERIVED_PARAMETERS` value.
+pub const AZIOT_KEYS_SIGN_MECHANISM_DERIVED: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 3 };
 
 
-/// Holds parameters for a sign operation with the [`KEYGEN_SIGN_MECHANISM_DERIVED`] mechanism.
+/// Holds parameters for a sign operation with the [`AZIOT_KEYS_SIGN_MECHANISM_DERIVED`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
-pub struct KEYGEN_SIGN_DERIVED_PARAMETERS {
+pub struct AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
 	pub derivation_data: *const std::os::raw::c_uchar,
 	pub derivation_data_len: usize,
-	pub mechanism: KEYGEN_SIGN_MECHANISM,
+	pub mechanism: AZIOT_KEYS_SIGN_MECHANISM,
 	pub parameters: *const std::ffi::c_void,
 }
 
+#[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_KEYGEN_SIGN_DERIVED_PARAMETERS() -> KEYGEN_SIGN_DERIVED_PARAMETERS { unimplemented!(); }
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_SIGN_DERIVED_PARAMETERS() -> AZIOT_KEYS_SIGN_DERIVED_PARAMETERS { unimplemented!(); }
 
 
 /// Represents the mechanism used for an encrypt operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct KEYGEN_ENCRYPT_MECHANISM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_ENCRYPT_MECHANISM { inner: std::os::raw::c_uint }
 
 /// AEAD mechanism, like AES-256-GCM.
-pub const KEYGEN_ENCRYPT_MECHANISM_AEAD: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 1 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 1 };
 
 /// RSA with PKCS1 padding.
-pub const KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 2 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 2 };
 
 /// RSA with no padding. Padding will have been performed by the caller.
-pub const KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 3 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 3 };
 
-/// Encrypt with a derived key. The `parameters` parameter must be set to a `KEYGEN_ENCRYPT_DERIVED_PARAMETERS` value.
-pub const KEYGEN_ENCRYPT_MECHANISM_DERIVED: KEYGEN_ENCRYPT_MECHANISM = KEYGEN_ENCRYPT_MECHANISM { inner: 4 };
+/// Encrypt with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS` value.
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 4 };
 
 
-/// Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_AEAD`] mechanism.
+/// Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
-pub struct KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+pub struct AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 	pub iv: *const std::os::raw::c_uchar,
 	pub iv_len: usize,
 	pub aad: *const std::os::raw::c_uchar,
 	pub aad_len: usize,
 }
 
+#[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_KEYGEN_ENCRYPT_AEAD_PARAMETERS() -> KEYGEN_ENCRYPT_AEAD_PARAMETERS { unimplemented!(); }
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS() -> AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS { unimplemented!(); }
 
 
-/// Holds parameters for an encrypt operation with the [`KEYGEN_ENCRYPT_MECHANISM_DERIVED`] mechanism.
+/// Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
-pub struct KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+pub struct AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
 	pub derivation_data: *const std::os::raw::c_uchar,
 	pub derivation_data_len: usize,
-	pub mechanism: KEYGEN_ENCRYPT_MECHANISM,
+	pub mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
 	pub parameters: *const std::ffi::c_void,
 }
 
+#[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_KEYGEN_ENCRYPT_DERIVED_PARAMETERS() -> KEYGEN_ENCRYPT_DERIVED_PARAMETERS { unimplemented!(); }
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS() -> AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS { unimplemented!(); }
 
 
-/// Catches the error, if any, and returns it. Otherwise returns [`KEYGEN_SUCCESS`].
-fn r#catch(f: impl FnOnce() -> Result<(), KEYGEN_ERROR>) -> KEYGEN_ERROR {
+/// Catches the error, if any, and returns it. Otherwise returns [`AZIOT_KEYS_SUCCESS`].
+fn r#catch(f: impl FnOnce() -> Result<(), AZIOT_KEYS_STATUS>) -> AZIOT_KEYS_STATUS {
 	match f() {
-		Ok(()) => KEYGEN_SUCCESS,
+		Ok(()) => AZIOT_KEYS_SUCCESS,
 		Err(err) => err,
 	}
 }

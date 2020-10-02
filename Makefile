@@ -66,7 +66,7 @@ SHELL := /bin/bash
 default:
 	cd key/aziot-keys/ && $(CBINDGEN) --config cbindgen.toml --output aziot-keys.h.tmp $(CBINDGEN_VERBOSE)
 	cp key/aziot-keys/cbindgen.prelude.h key/aziot-keys/aziot-keys.h.new
-	< key/aziot-keys/aziot-keys.h.tmp grep -v 'cbindgen_unused' >> key/aziot-keys/aziot-keys.h.new
+	< key/aziot-keys/aziot-keys.h.tmp grep -v 'cbindgen_unused_' >> key/aziot-keys/aziot-keys.h.new
 	$(RM) key/aziot-keys/aziot-keys.h.tmp
 	if ! diff -q key/aziot-keys/aziot-keys.h key/aziot-keys/aziot-keys.h.new; then \
 		mv key/aziot-keys/aziot-keys.h.new key/aziot-keys/aziot-keys.h; \
@@ -77,9 +77,9 @@ default:
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
 			--blacklist-type '__.*' \
-			--whitelist-function 'KEYGEN_.*' \
-			--whitelist-type 'KEYGEN_.*' \
-			--whitelist-var 'KEYGEN_.*' \
+			--whitelist-function 'aziot_keys_.*' \
+			--whitelist-type 'AZIOT_KEYS_.*' \
+			--whitelist-var 'AZIOT_KEYS_.*' \
 			-o key/aziot-keyd/src/keys.generated.rs.tmp \
 			$(BINDGEN_VERBOSE) \
 			key/aziot-keys/aziot-keys.h \

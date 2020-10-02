@@ -170,27 +170,27 @@ impl Server {
 		let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
 		let signature = match (id, mechanism) {
 			(KeyId::KeyPair(_), aziot_key_common::SignMechanism::Ecdsa) =>
-				self.keys.sign(&id_cstr, keys::sys::KEYGEN_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,
+				self.keys.sign(&id_cstr, keys::sys::AZIOT_KEYS_SIGN_MECHANISM_ECDSA, std::ptr::null(), digest)?,
 
 			(KeyId::Key(_), aziot_key_common::SignMechanism::HmacSha256) =>
 				self.keys.sign(
 					&id_cstr,
-					keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
+					keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
 					std::ptr::null(),
 					digest,
 				)?,
 
 			(KeyId::Derived(_, derivation_data), aziot_key_common::SignMechanism::HmacSha256) => {
-				let parameters = keys::sys::KEYGEN_SIGN_DERIVED_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
 					derivation_data: derivation_data.as_ptr(),
 					derivation_data_len: derivation_data.len(),
-					mechanism: keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
+					mechanism: keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
 					parameters: std::ptr::null(),
 				};
 
 				self.keys.sign(
 					&id_cstr,
-					keys::sys::KEYGEN_SIGN_MECHANISM_DERIVED,
+					keys::sys::AZIOT_KEYS_SIGN_MECHANISM_DERIVED,
 					&parameters as *const _ as *const std::ffi::c_void,
 					digest,
 				)?
@@ -212,7 +212,7 @@ impl Server {
 
 		let ciphertext = match (id, mechanism) {
 			(KeyId::Key(_), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
-				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 					iv: iv.as_ptr(),
 					iv_len: iv.len(),
 					aad: aad.as_ptr(),
@@ -221,7 +221,7 @@ impl Server {
 
 				self.keys.encrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
 					&parameters as *const _ as *const std::ffi::c_void,
 					plaintext,
 				)?
@@ -230,7 +230,7 @@ impl Server {
 			(KeyId::KeyPair(_), aziot_key_common::EncryptMechanism::RsaPkcs1) => {
 				self.keys.encrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_RSA_PKCS1,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1,
 					std::ptr::null_mut(),
 					plaintext,
 				)?
@@ -239,30 +239,30 @@ impl Server {
 			(KeyId::KeyPair(_), aziot_key_common::EncryptMechanism::RsaNoPadding) => {
 				self.keys.encrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_RSA_NO_PADDING,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING,
 					std::ptr::null_mut(),
 					plaintext,
 				)?
 			},
 
 			(KeyId::Derived(_, derivation_data), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
-				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 					iv: iv.as_ptr(),
 					iv_len: iv.len(),
 					aad: aad.as_ptr(),
 					aad_len: aad.len(),
 				};
 
-				let parameters = keys::sys::KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
 					derivation_data: derivation_data.as_ptr(),
 					derivation_data_len: derivation_data.len(),
-					mechanism: keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
 					parameters: &parameters as *const _ as *const std::ffi::c_void,
 				};
 
 				self.keys.encrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_DERIVED,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
 					&parameters as *const _ as *const std::ffi::c_void,
 					plaintext,
 				)?
@@ -284,7 +284,7 @@ impl Server {
 
 		let plaintext = match (id, mechanism) {
 			(KeyId::Key(_), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
-				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 					iv: iv.as_ptr(),
 					iv_len: iv.len(),
 					aad: aad.as_ptr(),
@@ -293,30 +293,30 @@ impl Server {
 
 				self.keys.decrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
 					&parameters as *const _ as *const std::ffi::c_void,
 					ciphertext,
 				)?
 			},
 
 			(KeyId::Derived(_, derivation_data), aziot_key_common::EncryptMechanism::Aead { iv, aad }) => {
-				let parameters = keys::sys::KEYGEN_ENCRYPT_AEAD_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 					iv: iv.as_ptr(),
 					iv_len: iv.len(),
 					aad: aad.as_ptr(),
 					aad_len: aad.len(),
 				};
 
-				let parameters = keys::sys::KEYGEN_ENCRYPT_DERIVED_PARAMETERS {
+				let parameters = keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
 					derivation_data: derivation_data.as_ptr(),
 					derivation_data_len: derivation_data.len(),
-					mechanism: keys::sys::KEYGEN_ENCRYPT_MECHANISM_AEAD,
+					mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
 					parameters: &parameters as *const _ as *const std::ffi::c_void,
 				};
 
 				self.keys.decrypt(
 					&id_cstr,
-					keys::sys::KEYGEN_ENCRYPT_MECHANISM_DERIVED,
+					keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
 					&parameters as *const _ as *const std::ffi::c_void,
 					ciphertext,
 				)?
@@ -391,7 +391,7 @@ fn key_handle_to_id(handle: &aziot_key_common::KeyHandle, keys: &mut keys::Keys)
 	let ok =
 		keys.verify(
 			master_encryption_key_id,
-			keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
+			keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
 			std::ptr::null(),
 			sr.as_bytes(),
 			&sig,
@@ -443,7 +443,7 @@ fn key_id_to_handle(id: &KeyId<'_>, keys: &mut keys::Keys) -> Result<aziot_key_c
 	let sig =
 		keys.sign(
 			master_encryption_key_id,
-			keys::sys::KEYGEN_SIGN_MECHANISM_HMAC_SHA256,
+			keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
 			std::ptr::null(),
 			sr.as_bytes(),
 		).map_err(|err| Error::Internal(InternalError::Sign(err)))?;
