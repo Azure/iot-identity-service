@@ -45,31 +45,42 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 	{
-		log::info!("Provisioning starting..");
-
 		let mut server_ = server.lock().await;
-		let device = server_.provision_device().await?;
+
+		log::info!("Provisioning starting..");
+		let provisioning = server_.provision_device().await?;
 		log::info!("Provisioning complete.");
 
-		let curr_device_info_state = aziot_identityd::settings::DeviceInfo { hub_name: device.iothub_hostname, device_id: device.device_id };
+		let device_status = if let aziot_identity_common::ProvisioningStatus::Provisioned(device) = provisioning {
+			let curr_hub_device_info = aziot_identityd::settings::HubDeviceInfo {
+				hub_name: device.iothub_hostname,
+				device_id: device.device_id
+			};
 
-		if prev_device_info_path.exists() {
-			let prev_device_info_state = aziot_identityd::settings::DeviceInfo::new(&prev_device_info_path)?;
+			if prev_device_info_path.exists() {
+				let prev_hub_device_info = aziot_identityd::settings::HubDeviceInfo::new(&prev_device_info_path)?;
 
-			let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
-			if prev_device_info_state.eq(&curr_device_info_state) && prev_settings_path.exists() {
-				let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
-				let (_, p) = convert_to_map(&settings.principal);
-				prev_module_set = p;
+				if let Some(prev_state) = prev_hub_device_info {
+					let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
+					if prev_state.eq(&curr_hub_device_info) && prev_settings_path.exists() {
+						let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
+						let (_, p) = convert_to_map(&settings.principal);
+						prev_module_set = p;
+					}
+
+					let () = server_.init_identities(prev_module_set, module_set).await?;
+				}
 			}
 
-			let () = server_.init_identities(prev_module_set, module_set).await?;
+			log::info!("Identity reconciliation with IoT Hub complete.");
+
+			toml::to_string(&curr_hub_device_info)?
 		}
+		else {
+			aziot_identityd::settings::HubDeviceInfo::unprovisioned()
+		};
 
-		log::info!("Identity reconciliation complete.");
-
-		let curr_device_info_state = toml::to_string(&curr_device_info_state)?;
-		std::fs::write(prev_device_info_path, curr_device_info_state).map_err(aziot_identityd::error::InternalError::SaveDeviceInfo)?;
+		std::fs::write(prev_device_info_path, device_status).map_err(aziot_identityd::error::InternalError::SaveDeviceInfo)?;
 		std::fs::copy(config_file, prev_settings_path).map_err(aziot_identityd::error::InternalError::SaveSettings)?;
 	}
 

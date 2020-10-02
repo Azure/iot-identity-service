@@ -58,6 +58,15 @@ pub enum IdType {
 	Module,
 }
 
+/// Return values for device provisioning with Hub.
+pub enum ProvisioningStatus {
+	/// Returned when provisioning type is set to "none".
+	Unprovisioned,
+
+	/// Returned when provisioning is successful with IoT Hub.
+	Provisioned(IoTHubDevice),
+}
+
 #[derive(Clone)]
 pub struct IoTHubDevice {
 	pub iothub_hostname: String,

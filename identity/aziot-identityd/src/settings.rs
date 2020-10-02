@@ -31,17 +31,31 @@ impl Settings {
 	}
 
 	fn check(self) -> Result<Self, InternalError> {
-
-		// Require localid in config if any principal has local id_type.
 		if let Some(principal) = &self.principal {
-			let local_id_exists = self.localid.is_some();
-
 			for p in principal {
 				if let Some(t) = &p.id_type {
-					if t.contains(&aziot_identity_common::IdType::Local) && !local_id_exists {
+					// Require localid in config if any principal has local id_type.
+					if t.contains(&aziot_identity_common::IdType::Local) && self.localid.is_none() {
 						return Err(InternalError::BadSettings(std::io::Error::new(
 								std::io::ErrorKind::InvalidInput,
-								"local id type requires localid config"
+								format!("invalid config for {}: local id type requires localid config", p.name.0)
+							))
+						);
+					}
+
+					// Require provisioning if any module or device identities are present.
+					let provisioning_valid = match self.provisioning.provisioning {
+						ProvisioningType::None => {
+							!t.contains(&aziot_identity_common::IdType::Module) &&
+							!t.contains(&aziot_identity_common::IdType::Device)
+						},
+						_ => true,
+					};
+
+					if !provisioning_valid {
+						return Err(InternalError::BadSettings(std::io::Error::new(
+								std::io::ErrorKind::InvalidInput,
+								format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
 							))
 						);
 					}
@@ -53,19 +67,27 @@ impl Settings {
 	}
 }
 
-#[derive(Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
-pub struct DeviceInfo {
+#[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
+pub struct HubDeviceInfo {
 	pub hub_name: String,
 
 	pub device_id: String,
 }
 
-impl DeviceInfo {
-	pub fn new(filename: &Path)-> Result<Self, InternalError> {
+impl HubDeviceInfo {
+	pub fn new(filename: &Path)-> Result<Option<Self>, InternalError> {
 		let info = std::fs::read_to_string(filename).map_err(InternalError::LoadDeviceInfo)?;
-		let info = toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?;
+
+		let info = match info.as_str() {
+			"unprovisioned" => None,
+			_ => Some(toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?)
+		};
 
 		Ok(info)
+	}
+
+	pub fn unprovisioned() -> String {
+		"unprovisioned".to_owned()
 	}
 }
 
@@ -81,7 +103,7 @@ pub struct Principal {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LocalId {
-	/// Identifier for a group of local identity certificates, suffixed to the common name
+	/// Identifier for a group of local identity certificates, suffixed to the common name.
 	pub domain: String,
 }
 
@@ -139,6 +161,9 @@ pub enum ProvisioningType {
 		scope_id: String,
 		attestation: DpsAttestationMethod,
 	},
+
+	/// Disables provisioning with IoT Hub for devices that use local identities only.
+	None,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
