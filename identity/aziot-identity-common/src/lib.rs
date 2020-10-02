@@ -58,7 +58,7 @@ pub enum IdType {
 	Module,
 }
 
-/// Return values for device provisioning with IoT Hub.
+/// Return values for device provisioning with Hub.
 pub enum ProvisioningStatus {
 	/// Returned when provisioning type is set to "none".
 	Unprovisioned,
