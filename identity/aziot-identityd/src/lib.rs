@@ -174,7 +174,7 @@ impl Server {
 		Ok(())
 	}
 
-	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
+	pub async fn init_hub_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
 		if prev_module_set.is_empty() && current_module_set.is_empty() {
 			return Ok(())
 		}
@@ -205,6 +205,18 @@ impl Server {
 			self.id_manager.create_module_identity(&m.0).await?;
 			log::info!("identity {:?} added", &m.0);
 		}
+
+		Ok(())
+	}
+
+	pub async fn init_local_identities(
+		&self,
+		prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
+		current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
+	) -> Result<(), Error> {
+		// TODO: add implementation.
+		println!("prev: {:?}", prev_module_set);
+		println!("curr: {:?}", current_module_set);
 
 		Ok(())
 	}
@@ -568,7 +580,7 @@ mod tests {
 			Box::new(|_| Ok(true))
 		).unwrap();
 
-		let result = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
+		let result = server.init_hub_identities(BTreeSet::new(), BTreeSet::new()).await;
 		result.unwrap();
 	}
 }
