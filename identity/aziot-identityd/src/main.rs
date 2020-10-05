@@ -33,7 +33,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 			let () = std::fs::create_dir_all(&homedir_path).map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
 	}
 
-	let (_pmap, module_set) = convert_to_map(&settings.principal);
+	let (_pmap, module_set, _local_mset) = convert_to_map(&settings.principal);
 
 	let authenticator = Box::new(|_| Ok(aziot_identityd::auth::AuthId::Unknown));
 
@@ -64,7 +64,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 					let mut prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
 					if prev_state.eq(&curr_hub_device_info) && prev_settings_path.exists() {
 						let settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
-						let (_, p) = convert_to_map(&settings.principal);
+						let (_, p, _) = convert_to_map(&settings.principal);
 						prev_module_set = p;
 					}
 
@@ -102,28 +102,30 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
 fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 	-> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
-		std::collections::BTreeSet<aziot_identity_common::ModuleId>)
+		std::collections::BTreeSet<aziot_identity_common::ModuleId>,
+		std::collections::BTreeSet<aziot_identity_common::ModuleId>,)
 {
-	let mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
-		principal.as_ref().map_or(
-			std::collections::BTreeSet::new(),
-			|v| v.iter().filter_map( |p|
-				if p.id_type.clone().map_or(false, |t| t.contains(&aziot_identity_common::IdType::Module)) {
-					Some(p.name.clone())
-				} else {
-					None
-				}
-			).collect()
-		);
+	let mut local_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::new();
+	let mut module_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::new();
+	let mut pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> = std::collections::BTreeMap::new();
 
-	let pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> =
-		principal.as_ref().map_or(
-			std::collections::BTreeMap::new(),
-			|v| v.iter()
-				.map(|p| (p.uid, p.clone())).collect::<std::collections::BTreeMap<_,_>>()
-	);
+	let principal = principal.iter().flat_map(|p| p.iter());
 
-	(pmap, mset)
+	for p in principal {
+		if let Some(id_type) = &p.id_type {
+			for i in id_type {
+				match i {
+					aziot_identity_common::IdType::Module => module_mset.insert(p.name.clone()),
+					aziot_identity_common::IdType::Local => local_mset.insert(p.name.clone()),
+					_ => true,
+				};
+			}
+		}
+
+		pmap.insert(p.uid, p.clone());
+	}
+
+	(pmap, module_mset, local_mset)
 }
 
 #[cfg(test)]
@@ -138,12 +140,34 @@ mod tests {
 
 	#[test]
 	fn convert_to_map_creates_principal_lookup() {
-		let p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module])};
-		let v = vec![p.clone()];
-		let (map, _) = convert_to_map(&Some(v));
+		let local_p: Principal = Principal{uid: Uid(1000), name: ModuleId(String::from("local1")), id_type: Some(vec![IdType::Local])};
+		let module_p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module])};
+		let v = vec![module_p.clone(), local_p.clone()];
+		let (map, _, _) = convert_to_map(&Some(v));
 
+		assert!(map.contains_key(&Uid(1000)));
+		assert_eq!(map.get(&Uid(1000)).unwrap(), &local_p);
 		assert!(map.contains_key(&Uid(1001)));
-		assert_eq!(map.get(&Uid(1001)).unwrap(), &p);
+		assert_eq!(map.get(&Uid(1001)).unwrap(), &module_p);
+	}
+
+	#[test]
+	fn convert_to_map_module_sets() {
+		let v = vec![
+			Principal { uid: Uid(1000), name: ModuleId("hubmodule".to_owned()), id_type: Some(vec![IdType::Module]) },
+			Principal { uid: Uid(1001), name: ModuleId("localmodule".to_owned()), id_type: Some(vec![IdType::Local]) },
+			Principal { uid: Uid(1002), name: ModuleId("globalmodule".to_owned()), id_type: Some(vec![IdType::Module, IdType::Local]) },
+		];
+
+		let (_, hub_modules, local_modules) = convert_to_map(&Some(v));
+
+		assert!(hub_modules.contains(&ModuleId("hubmodule".to_owned())));
+		assert!(hub_modules.contains(&ModuleId("globalmodule".to_owned())));
+		assert!(!hub_modules.contains(&ModuleId("localmodule".to_owned())));
+
+		assert!(local_modules.contains(&ModuleId("localmodule".to_owned())));
+		assert!(local_modules.contains(&ModuleId("globalmodule".to_owned())));
+		assert!(!local_modules.contains(&ModuleId("hubmodule".to_owned())));
 	}
 
 	#[test]
@@ -155,7 +179,7 @@ mod tests {
 			domain: "example.com".to_owned(),
 		});
 
-		let (map, _) = convert_to_map(&settings.principal);
+		let (map, _, _) = convert_to_map(&settings.principal);
 		assert_eq!(map.len(), 3);
 		assert!(map.contains_key(&Uid(1003)));
 		assert_eq!(map.get(&Uid(1003)).unwrap().uid, Uid(1003));
@@ -165,7 +189,7 @@ mod tests {
 
 	#[test]
 	fn empty_auth_settings_deny_any_action() {
-		let (pmap, mset) = convert_to_map(&None);
+		let (pmap, mset, _) = convert_to_map(&None);
 		let auth = SettingsAuthorizer {pmap, mset};
 		let operation = Operation { auth_id: AuthId::Unknown, op_type: OperationType::CreateModule(String::default()) };
 
