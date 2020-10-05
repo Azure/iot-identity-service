@@ -45,14 +45,15 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 	{
-		let (prev_hub_mset, prev_local_mset) = match prev_settings_path.exists() {
-			true => {
+		let (prev_hub_mset, prev_local_mset) =
+			if prev_settings_path.exists() {
 				let prev_settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
 				let (_, h, l) = convert_to_map(&prev_settings.principal);
 				(h, l)
-			},
-			false => (std::collections::BTreeSet::default(), std::collections::BTreeSet::default())
-		};
+			}
+			else {
+				(std::collections::BTreeSet::default(), std::collections::BTreeSet::default())
+			};
 
 		let mut server_ = server.lock().await;
 
