@@ -134,6 +134,16 @@ impl Server {
 		self.id_manager.create_module_identity(module_id).await
 	}
 
+	pub async fn update_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
+
+		if !self.authorizer.authorize(auth::Operation{auth_id, op_type: auth::OperationType::UpdateModule(String::from(module_id)) })? {
+			return Err(Error::Authorization);
+		}
+
+		//TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
+		self.id_manager.update_module_identity(module_id).await
+	}
+
 	pub async fn delete_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<(), Error> {
 
 		if !self.authorizer.authorize(auth::Operation{auth_id, op_type: auth::OperationType::DeleteModule(String::from(module_id)) })? {
@@ -482,6 +492,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 				}
 			},
 			crate::auth::OperationType::CreateModule(m) |
+			crate::auth::OperationType::UpdateModule(m) |
 			crate::auth::OperationType::DeleteModule(m) => {
 				if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
 					if let Some(p) = self.pmap.get(&crate::auth::Uid(creds.0)) {
