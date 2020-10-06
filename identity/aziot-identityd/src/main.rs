@@ -139,16 +139,16 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 mod tests {
 	use aziot_identityd::auth::{Operation, OperationType, AuthId, Uid};
 	use aziot_identityd::SettingsAuthorizer;
-	use aziot_identityd::settings::{Principal, Settings, LocalId};
+	use aziot_identityd::settings::{Principal, Settings, LocalId, LocalIdOpts};
 	use crate::convert_to_map;
 	use aziot_identityd::auth::authorization::Authorizer;
-	use aziot_identity_common::{IdType, ModuleId};
+	use aziot_identity_common::{IdType, ModuleId, LocalIdAttr};
 	use std::path::Path;
 
 	#[test]
 	fn convert_to_map_creates_principal_lookup() {
-		let local_p: Principal = Principal{uid: Uid(1000), name: ModuleId(String::from("local1")), id_type: Some(vec![IdType::Local])};
-		let module_p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module])};
+		let local_p: Principal = Principal{uid: Uid(1000), name: ModuleId(String::from("local1")), id_type: Some(vec![IdType::Local]), localid: None};
+		let module_p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module]), localid: None};
 		let v = vec![module_p.clone(), local_p.clone()];
 		let (map, _, _) = convert_to_map(&Some(v));
 
@@ -161,9 +161,9 @@ mod tests {
 	#[test]
 	fn convert_to_map_module_sets() {
 		let v = vec![
-			Principal { uid: Uid(1000), name: ModuleId("hubmodule".to_owned()), id_type: Some(vec![IdType::Module]) },
-			Principal { uid: Uid(1001), name: ModuleId("localmodule".to_owned()), id_type: Some(vec![IdType::Local]) },
-			Principal { uid: Uid(1002), name: ModuleId("globalmodule".to_owned()), id_type: Some(vec![IdType::Module, IdType::Local]) },
+			Principal { uid: Uid(1000), name: ModuleId("hubmodule".to_owned()), id_type: Some(vec![IdType::Module]), localid: None },
+			Principal { uid: Uid(1001), name: ModuleId("localmodule".to_owned()), id_type: Some(vec![IdType::Local]), localid: None },
+			Principal { uid: Uid(1002), name: ModuleId("globalmodule".to_owned()), id_type: Some(vec![IdType::Module, IdType::Local]), localid: None },
 		];
 
 		let (_, hub_modules, local_modules) = convert_to_map(&Some(v));
@@ -192,6 +192,40 @@ mod tests {
 		assert_eq!(map.get(&Uid(1003)).unwrap().uid, Uid(1003));
 		assert_eq!(map.get(&Uid(1003)).unwrap().name, ModuleId(String::from("hostprocess2")));
 		assert_eq!(map.get(&Uid(1003)).unwrap().id_type, Some(vec![IdType::Module, IdType::Local]));
+	}
+
+	#[test]
+	fn local_id_opts() {
+		let s = Settings::new(std::path::Path::new("test/good_local_opts.toml")).unwrap();
+		let principals = s.principal.unwrap();
+
+		assert_eq!(principals, vec![
+			Principal {
+				uid: Uid(1000),
+				name: ModuleId("module1".to_owned()),
+				id_type: Some(vec![IdType::Local]),
+				localid: None,
+			},
+			Principal {
+				uid: Uid(1001),
+				name: ModuleId("module2".to_owned()),
+				id_type: Some(vec![IdType::Local]),
+				localid: Some(LocalIdOpts::X509 {
+					attributes: LocalIdAttr::default(),
+					cert_id: None,
+					key_id: None }),
+			},
+			Principal {
+				uid: Uid(1002),
+				name: ModuleId("module3".to_owned()),
+				id_type: Some(vec![IdType::Local]),
+				localid: Some(LocalIdOpts::X509 {
+					attributes: LocalIdAttr::Server,
+					cert_id: Some("test_cert".to_owned()),
+					key_id: Some("test_key".to_owned())
+				}),
+			},
+		]);
 	}
 
 	#[test]

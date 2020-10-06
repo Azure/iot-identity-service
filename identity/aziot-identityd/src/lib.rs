@@ -187,11 +187,11 @@ impl Server {
 					if let Some(m) = m.module_id {
 						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
 							self.id_manager.delete_module_identity(&m.0).await?;
-							log::info!("identity {:?} removed", &m.0);
+							log::info!("Hub identity {:?} removed", &m.0);
 						}
 						else if current_module_set.contains(&m) {
 							current_module_set.remove(&m);
-							log::info!("identity {:?} already exists", &m.0);
+							log::info!("Hub identity {:?} already exists", &m.0);
 						}
 					}
 					else {
@@ -203,7 +203,7 @@ impl Server {
 
 		for m in current_module_set {
 			self.id_manager.create_module_identity(&m.0).await?;
-			log::info!("identity {:?} added", &m.0);
+			log::info!("Hub identity {:?} added", &m.0);
 		}
 
 		Ok(())
@@ -214,9 +214,27 @@ impl Server {
 		prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 		current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 	) -> Result<(), Error> {
-		// TODO: add implementation.
-		println!("prev: {:?}", prev_module_set);
-		println!("curr: {:?}", current_module_set);
+
+		let localid = self.settings.localid.as_ref().ok_or_else(||
+			Error::Internal(InternalError::BadSettings(std::io::Error::new(
+				std::io::ErrorKind::InvalidInput,
+				"no local id settings specified"
+			)))
+		)?;
+
+		// Create or renew local identity certificates for all modules in current.
+		for id in &current_module_set {
+			let common_name = format!("{}.{}", id.0, localid.domain);
+			self.create_identity_cert_if_not_exist_or_expired(id.0.as_str(), id.0.as_str(), common_name.as_str()).await?;
+			log::info!("Local identity {} registered.", id.0);
+		}
+
+		// Remove local identities for modules in prev but not in current.
+		for id in prev_module_set.difference(&current_module_set) {
+			self.cert_client.delete_cert(id.0.as_str()).await
+				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+			log::info!("Local identity {} removed.", id.0);
+		}
 
 		Ok(())
 	}
@@ -448,7 +466,7 @@ impl Server {
 			};
 
 			let _new_cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
-				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))));
+				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 		}
 
 		Ok(())
