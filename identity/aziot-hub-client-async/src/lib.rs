@@ -183,6 +183,7 @@ impl Client {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Error {
+	#[serde(alias = "Message")]
 	pub message: std::borrow::Cow<'static, str>,
 }
 
