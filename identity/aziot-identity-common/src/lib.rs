@@ -83,6 +83,17 @@ impl Default for LocalIdAttr {
 	fn default() -> Self { LocalIdAttr::Client }
 }
 
+impl std::fmt::Display for LocalIdAttr {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			LocalIdAttr::Client => write!(f, "client")?,
+			LocalIdAttr::Server => write!(f, "server")?,
+		};
+
+		Ok(())
+	}
+}
+
 /// Return values for device provisioning with Hub.
 pub enum ProvisioningStatus {
 	/// Returned when provisioning type is set to "none".

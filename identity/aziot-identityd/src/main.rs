@@ -33,7 +33,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 			let () = std::fs::create_dir_all(&homedir_path).map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
 	}
 
-	let (_pmap, hub_mset, local_mset) = convert_to_map(&settings.principal);
+	let (_pmap, hub_mset, local_mmap) = convert_to_map(&settings.principal);
 
 	let authenticator = Box::new(|_| Ok(aziot_identityd::auth::AuthId::Unknown));
 
@@ -45,14 +45,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 	{
-		let (prev_hub_mset, prev_local_mset) =
+		let (prev_hub_mset, prev_local_mmap) =
 			if prev_settings_path.exists() {
 				let prev_settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
 				let (_, h, l) = convert_to_map(&prev_settings.principal);
 				(h, l)
 			}
 			else {
-				(std::collections::BTreeSet::default(), std::collections::BTreeSet::default())
+				(std::collections::BTreeSet::default(), std::collections::BTreeMap::default())
 			};
 
 		let mut server_ = server.lock().await;
@@ -84,7 +84,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 			aziot_identityd::settings::HubDeviceInfo::unprovisioned()
 		};
 
-		let () = server_.init_local_identities(prev_local_mset, local_mset).await?;
+		let () = server_.init_local_identities(prev_local_mmap, local_mmap).await?;
 		log::info!("Local identity reconciliation complete.");
 
 		std::fs::write(prev_device_info_path, device_status).map_err(aziot_identityd::error::InternalError::SaveDeviceInfo)?;
@@ -110,9 +110,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 	-> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
 		std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-		std::collections::BTreeSet<aziot_identity_common::ModuleId>,)
+		std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<aziot_identityd::settings::LocalIdOpts>>,)
 {
-	let mut local_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::new();
+	let mut local_mmap: std::collections::BTreeMap<aziot_identity_common::ModuleId,
+		Option<aziot_identityd::settings::LocalIdOpts>> = std::collections::BTreeMap::new();
 	let mut module_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::new();
 	let mut pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> = std::collections::BTreeMap::new();
 
@@ -123,7 +124,7 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 			for i in id_type {
 				match i {
 					aziot_identity_common::IdType::Module => module_mset.insert(p.name.clone()),
-					aziot_identity_common::IdType::Local => local_mset.insert(p.name.clone()),
+					aziot_identity_common::IdType::Local => local_mmap.insert(p.name.clone(), p.localid.clone()).is_none(),
 					_ => true,
 				};
 			}
@@ -132,7 +133,7 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 		pmap.insert(p.uid, p.clone());
 	}
 
-	(pmap, module_mset, local_mset)
+	(pmap, module_mset, local_mmap)
 }
 
 #[cfg(test)]
@@ -172,9 +173,9 @@ mod tests {
 		assert!(hub_modules.contains(&ModuleId("globalmodule".to_owned())));
 		assert!(!hub_modules.contains(&ModuleId("localmodule".to_owned())));
 
-		assert!(local_modules.contains(&ModuleId("localmodule".to_owned())));
-		assert!(local_modules.contains(&ModuleId("globalmodule".to_owned())));
-		assert!(!local_modules.contains(&ModuleId("hubmodule".to_owned())));
+		assert!(local_modules.contains_key(&ModuleId("localmodule".to_owned())));
+		assert!(local_modules.contains_key(&ModuleId("globalmodule".to_owned())));
+		assert!(!local_modules.contains_key(&ModuleId("hubmodule".to_owned())));
 	}
 
 	#[test]

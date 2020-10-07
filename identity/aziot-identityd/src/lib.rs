@@ -211,8 +211,8 @@ impl Server {
 
 	pub async fn init_local_identities(
 		&self,
-		prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-		current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
+		mut prev_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
+		current_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 	) -> Result<(), Error> {
 
 		let localid = self.settings.localid.as_ref().ok_or_else(||
@@ -223,17 +223,36 @@ impl Server {
 		)?;
 
 		// Create or renew local identity certificates for all modules in current.
-		for id in &current_module_set {
-			let common_name = format!("{}.{}", id.0, localid.domain);
-			self.create_identity_cert_if_not_exist_or_expired(id.0.as_str(), id.0.as_str(), common_name.as_str()).await?;
-			log::info!("Local identity {} registered.", id.0);
+		for id in &current_module_map {
+			let module_id = &(id.0).0;
+
+			let (attributes, cert_id, key_id) =
+			if let Some(opts) = id.1 {
+				match opts {
+					settings::LocalIdOpts::X509 {attributes, cert_id, key_id,} => {
+						let c = cert_id.as_ref().unwrap_or(module_id);
+						let k = key_id.as_ref().unwrap_or(module_id);
+						(*attributes, c, k)
+					}
+				}
+			}
+			else {
+				(aziot_identity_common::LocalIdAttr::default(), module_id, module_id)
+			};
+
+			let common_name = format!("{}.{}", module_id, localid.domain);
+			self.create_identity_cert_if_not_exist_or_expired(key_id.as_str(), cert_id.as_str(), common_name.as_str()).await?;
+			prev_module_map.remove_entry(id.0);
+
+			log::info!("Local identity {} ({})registered.", module_id, attributes);
 		}
 
 		// Remove local identities for modules in prev but not in current.
-		for id in prev_module_set.difference(&current_module_set) {
-			self.cert_client.delete_cert(id.0.as_str()).await
+		for id in prev_module_map {
+			let module_id = &(id.0).0;
+			self.cert_client.delete_cert(module_id.as_str()).await
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-			log::info!("Local identity {} removed.", id.0);
+			log::info!("Local identity {} removed.", module_id);
 		}
 
 		Ok(())
