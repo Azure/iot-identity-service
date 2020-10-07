@@ -508,3 +508,61 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 		Ok(false)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeSet;
+	use http_common::Connector;
+	use crate::{settings::{Endpoints, ManualAuthMethod, Provisioning, ProvisioningType, Settings}, auth::AuthId};
+	use super::Server;
+
+	macro_rules! wait {
+		($e:expr) => {
+			tokio_test::block_on($e)
+		};
+	}
+
+	fn make_empty_settings() -> Settings {
+		Settings {
+			hostname: Default::default(),
+			homedir: Default::default(),
+			principal: Default::default(),
+			provisioning: Provisioning {
+				provisioning: ProvisioningType::Manual {
+					iothub_hostname: Default::default(),
+					device_id: Default::default(),
+					authentication: ManualAuthMethod::SharedPrivateKey {
+						device_id_pk: Default::default(),
+					},
+				},
+				dynamic_reprovisioning: Default::default(),
+			},
+			endpoints: Endpoints {
+				aziot_certd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+				aziot_identityd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+				aziot_keyd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+			},
+			localid: Default::default(),
+		}
+	}
+
+	#[test]
+	fn init_identities_with_empty_args_exits_early() {
+		let server = Server::new(
+			make_empty_settings(),
+			Box::new(|_| Ok(AuthId::Unknown)),
+			Box::new(|_| {Ok(true)})
+		).unwrap();
+
+		assert!(wait!(server.init_identities(BTreeSet::new(), BTreeSet::new())).is_ok());
+	}
+}

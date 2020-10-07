@@ -45,3 +45,4 @@ openssl2 = { path = "../../openssl2" }
 
 [dev-dependencies]
 test-case = "1.0.0"
+tokio-test = "0.2"
