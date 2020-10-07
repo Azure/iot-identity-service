@@ -178,8 +178,6 @@ async fn request_no_content<TRequest>(
 where
 	TRequest: serde::Serialize,
 {
-	let uri = format!("http://foo{}", uri);
-
 	let req =
 		hyper::Request::builder()
 		.method(method)
