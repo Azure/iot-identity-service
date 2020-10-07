@@ -165,6 +165,10 @@ impl Server {
 	}
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
+		if prev_module_set.is_empty() && current_module_set.is_empty() {
+			return Ok(())
+		}
+
 		let hub_module_ids = self.id_manager.get_module_identities().await?;
 
 		for m in hub_module_ids {
