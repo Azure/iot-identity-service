@@ -1,0 +1,76 @@
+@startuml
+skinparam maxMessageSize 200
+
+participant "Operator" as oem
+participant "IoT Hub" as ih
+entity "Edge device" as device
+participant "DPS" as dps
+participant "EST" as est
+
+box "Device" #LightBlue 
+participant "IoT Edge\nruntime" as ie
+participant "EdgeAgent" as ea
+participant "EdgeHub" as eh
+participant "Custom\nModule" as cm
+end box 
+
+autonumber 
+
+group Initial Setup 
+oem->est : Register CA signing Cert (CA1)\nfor signing certificates
+oem->est : Register Identity CA Cert (CA2)\nfor signing identity certificates
+note over oem: CA1 and CA2 should be different\nbecause device does have the CA cert signed by CA1
+oem->est : Register EST authentication cert ESTC\n(Used to authenticate against the EST server)
+oem->dps : Create group enrollment with Identity CA Certificate (CA2) 
+oem->device : Install DIdC on the device (file system or HSM) 
+oem->device : Install ESTC on the device (file system or HSM)
+end 
+
+group Device setup and configuration
+oem->ie : Configure device to sign certificates using EST server
+oem->ie : Configure device for DPS provisioning
+oem->ie : Configure EdgeAgent
+end
+
+group Device running
+oem -> ie : Start IoT Edge runtime
+
+ie -> ie : Generate CSR to get idenitity cert (DIdC)
+ie -> est : CSR for identity cert
+return Identity cert DIdC signed with CA2
+
+ie -> ie : Generate CSR to get device CA cert (DCAC)
+ie -> est : CSR for CA cert
+return Device CA Cert DCAC signed with CA1
+
+ie -> dps : Provision device\nwith DIdC
+dps -> ih : Create device with\nthumbprint based auth
+return Device info
+dps --> ie: Provisioning info\n(IoTHub + deviceId)
+
+ie -> ea ** : Create and start
+ea -> ea : Process deployment
+ea -> ie : Update credentials for\nEdgeAgent and EdgeHub with SAS auth
+ie -> ih : Update credentials for\nEdgeAgent and EdgeHub with SAS auth
+
+ea -> eh ** : Create and start
+ea -> cm ** : Create and start
+
+eh -> ie : Get server cert
+ie -> ie : Generate server cert from DCAC
+ie --> eh : Server cert
+
+cm -> ie : Get local identity
+ie -> ie : Generate client cert from DCAC
+ie --> cm : Module local identity
+
+cm -> eh : Connect using mutual TLS auth
+cm -> eh : Pub/sub to MQTT Broker using custom topics
+
+eh -> ie : Get IoTHub identity
+return Identity info (IoTHub + deviceId + generation Id + credentials type)
+eh -> ie : Sign token 
+return Token signed with EdgeHub's SAS Key
+eh -> ih : Connect using token and forward telemetry
+end
+@enduml
