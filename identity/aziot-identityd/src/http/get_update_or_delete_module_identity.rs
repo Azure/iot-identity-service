@@ -85,5 +85,26 @@ impl http_common::server::Route for Route {
 	type PostResponse = ();
 
 	type PutBody = serde::de::IgnoredAny;
-	type PutResponse = ();
+	type PutResponse = aziot_identity_common_http::update_module_identity::Response;
+	fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
+		Box::pin(async move {
+			let mut inner = self.inner.lock().await;
+			let inner = &mut *inner;
+
+			let user = aziot_identityd::auth::Uid(0);
+			let auth_id = match inner.authenticator.authenticate(user) {
+				Ok(auth_id) => auth_id,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+
+			let identity = match inner.update_identity(auth_id, "aziot", &self.module_id).await {
+				Ok(v) => v,
+				Err(err) => return Err(super::to_http_error(&err)),
+			};
+			let res = aziot_identity_common_http::update_module_identity::Response {
+				identity,
+			};
+			Ok((hyper::StatusCode::OK, res))
+		})
+	}
 }

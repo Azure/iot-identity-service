@@ -90,6 +90,7 @@ pub async fn get_operation_status(
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Error {
+	#[serde(alias = "Message")]
 	pub message: std::borrow::Cow<'static, str>,
 }
 
