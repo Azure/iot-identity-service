@@ -516,12 +516,6 @@ mod tests {
 	use crate::{settings::{Endpoints, ManualAuthMethod, Provisioning, ProvisioningType, Settings}, auth::AuthId};
 	use super::Server;
 
-	macro_rules! wait {
-		($e:expr) => {
-			tokio_test::block_on($e)
-		};
-	}
-
 	fn make_empty_settings() -> Settings {
 		Settings {
 			hostname: Default::default(),
@@ -555,14 +549,14 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn init_identities_with_empty_args_exits_early() {
+	#[tokio::test]
+	async fn init_identities_with_empty_args_exits_early() {
 		let server = Server::new(
 			make_empty_settings(),
 			Box::new(|_| Ok(AuthId::Unknown)),
 			Box::new(|_| Ok(true))
 		).unwrap();
 
-		assert!(wait!(server.init_identities(BTreeSet::new(), BTreeSet::new())).is_ok());
+		assert!(server.init_identities(BTreeSet::new(), BTreeSet::new()).await.is_ok());
 	}
 }
