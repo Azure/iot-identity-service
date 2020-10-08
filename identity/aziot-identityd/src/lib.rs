@@ -226,31 +226,38 @@ impl Server {
 		for id in &current_module_map {
 			let module_id = &(id.0).0;
 
-			let (attributes, cert_id, key_id) =
-			if let Some(opts) = id.1 {
-				match opts {
-					settings::LocalIdOpts::X509 {attributes, cert_id, key_id,} => {
-						let c = cert_id.as_ref().unwrap_or(module_id);
-						let k = key_id.as_ref().unwrap_or(module_id);
-						(*attributes, c, k)
-					}
+			let (attributes, cert_id, key_id) = deconstruct_local_opts(id.1.clone(), module_id.clone());
+
+			// Must reissue certificate if options changed.
+			if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
+				if &prev_opts.1 == id.1 {
+					log::info!("Local identity {} up-to-date.", module_id);
+				}
+				else {
+					log::info!("Options changed for {}. Reissuing certificate.", module_id);
+					let (_, prev_cert_id, _) = deconstruct_local_opts(prev_opts.1, module_id.clone());
+
+					self.cert_client.delete_cert(prev_cert_id.as_str()).await
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				}
 			}
-			else {
-				(aziot_identity_common::LocalIdAttr::default(), module_id, module_id)
-			};
 
 			let common_name = format!("{}.{}", module_id, localid.domain);
-			self.create_identity_cert_if_not_exist_or_expired(key_id.as_str(), cert_id.as_str(), common_name.as_str()).await?;
-			prev_module_map.remove_entry(id.0);
+			self.create_identity_cert_if_not_exist_or_expired(
+				key_id.as_str(),
+				cert_id.as_str(),
+				common_name.as_str(),
+				Some(attributes)
+			).await?;
 
-			log::info!("Local identity {} ({})registered.", module_id, attributes);
+			log::info!("Local identity {} ({}) registered.", module_id, attributes);
 		}
 
 		// Remove local identities for modules in prev but not in current.
 		for id in prev_module_map {
 			let module_id = &(id.0).0;
-			self.cert_client.delete_cert(module_id.as_str()).await
+			let (_, cert_id, _) = deconstruct_local_opts(id.1, module_id.clone());
+			self.cert_client.delete_cert(cert_id.as_str()).await
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 			log::info!("Local identity {} removed.", module_id);
 		}
@@ -267,7 +274,7 @@ impl Server {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id).await?;
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id, None).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
 				};
@@ -350,7 +357,7 @@ impl Server {
 						aziot_identity_common::ProvisioningStatus::Provisioned(device)
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id).await?;
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id, None).await?;
 
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
@@ -441,6 +448,7 @@ impl Server {
 		identity_pk: &str,
 		identity_cert: &str,
 		subject: &str,
+		attributes: Option<aziot_identity_common::LocalIdAttr>
 	) -> Result<(), Error> {
 		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
 		let create_cert = match device_id_cert {
@@ -479,7 +487,8 @@ impl Server {
 				let csr = create_csr(
 					&subject,
 					&identity_public_key,
-					&identity_private_key)
+					&identity_private_key,
+					attributes)
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				csr
 			};
@@ -492,14 +501,64 @@ impl Server {
 	}
 }
 
+fn deconstruct_local_opts(options: Option<settings::LocalIdOpts>, module_id: String) ->
+	(aziot_identity_common::LocalIdAttr, String, String) {
+	if let Some(opts) = options {
+		match opts {
+			settings::LocalIdOpts::X509 {attributes, cert_id, key_id,} => {
+				let c = cert_id.unwrap_or_else(|| module_id.clone());
+				let k = key_id.unwrap_or(module_id);
+				(attributes, c, k)
+			}
+		}
+	}
+	else {
+		(aziot_identity_common::LocalIdAttr::default(), module_id.clone(), module_id)
+	}
+}
+
 fn create_csr(
 	subject: &str,
 	public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
 	private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+	attributes: Option<aziot_identity_common::LocalIdAttr>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
 	let mut csr = openssl::x509::X509Req::builder()?;
 
 	csr.set_version(0)?;
+
+	if let Some(attr) = attributes {
+		let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> = openssl::stack::Stack::new()?;
+
+		// basicConstraints = critical, CA:FALSE
+		let basic_constraints = openssl::x509::extension::BasicConstraints::new().critical().build()?;
+		extensions.push(basic_constraints)?;
+
+		// keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+		let key_usage = openssl::x509::extension::KeyUsage::new()
+			.critical()
+			.digital_signature()
+			.non_repudiation()
+			.key_encipherment()
+			.build()?;
+		extensions.push(key_usage)?;
+
+		// extendedKeyUsage = critical, clientAuth
+		// Always set (even for servers) because it's required for EST client certificate renewal.
+		let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
+		extended_key_usage.critical();
+		extended_key_usage.client_auth();
+
+		if attr == aziot_identity_common::LocalIdAttr::Server {
+			// extendedKeyUsage = serverAuth (in addition to clientAuth)
+			extended_key_usage.server_auth();
+		}
+
+		let extended_key_usage = extended_key_usage.build()?;
+		extensions.push(extended_key_usage)?;
+
+		csr.add_extensions(&extensions)?;
+	}
 
 	let mut subject_name = openssl::x509::X509Name::builder()?;
 	subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
