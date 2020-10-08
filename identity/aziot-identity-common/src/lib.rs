@@ -48,6 +48,16 @@ pub enum AuthenticationType {
     X509,
 }
 
+impl std::fmt::Display for AuthenticationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match *self {
+            AuthenticationType::Sas => "sas",
+            AuthenticationType::X509 => "x509",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 pub struct Uid(u32);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
