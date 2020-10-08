@@ -119,16 +119,16 @@ impl std::str::FromStr for Uri {
 			let key = parts.next().expect("str::splitn() yields at least one str");
 			let key = percent_encoding::percent_decode(key.as_bytes());
 			let key: std::borrow::Cow<'a, _> = key.into();
-			if let Some(typed_key) = key_discriminant(&*key) {
-				let value = parts.next().unwrap_or_default();
-				let value = percent_encoding::percent_decode(value.as_bytes());
-				match value.decode_utf8() {
-					Ok(value) => Ok(Some((typed_key, value))),
-					Err(err) => Err(ParsePkcs11UriError::InvalidUtf8(key.into_owned(), err.into())),
-				}
-			}
-			else {
-				Ok(None)
+			let typed_key = match key_discriminant(&*key) {
+				Some(typed_key) => typed_key,
+				None => return Ok(None),
+			};
+
+			let value = parts.next().unwrap_or_default();
+			let value = percent_encoding::percent_decode(value.as_bytes());
+			match value.decode_utf8() {
+				Ok(value) => Ok(Some((typed_key, value))),
+				Err(err) => Err(ParsePkcs11UriError::InvalidUtf8(key.into_owned(), err.into())),
 			}
 		}
 

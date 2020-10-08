@@ -293,24 +293,24 @@ impl Error {
 
 #[cfg(feature = "tokio02")]
 pub fn json_response(status_code: hyper::StatusCode, body: Option<&impl serde::Serialize>) -> hyper::Response<hyper::Body> {
-	if let Some(body) = body {
-		let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
-		let body = hyper::Body::from(body);
-
-		let res =
-			hyper::Response::builder()
-			.status(status_code)
-			.header(hyper::header::CONTENT_TYPE, "application/json")
-			.body(body)
-			.expect("cannot fail to build hyper response");
-		res
-	}
-	else {
-		let res =
-			hyper::Response::builder()
-			.status(status_code)
-			.body(Default::default())
-			.expect("cannot fail to build hyper response");
-		res
-	}
+	let res =
+		hyper::Response::builder()
+		.status(status_code);
+	// `res` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
+	//
+	// Ref: https://github.com/rust-lang/rust-clippy/issues/5822
+	#[allow(clippy::option_if_let_else)]
+	let res =
+		if let Some(body) = body {
+			let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
+			let body = hyper::Body::from(body);
+			res
+				.header(hyper::header::CONTENT_TYPE, "application/json")
+				.body(body)
+		}
+		else {
+			res.body(Default::default())
+		};
+	let res = res.expect("cannot fail to build hyper response");
+	res
 }

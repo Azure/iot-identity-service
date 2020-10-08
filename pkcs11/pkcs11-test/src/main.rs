@@ -21,6 +21,7 @@ async fn main() -> Result<(), Error> {
 		command,
 	} = structopt::StructOpt::from_args();
 
+	#[allow(clippy::option_if_let_else)] // Side-effects in a combinator closure are not a good thing.
 	let pkcs11_lib_path =
 		if let Some(pkcs11_spy_path) = pkcs11_spy_path {
 			std::env::set_var("PKCS11SPY", &pkcs11_lib_path);
