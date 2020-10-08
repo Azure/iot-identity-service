@@ -121,6 +121,10 @@ where
 		hyper::Request::builder()
 		.method(method)
 		.uri(uri);
+	// `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
+	//
+	// Ref: https://github.com/rust-lang/rust-clippy/issues/5822
+	#[allow(clippy::option_if_let_else)]
 	let req =
 		if let Some(body) = body {
 			let body = serde_json::to_vec(body).expect("serializing request body to JSON cannot fail").into();
@@ -178,12 +182,14 @@ async fn request_no_content<TRequest>(
 where
 	TRequest: serde::Serialize,
 {
-	let uri = format!("http://foo{}", uri);
-
 	let req =
 		hyper::Request::builder()
 		.method(method)
 		.uri(uri);
+	// `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
+	//
+	// Ref: https://github.com/rust-lang/rust-clippy/issues/5822
+	#[allow(clippy::option_if_let_else)]
 	let req =
 		if let Some(body) = body {
 			let body = serde_json::to_vec(body).expect("serializing request body to JSON cannot fail").into();

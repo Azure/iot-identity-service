@@ -145,13 +145,10 @@ impl Context {
 			};
 
 			let version =
-				if let Some(info) = context.info() {
-					info.cryptokiVersion
-				}
-				else {
-					// Doesn't support C_GetInfo, so the initial version in the CK_FUNCTION_LIST is all we have.
-					version
-				};
+				context.info().map_or(
+					version, // Doesn't support C_GetInfo, so the initial version in the CK_FUNCTION_LIST is all we have.
+					|info| info.cryptokiVersion,
+				);
 			if version.major != 2 || version.minor < 20 {
 				return Err(LoadContextError::UnsupportedPkcs11Version {
 					expected: pkcs11_sys::CK_VERSION { major: 2, minor: 20 },

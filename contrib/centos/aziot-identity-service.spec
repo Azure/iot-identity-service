@@ -78,29 +78,29 @@ make -j \
 # For each of CS, IS, KS: create group, create user, create home directory (in case user already exists from a previous install
 # but the user deleted the directory manually)
 
-if ! %{_bindir}/getent group aziotcs >/dev/null; then
-    %{_sbindir}/groupadd -r aziotcs
-fi
-if ! %{_bindir}/getent passwd aziotcs >/dev/null; then
-    %{_sbindir}/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
-fi
-mkdir -p /var/lib/aziot/certd
-
-if ! %{_bindir}/getent group aziotid >/dev/null; then
-    %{_sbindir}/groupadd -r aziotid
-fi
-if ! %{_bindir}/getent passwd aziotid >/dev/null; then
-    %{_sbindir}/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
-fi
-mkdir -p /var/lib/aziot/identityd
-
 if ! %{_bindir}/getent group aziotks >/dev/null; then
     %{_sbindir}/groupadd -r aziotks
 fi
 if ! %{_bindir}/getent passwd aziotks >/dev/null; then
     %{_sbindir}/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
 fi
-mkdir -p /var/lib/aziot/keyd
+
+if ! %{_bindir}/getent group aziotcs >/dev/null; then
+    %{_sbindir}/groupadd -r aziotcs
+fi
+if ! %{_bindir}/getent passwd aziotcs >/dev/null; then
+    %{_sbindir}/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
+    %{_sbindir}/usermod -aG aziotks aziotcs
+fi
+
+if ! %{_bindir}/getent group aziotid >/dev/null; then
+    %{_sbindir}/groupadd -r aziotid
+fi
+if ! %{_bindir}/getent passwd aziotid >/dev/null; then
+    %{_sbindir}/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
+    %{_sbindir}/usermod -aG aziotcs aziotid
+    %{_sbindir}/usermod -aG aziotks aziotid
+fi
 
 
 %post
