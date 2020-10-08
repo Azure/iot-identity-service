@@ -560,7 +560,7 @@ mod tests {
 		let server = Server::new(
 			make_empty_settings(),
 			Box::new(|_| Ok(AuthId::Unknown)),
-			Box::new(|_| {Ok(true)})
+			Box::new(|_| Ok(true))
 		).unwrap();
 
 		assert!(wait!(server.init_identities(BTreeSet::new(), BTreeSet::new())).is_ok());
