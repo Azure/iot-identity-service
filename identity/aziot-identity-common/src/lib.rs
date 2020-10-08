@@ -48,16 +48,6 @@ pub enum AuthenticationType {
     X509,
 }
 
-impl std::fmt::Display for AuthenticationType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match *self {
-            AuthenticationType::Sas => "Sas",
-            AuthenticationType::X509 => "X509",
-        };
-        write!(f, "{}", s)
-    }
-}
-
 pub struct Uid(u32);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -99,7 +89,7 @@ pub enum Credentials {
 impl From<Credentials> for AuthenticationInfo {
 	fn from(c: Credentials) -> Self {
 		match c {
-		    Credentials::SharedPrivateKey(k) => AuthenticationInfo { 
+			Credentials::SharedPrivateKey(k) => AuthenticationInfo { 
 				auth_type: AuthenticationType::Sas,
 				key_handle: aziot_key_common::KeyHandle(k),
 				cert_id: None,

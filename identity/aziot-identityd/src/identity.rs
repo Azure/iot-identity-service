@@ -58,15 +58,15 @@ impl IdentityManager {
 
 				let response  = client.update_module(
 					&*new_module.module_id,
-						Some(aziot_identity_common::hub::AuthMechanism {
-							symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
-								primary_key: Some(http_common::ByteString(primary_key)),
-								secondary_key: Some(http_common::ByteString(secondary_key)),
-							}),
-							x509_thumbprint: None,
-							type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					Some(aziot_identity_common::hub::AuthMechanism {
+						symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
+							primary_key: Some(http_common::ByteString(primary_key)),
+							secondary_key: Some(http_common::ByteString(secondary_key)),
 						}),
-		None).await
+						x509_thumbprint: None,
+						type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					}),
+					None).await
 					.map_err(Error::HubClient)?;
 
 				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
@@ -106,15 +106,15 @@ impl IdentityManager {
 
 				let response  = client.update_module(
 					&*curr_module.module_id,
-						Some(aziot_identity_common::hub::AuthMechanism {
-							symmetric_key: Some(aziot_identity_common::hub::SymmetricKey { 
-								primary_key: Some(http_common::ByteString(primary_key)), 
-								secondary_key: Some(http_common::ByteString(secondary_key)),
-							}),
-							x509_thumbprint: None, 
-							type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					Some(aziot_identity_common::hub::AuthMechanism {
+						symmetric_key: Some(aziot_identity_common::hub::SymmetricKey { 
+							primary_key: Some(http_common::ByteString(primary_key)), 
+							secondary_key: Some(http_common::ByteString(secondary_key)),
 						}),
-		None).await
+						x509_thumbprint: None, 
+						type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					}),
+					None).await
 					.map_err(Error::HubClient)?;
 
 				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {

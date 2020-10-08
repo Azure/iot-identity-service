@@ -203,6 +203,8 @@ fn generate_cert(
 
 	let mut builder = openssl::x509::X509::builder()?;
 
+	builder.set_version(2)?;
+
 	let public_key = load_public_key(&mut engine, key.clone())?;
 	builder.set_pubkey(&public_key)?;
 
