@@ -51,13 +51,13 @@ impl std::error::Error for Error {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
+	BadSettings(std::io::Error),
 	CreateCertificate(Box<dyn std::error::Error + Send + Sync>),
 	CreateHomeDir(std::io::Error),
 	InvalidUri(http::uri::InvalidUri),
 	LoadKeyOpensslEngine(openssl2::Error),
 	LoadDeviceInfo(std::io::Error),
 	LoadSettings(std::io::Error),
-	BadSettings(std::io::Error),
 	MasterIdentityKey(std::io::Error),
 	ParseDeviceInfo(toml::de::Error),
 	ParseSettings(toml::de::Error),
@@ -68,13 +68,13 @@ pub enum InternalError {
 impl std::fmt::Display for InternalError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
+			InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
 			InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
 			InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
 			InternalError::InvalidUri(_) => f.write_str("invalid resource uri"),
 			InternalError::LoadKeyOpensslEngine(_) => f.write_str("could not load aziot-key-openssl-engine"),
 			InternalError::LoadDeviceInfo(_) => f.write_str("could not load device information state"),
 			InternalError::LoadSettings(_) => f.write_str("could not load settings"),
-			InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
 			InternalError::MasterIdentityKey(_) => f.write_str("master identity key error"),
 			InternalError::ParseDeviceInfo(_) => f.write_str("could not parse device information state"),
 			InternalError::ParseSettings(_) => f.write_str("could not parse settings"),
@@ -88,13 +88,13 @@ impl std::error::Error for InternalError {
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 		#[allow(clippy::match_same_arms)]
 		match self {
+			InternalError::BadSettings(err) => Some(err),
 			InternalError::CreateCertificate(err) => Some(&**err),
 			InternalError::CreateHomeDir(err) => Some(err),
 			InternalError::InvalidUri(err) => Some(err),
 			InternalError::LoadKeyOpensslEngine(err) => Some(err),
 			InternalError::LoadDeviceInfo(err) => Some(err),
 			InternalError::LoadSettings(err) => Some(err),
-			InternalError::BadSettings(err) => Some(err),
 			InternalError::MasterIdentityKey(err) => Some(err),
 			InternalError::ParseDeviceInfo(err) => Some(err),
 			InternalError::ParseSettings(err) => Some(err),
