@@ -569,6 +569,6 @@ mod tests {
 		).unwrap();
 
 		let result = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
-		let _ = result.unwrap();
+		result.unwrap();
 	}
 }
