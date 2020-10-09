@@ -504,7 +504,9 @@ impl Server {
 
 fn deconstruct_local_opts(options: Option<settings::LocalIdOpts>, module_id: String) ->
 	(aziot_identity_common::LocalIdAttr, String, String) {
-	if let Some(opts) = options {
+	let defaults = (aziot_identity_common::LocalIdAttr::default(), module_id.clone(), module_id.clone());
+
+	options.map_or(defaults, |opts|
 		match opts {
 			settings::LocalIdOpts::X509 {attributes, cert_id, key_id,} => {
 				let c = cert_id.unwrap_or_else(|| module_id.clone());
@@ -512,10 +514,7 @@ fn deconstruct_local_opts(options: Option<settings::LocalIdOpts>, module_id: Str
 				(attributes, c, k)
 			}
 		}
-	}
-	else {
-		(aziot_identity_common::LocalIdAttr::default(), module_id.clone(), module_id)
-	}
+	)
 }
 
 fn create_csr(
