@@ -45,7 +45,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));
 	{
-		let (prev_hub_mset, prev_local_mmap) =
+		let (mut prev_hub_mset, prev_local_mmap) =
 			if prev_settings_path.exists() {
 				let prev_settings = aziot_identityd::settings::Settings::new(&prev_settings_path)?;
 				let (_, h, l) = convert_to_map(&prev_settings.principal);
@@ -67,16 +67,25 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 				device_id: device.device_id
 			};
 
+			// Only consider the previous Hub modules if the current and previous Hub devices match.
+			let mut use_prev = false;
+
 			if prev_device_info_path.exists() {
 				let prev_hub_device_info = aziot_identityd::settings::HubDeviceInfo::new(&prev_device_info_path)?;
 
-				if let Some(prev_device) = prev_hub_device_info {
-					if prev_device == curr_hub_device_info {
-						let () = server_.init_hub_identities(prev_hub_mset, hub_mset).await?;
-						log::info!("Identity reconciliation with IoT Hub complete.");
+				if let Some(prev_info) = prev_hub_device_info {
+					if prev_info == curr_hub_device_info {
+						use_prev = true;
 					}
 				}
 			}
+
+			if !use_prev {
+				prev_hub_mset = std::collections::BTreeSet::default();
+			}
+
+			let () = server_.init_hub_identities(prev_hub_mset, hub_mset).await?;
+			log::info!("Identity reconciliation with IoT Hub complete.");
 
 			toml::to_string(&curr_hub_device_info)?
 		}
