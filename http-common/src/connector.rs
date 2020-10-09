@@ -144,7 +144,7 @@ impl Connector {
 impl std::fmt::Display for Connector {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let url = match self {
-			Connector::Fd { fallback, .. } => {
+			Connector::Fd { fallback } => {
 				let mut url: url::Url = "fd://".parse().expect("hard-coded URL parses successfully");
 				url.query_pairs_mut().append_pair("fallback", &fallback.to_string());
 				url
@@ -416,8 +416,8 @@ fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
 	//
 	// If obtaining more than one fd is required in the future, keep in mind that it requires getting fds by name (by inspecting the LISTEN_FDNAMES env var)
 	// instead of by number, since systemd does not pass down multiple fds in a deterministic order. The complication with LISTEN_FDNAMES is that
-	// CentOS 7's systemd is too old and doesn't support it, which would mean CS/IS/KS would have to forego systemd socket activation on CentOS 7
-	// (just like iotedged does). This creates more complications, because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does)
+	// CentOS 7's systemd is too old and doesn't support it, which would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7
+	// (just like iotedged). This creates more complications, because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does)
 	// which means host modules need to try both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot
 	// but have to create /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
