@@ -175,6 +175,10 @@ impl Server {
 	}
 
 	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
+		if prev_module_set.is_empty() && current_module_set.is_empty() {
+			return Ok(())
+		}
+
 		let hub_module_ids = self.id_manager.get_module_identities().await?;
 
 		for m in hub_module_ids {
@@ -513,5 +517,58 @@ impl auth::authorization::Authorizer for SettingsAuthorizer
 			},
 		}
 		Ok(false)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeSet;
+	use http_common::Connector;
+	use crate::{settings::{Endpoints, ManualAuthMethod, Provisioning, ProvisioningType, Settings}, auth::AuthId};
+	use super::Server;
+
+	fn make_empty_settings() -> Settings {
+		Settings {
+			hostname: Default::default(),
+			homedir: Default::default(),
+			principal: Default::default(),
+			provisioning: Provisioning {
+				provisioning: ProvisioningType::Manual {
+					iothub_hostname: Default::default(),
+					device_id: Default::default(),
+					authentication: ManualAuthMethod::SharedPrivateKey {
+						device_id_pk: Default::default(),
+					},
+				},
+				dynamic_reprovisioning: Default::default(),
+			},
+			endpoints: Endpoints {
+				aziot_certd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+				aziot_identityd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+				aziot_keyd: Connector::Fd {
+					original_specifier: Default::default(),
+					fd: Default::default(),
+				},
+			},
+			localid: Default::default(),
+		}
+	}
+
+	#[tokio::test]
+	async fn init_identities_with_empty_args_exits_early() {
+		let server = Server::new(
+			make_empty_settings(),
+			Box::new(|_| Ok(AuthId::Unknown)),
+			Box::new(|_| Ok(true))
+		).unwrap();
+
+		let result = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
+		result.unwrap();
 	}
 }
