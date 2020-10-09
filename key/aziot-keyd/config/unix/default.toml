@@ -4,6 +4,3 @@ homedir_path = "/var/lib/aziot/keyd"
 # pkcs11_base_slot = "..."
 
 # [preloaded_keys]
-
-[endpoints]
-aziot_keyd = @keyd_endpoint@

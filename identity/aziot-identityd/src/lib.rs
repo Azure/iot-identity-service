@@ -542,19 +542,11 @@ mod tests {
 				},
 				dynamic_reprovisioning: Default::default(),
 			},
+			// Use unreachable endpoints for the defaults.
 			endpoints: Endpoints {
-				aziot_certd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
-				aziot_identityd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
-				aziot_keyd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
+				aziot_certd: Connector::Http { host: "localhost".into(), port: 0 },
+				aziot_identityd: Connector::Http { host: "localhost".into(), port: 0 },
+				aziot_keyd: Connector::Http { host: "localhost".into(), port: 0 },
 			},
 			localid: Default::default(),
 		}

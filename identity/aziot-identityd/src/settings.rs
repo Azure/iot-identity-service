@@ -17,6 +17,9 @@ pub struct Settings {
 
 	pub provisioning: Provisioning,
 
+	/// Only configurable in debug builds for the sake of tests.
+	#[serde(default)]
+	#[cfg_attr(not(debug_assertions), serde(skip))]
 	pub endpoints: Endpoints,
 
 	pub localid: Option<LocalId>,
@@ -171,6 +174,16 @@ pub struct Endpoints {
 	pub aziot_certd: http_common::Connector,
 	pub aziot_identityd: http_common::Connector,
 	pub aziot_keyd: http_common::Connector,
+}
+
+impl Default for Endpoints {
+	fn default() -> Self {
+		Endpoints {
+			aziot_certd: "unix:///run/aziot/certd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+			aziot_identityd: "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fidentityd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+			aziot_keyd: "unix:///run/aziot/certd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+		}
+	}
 }
 
 //TODO: Keeping this setting around until it is determined HTTPS isn't supported

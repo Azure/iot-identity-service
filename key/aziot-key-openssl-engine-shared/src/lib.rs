@@ -9,9 +9,6 @@
 //! This crate wraps the openssl engine of the aziot-key-openssl-engine crate into a cdylib that can be loaded as a dynamic engine.
 //!
 //! This is not used by the IS or CS since they use the static engine, but is intended for third-party applications like modules.
-//!
-//! The engine requires the `AZIOT_KEY_SERVICE_ENDPOINT` environment variable to be set on the process. Its value must be the endpoint URI of
-//! the Azure IoT Keys Service. For example, `AZIOT_KEY_SERVICE_ENDPOINT=unix:///var/run/aziot/keyd.sock`
 
 #[no_mangle]
 unsafe extern "C" fn aziot_key_openssl_engine_shared_bind(e: *mut openssl_sys::ENGINE, _id: *const std::os::raw::c_char) -> std::os::raw::c_int {
@@ -29,15 +26,7 @@ unsafe extern "C" fn engine_init(
 	e: *mut openssl_sys::ENGINE,
 ) -> std::os::raw::c_int {
 	let result = r#catch(Some(|| Error::ENGINE_INIT), || {
-		let key_connector =
-			std::env::var("AZIOT_KEY_SERVICE_ENDPOINT").map_err(|err| err.to_string())
-			.and_then(|key_service_endpoint| key_service_endpoint.parse::<url::Url>().map_err(|err| err.to_string()))
-			.and_then(|key_service_endpoint| http_common::Connector::new(&key_service_endpoint).map_err(|err| err.to_string()))
-			.map_err(|err| format!(
-				r#"environment variable "AZIOT_KEY_SERVICE_ENDPOINT" is not set to a valid URI of the Azure IoT Keys Service endpoint: {}"#,
-				err,
-			))?;
-
+		let key_connector: http_common::Connector = "unix:///run/aziot/keyd.sock".parse().expect("hard-coded URI must parse successfully");
 		let key_client = aziot_key_client::Client::new(aziot_key_common_http::ApiVersion::V2020_09_01, key_connector);
 		let key_client = std::sync::Arc::new(key_client);
 

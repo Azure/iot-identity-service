@@ -12,9 +12,9 @@ Basic Identity Service configuration file consists of following mandatory settin
     [[principal]]
 
     [endpoints]
-    aziot_certd = "unix:///var/lib/aziot/certd.sock"
-    aziot_identityd = "http://localhost:8901"
-    aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
+    aziot_certd = "unix:///run/aziot/certd.sock"
+    aziot_identityd = "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fidentityd.sock"
+    aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 - `hostname` is the device's network hostname. This setting is used for nested topology configuration. 
@@ -35,7 +35,9 @@ Basic Identity Service configuration file consists of following mandatory settin
 
     - The `aziot_identityd` value denotes the endpoint that this service will accept connections on.
 
-    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port), or `fd` URIs for systemd socket activation plus a fallback to another URI in case the process was started without socket activation.
+
+    Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
 
 ## Configuring device provisioning
 

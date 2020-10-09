@@ -70,7 +70,6 @@ make -j \
     OPENSSL_ENGINES_DIR=/usr/lib64/openssl/engines \
     RELEASE=1 \
     V=1 \
-    SOCKET_ACTIVATION_SUPPORTED=0 \
     install-rpm
 
 %pre
@@ -131,15 +130,13 @@ fi
 %attr(-, aziotid, aziotid) %dir /var/lib/aziot/identityd
 %attr(-, aziotks, aziotks) %dir /var/lib/aziot/keyd
 
-# Systemd services
+# Systemd services and sockets
 %{_unitdir}/aziot-certd.service
+%{_unitdir}/aziot-certd.socket
 %{_unitdir}/aziot-identityd.service
+%{_unitdir}/aziot-identityd.socket
 %{_unitdir}/aziot-keyd.service
-
-# Sockets (no systemd socket activation on CentOS)
-%attr(660, aziotcs, aziotcs) /var/lib/aziot/certd.sock
-%attr(660, aziotid, aziotid) /var/lib/aziot/identityd.sock
-%attr(660, aziotks, aziotks) /var/lib/aziot/keyd.sock
+%{_unitdir}/aziot-keyd.socket
 
 %doc README.md
 %doc THIRD-PARTY-NOTICES
