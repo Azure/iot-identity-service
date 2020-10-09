@@ -259,6 +259,7 @@ impl Server {
 			let (_, cert_id, _) = deconstruct_local_opts(id.1, module_id.clone());
 			self.cert_client.delete_cert(cert_id.as_str()).await
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+			// TODO: need to delete private key too.
 			log::info!("Local identity {} removed.", module_id);
 		}
 
@@ -469,7 +470,7 @@ impl Server {
 		if create_cert {
 			let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
+			// TODO: need to delete private key before returning if any function below fails.
 			let csr = {
 				let mut key_engine = self.key_engine.lock().await;
 
