@@ -568,7 +568,7 @@ mod tests {
 			Box::new(|_| Ok(true))
 		).unwrap();
 
-		let res = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
-		assert_eq!((), res.unwrap());
+		let result = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
+		let _ = result.unwrap();
 	}
 }
