@@ -259,8 +259,8 @@ pub struct Endpoints {
 impl Default for Endpoints {
 	fn default() -> Self {
 		Endpoints {
-			aziot_certd: "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fcertd.sock".parse().expect("hard-coded URL cannot fail to parse"),
-			aziot_keyd: "unix:///run/aziot/keyd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+			aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+			aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 		}
 	}
 }
@@ -359,9 +359,7 @@ trust-bundle = [
 			].into_iter().collect(),
 
 			endpoints: super::Endpoints {
-				aziot_certd: http_common::Connector::Fd {
-					fallback: Box::new(http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() }),
-				},
+				aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
 				aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 			},
 		});

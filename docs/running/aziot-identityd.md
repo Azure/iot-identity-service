@@ -13,7 +13,7 @@ Basic Identity Service configuration file consists of following mandatory settin
 
     [endpoints]
     aziot_certd = "unix:///run/aziot/certd.sock"
-    aziot_identityd = "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fidentityd.sock"
+    aziot_identityd = "unix:///run/aziot/identityd.sock"
     aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
@@ -35,9 +35,11 @@ Basic Identity Service configuration file consists of following mandatory settin
 
     - The `aziot_identityd` value denotes the endpoint that this service will accept connections on.
 
-    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port), or `fd` URIs for systemd socket activation plus a fallback to another URI in case the process was started without socket activation.
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port).
 
     Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
+
+    The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
 ## Configuring device provisioning
 

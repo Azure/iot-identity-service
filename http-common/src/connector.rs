@@ -2,7 +2,6 @@
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
-	Fd { fallback: Box<Self> },
 	Http { host: std::sync::Arc<str>, port: u16 },
 	Unix { socket_path: std::sync::Arc<std::path::Path> },
 }
@@ -30,17 +29,6 @@ pub enum Incoming {
 impl Connector {
 	pub fn new(uri: &url::Url) -> Result<Self, ConnectorError> {
 		match uri.scheme() {
-			"fd" => {
-				let fallback =
-					uri.query_pairs()
-					.find_map(|(key, value)| if key == "fallback" { Some(value) } else { None })
-					.ok_or_else(|| ConnectorError { uri: uri.clone(), inner: "fd URI does not have a fallback".into() })?
-					.parse()
-					.map_err(|err| ConnectorError { uri: uri.clone(), inner: format!("could not parse fd URI's fallback: {}", err).into() })?;
-
-				Ok(Connector::Fd { fallback: Box::new(fallback) })
-			},
-
 			"http" => {
 				let host =
 					uri.host_str()
@@ -64,8 +52,6 @@ impl Connector {
 
 	pub fn connect(&self) -> std::io::Result<Stream> {
 		match self {
-			Connector::Fd { .. } => Err(std::io::Error::new(std::io::ErrorKind::Other, "connecting to fd:// URIs is not supported")),
-
 			Connector::Http { host, port } => {
 				let inner = std::net::TcpStream::connect((&**host, *port))?;
 				Ok(Stream::Http(inner))
@@ -80,63 +66,54 @@ impl Connector {
 
 	#[cfg(feature = "tokio02")]
 	pub async fn incoming(self) -> std::io::Result<Incoming> {
-		match self {
-			Connector::Fd { fallback } => {
-				let fd = match get_systemd_socket() {
-					Ok(Some(fd)) => fd,
-
-					Ok(None) => {
-						let fallback_incoming: std::pin::Pin<Box<dyn std::future::Future<Output = _>>> = Box::pin(fallback.incoming());
-						return fallback_incoming.await;
-					},
-
-					Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
-				};
-
-				let sock_addr = nix::sys::socket::getsockname(fd).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-				match sock_addr {
-					nix::sys::socket::SockAddr::Inet(_) => {
-						let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-						let listener = tokio::net::TcpListener::from_std(listener)?;
-						Ok(Incoming::Http(listener))
-					},
-
-					nix::sys::socket::SockAddr::Unix(_) => {
-						let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-						let listener = tokio::net::UnixListener::from_std(listener)?;
-						Ok(Incoming::Unix(listener))
-					},
-
-					sock_addr => Err(std::io::Error::new(
-						std::io::ErrorKind::Other,
-						format!("fd:// URI points socket with unsupported address family {:?}", sock_addr.family()),
-					)),
-				}
-			},
-
-			Connector::Http { host, port } =>
-				// Only debug builds can set up HTTP servers. Release builds must use unix sockets or systemd sockets.
-				if cfg!(debug_assertions) {
-					let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
+		let systemd_socket = get_systemd_socket().map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+		if let Some(fd) = systemd_socket {
+			let sock_addr = nix::sys::socket::getsockname(fd).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+			match sock_addr {
+				nix::sys::socket::SockAddr::Inet(_) => {
+					let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+					let listener = tokio::net::TcpListener::from_std(listener)?;
 					Ok(Incoming::Http(listener))
-				}
-				else {
-					Err(std::io::Error::new(
-						std::io::ErrorKind::Other,
-						"servers can only use `fd://` or `unix://` connectors, not `http://` connectors",
-					))
 				},
 
-			Connector::Unix { socket_path } => {
-				match std::fs::remove_file(&*socket_path) {
-					Ok(()) => (),
-					Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
-					Err(err) => return Err(err),
-				}
+				nix::sys::socket::SockAddr::Unix(_) => {
+					let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+					let listener = tokio::net::UnixListener::from_std(listener)?;
+					Ok(Incoming::Unix(listener))
+				},
 
-				let listener = tokio::net::UnixListener::bind(socket_path)?;
-				Ok(Incoming::Unix(listener))
-			},
+				sock_addr => Err(std::io::Error::new(
+					std::io::ErrorKind::Other,
+					format!("systemd socket has unsupported address family {:?}", sock_addr.family()),
+				)),
+			}
+		}
+		else {
+			match self {
+				Connector::Http { host, port } =>
+					// Only debug builds can set up HTTP servers. Release builds must use unix sockets or systemd sockets.
+					if cfg!(debug_assertions) {
+						let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
+						Ok(Incoming::Http(listener))
+					}
+					else {
+						Err(std::io::Error::new(
+							std::io::ErrorKind::Other,
+							"servers can only use `unix://` connectors, not `http://` connectors",
+						))
+					},
+
+				Connector::Unix { socket_path } => {
+					match std::fs::remove_file(&*socket_path) {
+						Ok(()) => (),
+						Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+						Err(err) => return Err(err),
+					}
+
+					let listener = tokio::net::UnixListener::bind(socket_path)?;
+					Ok(Incoming::Unix(listener))
+				},
+			}
 		}
 	}
 }
@@ -144,12 +121,6 @@ impl Connector {
 impl std::fmt::Display for Connector {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let url = match self {
-			Connector::Fd { fallback } => {
-				let mut url: url::Url = "fd://".parse().expect("hard-coded URL parses successfully");
-				url.query_pairs_mut().append_pair("fallback", &fallback.to_string());
-				url
-			},
-
 			Connector::Http { host, port } => {
 				let mut url: url::Url = "http://foo".parse().expect("hard-coded URL parses successfully");
 				url.set_host(Some(host))
@@ -241,11 +212,6 @@ impl hyper::service::Service<hyper::Uri> for Connector {
 
 	fn call(&mut self, _req: hyper::Uri) -> Self::Future {
 		match self {
-			Connector::Fd { .. } => Box::pin(futures_util::future::err(std::io::Error::new(
-				std::io::ErrorKind::Other,
-				"connecting to fd:// URIs is not supported",
-			))),
-
 			Connector::Http { host, port } => {
 				let (host, port) = (host.clone(), *port);
 				let f = async move {
@@ -475,13 +441,6 @@ mod tests {
 	#[test]
 	fn create_connector() {
 		for (input, expected) in &[
-			(
-				"fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fkeyd.sock",
-				super::Connector::Fd {
-					fallback: Box::new(super::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() }),
-				},
-			),
-
 			("http://127.0.0.1", super::Connector::Http { host: "127.0.0.1".into(), port: 80 }),
 			("http://127.0.0.1:8888", super::Connector::Http { host: "127.0.0.1".into(), port: 8888 }),
 			("http://[::1]", super::Connector::Http { host: "[::1]".into(), port: 80 }),
@@ -506,9 +465,6 @@ mod tests {
 		}
 
 		for input in &[
-			// `fd://` URI without a fallback
-			"fd://",
-
 			// unsupported scheme
 			"ftp://127.0.0.1",
 		] {

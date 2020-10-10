@@ -10,7 +10,7 @@ homedir_path = "/var/lib/aziot/certd"
 [preloaded_certs]
 
 [endpoints]
-aziot_certd = "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fcertd.sock"
+aziot_certd = "unix:///run/aziot/certd.sock"
 aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
@@ -35,9 +35,11 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
 
     - The `aziot_certd` value denotes the endpoint that this service will accept connections on.
 
-    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port), or `fd` URIs for systemd socket activation plus a fallback to another URI in case the process was started without socket activation.
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port).
 
     Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
+
+    The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
 Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/certd/config.toml`, but it can be given a different path by setting the `AZIOT_CERTD_CONFIG` env var.
 

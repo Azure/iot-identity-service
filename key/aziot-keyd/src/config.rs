@@ -28,7 +28,7 @@ pub struct Endpoints {
 impl Default for Endpoints {
 	fn default() -> Self {
 		Endpoints {
-			aziot_keyd: "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fkeyd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+			aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 		}
 	}
 }
@@ -62,9 +62,7 @@ device-id = "pkcs11:token=Key pairs;object=device-id?pin-value=1234"
 			].iter().map(|&(name, value)| (name.to_owned(), value.to_owned())).collect(),
 
 			endpoints: super::Endpoints {
-				aziot_keyd: http_common::Connector::Fd {
-					fallback: Box::new(http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() }),
-				},
+				aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 			},
 		});
 	}

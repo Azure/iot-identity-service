@@ -8,7 +8,7 @@ A basic configuration looks like:
 [preloaded_keys]
 
 [endpoints]
-aziot_keyd = "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fkeyd.sock"
+aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 - `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot_keys.so` library. The names and values of these parameters depend on the library.
@@ -51,9 +51,11 @@ aziot_keyd = "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fkeyd.sock"
 
     - The `aziot_keyd` value denotes the endpoint that this service will accept connections on.
 
-    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port), or `fd` URIs for systemd socket activation plus a fallback to another URI in case the process was started without socket activation.
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port).
 
     Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
+
+    The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
 Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 

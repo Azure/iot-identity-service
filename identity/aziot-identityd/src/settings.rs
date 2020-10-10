@@ -179,9 +179,9 @@ pub struct Endpoints {
 impl Default for Endpoints {
 	fn default() -> Self {
 		Endpoints {
-			aziot_certd: "unix:///run/aziot/certd.sock".parse().expect("hard-coded URL cannot fail to parse"),
-			aziot_identityd: "fd://?fallback=unix%3A%2F%2F%2Frun%2Faziot%2Fidentityd.sock".parse().expect("hard-coded URL cannot fail to parse"),
-			aziot_keyd: "unix:///run/aziot/certd.sock".parse().expect("hard-coded URL cannot fail to parse"),
+			aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+			aziot_identityd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/identityd.sock").into() },
+			aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 		}
 	}
 }
