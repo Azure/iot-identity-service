@@ -272,7 +272,7 @@ Only valid for symmetric keys.
     "parameters": {
         "algorithm": "RSA-PKCS1",
     },
-    "plaintext": "base64-encoded-string"
+    "ciphertext": "base64-encoded-string"
 }
 ```
 
@@ -284,7 +284,7 @@ Only valid for symmetric keys.
     "parameters": {
         "algorithm": "RSA-NO-PADDING",
     },
-    "plaintext": "base64-encoded-string"
+    "ciphertext": "base64-encoded-string"
 }
 ```
 
