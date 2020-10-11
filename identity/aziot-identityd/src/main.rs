@@ -40,7 +40,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	// TODO: Enable SettingsAuthorizer once Unix Domain Sockets is ported over.
 	// let authorizer = aziot_identityd::SettingsAuthorizer { pmap };
 	// let authorizer = Box::new(authorizer);
-	let authorizer = Box::new(|_| {Ok(true)});
+	let authorizer = Box::new(|_| Ok(true));
 
 	let server = aziot_identityd::Server::new(settings, authenticator, authorizer)?;
 	let server = std::sync::Arc::new(futures_util::lock::Mutex::new(server));

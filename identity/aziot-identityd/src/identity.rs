@@ -58,15 +58,15 @@ impl IdentityManager {
 
 				let response  = client.update_module(
 					&*new_module.module_id,
-						Some(aziot_identity_common::hub::AuthMechanism {
-							symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
-								primary_key: Some(http_common::ByteString(primary_key)),
-								secondary_key: Some(http_common::ByteString(secondary_key)),
-							}),
-							x509_thumbprint: None,
-							type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					Some(aziot_identity_common::hub::AuthMechanism {
+						symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
+							primary_key: Some(http_common::ByteString(primary_key)),
+							secondary_key: Some(http_common::ByteString(secondary_key)),
 						}),
-		None).await
+						x509_thumbprint: None,
+						type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					}),
+					None).await
 					.map_err(Error::HubClient)?;
 
 				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
@@ -76,6 +76,54 @@ impl IdentityManager {
 					gen_id: response.generation_id.map(aziot_identity_common::GenId),
 					auth: Some(aziot_identity_common::AuthenticationInfo::from(module_credentials)),
 					});
+				Ok(identity)
+			},
+			None => Err(Error::DeviceNotFound)
+		}
+	}
+
+	pub async fn update_module_identity(&self, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {		
+		if module_id.trim().is_empty() {
+			return Err(Error::invalid_parameter("module_id", "module name cannot be empty"));
+		}
+
+		match &self.iot_hub_device {
+			Some(device) => {
+				let client =
+					aziot_hub_client_async::Client::new(
+						device.clone(),
+						self.key_client.clone(),
+						self.key_engine.clone(),
+						self.cert_client.clone(),
+					);
+				let curr_module  = client.get_module(&*module_id).await
+					.map_err(Error::HubClient)?;
+
+				let master_id_key_handle = self.get_master_identity_key().await?;
+				let (primary_key_handle, _, primary_key, secondary_key) = 
+					self.get_module_derived_keys(master_id_key_handle,curr_module.clone()).await?;
+				let module_credentials = aziot_identity_common::Credentials::SharedPrivateKey(primary_key_handle.0);
+
+				let response  = client.update_module(
+					&*curr_module.module_id,
+					Some(aziot_identity_common::hub::AuthMechanism {
+						symmetric_key: Some(aziot_identity_common::hub::SymmetricKey { 
+							primary_key: Some(http_common::ByteString(primary_key)), 
+							secondary_key: Some(http_common::ByteString(secondary_key)),
+						}),
+						x509_thumbprint: None, 
+						type_: Some(aziot_identity_common::hub::AuthType::Sas),
+					}),
+					None).await
+					.map_err(Error::HubClient)?;
+
+				let identity = aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+					hub_name: device.iothub_hostname.clone(),
+					device_id: aziot_identity_common::DeviceId(response.device_id),
+					module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
+					gen_id: response.generation_id.map(aziot_identity_common::GenId),
+					auth: Some(aziot_identity_common::AuthenticationInfo::from(module_credentials)),
+					});	
 				Ok(identity)
 			},
 			None => Err(Error::DeviceNotFound)

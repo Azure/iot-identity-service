@@ -196,6 +196,7 @@ fn create_cert<'a>(
 			// If issuance options are not provided for this certificate ID, use defaults.
 			let mut expiry_days = 30;
 			let mut subject_name = x509_req.subject_name();
+			let version = x509_req.version();
 			let common_name;
 
 			if let Some(options) = cert_options {
@@ -214,6 +215,7 @@ fn create_cert<'a>(
 			}
 
 			let mut x509 = openssl::x509::X509::builder().map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+			x509.set_version(version).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 			x509.set_subject_name(subject_name).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 			x509.set_pubkey(&x509_req_public_key).map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -272,7 +274,6 @@ fn create_cert<'a>(
 
 					let mut x509 = x509.to_pem().map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
-					x509.push(b'\n');
 					x509.extend_from_slice(&issuer_x509_pem);
 					x509
 				};

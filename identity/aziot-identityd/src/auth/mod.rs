@@ -20,6 +20,7 @@ pub enum OperationType {
 	GetDevice,
 	CreateModule(String),
 	DeleteModule(String),
+	UpdateModule(String),
 	ReprovisionDevice,
 	GetTrustBundle,
 }

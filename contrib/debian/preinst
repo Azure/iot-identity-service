@@ -19,11 +19,20 @@ case "$1" in
 		# For each of CS, IS, KS: create group, create user, create home directory (in case user already exists from a previous install
 		# but the user deleted the directory manually)
 
+		if ! /usr/bin/getent group aziotks >/dev/null; then
+			/usr/sbin/groupadd -r aziotks
+		fi
+		if ! /usr/bin/getent passwd aziotks >/dev/null; then
+			/usr/sbin/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
+		fi
+		mkdir -p /var/lib/aziot/keyd
+
 		if ! /usr/bin/getent group aziotcs >/dev/null; then
 			/usr/sbin/groupadd -r aziotcs
 		fi
 		if ! /usr/bin/getent passwd aziotcs >/dev/null; then
 			/usr/sbin/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
+			/usr/sbin/usermod -aG aziotks aziotcs
 		fi
 		mkdir -p /var/lib/aziot/certd
 
@@ -32,16 +41,10 @@ case "$1" in
 		fi
 		if ! /usr/bin/getent passwd aziotid >/dev/null; then
 			/usr/sbin/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
+			/usr/sbin/usermod -aG aziotcs aziotid
+			/usr/sbin/usermod -aG aziotks aziotid
 		fi
 		mkdir -p /var/lib/aziot/identityd
-
-		if ! /usr/bin/getent group aziotks >/dev/null; then
-			/usr/sbin/groupadd -r aziotks
-		fi
-		if ! /usr/bin/getent passwd aziotks >/dev/null; then
-			/usr/sbin/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
-		fi
-		mkdir -p /var/lib/aziot/keyd
 		;;
 
 	abort-upgrade)

@@ -21,6 +21,7 @@ async fn main() -> Result<(), Error> {
 		command,
 	} = structopt::StructOpt::from_args();
 
+	#[allow(clippy::option_if_let_else)] // Side-effects in a combinator closure are not a good thing.
 	let pkcs11_lib_path =
 		if let Some(pkcs11_spy_path) = pkcs11_spy_path {
 			std::env::set_var("PKCS11SPY", &pkcs11_lib_path);
@@ -202,6 +203,8 @@ fn generate_cert(
 	let mut engine = load_engine(pkcs11_context)?;
 
 	let mut builder = openssl::x509::X509::builder()?;
+
+	builder.set_version(2)?;
 
 	let public_key = load_public_key(&mut engine, key.clone())?;
 	builder.set_pubkey(&public_key)?;
