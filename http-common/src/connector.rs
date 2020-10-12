@@ -2,27 +2,27 @@
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
-	Http { host: std::sync::Arc<str>, port: u16 },
+	Tcp { host: std::sync::Arc<str>, port: u16 },
 	Unix { socket_path: std::sync::Arc<std::path::Path> },
 }
 
 #[derive(Debug)]
 pub enum Stream {
-	Http(std::net::TcpStream),
+	Tcp(std::net::TcpStream),
 	Unix(std::os::unix::net::UnixStream),
 }
 
 #[cfg(feature = "tokio02")]
 #[derive(Debug)]
 pub enum AsyncStream {
-	Http(tokio::net::TcpStream),
+	Tcp(tokio::net::TcpStream),
 	Unix(tokio::net::UnixStream),
 }
 
 #[cfg(feature = "tokio02")]
 #[derive(Debug)]
 pub enum Incoming {
-	Http(tokio::net::TcpListener),
+	Tcp(tokio::net::TcpListener),
 	Unix(tokio::net::UnixListener),
 }
 
@@ -35,7 +35,7 @@ impl Connector {
 					.ok_or_else(|| ConnectorError { uri: uri.clone(), inner: "http URI does not have a host".into() })?
 					.into();
 				let port = uri.port().unwrap_or(80);
-				Ok(Connector::Http { host, port })
+				Ok(Connector::Tcp { host, port })
 			},
 
 			"unix" => {
@@ -52,9 +52,9 @@ impl Connector {
 
 	pub fn connect(&self) -> std::io::Result<Stream> {
 		match self {
-			Connector::Http { host, port } => {
+			Connector::Tcp { host, port } => {
 				let inner = std::net::TcpStream::connect((&**host, *port))?;
-				Ok(Stream::Http(inner))
+				Ok(Stream::Tcp(inner))
 			},
 
 			Connector::Unix { socket_path } => {
@@ -74,7 +74,7 @@ impl Connector {
 				nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
 					let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
 					let listener = tokio::net::TcpListener::from_std(listener)?;
-					Ok(Incoming::Http(listener))
+					Ok(Incoming::Tcp(listener))
 				},
 
 				nix::sys::socket::SockAddr::Unix(_) => {
@@ -91,11 +91,11 @@ impl Connector {
 		}
 		else {
 			match self {
-				Connector::Http { host, port } =>
+				Connector::Tcp { host, port } =>
 					// Only debug builds can set up HTTP servers. Release builds must use unix sockets.
 					if cfg!(debug_assertions) {
 						let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
-						Ok(Incoming::Http(listener))
+						Ok(Incoming::Tcp(listener))
 					}
 					else {
 						Err(std::io::Error::new(
@@ -122,7 +122,7 @@ impl Connector {
 impl std::fmt::Display for Connector {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let url = match self {
-			Connector::Http { host, port } => {
+			Connector::Tcp { host, port } => {
 				let mut url: url::Url = "http://foo".parse().expect("hard-coded URL parses successfully");
 				url.set_host(Some(host))
 					.map_err(|err| serde::ser::Error::custom(format!("could not set host {:?}: {:?}", host, err)))?;
@@ -164,8 +164,8 @@ impl hyper::server::accept::Accept for Incoming {
 	fn poll_accept(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
 		loop {
 			let stream = match &mut *self {
-				Incoming::Http(listener) => match listener.poll_accept(cx) {
-					std::task::Poll::Ready(Ok((stream, _))) => Ok(AsyncStream::Http(stream)),
+				Incoming::Tcp(listener) => match listener.poll_accept(cx) {
+					std::task::Poll::Ready(Ok((stream, _))) => Ok(AsyncStream::Tcp(stream)),
 					std::task::Poll::Ready(Err(err)) => Err(err),
 					std::task::Poll::Pending => return std::task::Poll::Pending,
 				},
@@ -213,11 +213,11 @@ impl hyper::service::Service<hyper::Uri> for Connector {
 
 	fn call(&mut self, _req: hyper::Uri) -> Self::Future {
 		match self {
-			Connector::Http { host, port } => {
+			Connector::Tcp { host, port } => {
 				let (host, port) = (host.clone(), *port);
 				let f = async move {
 					let inner = tokio::net::TcpStream::connect((&*host, port)).await?;
-					Ok(AsyncStream::Http(inner))
+					Ok(AsyncStream::Tcp(inner))
 				};
 				Box::pin(f)
 			},
@@ -264,14 +264,14 @@ impl serde::Serialize for Connector {
 impl std::io::Read for Stream {
 	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
 		match self {
-			Stream::Http(inner) => inner.read(buf),
+			Stream::Tcp(inner) => inner.read(buf),
 			Stream::Unix(inner) => inner.read(buf),
 		}
 	}
 
 	fn read_vectored(&mut self, bufs: &mut [std::io::IoSliceMut<'_>]) -> std::io::Result<usize> {
 		match self {
-			Stream::Http(inner) => inner.read_vectored(bufs),
+			Stream::Tcp(inner) => inner.read_vectored(bufs),
 			Stream::Unix(inner) => inner.read_vectored(bufs),
 		}
 	}
@@ -280,21 +280,21 @@ impl std::io::Read for Stream {
 impl std::io::Write for Stream {
 	fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
 		match self {
-			Stream::Http(inner) => inner.write(buf),
+			Stream::Tcp(inner) => inner.write(buf),
 			Stream::Unix(inner) => inner.write(buf),
 		}
 	}
 
 	fn flush(&mut self) -> std::io::Result<()> {
 		match self {
-			Stream::Http(inner) => inner.flush(),
+			Stream::Tcp(inner) => inner.flush(),
 			Stream::Unix(inner) => inner.flush(),
 		}
 	}
 
 	fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
 		match self {
-			Stream::Http(inner) => inner.write_vectored(bufs),
+			Stream::Tcp(inner) => inner.write_vectored(bufs),
 			Stream::Unix(inner) => inner.write_vectored(bufs),
 		}
 	}
@@ -304,14 +304,14 @@ impl std::io::Write for Stream {
 impl tokio::io::AsyncRead for AsyncStream {
 	fn poll_read(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut [u8]) -> std::task::Poll<std::io::Result<usize>> {
 		match &mut *self {
-			AsyncStream::Http(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
+			AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
 			AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
 		}
 	}
 
 	unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [std::mem::MaybeUninit<u8>]) -> bool {
 		match self {
-			AsyncStream::Http(inner) => inner.prepare_uninitialized_buffer(buf),
+			AsyncStream::Tcp(inner) => inner.prepare_uninitialized_buffer(buf),
 			AsyncStream::Unix(inner) => inner.prepare_uninitialized_buffer(buf),
 		}
 	}
@@ -321,21 +321,21 @@ impl tokio::io::AsyncRead for AsyncStream {
 impl tokio::io::AsyncWrite for AsyncStream {
 	fn poll_write(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &[u8]) -> std::task::Poll<std::io::Result<usize>> {
 		match &mut *self {
-			AsyncStream::Http(inner) => std::pin::Pin::new(inner).poll_write(cx, buf),
+			AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_write(cx, buf),
 			AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_write(cx, buf),
 		}
 	}
 
 	fn poll_flush(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
 		match &mut *self {
-			AsyncStream::Http(inner) => std::pin::Pin::new(inner).poll_flush(cx),
+			AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_flush(cx),
 			AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_flush(cx),
 		}
 	}
 
 	fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
 		match &mut *self {
-			AsyncStream::Http(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
+			AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
 			AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
 		}
 	}
@@ -345,7 +345,7 @@ impl tokio::io::AsyncWrite for AsyncStream {
 impl hyper::client::connect::Connection for AsyncStream {
 	fn connected(&self) -> hyper::client::connect::Connected {
 		match self {
-			AsyncStream::Http(inner) => inner.connected(),
+			AsyncStream::Tcp(inner) => inner.connected(),
 			AsyncStream::Unix(_) => hyper::client::connect::Connected::new(),
 		}
 	}
@@ -442,12 +442,12 @@ mod tests {
 	#[test]
 	fn create_connector() {
 		for (input, expected) in &[
-			("http://127.0.0.1", super::Connector::Http { host: "127.0.0.1".into(), port: 80 }),
-			("http://127.0.0.1:8888", super::Connector::Http { host: "127.0.0.1".into(), port: 8888 }),
-			("http://[::1]", super::Connector::Http { host: "[::1]".into(), port: 80 }),
-			("http://[::1]:8888", super::Connector::Http { host: "[::1]".into(), port: 8888 }),
-			("http://localhost", super::Connector::Http { host: "localhost".into(), port: 80 }),
-			("http://localhost:8888", super::Connector::Http { host: "localhost".into(), port: 8888 }),
+			("http://127.0.0.1", super::Connector::Tcp { host: "127.0.0.1".into(), port: 80 }),
+			("http://127.0.0.1:8888", super::Connector::Tcp { host: "127.0.0.1".into(), port: 8888 }),
+			("http://[::1]", super::Connector::Tcp { host: "[::1]".into(), port: 80 }),
+			("http://[::1]:8888", super::Connector::Tcp { host: "[::1]".into(), port: 8888 }),
+			("http://localhost", super::Connector::Tcp { host: "localhost".into(), port: 80 }),
+			("http://localhost:8888", super::Connector::Tcp { host: "localhost".into(), port: 8888 }),
 
 			("unix:///run/aziot/keyd.sock", super::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() }),
 		] {

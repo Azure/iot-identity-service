@@ -544,9 +544,9 @@ mod tests {
 			},
 			// Use unreachable endpoints for the defaults.
 			endpoints: Endpoints {
-				aziot_certd: Connector::Http { host: "localhost".into(), port: 0 },
-				aziot_identityd: Connector::Http { host: "localhost".into(), port: 0 },
-				aziot_keyd: Connector::Http { host: "localhost".into(), port: 0 },
+				aziot_certd: Connector::Tcp { host: "localhost".into(), port: 0 },
+				aziot_identityd: Connector::Tcp { host: "localhost".into(), port: 0 },
+				aziot_keyd: Connector::Tcp { host: "localhost".into(), port: 0 },
 			},
 			localid: Default::default(),
 		}
