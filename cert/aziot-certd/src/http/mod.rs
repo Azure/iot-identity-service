@@ -19,15 +19,24 @@ http_common::make_server! {
 }
 
 fn to_http_error(err: &aziot_certd::Error) -> http_common::server::Error {
+	let error_message = http_common::server::error_to_message(err);
+
+	// TODO: When we get distributed tracing, associate these logs with the tracing ID.
+	for line in error_message.split('\n') {
+		eprintln!("!!! {}", line);
+	}
+
 	match err {
+		// Do not use error_message because we don't want to leak internal errors to the client.
+		// Just return the top-level error, ie "internal error"
 		aziot_certd::Error::Internal(_) => http_common::server::Error {
 			status_code: hyper::StatusCode::INTERNAL_SERVER_ERROR,
-			message: err.to_string().into(), // Do not use http_common::server::error_to_message for Error::Internal because we don't want to leak internal errors
+			message: err.to_string().into(),
 		},
 
-		err @ aziot_certd::Error::InvalidParameter(_, _) => http_common::server::Error {
+		aziot_certd::Error::InvalidParameter(_, _) => http_common::server::Error {
 			status_code: hyper::StatusCode::BAD_REQUEST,
-			message: http_common::server::error_to_message(err).into(),
+			message: error_message.into(),
 		},
 	}
 }

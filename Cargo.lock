@@ -310,6 +310,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
+ "aziot-keys",
  "backtrace",
  "base64",
  "futures-util",
