@@ -1,0 +1,96 @@
+@startuml
+
+title Device Provisioning
+
+participant "EST" as est
+participant "DPS" as dps
+participant "IoT Hub" as hub
+
+box Device #LightBlue
+	participant "Identity Service" as is
+	participant "Keys Service" as ks
+	participant "Certificates Service" as cs
+end box
+
+autonumber
+
+cs -> cs: At first, the bootstrap ID cert is used as the EST identity cert
+
+is -> cs ++: Get current EST identity cert
+loop for creating and renewing EST identity cert
+	cs -> ks ++: Get current EST identity cert's private key
+	return Key handle
+	cs -> cs ++: Get current EST identity cert
+	return PEM
+	cs -> cs: Create TLS client using key handle + PEM (using openssl-engine-ks)
+
+	cs -> ks ++: Generate new asymmetric key pair
+	return Key handle
+	cs -> cs: Create CSR for new EST identity cert using key handle (using openssl-engine-ks)
+
+	cs -> est ++: Connect using TLS client and perform EST enrolment to get a new EST identity cert corresponding to the CSR
+	est -> est: Verify client cert against CA
+	est -> est: Sign CSR
+	return Signed cert
+	cs -> cs ++: Import signed cert as the EST identity cert for future requests
+	return
+end
+
+loop for creating and renewing device CA cert (if needed to mint other certs)
+	cs -> ks ++: Get current EST identity cert's private key
+	return Key handle
+	cs -> cs: Create TLS client using key handle + PEM (using openssl-engine-ks)
+
+	cs -> ks ++: Generate new asymmetric key pair
+	return Key handle
+	cs -> cs: Create CSR for new device CA cert using key handle (using openssl-engine-ks)
+
+	cs -> est ++: Connect using TLS client and send request for new device CA cert corresponding to the CSR
+	est -> est: Verify client cert against CA
+	est -> est: Sign CSR
+	return Signed cert
+	cs -> cs ++: Import signed cert as the device CA cert
+	return
+	cs -> cs: Wait for the device CA cert to be near expiry (active timer)
+end
+
+loop for creating and renewing device identity cert
+	alt if user configured device identity to be obtained from EST
+		cs -> est ++: Similar process as for device CA cert above
+		return Signed cert
+
+	else if user configured device identity to be minted locally
+		cs -> ks ++: Get current device CA cert's private key
+		return Key handle
+		cs -> cs ++: Get current device CA cert
+		return PEM
+
+		cs -> ks ++: Generate new asymmetric key pair
+		return Key handle
+		cs -> cs: Create CSR for new device identity cert using key handle (using openssl-engine-ks)
+		cs -> cs: Sign CSR using device CA cert
+
+		cs -> cs ++: Import signed cert as the device identity cert
+		return
+	end
+end
+return PEM
+
+loop for (re-)provisioning
+	is -> is ++: Request provisioning
+	is -> ks ++: Get current device identity cert's private key
+	return Key handle
+	is -> is: Check EST identity cert validity
+	is -> cs ++: Get current device identity cert
+	return PEM
+	is -> is: Create TLS client using key handle + PEM (using openssl-engine-ks)
+	is -> dps ++: Connect using TLS client and send provisioning request
+	dps -> dps: Verify client cert against device identity CA
+	dps -> hub ++: Register device
+	return
+	return Provisioning info (IoT Hub + device identity)
+	return Ok(ProvisioningDone)
+end
+
+
+@enduml

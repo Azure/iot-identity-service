@@ -1,0 +1,105 @@
+@@startuml
+title Data Flow - new architecture
+
+actor Operator
+cloud "DPS Service" {
+    [DPS Gateway] <<service>>
+}
+
+cloud "PKI" {
+    [PKI Service] <<service>>
+}
+
+cloud "IoT Hub Service" {
+    [IoTHub Gateway] <<service>>
+}
+
+node "Identity Service" <<new>> {
+    [IS API Server] <<newclient>>
+}
+
+node "Key Service" <<new>> {
+    [KS API Server] <<newclient>>
+    [KS API Server] <<newclient>>
+}
+
+node "Certificate Service" <<new>> {
+    [CS API Server] <<newclient>>
+}
+
+node "Edge Module Runtime" <<modified>> {
+    folder "MR Legacy Service" {
+        [MR API Server]
+    }
+    [IS MR Client] <<newclient>>
+    [CS MR Client] <<newclient>>
+    [KS MR Client] <<newclient>>
+}
+node "Edge Agent" {
+    [EA Runtime]
+    [MR EA Client]
+}
+node "Host-level module" {
+    [IS HLM Client] <<newclient>>
+    [KS HLM Client] <<newclient>>
+    [IoTHub HLM Client]
+}
+node "Edge Hub" {
+    [MR EH Client]
+    [IoTHub EH Client]
+}
+
+database "HSM"
+database "KS_Config"
+database "CS_Config"
+database "IS_Config"
+
+
+Operator -right-> [DPS Gateway]
+Operator -right-> [IoTHub Gateway]
+Operator -right-> [PKI Service]
+Operator -right-> HSM: HSM tools
+Operator -right-> KS_Config
+Operator -right-> CS_Config
+Operator -right-> IS_Config
+
+[IS MR Client] -down-> [IS API Server] : IPC
+[CS MR Client] -down-> [CS API Server] : IPC
+[KS MR Client] -down-> [KS API Server] : IPC
+[IS HLM Client] -left-> [IS API Server] : IPC
+[KS HLM Client] -left-> [KS API Server] : IPC
+[MR EH Client] --> [MR API Server] : IPC
+[MR EA Client] --> [MR API Server] : IPC
+
+[MR API Server] -down-> [IS MR Client]
+[MR API Server] -down-> [CS MR Client]
+[MR API Server] -down-> [KS MR Client]
+[IS API Server] -down-> [CS API Server]
+[KS API Server] -down-> HSM : aziot-keys
+[IS API Server] --> IS_Config
+[CS API Server] --> CS_Config
+[KS API Server] --> KS_Config
+
+[IS API Server] -up-> [IoTHub Gateway] : HTTPS
+[IS API Server] -right-> [KS API Server] : IPC
+[CS API Server] -up-> [PKI Service] : HTTPS (EST)
+
+[IoTHub EH Client] <-up-> [IoTHub Gateway] : AMQP (EH Module)
+[IoTHub HLM Client] <-up-> [IoTHub Gateway] : AMQP (HL Module)
+[IS API Server] -up-> [DPS Gateway] : HTTPS
+
+[EA Runtime] -up-> [IoTHub Gateway] : HTTPS
+
+skinparam node {
+	backgroundColor<<new>> Magenta
+	backgroundColor<<modified>> Yellow
+}
+
+skinparam component {
+    backgroundColor White
+    backgroundColor<<newclient>> Cyan
+    backgroundColor<<modified>> Yellow
+    backgroundColor<<service>> White
+}
+
+@@enduml

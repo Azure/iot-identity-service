@@ -1,0 +1,133 @@
+@startuml
+
+title Runtime Operation
+skinparam maxMessageSize 300
+
+participant "EST" as est
+participant "IoT Hub" as hub
+
+box Device #LightBlue
+	participant "Edge Runtime" as runtime
+	participant "Host Process" as hlm
+	participant EdgeAgent as ea
+	participant EdgeHub as eh
+	participant "Custom\nModule" as cm
+end box
+
+autonumber
+
+group Host-level modules
+	runtime -> runtime: Read host-level module names from configuration 
+	loop for creating each host-level module M
+		runtime -> runtime: Derive Edge Hub SAS keys from its name + generation ID using the master encryption key
+		runtime -> hub ++: Create identity for module M and register the derived SAS keys for it
+		return
+	end
+end
+
+group Host process operation
+	hlm -> runtime ++: Get identity for Host process
+	return
+	hlm -> runtime ++: Get SAS token for identifying with IoT Hub
+	return
+
+	hlm -> hlm: Create IoT Hub client using Sas token
+	hlm -> hub ++: Connect to Iot Hub
+	hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
+	return OK
+end
+
+group Edge Agent operation
+	runtime -> runtime: Derive SAS keys for Edge Agent from its name + generation ID using the master encryption key
+	runtime -> hub ++: Create identity for Edge Agent and register the derived SAS keys for it
+	return
+
+	runtime -> ea **: Create and start
+
+	ea -> runtime ++: Get SAS token for identifying with IoT Hub
+	runtime -> runtime: Derive Edge Agent SAS keys from its name + generation ID using the master encryption key
+	runtime -> runtime: Create SAS token from SAS key
+	return SAS token
+	ea -> ea: Create IoT Hub client with SAS token
+	ea -> hub ++: Connect to IoT Hub
+	hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
+	return OK
+	ea -> hub ++: Get deployment
+	return
+
+	loop for each module M
+		ea -> runtime ++: Create identity for module M
+		runtime -> runtime: Derive module M SAS keys from its name + generation ID using the master encryption key
+		runtime -> hub ++: Create identity for module M and register the derived SAS keys for it
+		return
+		return
+
+		ea -> runtime ++: Start module
+		return
+	end
+
+	runtime -> eh **: Start Edge Hub
+	runtime -> cm **: Start Custom module
+end
+
+group Edge Hub operation
+	loop for server cert request and renewal
+		note over runtime
+			Note that a single server cert is shared between all modules, and its lifetime is managed by the runtime.
+			This is because the user may have module server certs rooted to public CAs, so it would cost the customer $$$ for each cert.
+			Thus we do not want to request a new server cert when a previously requested cert is still valid, which also means
+			we want to dedupe the server certs across all modules that want them. Since server certs are issued for the device hostname
+			anyway, reusing the server cert for multiple modules is not a concern.
+		end note
+
+		alt if server cert already exists and is valid
+			eh -> runtime ++: Get server cert
+			runtime -> runtime: Get persisted server cert PEM and private key
+			return Server cert and private key
+
+		else if server cert does not exist or is expired
+			eh -> runtime ++: Get server cert
+			alt if server cert does not exist
+				runtime -> runtime ++: Get persisted server cert and private key
+				return Err(NotFound)
+			else if server cert exists but is expired / close to expiry
+				runtime -> runtime ++: Get persisted server cert and private key
+				return Ok(cert)
+				runtime -> runtime: Server cert is expired / close to expiry
+			end
+
+			runtime -> runtime: Create CSR for new module server cert using key
+
+			alt if module certs should be issued by EST
+				runtime -> runtime: Create TLS client using current EST identity cert
+				runtime -> est ++: Connect using TLS client and send request for new module server cert corresponding to the CSR
+				est -> est: Verify client cert against EST identity CA
+				est -> est: Sign CSR
+				return Signed cert
+
+			else if module certs should be minted locally
+				runtime -> runtime: Sign CSR using device CA cert
+			end
+
+			runtime -> runtime: Save signed cert and key pair so that it can be retrieved for future module server cert requests
+			return Server cert and private key
+
+		end
+	end
+
+	group Connect to IoT Hub
+		eh -> runtime ++: Get IoTHub identity
+		return Identity info (IoTHub + device identity + generation ID + credentials type)
+
+		eh -> runtime ++: Get SAS token for identifying with IoT Hub
+		runtime -> runtime: Derive Edge Hub SAS keys from its name + generation ID using the master encryption key
+		runtime -> runtime: Create SAS token from SAS key
+		return SAS token
+		eh -> eh: Create IoT Hub client with SAS token
+		eh -> hub ++: Connect to IoT Hub
+		hub -> hub: Validate SAS token against SAS key that was registered when the Edge Hub identity was created by the runtime
+		return OK
+	end
+end
+
+@enduml

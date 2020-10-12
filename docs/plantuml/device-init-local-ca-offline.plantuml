@@ -1,0 +1,78 @@
+@startuml
+skinparam maxMessageSize 150
+
+participant "Operator" as oem
+participant "IoT Hub" as ih
+entity "Edge device" as device
+participant "External\nProvisioning endpoint" as ae
+
+box "Device" #LightBlue 
+participant "IoT Edge\nruntime" as ie
+participant "EdgeAgent" as ea
+participant "EdgeHub" as eh
+participant "Custom\nModule" as cm
+end box 
+
+autonumber 
+group Initial Setup 
+oem->oem : Generate device CA cert (DCAC) (self signed, or signed by\na topology CA Certificate (CA1) for gateway scenarios)
+oem->oem : Generate device identity cert (DIdC) signed by\nIdentity CA Cert (CA2).
+note over oem: CA1 and CA2 should be different\nbecause device does have the CA cert signed by CA1
+oem->ih : Configure identity CA Certificate (CA2) for CA based auth 
+oem->device : Install DCAC and DIdC on the device (file system or HSM) 
+end 
+
+group Device setup and configuration
+oem->ie : Configure device CA (DCAC) in config.yaml (PKCS#11 URI or file path)\nand provisioning in External Provisioning mode. 
+oem->ie : Configure deployment for device using local mode configuration for EA, EH and other modules.\nConfigure EH Bridge to send telemetry upstream.
+end 
+
+group Device running
+group Device Offline
+
+ae -> ie : Start IoT Edge runtime
+
+ie -> ae : Provision device\n(external provisioning endpoint)
+ae -[#red]-> ie : Failure
+... Provisioning attempts continue till success ... 
+
+ie -> ea ** : Create with local configuration and start
+ea -> ea : Process deployment
+
+ea -> eh ** : Create with local configuration and start
+ea -> cm ** : Create and start
+
+eh -> ie : Get server cert
+ie -> ie : Generate server cert from DCAC
+ie --> eh: Server cert
+
+cm -> ie : Get local identity
+ie -> ie : Generate client cert from DCAC
+ie --> cm: Module local identity
+
+cm -> eh : Connect using mutual TLS auth
+cm -> eh : Pub/sub to MQTT Broker using custom topics
+
+eh -> ie : Get IoTHub identity
+ie -[#red]-> eh : Failure
+... EdgeHub continues to ask for IoTHub identity periodically ... 
+
+... App operation continues. EdgeHub stores telemetry locally ... 
+end 
+
+group Device goes online
+ie -> ae : Provision device\n(external provisioning endpoint)
+ae -> ih : Create device with\nCA based auth
+return Device info
+ae --> ie: Provisioning info\n(IoTHub + deviceId + DIdC)
+
+ie -> ih : Update credentials for\nEdgeAgent and EdgeHub with SAS auth
+
+eh -> ie : Get IoTHub identity
+return Identity info (IoTHub + deviceId + generation Id + credentials type)
+eh -> ie : Sign token 
+return Token signed with EdgeHub's SAS Key
+eh -> ih : Connect using token and forward telemetry
+end
+end
+@enduml

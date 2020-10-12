@@ -1,0 +1,47 @@
+@startuml
+
+title Device Setup
+
+participant "Operator" as operator
+
+box Device #LightBlue
+	participant "Device" as device
+	participant "Module Runtime" as mr
+	participant "Identity Service" as is
+	participant "Keys Service" as ks
+	participant "Certificates Service" as cs
+end box
+
+autonumber
+
+operator -> device: Install OS and HSM-specific PKCS#11 library
+
+operator -> device: Generate new private key in HSM\n(via pkcs11-tool, p11tool, provider-specific tool, etc)
+operator -> device: Create CSR for bootstrap ID cert using private key\n(via openssl, etc)
+operator -> operator: Sign CSR using device identity CA
+operator -> device: Save bootstrap ID cert on the filesystem
+
+operator -> ks: Configure Keys Service to preload the bootstrap cert's private key
+note left
+See [1] below diagram for
+configuration example
+end note
+
+operator -> cs: Configure Certificates Service to preload the bootstrap cert
+note left
+See [2] below diagram for
+configuration example
+end note
+
+operator -> is: Configure Identity Service with device provisioning configuration
+note left
+See [3] below diagram for
+configuration example
+end note
+
+operator -> mr: Start Module Runtime
+operator -> is: Start Identity Service
+operator -> ks: Start Keys Service
+operator -> cs: Start Certificates Service
+
+@enduml

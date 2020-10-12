@@ -1,0 +1,81 @@
+@startuml
+
+title Create a TLS client with a private key from KS and a certificate from CS
+skinparam maxMessageSize 150
+
+participant Client
+participant "openssl client" as openssl
+participant "openssl-engine-ks"
+
+box KS
+participant KS
+participant "libiothsm-keygen"
+participant "openssl-engine-pkcs11"
+participant "PKCS#11 library" as pkcs11
+end box
+
+box CS
+participant CS
+participant "libiothsm-certgen"
+end box
+
+autonumber
+
+group Get key corresponding to key ID from KS
+	Client -> KS ++: load_key_pair("key_id")
+	KS -> KS: Evaluate policies
+	KS -> "libiothsm-keygen" ++: load_key_pair("key_id")
+	"libiothsm-keygen" -> "libiothsm-keygen": Convert key ID to key URI
+	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_public_key("key_uri")
+	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
+	return OBJECT_HANDLE
+	return OK
+	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
+	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
+	return OBJECT_HANDLE
+	return OK
+	return OK
+	KS -> KS: Synthesize key handle (JWT, etc)
+	return OK("key handle")
+	Client -> "openssl-engine-ks" ++: load_private_key("key handle")
+	return openssl::EVP_PKEY
+end
+
+group Get cert corresponding to cert ID from CS
+	Client -> CS ++: create_or_load_cert("key_id")
+	CS -> CS: Evaluate policies
+	CS -> "libiothsm-certgen" ++: create_or_load_cert("key_id")
+	return OK(openssl::X509)
+	CS -> CS: Convert openssl::X509 to PEM
+	return OK(PEM)
+
+	Client -> Client: Create openssl::X509 from PEM
+end
+
+group Create TLS connection
+	Client -> openssl **: Create openssl client using openssl::EVP_PKEY + openssl::X509
+	Client -> openssl ++: connect to example.org:443
+
+	openssl -> openssl ++: Handshake
+	openssl -> "openssl-engine-ks" ++: openssl_EVP_PKEY_sign(openssl::EVP_PKEY, ...)
+	"openssl-engine-ks" -> KS ++: sign("key handle", ...)
+	KS -> KS: Evaluate policies
+	KS -> KS: Convert key handle to key ID
+	KS -> "libiothsm-keygen" ++: sign("key ID", ...)
+	"libiothsm-keygen" -> "libiothsm-keygen": Convert key ID to key URI
+	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
+	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
+	return OBJECT_HANDLE
+	return OK
+	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: openssl::sign(openssl::EVP_PKEY, ...)
+	"openssl-engine-pkcs11" -> pkcs11 ++: C_Sign(pkcs11::OBJECT_HANDLE, ...)
+	return OK(signature)
+	return OK(signature)
+	return OK(signature)
+	return OK(signature)
+	return OK(signature)
+	deactivate openssl
+	return Connected
+end
+
+@enduml
