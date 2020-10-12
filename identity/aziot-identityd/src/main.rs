@@ -220,20 +220,13 @@ mod tests {
 				uid: Uid(1001),
 				name: ModuleId("module2".to_owned()),
 				id_type: Some(vec![IdType::Local]),
-				localid: Some(LocalIdOpts::X509 {
-					attributes: LocalIdAttr::default(),
-					cert_id: None,
-					key_id: None }),
+				localid: Some(LocalIdOpts::X509 { attributes: LocalIdAttr::default() }),
 			},
 			Principal {
 				uid: Uid(1002),
 				name: ModuleId("module3".to_owned()),
 				id_type: Some(vec![IdType::Local]),
-				localid: Some(LocalIdOpts::X509 {
-					attributes: LocalIdAttr::Server,
-					cert_id: Some("test_cert".to_owned()),
-					key_id: Some("test_key".to_owned())
-				}),
+				localid: Some(LocalIdOpts::X509 { attributes: LocalIdAttr::Server }),
 			},
 		]);
 	}

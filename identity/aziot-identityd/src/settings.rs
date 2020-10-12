@@ -133,13 +133,6 @@ pub enum LocalIdOpts {
 		/// Whether the X.509 certificate is a TLS client or server certificate.
 		#[serde(default)]
 		attributes: aziot_identity_common::LocalIdAttr,
-
-		/// The certificate ID stored with aziot-certd. Defaults to the module name if
-		/// not provided.
-		cert_id: Option<String>,
-
-		/// The key ID stored with aziot-keyd. Defaults to the module name if not provided.
-		key_id: Option<String>,
 	},
 }
 

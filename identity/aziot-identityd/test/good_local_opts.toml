@@ -36,4 +36,4 @@ localid = { type = "x509" }
 uid = 1002
 name = "module3"
 idtype = ["local"]
-localid = { type = "x509", attributes = "server", cert_id = "test_cert", key_id = "test_key" }
+localid = { type = "x509", attributes = "server" }

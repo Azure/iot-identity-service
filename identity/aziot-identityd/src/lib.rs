@@ -225,8 +225,14 @@ impl Server {
 		// Create or renew local identity certificates for all modules in current.
 		for id in &current_module_map {
 			let module_id = &(id.0).0;
-
-			let (attributes, cert_id, key_id) = deconstruct_local_opts(id.1.clone(), module_id.clone());
+			let attributes = if let Some(opts) = id.1 {
+				match opts {
+					settings::LocalIdOpts::X509 {attributes} => attributes.clone(),
+				}
+			}
+			else {
+				aziot_identity_common::LocalIdAttr::default()
+			};
 
 			// Must reissue certificate if options changed.
 			if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
@@ -235,17 +241,16 @@ impl Server {
 				}
 				else {
 					log::info!("Options changed for {}. Reissuing certificate.", module_id);
-					let (_, prev_cert_id, _) = deconstruct_local_opts(prev_opts.1, module_id.clone());
 
-					self.cert_client.delete_cert(prev_cert_id.as_str()).await
+					self.cert_client.delete_cert(module_id).await
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				}
 			}
 
 			let common_name = format!("{}.{}", module_id, localid.domain);
 			self.create_identity_cert_if_not_exist_or_expired(
-				key_id.as_str(),
-				cert_id.as_str(),
+				module_id,
+				module_id,
 				common_name.as_str(),
 				Some(attributes)
 			).await?;
@@ -256,8 +261,7 @@ impl Server {
 		// Remove local identities for modules in prev but not in current.
 		for id in prev_module_map {
 			let module_id = &(id.0).0;
-			let (_, cert_id, _) = deconstruct_local_opts(id.1, module_id.clone());
-			self.cert_client.delete_cert(cert_id.as_str()).await
+			self.cert_client.delete_cert(module_id).await
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 			// TODO: need to delete private key too.
 			log::info!("Local identity {} removed.", module_id);
@@ -500,21 +504,6 @@ impl Server {
 
 		Ok(())
 	}
-}
-
-fn deconstruct_local_opts(options: Option<settings::LocalIdOpts>, module_id: String) ->
-	(aziot_identity_common::LocalIdAttr, String, String) {
-	let defaults = (aziot_identity_common::LocalIdAttr::default(), module_id.clone(), module_id.clone());
-
-	options.map_or(defaults, |opts|
-		match opts {
-			settings::LocalIdOpts::X509 {attributes, cert_id, key_id,} => {
-				let c = cert_id.unwrap_or_else(|| module_id.clone());
-				let k = key_id.unwrap_or(module_id);
-				(attributes, c, k)
-			}
-		}
-	)
 }
 
 fn create_csr(
