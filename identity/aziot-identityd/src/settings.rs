@@ -35,7 +35,16 @@ impl Settings {
 
 	fn check(self) -> Result<Self, InternalError> {
 		if let Some(principal) = &self.principal {
+			let mut existing_names: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::default();
+
 			for p in principal {
+				if !existing_names.insert(p.name.clone()) {
+					return Err(InternalError::BadSettings(std::io::Error::new(
+						std::io::ErrorKind::InvalidInput,
+						format!("duplicate module name: {}", p.name.0)
+					)));
+				}
+
 				if let Some(t) = &p.id_type {
 					if t.contains(&aziot_identity_common::IdType::Local) {
 						// Require localid in config if any principal has local id_type.
