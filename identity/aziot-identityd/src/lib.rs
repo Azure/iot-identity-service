@@ -33,6 +33,7 @@ pub struct Server {
 	pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>,
 	pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error>  + Send + Sync>,
 	pub id_manager: identity::IdentityManager,
+	pub local_identities: std::collections::BTreeMap<aziot_identity_common::ModuleId, aziot_identity_common::LocalIdSpec>,
 
 	key_client: std::sync::Arc<aziot_key_client_async::Client>,
 	key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -77,6 +78,8 @@ impl Server {
 			authenticator,
 			authorizer,
 			id_manager,
+			// Will be initialized by init_local_identities.
+			local_identities: std::collections::BTreeMap::default(),
 
 			key_client,
 			key_engine,
@@ -182,21 +185,19 @@ impl Server {
 		let hub_module_ids = self.id_manager.get_module_identities().await?;
 
 		for m in hub_module_ids {
-			match m {
-				aziot_identity_common::Identity::Aziot(m) => {
-					if let Some(m) = m.module_id {
-						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-							self.id_manager.delete_module_identity(&m.0).await?;
-							log::info!("Hub identity {:?} removed", &m.0);
-						}
-						else if current_module_set.contains(&m) {
-							current_module_set.remove(&m);
-							log::info!("Hub identity {:?} already exists", &m.0);
-						}
+			if let aziot_identity_common::Identity::Aziot(m) = m {
+				if let Some(m) = m.module_id {
+					if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+						self.id_manager.delete_module_identity(&m.0).await?;
+						log::info!("Hub identity {:?} removed", &m.0);
 					}
-					else {
-						log::warn!("invalid identity type returned by get_module_identities");
+					else if current_module_set.contains(&m) {
+						current_module_set.remove(&m);
+						log::info!("Hub identity {:?} already exists", &m.0);
 					}
+				}
+				else {
+					log::warn!("invalid identity type returned by get_module_identities");
 				}
 			}
 		}
@@ -210,7 +211,7 @@ impl Server {
 	}
 
 	pub async fn init_local_identities(
-		&self,
+		&mut self,
 		mut prev_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 		current_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 	) -> Result<(), Error> {
@@ -246,12 +247,24 @@ impl Server {
 				}
 
 				let common_name = format!("{}.{}", module_id, localid.domain);
-				self.create_identity_cert_if_not_exist_or_expired(
+				let key_handle = self.create_identity_cert_if_not_exist_or_expired(
 					module_id,
 					module_id,
 					common_name.as_str(),
 					Some(attributes)
 				).await?;
+
+				// Build the local id spec that will be returned by HTTP APIs.
+				let spec = aziot_identity_common::LocalIdSpec {
+					attr: attributes,
+					auth: aziot_identity_common::AuthenticationInfo {
+						auth_type: aziot_identity_common::AuthenticationType::X509,
+						cert_id: Some(module_id.to_string()),
+						key_handle,
+					},
+				};
+
+				self.local_identities.insert(aziot_identity_common::ModuleId(module_id.to_string()), spec);
 
 				log::info!("Local identity {} ({}) registered.", module_id, attributes);
 			}
@@ -453,7 +466,7 @@ impl Server {
 		identity_cert: &str,
 		subject: &str,
 		attributes: Option<aziot_identity_common::LocalIdAttr>
-	) -> Result<(), Error> {
+	) -> Result<aziot_key_common::KeyHandle, Error> {
 		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
 		let create_cert = match device_id_cert {
 			Ok(device_id_cert) => {
@@ -470,9 +483,11 @@ impl Server {
 			}
 		};
 
+		// Create the private key. If the private key exists, this function retrieves its key handle.
+		let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
+			.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
 		if create_cert {
-			let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
-					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 			// TODO: need to delete private key before returning if any function below fails.
 			let csr = {
 				let mut key_engine = self.key_engine.lock().await;
@@ -501,7 +516,7 @@ impl Server {
 				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 		}
 
-		Ok(())
+		Ok(identity_pk_key_handle)
 	}
 }
 
