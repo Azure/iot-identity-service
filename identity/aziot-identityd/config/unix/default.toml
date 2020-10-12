@@ -64,8 +64,3 @@ homedir = "/var/lib/aziot/identityd"
 # "method" = "x509"
 # "identity_cert" = "est"
 # "identity_pk" = "est"
-
-[endpoints]
-aziot_certd = @certd_endpoint@
-aziot_identityd = @identityd_endpoint@
-aziot_keyd = @keyd_endpoint@

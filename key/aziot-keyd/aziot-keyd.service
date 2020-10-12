@@ -1,5 +1,7 @@
 [Unit]
 Description=Azure IoT Keys Service
+Requires=aziot-keyd.socket
+After=aziot-keyd.socket
 
 [Service]
 ExecStart=/usr/libexec/aziot-identity-service/aziot-keyd

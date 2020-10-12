@@ -5,10 +5,10 @@ hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
 [connect]
-api_uri = "unix:///var/run/aziot/identityd.sock"
+api_uri = "unix:///run/aziot/identityd.sock"
 
 [listen]
-api_uri = "unix:///var/run/aziot/identityd.sock"
+api_uri = "unix:///run/aziot/identityd.sock"
 
 [provisioning]
 source = "dps2" #Incorrect source type
