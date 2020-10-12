@@ -70,7 +70,8 @@ impl Connector {
 		if let Some(fd) = systemd_socket {
 			let sock_addr = nix::sys::socket::getsockname(fd).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 			match sock_addr {
-				nix::sys::socket::SockAddr::Inet(_) => {
+				// Only debug builds can set up HTTP servers. Release builds must use unix sockets.
+				nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
 					let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
 					let listener = tokio::net::TcpListener::from_std(listener)?;
 					Ok(Incoming::Http(listener))
@@ -91,7 +92,7 @@ impl Connector {
 		else {
 			match self {
 				Connector::Http { host, port } =>
-					// Only debug builds can set up HTTP servers. Release builds must use unix sockets or systemd sockets.
+					// Only debug builds can set up HTTP servers. Release builds must use unix sockets.
 					if cfg!(debug_assertions) {
 						let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
 						Ok(Incoming::Http(listener))
