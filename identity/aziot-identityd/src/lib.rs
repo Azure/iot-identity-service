@@ -174,7 +174,7 @@ impl Server {
 		Ok(())
 	}
 
-	pub async fn init_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
+	pub async fn init_hub_identities(&self, prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>, mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>) -> Result<(), Error> {
 		if prev_module_set.is_empty() && current_module_set.is_empty() {
 			return Ok(())
 		}
@@ -187,11 +187,11 @@ impl Server {
 					if let Some(m) = m.module_id {
 						if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
 							self.id_manager.delete_module_identity(&m.0).await?;
-							log::info!("identity {:?} removed", &m.0);
+							log::info!("Hub identity {:?} removed", &m.0);
 						}
 						else if current_module_set.contains(&m) {
 							current_module_set.remove(&m);
-							log::info!("identity {:?} already exists", &m.0);
+							log::info!("Hub identity {:?} already exists", &m.0);
 						}
 					}
 					else {
@@ -203,7 +203,65 @@ impl Server {
 
 		for m in current_module_set {
 			self.id_manager.create_module_identity(&m.0).await?;
-			log::info!("identity {:?} added", &m.0);
+			log::info!("Hub identity {:?} added", &m.0);
+		}
+
+		Ok(())
+	}
+
+	pub async fn init_local_identities(
+		&self,
+		mut prev_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
+		current_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
+	) -> Result<(), Error> {
+
+		let localid = self.settings.localid.as_ref().ok_or_else(||
+			Error::Internal(InternalError::BadSettings(std::io::Error::new(
+				std::io::ErrorKind::InvalidInput,
+				"no local id settings specified"
+			)))
+		)?;
+
+		// Create or renew local identity certificates for all modules in current.
+		for id in &current_module_map {
+			let module_id = &(id.0).0;
+			let attributes = id.1.as_ref().map_or(aziot_identity_common::LocalIdAttr::default(), |opts|
+				match opts {
+					settings::LocalIdOpts::X509 {attributes} => *attributes,
+				}
+			);
+
+			// Must reissue certificate if options changed.
+			if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
+				if &prev_opts.1 == id.1 {
+					log::info!("Local identity {} up-to-date.", module_id);
+				}
+				else {
+					log::info!("Options changed for {}. Reissuing certificate.", module_id);
+
+					self.cert_client.delete_cert(module_id).await
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				}
+			}
+
+			let common_name = format!("{}.{}", module_id, localid.domain);
+			self.create_identity_cert_if_not_exist_or_expired(
+				module_id,
+				module_id,
+				common_name.as_str(),
+				Some(attributes)
+			).await?;
+
+			log::info!("Local identity {} ({}) registered.", module_id, attributes);
+		}
+
+		// Remove local identities for modules in prev but not in current.
+		for id in prev_module_map {
+			let module_id = &(id.0).0;
+			self.cert_client.delete_cert(module_id).await
+				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+			// TODO: need to delete private key too.
+			log::info!("Local identity {} removed.", module_id);
 		}
 
 		Ok(())
@@ -218,7 +276,7 @@ impl Server {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id).await?;
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id, None).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
 				};
@@ -301,7 +359,7 @@ impl Server {
 						aziot_identity_common::ProvisioningStatus::Provisioned(device)
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id).await?;
+						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id, None).await?;
 
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
@@ -392,6 +450,7 @@ impl Server {
 		identity_pk: &str,
 		identity_cert: &str,
 		subject: &str,
+		attributes: Option<aziot_identity_common::LocalIdAttr>
 	) -> Result<(), Error> {
 		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
 		let create_cert = match device_id_cert {
@@ -412,7 +471,7 @@ impl Server {
 		if create_cert {
 			let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
+			// TODO: need to delete private key before returning if any function below fails.
 			let csr = {
 				let mut key_engine = self.key_engine.lock().await;
 
@@ -430,13 +489,14 @@ impl Server {
 				let csr = create_csr(
 					&subject,
 					&identity_public_key,
-					&identity_private_key)
+					&identity_private_key,
+					attributes)
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				csr
 			};
 
 			let _new_cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
-				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))));
+				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 		}
 
 		Ok(())
@@ -447,10 +507,44 @@ fn create_csr(
 	subject: &str,
 	public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
 	private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+	attributes: Option<aziot_identity_common::LocalIdAttr>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
 	let mut csr = openssl::x509::X509Req::builder()?;
 
 	csr.set_version(0)?;
+
+	if let Some(attr) = attributes {
+		let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> = openssl::stack::Stack::new()?;
+
+		// basicConstraints = critical, CA:FALSE
+		let basic_constraints = openssl::x509::extension::BasicConstraints::new().critical().build()?;
+		extensions.push(basic_constraints)?;
+
+		// keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+		let key_usage = openssl::x509::extension::KeyUsage::new()
+			.critical()
+			.digital_signature()
+			.non_repudiation()
+			.key_encipherment()
+			.build()?;
+		extensions.push(key_usage)?;
+
+		// extendedKeyUsage = critical, clientAuth
+		// Always set (even for servers) because it's required for EST client certificate renewal.
+		let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
+		extended_key_usage.critical();
+		extended_key_usage.client_auth();
+
+		if attr == aziot_identity_common::LocalIdAttr::Server {
+			// extendedKeyUsage = serverAuth (in addition to clientAuth)
+			extended_key_usage.server_auth();
+		}
+
+		let extended_key_usage = extended_key_usage.build()?;
+		extensions.push(extended_key_usage)?;
+
+		csr.add_extensions(&extensions)?;
+	}
 
 	let mut subject_name = openssl::x509::X509Name::builder()?;
 	subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
@@ -542,19 +636,11 @@ mod tests {
 				},
 				dynamic_reprovisioning: Default::default(),
 			},
+			// Use unreachable endpoints for the defaults.
 			endpoints: Endpoints {
-				aziot_certd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
-				aziot_identityd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
-				aziot_keyd: Connector::Fd {
-					original_specifier: Default::default(),
-					fd: Default::default(),
-				},
+				aziot_certd: Connector::Tcp { host: "localhost".into(), port: 0 },
+				aziot_identityd: Connector::Tcp { host: "localhost".into(), port: 0 },
+				aziot_keyd: Connector::Tcp { host: "localhost".into(), port: 0 },
 			},
 			localid: Default::default(),
 		}
@@ -568,7 +654,7 @@ mod tests {
 			Box::new(|_| Ok(true))
 		).unwrap();
 
-		let result = server.init_identities(BTreeSet::new(), BTreeSet::new()).await;
+		let result = server.init_hub_identities(BTreeSet::new(), BTreeSet::new()).await;
 		result.unwrap();
 	}
 }

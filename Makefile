@@ -158,12 +158,8 @@ test:
 
 # Packaging
 #
-# - `make PACKAGE_VERSION='...' PACKAGE_RELEASE='...' centos` builds RPM packages for CentOS.
-#
 # - `make PACKAGE_VERSION='...' PACKAGE_RELEASE='...' deb` builds deb packages for Debian and Ubuntu.
-
-# 0 => false, _ => true
-SOCKET_ACTIVATION_SUPPORTED = 1
+# - `make PACKAGE_VERSION='...' PACKAGE_RELEASE='...' rpm` builds RPM packages for CentOS.
 
 # Creates a source tarball at /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz
 dist:
@@ -173,30 +169,6 @@ dist:
 	# Copy source files
 	cp -R ./cert ./http-common ./identity ./key ./iotedged ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
-
-	# Fixup endpoints in default configs
-ifeq ($(SOCKET_ACTIVATION_SUPPORTED), 0)
-	for d in /tmp/aziot-identity-service-$(PACKAGE_VERSION)/{cert/aziot-certd,identity/aziot-identityd,key/aziot-keyd}; do \
-		sed -i \
-			-e 's|@certd_endpoint@|"unix:///var/lib/aziot/certd.sock"|g' \
-			-e 's|@identityd_endpoint@|"http://localhost:8901"|g' \
-			-e 's|@keyd_endpoint@|"unix:///var/lib/aziot/keyd.sock"|g' \
-			"$$d/config/unix/default.toml"; \
-	done
-else
-	sed -i \
-		-e 's|@certd_endpoint@|"fd://aziot-certd.socket"|g' \
-		-e 's|@keyd_endpoint@|"unix:///var/run/aziot/keyd.sock"|g' \
-		"/tmp/aziot-identity-service-$(PACKAGE_VERSION)/cert/aziot-certd/config/unix/default.toml"
-	sed -i \
-		-e 's|@certd_endpoint@|"unix:///var/run/aziot/certd.sock"|g' \
-		-e 's|@identityd_endpoint@|"fd://aziot-identityd.socket"|g' \
-		-e 's|@keyd_endpoint@|"unix:///var/run/aziot/keyd.sock"|g' \
-		"/tmp/aziot-identity-service-$(PACKAGE_VERSION)/identity/aziot-identityd/config/unix/default.toml"
-	sed -i \
-		-e 's|@keyd_endpoint@|"fd://aziot-keyd.socket"|g' \
-		"/tmp/aziot-identity-service-$(PACKAGE_VERSION)/key/aziot-keyd/config/unix/default.toml"
-endif
 
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
@@ -300,16 +272,15 @@ install-common:
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/identityd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/keyd
 
-	# Systemd services
+	# Systemd services and sockets
 	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.service $(DESTDIR)$(unitdir)/aziot-certd.service
-	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.service $(DESTDIR)$(unitdir)/aziot-identityd.service
-	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.service $(DESTDIR)$(unitdir)/aziot-keyd.service
+	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.socket $(DESTDIR)$(unitdir)/aziot-certd.socket
 
-ifeq ($(SOCKET_ACTIVATION_SUPPORTED), 0)
-	$(INSTALL) -m 0660 /dev/null $(DESTDIR)$(localstatedir)/lib/aziot/certd.sock
-	$(INSTALL) -m 0660 /dev/null $(DESTDIR)$(localstatedir)/lib/aziot/identityd.sock
-	$(INSTALL) -m 0660 /dev/null $(DESTDIR)$(localstatedir)/lib/aziot/keyd.sock
-endif
+	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.service $(DESTDIR)$(unitdir)/aziot-identityd.service
+	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.socket $(DESTDIR)$(unitdir)/aziot-identityd.socket
+
+	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.service $(DESTDIR)$(unitdir)/aziot-keyd.service
+	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.socket $(DESTDIR)$(unitdir)/aziot-keyd.socket
 
 install-deb: install-common
 	# libaziot-key-openssl-engine-shared
@@ -318,9 +289,6 @@ install-deb: install-common
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
 
 	# Sockets
-	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.socket $(DESTDIR)$(unitdir)/aziot-certd.socket
-	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.socket $(DESTDIR)$(unitdir)/aziot-identityd.socket
-	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.socket $(DESTDIR)$(unitdir)/aziot-keyd.socket
 
 	# README.md and LICENSE
 	$(INSTALL_DATA) -D README.md $(DESTDIR)$(docdir)/README.md

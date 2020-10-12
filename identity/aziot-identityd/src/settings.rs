@@ -17,6 +17,9 @@ pub struct Settings {
 
 	pub provisioning: Provisioning,
 
+	/// Only configurable in debug builds for the sake of tests.
+	#[serde(default)]
+	#[cfg_attr(not(debug_assertions), serde(skip))]
 	pub endpoints: Endpoints,
 
 	pub localid: Option<LocalId>,
@@ -34,13 +37,23 @@ impl Settings {
 		if let Some(principal) = &self.principal {
 			for p in principal {
 				if let Some(t) = &p.id_type {
-					// Require localid in config if any principal has local id_type.
-					if t.contains(&aziot_identity_common::IdType::Local) && self.localid.is_none() {
-						return Err(InternalError::BadSettings(std::io::Error::new(
+					if t.contains(&aziot_identity_common::IdType::Local) {
+						// Require localid in config if any principal has local id_type.
+						if self.localid.is_none() {
+							return Err(InternalError::BadSettings(std::io::Error::new(
 								std::io::ErrorKind::InvalidInput,
 								format!("invalid config for {}: local id type requires localid config", p.name.0)
-							))
-						);
+							)));
+						}
+					}
+					else {
+						// Reject principals that specify local identity options without the "local" type.
+						if p.localid.is_some() {
+							return Err(InternalError::BadSettings(std::io::Error::new(
+								std::io::ErrorKind::InvalidInput,
+								format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
+							)));
+						}
 					}
 
 					// Require provisioning if any module or device identities are present.
@@ -97,14 +110,33 @@ pub struct Principal {
 	pub uid: crate::auth::Credentials,
 
 	pub name: aziot_identity_common::ModuleId,
+
 	#[serde(rename = "idtype")]
 	pub id_type: Option<Vec<aziot_identity_common::IdType>>,
+
+	/// Options for this principal's local identity.
+	pub localid: Option<LocalIdOpts>,
 }
 
+/// Global options for all local identities.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LocalId {
 	/// Identifier for a group of local identity certificates, suffixed to the common name.
 	pub domain: String,
+}
+
+/// Options for a single local identity.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum LocalIdOpts {
+	/// Options valid when local identities are X.509 credentials. Currently the only
+	/// supported credential type, but may change in the future.
+	#[serde(rename = "x509")]
+	X509 {
+		/// Whether the X.509 certificate is a TLS client or server certificate.
+		#[serde(default)]
+		attributes: aziot_identity_common::LocalIdAttr,
+	},
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -171,6 +203,16 @@ pub struct Endpoints {
 	pub aziot_certd: http_common::Connector,
 	pub aziot_identityd: http_common::Connector,
 	pub aziot_keyd: http_common::Connector,
+}
+
+impl Default for Endpoints {
+	fn default() -> Self {
+		Endpoints {
+			aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+			aziot_identityd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/identityd.sock").into() },
+			aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
+		}
+	}
 }
 
 //TODO: Keeping this setting around until it is determined HTTPS isn't supported

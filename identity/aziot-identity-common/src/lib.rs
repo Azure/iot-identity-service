@@ -41,7 +41,7 @@ pub struct AuthenticationInfo {
 	pub cert_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthenticationType {
     Sas,
@@ -66,6 +66,32 @@ pub enum IdType {
 	Device,
 	Local,
 	Module,
+}
+
+/// X.509 extensions given to local identity certificates.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LocalIdAttr {
+	/// TLS client certificate.
+	Client,
+
+	/// TLS server certificate. Also has client attributes.
+	Server
+}
+
+impl Default for LocalIdAttr {
+	fn default() -> Self { LocalIdAttr::Client }
+}
+
+impl std::fmt::Display for LocalIdAttr {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			LocalIdAttr::Client => write!(f, "client")?,
+			LocalIdAttr::Server => write!(f, "server")?,
+		};
+
+		Ok(())
+	}
 }
 
 /// Return values for device provisioning with Hub.

@@ -6,6 +6,7 @@ pub struct Config {
 	pub homedir_path: std::path::PathBuf,
 
 	/// Configuration of how new certificates should be issued.
+	#[serde(default)]
 	pub cert_issuance: CertIssuance,
 
 	/// Map of preloaded certs from their ID to their location.
@@ -13,11 +14,15 @@ pub struct Config {
 	pub preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
 
 	/// Map of service names to endpoint URIs.
+	///
+	/// Only configurable in debug builds for the sake of tests.
+	#[serde(default)]
+	#[cfg_attr(not(debug_assertions), serde(skip))]
 	pub endpoints: Endpoints,
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize)]
 pub struct CertIssuance {
 	/// Configuration of parameters for issuing certs via EST.
 	pub(crate) est: Option<Est>,
@@ -251,6 +256,15 @@ pub struct Endpoints {
 	pub aziot_keyd: http_common::Connector,
 }
 
+impl Default for Endpoints {
+	fn default() -> Self {
+		Endpoints {
+			aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+			aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	#[test]
@@ -286,10 +300,6 @@ est-ca = "file:///var/secrets/est-ca.cer"
 trust-bundle = [
 	"est-ca",
 ]
-
-[endpoints]
-aziot_keyd = "unix:///var/run/aziot/keyd.sock"
-aziot_certd = "unix:///var/run/aziot/certd.sock"
 "#;
 
 		let actual: super::Config = toml::from_str(actual).unwrap();
@@ -349,8 +359,34 @@ aziot_certd = "unix:///var/run/aziot/certd.sock"
 			].into_iter().collect(),
 
 			endpoints: super::Endpoints {
-				aziot_certd: http_common::Connector::new(&"unix:///var/run/aziot/certd.sock".parse().unwrap()).unwrap(),
-				aziot_keyd: http_common::Connector::new(&"unix:///var/run/aziot/keyd.sock".parse().unwrap()).unwrap(),
+				aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+				aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
+			},
+		});
+	}
+
+	#[cfg(debug_assertions)]
+	#[test]
+	fn parse_config_with_explicit_endpoints() {
+		let actual = r#"
+homedir_path = "/var/lib/aziot/certd"
+
+[endpoints]
+aziot_keyd = "unix:///run/aziot/keyd.sock"
+aziot_certd = "unix:///run/aziot/certd.sock"
+"#;
+
+		let actual: super::Config = toml::from_str(actual).unwrap();
+		assert_eq!(actual, super::Config {
+			homedir_path: "/var/lib/aziot/certd".into(),
+
+			cert_issuance: Default::default(),
+
+			preloaded_certs: Default::default(),
+
+			endpoints: super::Endpoints {
+				aziot_certd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/certd.sock").into() },
+				aziot_keyd: http_common::Connector::Unix { socket_path: std::path::Path::new("/run/aziot/keyd.sock").into() },
 			},
 		});
 	}
