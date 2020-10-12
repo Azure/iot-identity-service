@@ -1,0 +1,42 @@
+@@startuml
+title Data flow - old architecture
+cloud "DPS Service" {
+    [DPS Gateway] <<service>>
+}
+
+cloud "IoT Hub Service" {
+    [IoTHub Gateway] <<service>>
+}
+
+node "Edge Security Daemon" {
+    folder "ESD Legacy Service" {
+        [ESD API Server] 
+    }
+}
+node "Edge Agent" {
+    [ESD EA Client]
+    [IoTHub EA Client]
+}
+node "Edge Hub" {
+    [ESD EH Client]
+    [IoTHub EH Client]
+}
+
+database "HSM"
+
+
+[ESD EH Client] --> [ESD API Server] : IPC
+[ESD EA Client] --> [ESD API Server] : IPC
+
+[ESD API Server] -down-> HSM : libiothsm
+[ESD API Server] -left-> [DPS Gateway] : HTTPS
+
+[ESD API Server] -up-> [IoTHub Gateway] : HTTPS
+[IoTHub EH Client] <-up-> [IoTHub Gateway] : AMQP (EH Module)
+[IoTHub EA Client] -up-> [IoTHub Gateway] : HTTPS
+
+skinparam component {
+    backgroundColor White
+}
+
+@@enduml

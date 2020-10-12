@@ -1,0 +1,205 @@
+@startuml
+
+title Runtime Operation
+skinparam maxMessageSize 150
+
+participant "EST" as est
+participant "IoT Hub" as hub
+
+box Device #LightBlue
+	participant "Module Runtime" as mr
+	participant "Identity Service" as is
+	participant "Keys Service" as ks
+	participant "Certificates Service" as cs
+	participant "Host Process\nModule" as hlm
+	participant "EdgeAgent" as ea
+	participant "EdgeHub" as eh
+	participant "Container\nModule" as cm
+end box
+
+
+autonumber
+
+group Host-level modules provisioning
+	is -> is: Read host-level module names from configuration 
+	loop for creating each host-level module M
+		is -> ks ++: Create/Get master identity symmetric key
+		return Key handle
+		is -> ks++: Create module derived key object for module M (based on master identity key handle)
+		return
+		is -> ks ++: Derive and Sign module M's SAS key using name + generation ID (with derived key handle)
+		return
+		is -> is ++: Get current device identity cert and key handle
+		is -> ks ++: Get current device identity cert's private key
+		return Key handle
+		is -> cs ++: Get current device identity cert
+		return PEM
+		return
+		is -> is: Create TLS client using key handle + PEM (using openssl-engine-ks)
+		is -> hub ++: Create identity for module M and register the derived SAS keys for it
+		note over is
+			If IoTHub call ever fails with bad credential, IS requests provisioning (with reprovision=true)
+		end note
+		return
+	end
+end
+
+group Host-level modules process operations
+	loop for getting and renewing SAS token for identifying with IoT Hub
+		hlm -> is ++: Get SAS token for Edge Agent to identify with IoT Hub
+		is -> ks ++: Get master encryption key
+		return Key handle
+		is -> ks ++: Sign Edge Agent's name + generation ID using the master encryption key to derive Edge Agent SAS keys
+		return
+		is -> is: Create SAS token from SAS key
+		return SAS token
+		hlm -> hlm: Create IoT Hub client with SAS token
+		hlm -> hub ++: Connect to IoT Hub
+		hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
+		return OK
+	end
+end
+
+group Edge Agent operation
+	mr -> is ++: Create module identity for Edge Agent
+	is -> ks ++: Get master encryption key
+	return Key handle
+	is -> ks ++: Sign Edge Agent's name + generation ID using the master encryption key to derive Edge Agent SAS keys
+	return
+	is -> is: Create TLS client using key handle + PEM (using openssl-engine-ks)
+	is -> hub ++: Create module identity for Edge Agent and register the derived SAS keys for it
+	return
+	return Edge Agent identity
+
+	mr -> ea **: Create and start
+
+	loop for getting and renewing SAS token for identifying with IoT Hub
+		ea -> mr ++: Get SAS token for identifying with IoT Hub
+		mr -> is ++: Get SAS token for Edge Agent to identify with IoT Hub
+		is -> ks ++: Get master encryption key
+		return Key handle
+		is -> ks ++: Sign Edge Agent's name + generation ID using the master encryption key to derive Edge Agent SAS keys
+		return
+		is -> is: Create SAS token from SAS key
+		return SAS token
+		return SAS token
+		ea -> ea: Create IoT Hub client with SAS token
+		ea -> hub ++: Connect to IoT Hub
+		hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
+		return OK
+	end
+
+	ea -> hub ++: Get deployment
+	return
+
+	loop for each module M
+		ea -> mr ++: Create identity for module M
+		mr -> is ++: Create identity for module M
+		is -> ks ++: Get master encryption key
+		return Key handle
+		is -> ks ++: Sign module M's name + generation ID using the master encryption key to derive module M's SAS keys
+		return
+		is -> hub ++: Create identity for module M and register the derived SAS keys for it
+		return
+		return
+		return
+
+		ea -> mr ++: Start module
+		return
+	end
+
+	mr -> eh **: Start Edge Hub
+	mr -> cm **: Start Custom module
+end
+
+group Edge Hub operation
+	loop for server cert request and renewal
+		note over hub
+			While it is possible to make an openssl engine (like openssl-engine-ks) for modules
+			that performs key operations using the KS, it is not feasible to expect all modules to be using
+			openssl for TLS, especially Windows modules. Thus modules need to have the raw private key bytes
+			to be able to serve TLS with a server cert.
+
+			For this reason, the private keys of module server certs are not persisted using Keys Service.
+
+			Also, note that a single server cert is shared between all modules, and its lifetime is managed by the runtime.
+			This is because the user may have module server certs rooted to public CAs, so it would cost the customer $$$ for each cert.
+			Thus we do not want to request a new server cert when a previously requested cert is still valid, which also means
+			we want to dedupe the server certs across all modules that want them. Since server certs are issued for the device hostname
+			anyway, reusing the server cert for multiple modules is not a concern.
+		end note
+
+		alt if server cert already exists and is valid
+			eh -> mr ++: Get server cert
+			mr -> mr: Get persisted server cert
+			mr -> mr: Server cert is valid
+			mr -> mr: Get persisted server cert's private key
+			return Server cert and private key
+
+		else if server cert does not exist or is expired
+			eh -> mr ++: Get server cert
+			alt if server cert does not exist
+				mr -> mr : Get persisted server cert
+				mr -> mr: Server cert is not found
+			else if server cert exists but is expired / close to expiry
+				mr -> mr : Get persisted server cert
+				mr -> mr: Server cert is expired / close to expiry
+			end
+
+			mr -> mr: Create new asymmetric key pair (in memory)
+			mr -> cs ++: Request new module server cert
+			cs -> cs: Create CSR for new module server cert using key
+			cs -> cs ++: Get module server cert
+
+			alt if module certs should be issued by EST
+				cs -> ks ++: Get current EST identity cert's private key
+				return Key handle
+				cs -> cs ++: Get current EST identity cert
+				return PEM
+				cs -> cs: Create TLS client using key handle + PEM (using openssl-engine-ks)
+				cs -> est ++: Connect using TLS client and send request for new module server cert corresponding to the CSR
+				est -> est: Verify client cert against CA
+				est -> est: Sign CSR
+				return Signed server cert
+
+			else if module certs should be minted locally
+				cs -> ks ++: Get device CA cert's private key
+				return Key handle
+				cs -> cs ++: Get device CA cert
+				return PEM
+				cs -> cs: Sign CSR using device CA cert
+			end
+
+			return Signed server cert
+			return Signed server cert
+			return Signed server cert
+			mr -> mr: Save key pair as server cert private key
+			mr -> mr: Save signed cert so that it can be retrieved for future module server cert requests
+		end
+	end
+
+	group Connect to IoT Hub
+		loop for getting and renewing SAS token for identifying with IoT Hub
+			eh -> mr ++: Get IoTHub identity
+			mr -> is ++: Get IoTHub identity
+			return Identity info (IoTHub + device identity + generation ID + credentials type)
+			return Identity info (IoTHub + device identity + generation ID + credentials type)
+
+			eh -> mr ++: Get SAS token for identifying with IoT Hub
+			mr -> is ++: Get SAS token for Edge Hub to identify with IoT Hub
+			is -> ks ++: Get master encryption key
+			return Key handle
+			is -> ks ++: Sign Edge Hub's name + generation ID using the master encryption key to derive Edge Hub SAS keys
+			return
+			is -> is: Create SAS token from SAS key
+			return SAS token
+			return SAS token
+			eh -> eh: Create IoT Hub client with SAS token
+			eh -> hub ++: Connect to IoT Hub
+			hub -> hub: Validate SAS token against SAS key that was registered when the Edge Hub identity was created by the runtime
+			return OK
+		end
+	end
+end
+
+@enduml

@@ -1,0 +1,77 @@
+@startuml
+
+title Device Provisioning
+skinparam maxMessageSize 300
+
+participant "EST" as est
+participant "DPS" as dps
+participant "IoT Hub" as hub
+
+box Device #LightBlue
+	participant "Edge runtime" as runtime
+end box
+
+autonumber
+
+note over hub
+These are the kinds of certs involved in the EST flow:
+
+1. The EST identity cert. This is the cert that the device uses for TLS client auth to authenticate itself with the EST endpoint. The device rotates this periodically via the EST enrolment workflow, using the current EST identity cert for TLS client auth.
+
+2. The boostrap identity cert. This is the initial EST identity cert.
+
+3. The device CA cert. The device requests this cert from the EST endpoint if it needs it for minting any other certs locally (see the next two points).
+
+4. The device identity cert. Depending on the user's choice, the device either gets this cert from the EST endpoint (after the initial enrolment that granted it an EST identity cert), or it mints it locally via the device CA cert.
+
+5. Module certs. Depending on the user's choice, the device either gets these certs from the EST endpoint (after the initial enrolment that granted it an EST identity cert), or it mints them locally via the device CA cert.
+end note
+
+runtime -> runtime: At first, the bootstrap ID cert is used as the EST identity cert
+
+loop for creating and renewing EST identity cert
+	runtime -> runtime: Create TLS client using current EST identity cert
+	runtime -> runtime: Generate new key and CSR for new EST identity cert
+	runtime -> est ++: Connect using TLS client and perform EST enrolment to get a new EST identity cert corresponding to the CSR
+	est -> est: Verify client cert against CA
+	est -> est: Sign CSR
+	return Signed cert
+	runtime -> runtime: Set signed cert to be the EST identity cert for future requests
+	runtime -> runtime: Wait for the EST identity cert to be near expiry
+end
+
+loop for creating and renewing device CA cert (if needed)
+	runtime -> runtime: Create TLS client using current EST identity cert
+	runtime -> runtime: Generate new key and CSR for new device CA cert
+	runtime -> est ++: Connect using TLS client and send request for new device CA cert corresponding to the CSR
+	est -> est: Verify client cert against device identity CA
+	est -> est: Sign CSR
+	return Signed cert
+	runtime -> runtime: Set signed cert to be the device CA cert for future requests
+	runtime -> runtime: Wait for the device CA cert to be near expiry
+end
+
+loop for creating and renewing device identity cert
+	alt if user configured device identity to be obtained from EST
+		runtime -> est ++: Similar process as for device CA cert above
+		return Signed cert
+
+	else if user configured device identity to be minted locally
+		runtime -> runtime: Generate new key and CSR for new device identity cert
+		runtime -> runtime: Sign CSR using device CA cert
+		runtime -> runtime: Wait for the device identity cert to be near expiry
+
+	end
+end
+
+loop for (re-)provisioning
+	runtime -> runtime: Create TLS client using current device identity cert
+
+	runtime -> dps ++: Connect using TLS client and send provisioning request
+	dps -> dps: Verify client cert against device identity CA
+	dps -> hub ++: Register device
+	return
+	return Provisioning info (IoT Hub + device identity)
+end
+
+@enduml
