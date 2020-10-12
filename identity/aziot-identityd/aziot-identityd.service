@@ -1,5 +1,7 @@
 [Unit]
 Description=Azure IoT Identity Service
+Requires=aziot-identityd.socket
+After=aziot-identityd.socket
 
 [Service]
 ExecStart=/usr/libexec/aziot-identity-service/aziot-identityd

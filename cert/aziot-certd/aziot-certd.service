@@ -1,5 +1,7 @@
 [Unit]
 Description=Azure IoT Certificates Service
+Requires=aziot-certd.socket
+After=aziot-certd.socket
 
 [Service]
 ExecStart=/usr/libexec/aziot-identity-service/aziot-certd

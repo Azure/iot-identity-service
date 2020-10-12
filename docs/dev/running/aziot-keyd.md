@@ -8,7 +8,7 @@ A basic configuration looks like:
 [preloaded_keys]
 
 [endpoints]
-aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
+aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 - `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot_keys.so` library. The names and values of these parameters depend on the library.
@@ -51,7 +51,11 @@ aziot_keyd = "unix:///var/lib/aziot/keyd.sock"
 
     - The `aziot_keyd` value denotes the endpoint that this service will accept connections on.
 
-    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket that the service will bind to, or an `http` URI with a host (and optional port) that the service will bind a TCP socket to.
+    Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port).
+
+    Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
+
+    The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
 Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 
@@ -88,7 +92,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
 1. Preload private keys for certs, corresponding to the auth method of the device identity:
 
-    - If the device identity is set to use the `shared_private_key` auth method, there are not keys to be preloaded.
+    - If the device identity is set to use the `shared_private_key` auth method, there are no keys to be preloaded.
 
     - If the device identity is set to use the `x509_thumbprint` auth method, preload the private key of the device ID cert:
 
