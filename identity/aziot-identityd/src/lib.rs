@@ -225,14 +225,11 @@ impl Server {
 		// Create or renew local identity certificates for all modules in current.
 		for id in &current_module_map {
 			let module_id = &(id.0).0;
-			let attributes = if let Some(opts) = id.1 {
+			let attributes = id.1.as_ref().map_or(aziot_identity_common::LocalIdAttr::default(), |opts|
 				match opts {
-					settings::LocalIdOpts::X509 {attributes} => attributes.clone(),
+					settings::LocalIdOpts::X509 {attributes} => *attributes,
 				}
-			}
-			else {
-				aziot_identity_common::LocalIdAttr::default()
-			};
+			);
 
 			// Must reissue certificate if options changed.
 			if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
