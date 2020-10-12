@@ -1,0 +1,39 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[connect]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+[listen]
+api_uri = "unix:///var/run/aziot/identityd.sock"
+
+[endpoints]
+aziot_certd = "unix:///var/run/aziot/certd.sock"
+aziot_keyd = "unix:///var/run/aziot/keyd.sock"
+aziot_identityd = "unix:///var/run/aziot/identityd.sock"
+
+[provisioning]
+source = "none"
+
+[localid]
+domain = "example.com"
+
+[[principal]]
+uid = 1000
+name = "module1"
+idtype = ["local"]
+
+[[principal]]
+uid = 1001
+name = "module2"
+idtype = ["local"]
+localid = { type = "x509" }
+
+[[principal]]
+uid = 1002
+name = "module3"
+idtype = ["local"]
+localid = { type = "x509", attributes = "server" }

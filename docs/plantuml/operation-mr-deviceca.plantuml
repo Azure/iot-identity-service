@@ -1,0 +1,125 @@
+@startuml
+
+title MR Runtime Operation
+skinparam maxMessageSize 200
+
+participant MR
+participant IS
+participant "openssl-engine-ks"
+participant KS
+participant CS
+participant Module
+participant Host_Module
+
+autonumber
+
+
+group Device CA
+	MR -> KS ++: load_key_pair("device_ca")
+	return OK("key handle")
+	MR -> "openssl-engine-ks" ++: load_private_key("key handle")
+	return openssl::EVP_PKEY
+	MR -> CS ++: create_or_load_cert("device_ca")
+	return OK(cert PEM)
+end
+
+group Workload CA
+	MR -> KS ++: create_key_pair_if_not_exists("workload_ca")
+	return OK("key handle")
+	MR -> "openssl-engine-ks" ++: load_private_key("key handle")
+	return openssl::EVP_PKEY
+	MR -> CS ++: create_or_load_cert("workload_ca")
+	return OK(cert PEM) or Err(NOT_FOUND)
+
+	alt if OK(cert PEM)
+		MR -> "openssl-engine-ks" ++: openssl::X509_verify(CSR, device_ca privkey openssl::EVP_PKEY)
+		"openssl-engine-ks" -> KS ++: sign("key handle", ...)
+		return OK(signature)
+		return OK(signed X509)
+		MR -> CS ++: import("workload_ca", cert PEM)
+		return OK
+
+	else if Err(NOT_FOUND)
+		MR -> MR: generate new CSR for workload_ca
+		MR -> "openssl-engine-ks" ++: openssl::X509_sign(CSR, device_ca privkey openssl::EVP_PKEY)
+		"openssl-engine-ks" -> KS ++: sign("key handle", ...)
+		return OK(signature)
+		return OK(signed X509)
+		MR -> CS ++: import("workload_ca", cert PEM)
+		return OK
+	end
+end
+
+group MR init
+	MR -> IS ++: get_provisioning_info()
+	return OK(provisioning info)
+
+	MR -> MR: Start modules
+	MR -> Module **
+end
+
+group Module things
+	group Module wants to encrypt a secret
+		Module -> MR ++: encrypt(plaintext) (e.g. encrypt(b"foo"), module_id = "edgeAgent", gen_id = 1000)
+		MR -> IS ++: get_encryption_key(module_id, gen_id)
+		IS -> IS: Derive module ID digest (e.g. "edgeAgent:1000")
+		IS -> KS ++: create_key_if_not_exists("master_encryption_key")
+		return OK("key handle")
+		IS -> KS ++: create_derived_key("master encryption key handle", module ID digest)
+		return OK(module encryption key handle) (e.g. token({ base: "master encryption key handle", digest: "edgeAgent:1000" }))
+		return OK(module encryption key handle)
+		MR -> KS ++: encrypt(module encryption key handle, plaintext) (e.g. encrypt(token(...), b"foo"))
+		KS -> KS: Get master encryption key handle and module id digest out of module encryption key handle
+		KS -> KS: module_encryption_key = sign(master encryption key handle, module id digest) (i.e. sign("master_encryption_key", "edgeAgent:1000"))
+		KS -> KS: encrypt(module_encryption_key, plaintext) (i.e. encrypt(module_encryption_key, b"foo"))
+		return OK(ciphertext)
+		return OK(ciphertext)
+	end
+
+	group Module wants to sign (HMAC-SHA256) a digest
+		Module -> MR ++: sign(digest) (e.g. sign(b"foo"), module_id = "edgeAgent", gen_id = 1000, key_id = "primary")
+		MR -> IS ++: get_identity_key(module_id, gen_id, key_id)
+		IS -> IS: Derive module ID digest (e.g. "edgeAgent:1000:primary")
+		IS -> KS ++: create_key_if_not_exists("master_identity_key")
+		return OK("key handle")
+		IS -> KS ++: create_derived_key("master identity key handle", module ID digest)
+		return OK(module identity key handle) (e.g. token({ base: "master identity key handle", digest: "edgeAgent:1000:primary" }))
+		return OK(module identity key handle)
+		MR -> KS ++: sign(module identity key handle, digest) (e.g. sign(token(...), b"foo"))
+		KS -> KS: Get master identity key handle and module id digest out of module identity key handle
+		KS -> KS: module_identity_key = sign(master identity key handle, module id digest) (i.e. sign("master_identity_key", "edgeAgent:1000:primary"))
+		KS -> KS: sign(module_identity_key, digest) (i.e. sign(module_identity_key, b"foo"))
+		return OK(signature)
+		return OK(signature)
+	end
+
+	group Module wants a server cert
+		Module -> MR ++: Request server cert
+		MR -> CS ++: Request server cert
+		CS -> CS: generate new privkey and CSR (in memory, not via openssl-engine-ks)
+		CS -> "openssl-engine-ks" ++: openssl::X509_sign(CSR, workload_ca privkey openssl::EVP_PKEY)
+		"openssl-engine-ks" -> KS ++: sign("key handle", ...)
+		return OK(signature)
+		return OK(signed X509)	
+		return OK(privkey, server cert)
+		return OK(privkey, server cert)
+	end
+end
+
+group Host_Module API calls
+	group Host module wants to encrypt a secret
+		Host_Module -> IS ++: Similar process to MR above: get_encryption_key(module_id, gen_id)
+		return OK("key handle")
+		Host_Module -> KS ++: Similar process to MR above: encrypt(module encryption key handle, plaintext)
+		return OK(ciphertext)
+	end
+	group Host module wants to sign (HMAC-SHA256) a digest
+		Host_Module -> IS ++: Similar process to MR above: get_identity_key(module_id, gen_id, key_id)
+		return OK("key handle")
+		Host_Module -> KS ++: Similar process to MR above: sign(module identity key handle, digest) (e.g. sign(token(...), b"foo"))
+		return OK(signature)
+	end
+end
+
+
+@enduml

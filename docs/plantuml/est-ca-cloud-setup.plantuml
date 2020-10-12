@@ -1,0 +1,41 @@
+@startuml
+
+title Cloud Setup
+
+participant "Operator" as operator
+participant "EST" as est
+participant "DPS" as dps
+
+autonumber
+
+operator -> operator: Create CA cert
+operator -> est: Register one or more CA certs with EST server to be used for verifying bootstrap cert,\nminting new EST identity certs,\nminting device CA certs,\nand optionally minting device identity certs
+
+note over est
+Some on-prem EST servers only support one openssl config for issuing certs.
+For example, they can be configured to only issue CA certs, or only issue client certs,
+or only issue certs that are both client certs and CA certs.
+They cannot be configured to issue certs differently based on the CSR
+or other parameters of the client's request.
+
+However, some cloud-based EST servers do support this,
+by letting the user configure different EST endpoints for different kinds of certs.
+So the user could configure one EST endpoint that only issues device identity certs,
+another that only issues device CA certs, and so on. These endpoints have individual configuration,
+so they can issue different kinds of certs with different signing CA certs and
+different issuance policies.
+
+Since the endpoints are still served by the same server instance,
+the same EST identity cert works for all of them.
+It's not like multiple independent EST servers that would each require a separate identity cert.
+
+This means the user could have a single EST endpoint, in which case they have
+a single CA cert that signs both device identity and other certs, or they have multiple endpoints
+where one only signs device identity certs with a CA dedicated for device identity certs.
+In the former case, the common CA is the one they would upload to DPS. In the latter case,
+the device identity CA is the one they would upload to DPS.
+end note
+
+operator -> dps: Register CA cert with DPS\nto be used for validating device identity certs
+
+@enduml
