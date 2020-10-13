@@ -12,7 +12,7 @@ case "$CONTAINER_OS.$ARCH" in
     'centos:7.amd64')
         yum install -y epel-release
         yum install -y \
-            curl gcc g++ jq make pkgconfig cmake \
+            curl gcc gcc-c++ jq make pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 

@@ -1,4 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
+#![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 
 use std::env;
 use std::path::Path;
