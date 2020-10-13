@@ -32,6 +32,8 @@ jobs:
 
     steps:
     - uses: 'actions/checkout@v1'
+      with:
+        submodules: 'recursive'
     - name: 'Run'
       run: |
         docker run --rm \
