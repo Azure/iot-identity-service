@@ -15,40 +15,35 @@ extern "C" {
 
 /** @file */
 
-typedef void* HSM_CLIENT_HANDLE;
+int hsm_client_tpm_init();
+void hsm_client_tpm_deinit();
 
-/**
- * An allocated buffer and its associated size. If this struct is created by the caller but
- * populated by one of the HSM functions, the 'buffer' member should be passed to
- * ::HSM_CLIENT_FREE_BUFFER when it is no longer needed.
- */
-typedef struct SIZED_BUFFER_TAG
-{
-    unsigned char* buffer;
-    size_t size;
-} SIZED_BUFFER;
+typedef void* HSM_CLIENT_HANDLE;
 
 /**
  * @brief   Creates a client for the associated interface
  *
  * @return  An instance handle that is passed into most functions of the interface.
  */
+HSM_CLIENT_HANDLE hsm_client_tpm_create();
 typedef HSM_CLIENT_HANDLE (*HSM_CLIENT_CREATE)();
 
 /**
  * @brief   Releases a client instance created with ::HSM_CLIENT_CREATE
  */
+void hsm_client_tpm_destroy(HSM_CLIENT_HANDLE handle);
 typedef void (*HSM_CLIENT_DESTROY)(HSM_CLIENT_HANDLE handle);
 
 /**
 * @brief    Frees buffers allocated by the HSM library.
 *           Used to ensure that the buffers allocated in one CRT are freed in the same
-*           CRT. Intended to be used for TPM keys, x509 buffers, and ::SIZED_BUFFER_TAG output.
+*           CRT. Intended to be used for TPM keys.
 *
 * @param buffer     A buffer allocated and owned by HSM library.
 *
 */
-typedef void (*HSM_CLIENT_FREE_BUFFER)(void * buffer);
+void hsm_client_tpm_free_buffer(void* buffer);
+typedef void (*HSM_CLIENT_FREE_BUFFER)(void* buffer);
 
 // TPM
 /**
@@ -61,6 +56,10 @@ typedef void (*HSM_CLIENT_FREE_BUFFER)(void * buffer);
 *
 * @return           On success 0 on. Non-zero on failure
 */
+int hsm_client_tpm_activate_identity_key(
+    HSM_CLIENT_HANDLE handle,
+    const unsigned char* key, size_t key_len
+);
 typedef int (*HSM_CLIENT_ACTIVATE_IDENTITY_KEY)(HSM_CLIENT_HANDLE handle, const unsigned char* key, size_t key_size);
 
 /**
@@ -73,6 +72,10 @@ typedef int (*HSM_CLIENT_ACTIVATE_IDENTITY_KEY)(HSM_CLIENT_HANDLE handle, const 
 *
 * @return               On success 0 on. Non-zero on failure
 */
+int hsm_client_tpm_get_endorsement_key(
+    HSM_CLIENT_HANDLE handle,
+    unsigned char** key, size_t* key_len
+);
 typedef int (*HSM_CLIENT_GET_ENDORSEMENT_KEY)(HSM_CLIENT_HANDLE handle, unsigned char** key, size_t* key_size);
 
 /**
@@ -85,6 +88,10 @@ typedef int (*HSM_CLIENT_GET_ENDORSEMENT_KEY)(HSM_CLIENT_HANDLE handle, unsigned
 *
 * @return               On success 0 on. Non-zero on failure
 */
+int hsm_client_tpm_get_storage_key(
+    HSM_CLIENT_HANDLE handle,
+    unsigned char** key, size_t* key_len
+);
 typedef int (*HSM_CLIENT_GET_STORAGE_ROOT_KEY)(HSM_CLIENT_HANDLE handle, unsigned char** key, size_t* key_size);
 
 /**
@@ -99,22 +106,14 @@ typedef int (*HSM_CLIENT_GET_STORAGE_ROOT_KEY)(HSM_CLIENT_HANDLE handle, unsigne
 *
 * @return                   On success 0 on. Non-zero on failure
 */
+int hsm_client_tpm_sign_data(
+    HSM_CLIENT_HANDLE handle,
+    const unsigned char* data_to_be_signed, size_t data_to_be_signed_size,
+    unsigned char** digest, size_t* digest_size
+);
 typedef int (*HSM_CLIENT_SIGN_WITH_IDENTITY)(HSM_CLIENT_HANDLE handle, const unsigned char* data, size_t data_size, unsigned char** digest, size_t* digest_size);
 
-/**
-* @brief                    Hashes the data with the device private key stored in the HSM
-*
-* @param handle             ::HSM_CLIENT_HANDLE that was created by the ::HSM_CLIENT_CREATE call
-* @param data               Data that will need to be hashed
-* @param data_size          The size of the data parameter
-* @param[out] digest        The returned digest. This function allocates memory for a buffer
-*                           which must be freed by a call to ::HSM_CLIENT_FREE_BUFFER.
-* @param[out] digest_size   The size of the returned digest
-*
-* @return                   On success 0 on. Non-zero on failure
-*/
-typedef int (*HSM_CLIENT_SIGN_WITH_PRIVATE_KEY)(HSM_CLIENT_HANDLE handle, const unsigned char* data, size_t data_size, unsigned char** digest, size_t* digest_size);
-
+// Table of function pointers (used by tests)
 typedef struct HSM_CLIENT_TPM_INTERFACE_TAG
 {
     HSM_CLIENT_CREATE hsm_client_tpm_create;
@@ -127,10 +126,7 @@ typedef struct HSM_CLIENT_TPM_INTERFACE_TAG
     HSM_CLIENT_FREE_BUFFER hsm_client_free_buffer;
 } HSM_CLIENT_TPM_INTERFACE;
 
-extern const HSM_CLIENT_TPM_INTERFACE* hsm_client_tpm_interface();
-
-extern int hsm_client_tpm_init();
-extern void hsm_client_tpm_deinit();
+const HSM_CLIENT_TPM_INTERFACE* hsm_client_tpm_interface();
 
 #ifdef __cplusplus
 }
