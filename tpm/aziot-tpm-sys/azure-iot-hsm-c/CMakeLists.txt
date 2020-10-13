@@ -19,10 +19,6 @@ include_directories(. ./inc)
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 
-if(USE_TEST_TPM_INTERFACE_IN_MEM)
-    add_definitions(-DTEST_TPM_INTERFACE_IN_MEM)
-endif(USE_TEST_TPM_INTERFACE_IN_MEM)
-
 set(source_c_files
     ./src/hsm_client_tpm_device.c
     ./src/hsm_log.c
@@ -48,20 +44,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
 endif()
 
-# We want this to always be a shared library and let the dynamic linker on the
-# target system find the HSM library.
-if(BUILD_SHARED)
-    add_library(iothsm SHARED ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
-else()
-    add_library(iothsm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
-endif(BUILD_SHARED)
-
-function(prepare_edge_homedir whatIsBuilding)
-    STRING(CONCAT testOnlyHomeDir  "/tmp/" "${whatIsBuilding}")
-
-    FILE(MAKE_DIRECTORY ${testOnlyHomeDir})
-    add_definitions(-DTESTONLY_IOTEDGE_HOMEDIR="${testOnlyHomeDir}")
-endfunction(prepare_edge_homedir)
+add_library(iothsm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
 
 if (run_unittests)
     enable_testing()
@@ -90,34 +73,3 @@ install(TARGETS iothsm
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-# CPack
-include (InstallRequiredSystemLibraries)
-
-if (NOT CPACK_PACKAGE_VERSION)
-    set (CPACK_PACKAGE_VERSION_MAJOR "${iothsm_VERSION_MAJOR}")
-    set (CPACK_PACKAGE_VERSION_MINOR "${iothsm_VERSION_MINOR}")
-    set (CPACK_PACKAGE_VERSION_PATCH "${iothsm_VERSION_PATCH}")
-endif()
-
-set (CPACK_PACKAGE_NAME "libiothsm-std")
-set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Azure IoT standard mode HSM lib")
-
-if (NOT CPACK_GENERATOR)
-    set (CPACK_GENERATOR "DEB")
-endif()
-
-set (CPACK_DEBIAN_PACKAGE_PROVIDES "libiothsm")
-set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Azure IoT Edge Devs")
-set (CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-set (CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS "ON")
-set (CPACK_DEBIAN_PACKAGE_DEPENDS "${OPENSSL_DEPENDS_SPEC}")
-
-set (CPACK_RPM_FILE_NAME RPM-DEFAULT)
-set (CPACK_RPM_PACKAGE_RELEASE_DIST On)
-set (CPACK_RPM_PACKAGE_URL "http://github.com/azure/iotedge")
-set (CPACK_RPM_PACKAGE_VENDOR "Microsoft Corporation")
-set (CPACK_RPM_PACKAGE_DESCRIPTION "Azure IoT standard mode HSM lib")
-set (CPACK_RPM_PACKAGE_LICENSE "Proprietary")
-set (CPACK_RPM_PACKAGE_DEPENDS "${OPENSSL_DEPENDS_SPEC}")
-
-include (CPack)
