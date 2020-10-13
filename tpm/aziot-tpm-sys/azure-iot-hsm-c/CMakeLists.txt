@@ -24,38 +24,21 @@ if(USE_TEST_TPM_INTERFACE_IN_MEM)
 endif(USE_TEST_TPM_INTERFACE_IN_MEM)
 
 set(source_c_files
-    ./src/certificate_info.c
-    ./src/constants.c
-    ./src/edge_enc_openssl_key.c
-    ./src/edge_hsm_client_crypto.c
-    ./src/edge_hsm_client_store.c
-    ./src/edge_hsm_client_x509.c
-    ./src/edge_hsm_key_interface.c
-    ./src/edge_openssl_common.c
-    ./src/edge_sas_perform_sign_with_key.c
-    ./src/edge_pki_openssl.c
-    ./src/edge_sas_key.c
-    ./src/hsm_certificate_props.c
-    ./src/hsm_client_data.c
     ./src/hsm_client_tpm_device.c
     ./src/hsm_client_tpm_in_mem.c
     ./src/hsm_client_tpm_select.c
+    ./src/hsm_constants.c
     ./src/hsm_log.c
-    ./src/hsm_utils.c
 )
 
 set(source_h_files
-    ./inc/certificate_info.h
     ./inc/hsm_client_data.h
-    ./inc/hsm_certificate_props.h
-    ./src/edge_sas_perform_sign_with_key.h
     ./src/hsm_client_store.h
     ./src/hsm_client_tpm_device.h
     ./src/hsm_client_tpm_in_mem.h
     ./src/hsm_constants.h
-    ./src/hsm_key.h
+    ./src/hsm_key_interface.h
     ./src/hsm_log.h
-    ./src/hsm_utils.h
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fPIC -Wall -Werror -Wextra -Wformat=2 -Wformat-security -std=c99 ")

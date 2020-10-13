@@ -17,8 +17,6 @@
 #include "hsm_client_data.h"
 #include "hsm_err.h"
 #include "hsm_log.h"
-#include "edge_sas_perform_sign_with_key.h"
-
 
 #define EPOCH_TIME_T_VALUE          0
 #define HMAC_LENGTH                 32
@@ -495,92 +493,6 @@ static int hsm_client_tpm_sign_data
     return result;
 }
 
-static int hsm_client_tpm_derive_and_sign_with_identity
-(
-   HSM_CLIENT_HANDLE handle,
-   const unsigned char* data_to_be_signed,
-   size_t data_to_be_signed_size,
-   const unsigned char* identity,
-   size_t identity_size,
-   unsigned char** digest,
-   size_t* digest_size
-)
-{
-    int result =0;
-    if (handle == NULL)
-    {
-        LOG_ERROR("Invalid NULL Handle");
-        result = __FAILURE__;
-    }
-    else if (data_to_be_signed == NULL)
-    {
-        LOG_ERROR("data to be signed is null");
-        result = __FAILURE__;
-    }
-    else if (data_to_be_signed_size == 0)
-    {
-        LOG_ERROR("no data to be signed");
-        result = __FAILURE__;
-    }
-    else if (identity == NULL)
-    {
-        LOG_ERROR("identity is NULL");
-        result = __FAILURE__;
-    }
-    else if (identity_size == 0)
-    {
-        LOG_ERROR("identity is empty");
-        result = __FAILURE__;
-    }
-    else if (digest==NULL)
-    {
-        LOG_ERROR("digest is NULL");
-        result = __FAILURE__;
-    }
-    else if (digest_size == NULL)
-    {
-        LOG_ERROR("digest_size is NULL");
-        result = __FAILURE__;
-    }
-    else
-    {
-        *digest = NULL;
-        *digest_size = 0;
-
-        BYTE data_signature[TPM_DATA_LENGTH];
-        BYTE* data_copy = (unsigned char*)identity;
-        HSM_CLIENT_INFO* hsm_client_info = (HSM_CLIENT_INFO*)handle;
-
-        uint32_t sign_len = SignData(&hsm_client_info->tpm_device,
-                        &NullPwSession, data_copy, (UINT32)identity_size,
-                        data_signature, sizeof(data_signature) );
-        if (sign_len == 0)
-        {
-            LOG_ERROR("Failure signing derived key from hash");
-            result = __FAILURE__;
-        }
-        else
-        {
-            // data_signature has the module key
-            // - use software signing so we don't displace the key in TPM0
-            if( perform_sign_with_key(data_signature, sign_len,
-                                    data_to_be_signed, data_to_be_signed_size,
-                                    digest, digest_size) != 0)
-            {
-                LOG_ERROR("Failure signing data from derived key hash");
-                result = __FAILURE__;
-            }
-            else
-            {
-                result =0;
-            }
-
-            memset(data_signature, 0, TPM_DATA_LENGTH);
-        }
-    }
-    return result;
-}
-
 static void hsm_client_tpm_free_buffer(void* buffer)
 {
     if (buffer != NULL)
@@ -608,7 +520,6 @@ static const HSM_CLIENT_TPM_INTERFACE tpm_interface =
     hsm_client_tpm_get_endorsement_key,
     hsm_client_tpm_get_storage_key,
     hsm_client_tpm_sign_data,
-    hsm_client_tpm_derive_and_sign_with_identity,
     hsm_client_tpm_free_buffer
 };
 

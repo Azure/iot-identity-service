@@ -377,20 +377,6 @@ static int edge_hsm_client_sign_with_identity
                         NULL, 0, digest, digest_size, 0);
 }
 
-static int edge_hsm_client_derive_and_sign_with_identity
-(
-    HSM_CLIENT_HANDLE handle,
-    const unsigned char* data_to_be_signed,
-    size_t data_to_be_signed_size,
-    const unsigned char* identity,
-    size_t identity_size,
-    unsigned char** digest,
-    size_t* digest_size
-)
-{
-    return perform_sign(handle, data_to_be_signed, data_to_be_signed_size,
-                        identity, identity_size, digest, digest_size, 1);
-}
 
 static void edge_hsm_free_buffer(void *buffer)
 {
@@ -408,7 +394,6 @@ static const HSM_CLIENT_TPM_INTERFACE edge_tpm_interface =
     edge_hsm_client_get_ek,
     edge_hsm_client_get_srk,
     edge_hsm_client_sign_with_identity,
-    edge_hsm_client_derive_and_sign_with_identity,
     edge_hsm_free_buffer
 };
 

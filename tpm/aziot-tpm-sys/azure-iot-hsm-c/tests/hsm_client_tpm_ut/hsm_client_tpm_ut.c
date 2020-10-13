@@ -42,8 +42,6 @@ static void my_gballoc_free(void* ptr)
 #include "azure_utpm_c/tpm_codec.h"
 #include "azure_utpm_c/Marshal_fp.h"
 
-#include "edge_sas_perform_sign_with_key.h"
-
 #include "azure_utpm_c/TpmTypes.h"
 #undef ENABLE_MOCKS
 
@@ -229,9 +227,6 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         REGISTER_GLOBAL_MOCK_HOOK(gballoc_free, my_gballoc_free);
         REGISTER_GLOBAL_MOCK_HOOK(mallocAndStrcpy_s, my_mallocAndStrcpy_s);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(mallocAndStrcpy_s, __LINE__);
-
-        REGISTER_GLOBAL_MOCK_HOOK(perform_sign_with_key, my_perform_sign_with_key);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(perform_sign_with_key, 1);
 
         for (size_t index = 0; index < 10; index++)
         {
@@ -902,220 +897,6 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         tpm_if->hsm_client_tpm_destroy(sec_handle);
     }
 
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_handle_fail)
-    {
-        unsigned char* key;
-        size_t key_len;
-
-        //arrange
-
-        //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(NULL, TEST_BUFFER, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_data_null_fail)
-    {
-        //arrange
-        unsigned char* key;
-        size_t key_len;
-
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, NULL, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_data_size_0_fail)
-    {
-        unsigned char* key;
-        size_t key_len;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, 0,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_identity_null_fail)
-    {
-        //arrange
-        unsigned char* key;
-        size_t key_len;
-
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, TEST_BUFFER_SIZE,
-                NULL, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_identity_size_0_fail)
-    {
-        unsigned char* key;
-        size_t key_len;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, 0, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_digest_null_fail)
-    {
-        size_t key_len;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, NULL, &key_len);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_sign_derive_and_sign_digest_size_null_fail)
-    {
-        unsigned char* key;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, NULL);
-
-        //assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_fail)
-    {
-        unsigned char* key;
-        size_t key_len;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
-
-        setup_hsm_client_tpm_sign_data_mocks();
-
-        umock_c_negative_tests_snapshot();
-
-        size_t count = umock_c_negative_tests_call_count();
-        for (size_t index = 0; index < count; index++)
-        {
-            umock_c_negative_tests_reset();
-            umock_c_negative_tests_fail_call(index);
-
-            char tmp_msg[128];
-            sprintf(tmp_msg, "hsm_client_derive_and_sign_with_identity failure in test %zu/%zu", index, count);
-
-            //act
-            int result = tpm_if->hsm_client_derive_and_sign_with_identity(NULL, TEST_BUFFER, TEST_BUFFER_SIZE,
-                    IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-            //assert
-            ASSERT_ARE_NOT_EQUAL(int, 0, result, tmp_msg);
-        }
-
-        //cleanup
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-        umock_c_negative_tests_deinit();
-    }
-
-    TEST_FUNCTION(hsm_client_tpm_derive_and_sign_succeed)
-    {
-        unsigned char* key;
-        size_t key_len;
-
-        //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
-        HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
-        umock_c_reset_all_calls();
-
-        STRICT_EXPECTED_CALL(SignData(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(perform_sign_with_key(IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-
-        //act
-        int result = tpm_if->hsm_client_derive_and_sign_with_identity(sec_handle, TEST_BUFFER, TEST_BUFFER_SIZE,
-                IDENTITY_BUFFER, IDENTITY_BUFFER_SIZE, &key, &key_len);
-
-        //assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        //cleanup
-        my_gballoc_free(key);
-        tpm_if->hsm_client_tpm_destroy(sec_handle);
-    }
-
     TEST_FUNCTION(hsm_client_tpm_free_buffer_null_does_nothing)
     {
         // arrange
@@ -1161,7 +942,6 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         ASSERT_IS_NOT_NULL(tpm_iface->hsm_client_get_srk);
         ASSERT_IS_NOT_NULL(tpm_iface->hsm_client_activate_identity_key);
         ASSERT_IS_NOT_NULL(tpm_iface->hsm_client_sign_with_identity);
-        ASSERT_IS_NOT_NULL(tpm_iface->hsm_client_derive_and_sign_with_identity);
         ASSERT_IS_NOT_NULL(tpm_iface->hsm_client_free_buffer);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
