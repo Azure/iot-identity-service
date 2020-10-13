@@ -154,8 +154,8 @@ Note that the request takes the message digest, ie it must be calculated by the 
 ```json
 {
     "keyHandle": "string",
+    "algorithm": "ECDSA",
     "parameters": {
-        "algorithm": "ECDSA",    
         "digest": "base64-encoded-string",
     }
 }
@@ -166,8 +166,8 @@ Note that the request takes the message digest, ie it must be calculated by the 
 ```json
 {
     "keyHandle": "string",
+    "algorithm": "HMAC-SHA256",
     "parameters": {
-        "algorithm": "HMAC-SHA256",
         "message": "base64-encoded-string"
     }
 }
@@ -195,8 +195,8 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
+    "algorithm": "AEAD",
     "parameters": {
-        "algorithm": "AEAD",
         "iv": "base64-encoded-string",
         "aad": "base64-encoded-string"
     },
@@ -209,9 +209,7 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
-    "parameters": {
-        "algorithm": "RSA-PKCS1",
-    },
+    "algorithm": "RSA-PKCS1",
     "plaintext": "base64-encoded-string"
 }
 ```
@@ -221,9 +219,7 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
-    "parameters": {
-        "algorithm": "RSA-NO-PADDING",
-    },
+    "algorithm": "RSA-NO-PADDING",
     "plaintext": "base64-encoded-string"
 }
 ```
@@ -255,8 +251,8 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
+    "algorithm": "AEAD",
     "parameters": {
-        "algorithm": "AEAD",
         "iv": "base64-encoded-string",
         "aad": "base64-encoded-string"
     },
@@ -269,9 +265,7 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
-    "parameters": {
-        "algorithm": "RSA-PKCS1",
-    },
+    "algorithm": "RSA-PKCS1",
     "ciphertext": "base64-encoded-string"
 }
 ```
@@ -281,9 +275,7 @@ Only valid for symmetric keys.
 ```json
 {
     "keyHandle": "string",
-    "parameters": {
-        "algorithm": "RSA-NO-PADDING",
-    },
+    "algorithm": "RSA-NO-PADDING",
     "ciphertext": "base64-encoded-string"
 }
 ```
