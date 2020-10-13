@@ -118,6 +118,7 @@ test:
 
 	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
 		while read -r f; do \
@@ -137,6 +138,7 @@ test:
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if [ "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]; then \
@@ -147,6 +149,7 @@ test:
 
 	find . -name '*.c' -or -name '*.rs' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if ! (head -n1 "$$f" | grep -q 'Copyright (c) Microsoft. All rights reserved.'); then \
