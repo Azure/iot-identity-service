@@ -2,7 +2,7 @@
 
 ## Generate New Symmetric Key
 
-`POST /key`
+`POST /key?api-version=2020-09-01`
 
 ### Request
 
@@ -25,7 +25,7 @@
 
 ## Import Symmetric Key
 
-`POST /key`
+`POST /key?api-version=2020-09-01`
 
 ### Request
 
@@ -48,7 +48,7 @@
 
 ## Get Existing Symmetric Key
 
-`GET /key/{keyId}`
+`GET /key/{keyId}?api-version=2020-09-01`
 
 ### Response
 
@@ -62,7 +62,7 @@
 
 ## Generate New Asymmetric Key Pair
 
-`POST /keypair`
+`POST /keypair?api-version=2020-09-01`
 
 ### Request
 
@@ -91,7 +91,7 @@
 
 ## Get Existing Asymmetric Key Pair
 
-`GET /keypair/{keyPairId}`
+`GET /keypair/{keyPairId}?api-version=2020-09-01`
 
 ### Response
 
@@ -105,7 +105,7 @@
 
 ## Get Parameter of Asymmetric Key Pair
 
-`POST /parameters/{parameterName}`
+`POST /parameters/{parameterName}?api-version=2020-09-01`
 
 ### Request
 
@@ -139,7 +139,7 @@ The value of `value` in the response depends on the `parameterName`:
 
 ## Sign
 
-`POST /sign`
+`POST /sign?api-version=2020-09-01`
 
 This includes both digital signatures using asymmetric keys and HMAC-SHA256 using symmetric keys.
 
@@ -184,7 +184,7 @@ Note that the request takes the message digest, ie it must be calculated by the 
 
 ## Encrypt
 
-`POST /encrypt`
+`POST /encrypt?api-version=2020-09-01`
 
 ### Request
 
@@ -240,7 +240,7 @@ The default implementation uses AES-256-GCM, but this is not controllable by the
 
 ## Decrypt
 
-`POST /decrypt`
+`POST /decrypt?api-version=2020-09-01`
 
 ### Request
 

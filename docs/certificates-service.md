@@ -4,7 +4,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ## Create New Certificate from CSR
 
-`POST /certificates`
+`POST /certificates?api-version=2020-09-01`
 
 ### Request
 
@@ -33,7 +33,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ## Import Certificate
 
-`PUT /certificates/{certId}`
+`PUT /certificates/{certId}?api-version=2020-09-01`
 
 ### Request
 
@@ -55,7 +55,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ## Get Existing Certificate
 
-`GET /certificates/{certId}`
+`GET /certificates/{certId}?api-version=2020-09-01`
 
 ### Response
 
@@ -69,7 +69,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ## Delete Existing Certificate
 
-`DELETE /certificates/{certId}`
+`DELETE /certificates/{certId}?api-version=2020-09-01`
 
 ### Response
 

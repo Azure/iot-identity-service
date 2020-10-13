@@ -1,14 +1,14 @@
 # API
 
 ## Get primary cloud identity for authenticated workload
-`GET /identities/identity`
+`GET /identities/identity?api-version=2020-09-01`
 
 The shape of the response will depend on the principal used to authenticate with the Identity Service. The association between an authorized principal and the identity type to return is based on the `idtype` in the identity service's [configuration](identity-service.md#module-provisioning--re-provisioning).
 
-The returned `keyHandle` is for use with the [keys service](keys-service.md). For `aziot`-type identities using SaS auth, `keyHandle` contains the key handle of the identity's primary shared access key, which can be used to generate a security token (for IoT Hub authentication) using the keys service [sign](keys-service.md#sign) operation. 
+The returned `keyHandle` is for use with the [Keys Service](keys-service.md). For `aziot`-type identities using SaS auth, `keyHandle` contains the key handle of the identity's primary shared access key, which can be used to generate a security token (for IoT Hub authentication) using the Keys Service's [sign](keys-service.md#sign) operation. 
 For `aziot`-type device identities using X.509 auth, `keyHandle` contains the key handle of the identity X.509 certificate's private key, used for IoT Hub client authentication during TLS handshake using an SSL engine.    
 
-`certId` contains the certificate ID of the identity X.509 certificate, which can be retrieved used using the [certificates service](certificates-service.md) while connecting to IoT Hub.
+`certId` contains the certificate ID of the identity X.509 certificate, which can be retrieved used using the [Certificates Service](certificates-service.md) while connecting to IoT Hub.
 
 
 ### Response for principals associated to device identities (SAS case)
@@ -86,7 +86,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 
 ## Get IoT device provisioning result
 
-`GET /identities/device`
+`GET /identities/device?api-version=2020-09-01`
 
 ### Response (SAS case)
 ```json
@@ -125,7 +125,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 ---
 
 ## List IoT Module Identities
-`GET /identities/modules`
+`GET /identities/modules?api-version=2020-09-01`
 
 ### Response (SAS case)
 ```json
@@ -176,7 +176,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 ---
 
 ## Create IoT module identity
-`POST /identities/modules`
+`POST /identities/modules?api-version=2020-09-01`
 
 ### Request
 ```json
@@ -228,7 +228,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 ---
 
 ## Get IoT module identity information
-`GET /identities/modules/{module-id}`
+`GET /identities/modules/{module-id}?api-version=2020-09-01`
 
 ### Response (SAS case)
 ```json
@@ -270,7 +270,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 ---
 
 ## Delete IoT module identity
-`DELETE /identities/modules/{module-id}`
+`DELETE /identities/modules/{module-id}?api-version=2020-09-01`
 
 ### Response
 ```
@@ -280,7 +280,7 @@ For `aziot`-type device identities using X.509 auth, `keyHandle` contains the ke
 ---
 
 ## Trigger IoT device reprovisioning flow
-`POST /identities/device/reprovision`
+`POST /identities/device/reprovision?api-version=2020-09-01`
 
 ### Request
 ```json
