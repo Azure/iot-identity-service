@@ -170,7 +170,7 @@ dist:
 	mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# Copy source files
-	cp -R ./cert ./http-common ./identity ./key ./iotedged ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 /tmp/aziot-identity-service-$(PACKAGE_VERSION)
+	cp -R ./cert ./http-common ./identity ./key ./iotedged ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# `cargo vendor` for offline builds
