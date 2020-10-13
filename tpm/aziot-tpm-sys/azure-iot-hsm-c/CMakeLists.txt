@@ -25,19 +25,12 @@ endif(USE_TEST_TPM_INTERFACE_IN_MEM)
 
 set(source_c_files
     ./src/hsm_client_tpm_device.c
-    ./src/hsm_client_tpm_in_mem.c
-    ./src/hsm_client_tpm_select.c
-    ./src/hsm_constants.c
     ./src/hsm_log.c
 )
 
 set(source_h_files
     ./inc/hsm_client_data.h
-    ./src/hsm_client_store.h
     ./src/hsm_client_tpm_device.h
-    ./src/hsm_client_tpm_in_mem.h
-    ./src/hsm_constants.h
-    ./src/hsm_key_interface.h
     ./src/hsm_log.h
 )
 

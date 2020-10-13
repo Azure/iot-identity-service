@@ -353,7 +353,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         setup_hsm_client_tpm_create_mock();
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
 
         //assert
@@ -376,7 +376,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
 
         size_t calls_cannot_fail[] = { 3, 5 };
 
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
 
         //act
         size_t count = umock_c_negative_tests_call_count();
@@ -407,7 +407,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_destroy_succeed)
     {
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -429,7 +429,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         umock_c_reset_all_calls();
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         tpm_if->hsm_client_tpm_destroy(NULL);
 
         //assert
@@ -443,7 +443,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         //arrange
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         int import_res = tpm_if->hsm_client_activate_identity_key(NULL, TEST_IMPORT_KEY, TEST_KEY_SIZE);
 
         //assert
@@ -456,7 +456,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_activate_key_key_NULL_fail)
     {
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -474,7 +474,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_activate_key_fail)
     {
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -516,7 +516,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_activate_key_succeed)
     {
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -539,7 +539,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         int result = tpm_if->hsm_client_get_ek(NULL, &key, &key_len);
 
         //assert
@@ -556,7 +556,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -577,7 +577,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         unsigned char* key;
         size_t key_len;
 
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -615,7 +615,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         unsigned char* key;
         size_t key_len;
 
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -640,7 +640,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         int result = tpm_if->hsm_client_get_srk(NULL, &key, &key_len);
 
         //assert
@@ -657,7 +657,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         g_rsa_size = 0;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -678,7 +678,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -717,7 +717,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -743,7 +743,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         //arrange
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         int result = tpm_if->hsm_client_sign_with_identity(NULL, TEST_BUFFER, TEST_BUFFER_SIZE, &key, &key_len);
 
         //assert
@@ -759,7 +759,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         unsigned char* key;
         size_t key_len;
 
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -780,7 +780,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -800,7 +800,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -820,7 +820,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         unsigned char* key;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -841,7 +841,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -879,7 +879,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         size_t key_len;
 
         //arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
@@ -900,7 +900,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_free_buffer_null_does_nothing)
     {
         // arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
 
         // act
         tpm_if->hsm_client_free_buffer(NULL);
@@ -913,7 +913,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_free_buffer_frees_something)
     {
         // arrange
-        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         void * buffer = my_gballoc_malloc(1);
         umock_c_reset_all_calls();
 
@@ -932,7 +932,7 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         umock_c_reset_all_calls();
 
         //act
-        const HSM_CLIENT_TPM_INTERFACE* tpm_iface = hsm_client_tpm_device_interface();
+        const HSM_CLIENT_TPM_INTERFACE* tpm_iface = hsm_client_tpm_interface();
 
         //assert
         ASSERT_IS_NOT_NULL(tpm_iface);

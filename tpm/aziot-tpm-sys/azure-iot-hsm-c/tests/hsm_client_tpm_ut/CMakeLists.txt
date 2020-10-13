@@ -16,7 +16,6 @@ set(${theseTestsName}_test_files
 set(${theseTestsName}_c_files
     ../../src/hsm_client_tpm_device.c
     ../../src/hsm_log.c
-    ../../src/hsm_constants.c
 )
 
 set(${theseTestsName}_h_files

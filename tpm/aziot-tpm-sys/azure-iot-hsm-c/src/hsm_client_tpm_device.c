@@ -501,14 +501,14 @@ static void hsm_client_tpm_free_buffer(void* buffer)
     }
 }
 
-int hsm_client_tpm_device_init(void)
+int hsm_client_tpm_init(void)
 {
     log_init(LVL_INFO);
 
     return 0;
 }
 
-void hsm_client_tpm_device_deinit(void)
+void hsm_client_tpm_deinit(void)
 {
 }
 
@@ -523,8 +523,7 @@ static const HSM_CLIENT_TPM_INTERFACE tpm_interface =
     hsm_client_tpm_free_buffer
 };
 
-const HSM_CLIENT_TPM_INTERFACE* hsm_client_tpm_device_interface(void)
+const HSM_CLIENT_TPM_INTERFACE* hsm_client_tpm_interface(void)
 {
     return &tpm_interface;
 }
-
