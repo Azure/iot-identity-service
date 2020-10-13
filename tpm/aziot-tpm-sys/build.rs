@@ -16,32 +16,6 @@ trait SetPlatformDefines {
 }
 
 impl SetPlatformDefines for Config {
-    #[cfg(windows)]
-    fn set_platform_defines(&mut self) -> &mut Self {
-        // if the builder chooses to set "use_emulator", use their setting, otherwise, use the
-        // emulator for debug and a real device for release
-        let use_emulator = env::var(USE_EMULATOR)
-            .or_else(|_| {
-                env::var("PROFILE").map(|profile| {
-                    if profile.to_lowercase() == "release" {
-                        String::from("OFF")
-                    } else {
-                        String::from("ON")
-                    }
-                })
-            })
-            .unwrap();
-        // C-shared library wants Windows flags (/DWIN32 /D_WINDOWS) for Windows,
-        // and the cmake library overrides this.
-        self.cflag("/DWIN32")
-            .cxxflag("/DWIN32")
-            .cflag("/D_WINDOWS")
-            .cxxflag("/D_WINDOWS")
-            .define(USE_EMULATOR, use_emulator)
-            .define("use_cppunittest", "OFF")
-    }
-
-    #[cfg(unix)]
     fn set_platform_defines(&mut self) -> &mut Self {
         let rv = if env::var("TARGET").unwrap().starts_with("x86_64")
             && env::var("RUN_VALGRIND").is_ok()
@@ -129,7 +103,6 @@ fn build_libiothsm() {
     // make the C libary at azure-iot-hsm-c (currently a subdirectory in this
     // crate)
     // Always make the Release version because Rust links to the Release CRT.
-    // (This is especially important for Windows)
 
     let rut = if env::var("FORCE_NO_UNITTEST").is_ok() {
         "OFF"
@@ -170,16 +143,6 @@ fn build_libiothsm() {
     println!("cargo:rustc-link-lib=aziotsharedutil");
     #[cfg(debug_assertions)]
     println!("cargo:rustc-link-lib=utpm");
-
-    #[cfg(windows)]
-    {
-        println!(
-            "cargo:rustc-link-search=native={}/lib",
-            env::var("OPENSSL_ROOT_DIR").unwrap()
-        );
-        println!("cargo:rustc-link-lib=libssl");
-        println!("cargo:rustc-link-lib=libcrypto");
-    }
 
     #[cfg(target_os = "macos")]
     {

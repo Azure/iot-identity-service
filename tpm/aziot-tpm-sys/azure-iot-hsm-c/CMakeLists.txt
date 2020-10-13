@@ -58,39 +58,19 @@ set(source_h_files
     ./src/hsm_utils.h
 )
 
-if(MSVC)
-    #windows needs this define
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fPIC -Wall -Werror -Wextra -Wformat=2 -Wformat-security -std=c99 ")
 
-    # Make warning as error
-    add_definitions(/WX)
-    if (run_unittests)
-        add_definitions(/W3)
-    else()
-        add_definitions(/W4)
-    endif(run_unittests)
+# suppress clang compiler warnings complaining about calls to vsnprintf
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=format-nonliteral")
+endif()
 
-    # export functions in DLL
-    set(source_c_files ${source_c_files}
-        ./src/hsm_client_data.def
-    )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fPIC -Wall -Werror -Wextra -Wformat=2 -Wformat-security ")
 
-    add_definitions(-DGB_MEASURE_MEMORY_FOR_THIS -DGB_DEBUG_ALLOC)
-else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fPIC -Wall -Werror -Wextra -Wformat=2 -Wformat-security -std=c99 ")
-
-    # suppress clang compiler warnings complaining about calls to vsnprintf
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=format-nonliteral")
-    endif()
-
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fPIC -Wall -Werror -Wextra -Wformat=2 -Wformat-security ")
-
-    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
-    endif()
-endif(MSVC)
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
+endif()
 
 # We want this to always be a shared library and let the dynamic linker on the
 # target system find the HSM library.
@@ -100,24 +80,8 @@ else()
     add_library(iothsm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
 endif(BUILD_SHARED)
 
-set(preinstall_iothsm_library_dll ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/iothsm.dll)
-
-function(copy_iothsm_dll whatIsBuilding whatIsBuildingLocation)
-    if(WIN32 AND BUILD_SHARED)
-        add_custom_command(TARGET ${whatIsBuilding} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${preinstall_iothsm_library_dll}
-                ${whatIsBuildingLocation})
-    endif()
-endfunction(copy_iothsm_dll)
-
 function(prepare_edge_homedir whatIsBuilding)
-    if(WIN32)
-        STRING(CONCAT testOnlyHomeDir  "$ENV{Temp}" "/" "${whatIsBuilding}")
-        STRING(REGEX REPLACE "\\\\" "/" testOnlyHomeDir ${testOnlyHomeDir} )
-    else()
-        STRING(CONCAT testOnlyHomeDir  "/tmp/" "${whatIsBuilding}")
-    endif(WIN32)
+    STRING(CONCAT testOnlyHomeDir  "/tmp/" "${whatIsBuilding}")
 
     FILE(MAKE_DIRECTORY ${testOnlyHomeDir})
     add_definitions(-DTESTONLY_IOTEDGE_HOMEDIR="${testOnlyHomeDir}")
@@ -136,11 +100,7 @@ if (save_ut)
     set(run_unittests ${save_ut} CACHE BOOL "unittests" FORCE)
 endif(save_ut)
 
-if(WIN32)
-    target_link_libraries(iothsm aziotsharedutil utpm $ENV{OPENSSL_ROOT_DIR}/lib/libssl.lib $ENV{OPENSSL_ROOT_DIR}/lib/libcrypto.lib advapi32)
-else()
-    target_link_libraries(iothsm aziotsharedutil utpm ${OPENSSL_LIBRARIES})
-endif(WIN32)
+target_link_libraries(iothsm aziotsharedutil utpm ${OPENSSL_LIBRARIES})
 
 if (${run_unittests})
     add_subdirectory(tests)
@@ -150,13 +110,9 @@ set_target_properties(iothsm PROPERTIES
         VERSION ${iothsm_VERSION_MAJOR}.${iothsm_VERSION_MINOR}.${iothsm_VERSION_PATCH}
         SOVERSION 1)
 
-if(WIN32)
-    install(TARGETS iothsm DESTINATION ${CMAKE_INSTALL_LIBDIR})
-else()
-    install(TARGETS iothsm
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif(WIN32)
+install(TARGETS iothsm
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # CPack
 include (InstallRequiredSystemLibraries)
@@ -189,9 +145,3 @@ set (CPACK_RPM_PACKAGE_LICENSE "Proprietary")
 set (CPACK_RPM_PACKAGE_DEPENDS "${OPENSSL_DEPENDS_SPEC}")
 
 include (CPack)
-
-if (${run_unittests})
-    if(WIN32)
-        target_link_libraries(iothsm shell32)
-    endif(WIN32)
-endif()
