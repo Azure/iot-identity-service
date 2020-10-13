@@ -78,7 +78,7 @@ impl Server {
 			authenticator,
 			authorizer,
 			id_manager,
-			// Will be initialized by init_local_identities.
+			// Will be populated in init_local_identities.
 			local_identities: std::collections::BTreeMap::default(),
 
 			key_client,
@@ -95,13 +95,37 @@ impl Server {
 
 		self.id_manager.get_device_identity().await
 	}
-	pub async fn get_identity(&self, auth_id: auth::AuthId, _idtype: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
+
+	pub async fn get_identity(&self, auth_id: auth::AuthId, id_type: &str, module_id: &str) -> Result<aziot_identity_common::Identity, Error> {
 
 		if !self.authorizer.authorize(auth::Operation{auth_id, op_type: auth::OperationType::GetModule(String::from(module_id)) })? {
 			return Err(Error::Authorization);
 		}
 
-		self.id_manager.get_module_identity(module_id).await
+		match id_type {
+			"aziot" => {
+				self.id_manager.get_module_identity(module_id).await
+			},
+			"local" => {
+				let local_id = self.local_identities.get(&aziot_identity_common::ModuleId(module_id.to_string()));
+
+				match local_id {
+					Some(id) => {
+						// Renew certificate if needed. The private key will not change, so discard the return value if Ok.
+						self.create_identity_cert_if_not_exist_or_expired(
+							module_id,
+							module_id,
+							id.common_name.as_str(),
+							Some(id.attr)
+						).await?;
+
+						Ok(aziot_identity_common::Identity::Local(id.clone()))
+					},
+					None => Err(Error::invalid_parameter("module_id", format!("local identity for {} not found", module_id)))
+				}
+			},
+			_ => Err(Error::invalid_parameter("id_type", "invalid id_type"))
+		}
 	}
 
 	pub async fn get_identities(&self, auth_id: auth::AuthId, id_type: &str) -> Result<Vec<aziot_identity_common::Identity>, Error> {
@@ -255,6 +279,7 @@ impl Server {
 
 			// Build the local id spec that will be returned by HTTP APIs.
 			let spec = aziot_identity_common::LocalIdSpec {
+				common_name: common_name,
 				attr: attributes,
 				auth: aziot_identity_common::AuthenticationInfo {
 					auth_type: aziot_identity_common::AuthenticationType::X509,

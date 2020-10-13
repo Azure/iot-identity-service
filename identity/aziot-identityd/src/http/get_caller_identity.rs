@@ -28,7 +28,7 @@ impl http_common::server::Route for Route {
 	type DeleteBody = serde::de::IgnoredAny;
 	type DeleteResponse = ();
 
-	type GetResponse = aziot_identity_common_http::get_module_identity::Response;
+	type GetResponse = aziot_identity_common_http::get_caller_identity::Response;
 	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
 		Box::pin(async move {
 			let mut inner = self.inner.lock().await;
@@ -45,7 +45,7 @@ impl http_common::server::Route for Route {
 				Ok(v) => v,
 				Err(err) => return Err(super::to_http_error(&err)),
 			};
-			let res = aziot_identity_common_http::get_module_identity::Response {
+			let res = aziot_identity_common_http::get_caller_identity::Response {
 				identity,
 			};
 			Ok((hyper::StatusCode::OK, res))

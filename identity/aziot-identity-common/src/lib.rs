@@ -32,9 +32,18 @@ pub struct AzureIoTSpec {
 	pub auth: Option<AuthenticationInfo>,
 }
 
+/// Spec for local identities.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct LocalIdSpec {
+	/// Common name of local identity certificate. Used to renew certificate if needed
+	/// and does not need to be returned by the HTTP APIs.
+	#[serde(skip)]
+	pub common_name: String,
+
+	/// Attributes of the local identity certificate (either client or server).
 	pub attr: LocalIdAttr,
+
+	/// Cert ID and key handle of the local identity certificate.
 	pub auth: AuthenticationInfo,
 }
 

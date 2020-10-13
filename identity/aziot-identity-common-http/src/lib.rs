@@ -37,7 +37,6 @@ pub mod get_caller_identity {
 	}
 }
 
-
 pub mod get_device_identity {
 	#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Request {
@@ -70,12 +69,12 @@ pub mod create_module_identity {
 }
 
 pub mod update_module_identity {
-    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-     pub struct Response {
-         #[serde(flatten)]
-         pub identity: aziot_identity_common::Identity,
-     }
- }
+	#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+	pub struct Response {
+		#[serde(flatten)]
+		pub identity: aziot_identity_common::Identity,
+	}
+}
 
 pub mod get_module_identities {
 	#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -84,15 +83,12 @@ pub mod get_module_identities {
 	}
 }
 
-
 pub mod get_module_identity {
-   #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+	#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		#[serde(flatten)]
-		pub identity: aziot_identity_common::Identity,
+		pub identity: Vec<aziot_identity_common::Identity>,
 	}
 }
-
 
 pub mod get_trust_bundle {
 	#[derive(Debug, serde::Deserialize, serde::Serialize)]
