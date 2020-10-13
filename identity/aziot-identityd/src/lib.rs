@@ -279,12 +279,12 @@ impl Server {
 
 			// Build the local id spec that will be returned by HTTP APIs.
 			let spec = aziot_identity_common::LocalIdSpec {
-				common_name: common_name,
+				common_name,
 				attr: attributes,
 				auth: aziot_identity_common::AuthenticationInfo {
 					auth_type: aziot_identity_common::AuthenticationType::X509,
 					cert_id: Some(module_id.to_string()),
-					key_handle: key_handle,
+					key_handle,
 				},
 			};
 

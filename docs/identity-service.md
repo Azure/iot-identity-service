@@ -229,37 +229,43 @@ The response depends on the principal used to authenticate with the Identity Ser
 ### Response (SAS case)
 ```json
 {
-  "type": "aziot",
-  "spec":
-  {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
-    "auth": {
-        "type": "sas",
-        "keyHandle": "string"
-   }
-  }
+  "identities":[
+    {
+      "type":"aziot",
+      "spec":{
+        "hubname":"myhub.net",
+        "deviceid":"device01",
+        "moduleid":"module01",
+        "genid":"12345",
+        "auth":{
+          "type":"sas",
+          "keyHandle":"string"
+        }
+      }
+    }
+  ]
 }
 ```
 
 ### Response (X.509 case)
 ```json
 {
-  "type": "aziot",
-  "spec":
-  {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
-    "auth": {
-        "type": "x509",
-        "keyHandle": "string",
-        "certId": "string"
+  "identities":[
+    {
+      "type":"aziot",
+      "spec":{
+        "hubname":"myhub.net",
+        "deviceid":"device01",
+        "moduleid":"module01",
+        "genid":"12345",
+        "auth":{
+          "type":"x509",
+          "keyHandle":"string",
+          "certId": "string"
+        }
+      }
     }
-  }
+  ]
 }
 ```
 

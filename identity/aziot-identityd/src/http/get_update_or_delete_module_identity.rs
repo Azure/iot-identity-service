@@ -77,12 +77,8 @@ impl http_common::server::Route for Route {
 			}
 
 			// Only check for Hub identities if provisioned.
-			let provisioned = match inner.settings.provisioning.provisioning {
-				aziot_identityd::settings::ProvisioningType::None => false,
-				_ => true
-			};
-
-			if provisioned {
+			if !matches!(inner.settings.provisioning.provisioning,
+				aziot_identityd::settings::ProvisioningType::None) {
 				//TODO: get uid from UDS
 				match inner.get_identity(auth_id, "aziot", &self.module_id).await {
 					Ok(v) => identities.push(v),
@@ -91,7 +87,7 @@ impl http_common::server::Route for Route {
 			}
 
 			let res = aziot_identity_common_http::get_module_identity::Response {
-				identity: identities,
+				identities,
 			};
 
 			Ok((hyper::StatusCode::OK, res))

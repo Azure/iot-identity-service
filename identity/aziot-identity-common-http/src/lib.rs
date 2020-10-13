@@ -86,7 +86,7 @@ pub mod get_module_identities {
 pub mod get_module_identity {
 	#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 	pub struct Response {
-		pub identity: Vec<aziot_identity_common::Identity>,
+		pub identities: Vec<aziot_identity_common::Identity>,
 	}
 }
 
