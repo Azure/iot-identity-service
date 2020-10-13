@@ -1,0 +1,6 @@
+[submodule "tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/utpm"]
+	path = tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/utpm
+	url = https://github.com/Azure/azure-utpm-c.git
+[submodule "tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/c-shared"]
+	path = tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/c-shared
+	url = https://github.com/Azure/azure-c-shared-utility.git

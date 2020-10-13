@@ -32,6 +32,9 @@ members = [
 	"pkcs11/pkcs11-openssl-engine",
 	"pkcs11/pkcs11-sys",
 	"pkcs11/pkcs11-test",
+
+	"tpm/aziot-tpm-rs",
+	"tpm/aziot-tpm-sys",
 ]
 
 
