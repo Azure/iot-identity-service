@@ -4,7 +4,7 @@ IoT Identity Service is made up of three services that provide provisioning and 
 
 - [Identity Service](identity-service.md)
 
-    This service provisions the device identity and module identities with Azure. 
+    This service provisions the device identity and module identities with Azure.
 
     The Identity Service provides access to host-level processes and container modules to connect to the cloud using tokens or X.509 certificate credentials, corresponding to their respective identities.
 
@@ -14,6 +14,9 @@ IoT Identity Service is made up of three services that provide provisioning and 
 
     This service stores cryptographic keys, and allows callers to perform operations with those keys like encrypt, decrypt and sign. The service protects the keys by storing them in HSMs, and ensures that no operations against those keys export the keys to the device's memory.
 
+- [TPM Service](tpm-service.md)
+
+    This service brokers access to a device's TPM, and allows callers to retrieve the TPM's endorsement and storage root keys, activate a new identity key, and sign data using a stored identity key. The TPM service is the only service with permissions to access the TPM, and exposes an API which ensures the integrity of the keys stored in the TPM.
 
 - [Certificates Service](certificates-service.md)
 
