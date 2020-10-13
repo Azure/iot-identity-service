@@ -65,7 +65,7 @@ fn bindgen_test_layout_HSM_CLIENT_TPM_INTERFACE() {
 
     assert_eq!(
         ::std::mem::size_of::<HSM_CLIENT_TPM_INTERFACE>(),
-        8_usize * ::std::mem::size_of::<usize>(),
+        7_usize * ::std::mem::size_of::<usize>(),
         concat!("Size of: ", stringify!(HSM_CLIENT_TPM_INTERFACE))
     );
     assert_eq!(

@@ -17,25 +17,11 @@
 )]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 
-use std::os::raw::{c_char, c_int, c_uchar, c_void};
+use std::os::raw::{c_int, c_uchar, c_void};
 
 mod tpm;
 
 pub use tpm::HSM_CLIENT_TPM_INTERFACE;
-
-extern "C" {
-    pub fn hsm_get_version() -> *const c_char;
-}
-
-#[test]
-fn bindgen_test_supported_hsm_version() {
-    let result = unsafe {
-        std::ffi::CStr::from_ptr(hsm_get_version())
-            .to_string_lossy()
-            .into_owned()
-    };
-    assert_eq!(String::from("1.0.3"), result);
-}
 
 pub type HSM_CLIENT_HANDLE = *mut c_void;
 
