@@ -5,9 +5,4 @@ authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
 [dependencies]
-chrono = "0.4"
 aziot-tpm-sys = { path = "../aziot-tpm-sys"}
-failure = "0.1"
-
-[features]
-in_memory = ["aziot-tpm-sys/in_memory"]
