@@ -42,4 +42,4 @@ This spec covers the following modes of provisioning and runtime operation.
 
 - [openssl engine internals](openssl-engine-internals.md)
 
-- [Developer documentation](dev/_index.md)
+- [Developer documentation](dev/index.md)
