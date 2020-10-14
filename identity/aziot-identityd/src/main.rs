@@ -116,7 +116,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 	Ok(())
 }
 
-fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
+fn convert_to_map(principal: &[aziot_identityd::settings::Principal])
 	-> (std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
 		std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 		std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<aziot_identityd::settings::LocalIdOpts>>,)
@@ -125,8 +125,6 @@ fn convert_to_map(principal: &Option<Vec<aziot_identityd::settings::Principal>>)
 		Option<aziot_identityd::settings::LocalIdOpts>> = std::collections::BTreeMap::new();
 	let mut module_mset: std::collections::BTreeSet<aziot_identity_common::ModuleId> = std::collections::BTreeSet::new();
 	let mut pmap: std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal> = std::collections::BTreeMap::new();
-
-	let principal = principal.iter().flat_map(|p| p.iter());
 
 	for p in principal {
 		if let Some(id_type) = &p.id_type {
@@ -160,7 +158,7 @@ mod tests {
 		let local_p: Principal = Principal{uid: Uid(1000), name: ModuleId(String::from("local1")), id_type: Some(vec![IdType::Local]), localid: None};
 		let module_p: Principal = Principal{uid: Uid(1001), name: ModuleId(String::from("module1")), id_type: Some(vec![IdType::Module]), localid: None};
 		let v = vec![module_p.clone(), local_p.clone()];
-		let (map, _, _) = convert_to_map(&Some(v));
+		let (map, _, _) = convert_to_map(&v);
 
 		assert!(map.contains_key(&Uid(1000)));
 		assert_eq!(map.get(&Uid(1000)).unwrap(), &local_p);
@@ -176,7 +174,7 @@ mod tests {
 			Principal { uid: Uid(1002), name: ModuleId("globalmodule".to_owned()), id_type: Some(vec![IdType::Module, IdType::Local]), localid: None },
 		];
 
-		let (_, hub_modules, local_modules) = convert_to_map(&Some(v));
+		let (_, hub_modules, local_modules) = convert_to_map(&v);
 
 		assert!(hub_modules.contains(&ModuleId("hubmodule".to_owned())));
 		assert!(hub_modules.contains(&ModuleId("globalmodule".to_owned())));
@@ -207,9 +205,8 @@ mod tests {
 	#[test]
 	fn local_id_opts() {
 		let s = Settings::new(std::path::Path::new("test/good_local_opts.toml")).unwrap();
-		let principals = s.principal.unwrap();
 
-		assert_eq!(principals, vec![
+		assert_eq!(&s.principal, &[
 			Principal {
 				uid: Uid(1000),
 				name: ModuleId("module1".to_owned()),
@@ -233,7 +230,7 @@ mod tests {
 
 	#[test]
 	fn empty_auth_settings_deny_any_action() {
-		let (pmap, mset, _) = convert_to_map(&None);
+		let (pmap, mset, _) = convert_to_map(&[]);
 		let auth = SettingsAuthorizer {pmap, mset};
 		let operation = Operation { auth_id: AuthId::Unknown, op_type: OperationType::CreateModule(String::default()) };
 

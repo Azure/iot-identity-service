@@ -57,6 +57,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 
 [[package]]
+name = "aziot"
+version = "0.1.0"
+dependencies = [
+ "aziot-certd",
+ "aziot-identityd",
+ "aziot-keyd",
+ "backtrace",
+ "base64",
+ "bytes",
+ "derive_more",
+ "nix",
+ "structopt",
+ "toml",
+ "url",
+]
+
+[[package]]
 name = "aziot-cert-client-async"
 version = "0.1.0"
 dependencies = [
@@ -463,6 +480,17 @@ checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
 dependencies = [
  "generic-array",
  "subtle",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41cb0e6161ad61ed084a36ba71fbba9e3ac5aee3606fb607fe08da6acbcf3d8c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
 	/// Path of home directory.
 	pub homedir_path: std::path::PathBuf,
@@ -16,93 +16,93 @@ pub struct Config {
 	/// Map of service names to endpoint URIs.
 	///
 	/// Only configurable in debug builds for the sake of tests.
-	#[serde(default)]
-	#[cfg_attr(not(debug_assertions), serde(skip))]
+	#[serde(default, skip_serializing)]
+	#[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
 	pub endpoints: Endpoints,
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, Default, PartialEq, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuance {
 	/// Configuration of parameters for issuing certs via EST.
-	pub(crate) est: Option<Est>,
+	pub est: Option<Est>,
 
 	/// Configuration of parameters for issuing certs via a local CA cert.
-	pub(crate) local_ca: Option<LocalCa>,
+	pub local_ca: Option<LocalCa>,
 
 	/// Map of certificate IDs to the details used to issue them.
 	#[serde(flatten)]
-	pub(crate) certs: std::collections::BTreeMap<String, CertIssuanceOptions>,
+	pub certs: std::collections::BTreeMap<String, CertIssuanceOptions>,
 }
 
 /// Configuration of parameters for issuing certs via EST.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Est {
+pub struct Est {
 	/// Authentication parameters for the EST server.
-	pub(crate) auth: EstAuth,
+	pub auth: EstAuth,
 
 	/// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
-	pub(crate) trusted_certs: Vec<String>,
+	pub trusted_certs: Vec<String>,
 
 	/// Map of certificate IDs to EST endpoint URLs.
 	///
 	/// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
-	pub(crate) urls: std::collections::BTreeMap<String, url::Url>,
+	pub urls: std::collections::BTreeMap<String, url::Url>,
 }
 
 /// Authentication parameters for the EST server.
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
 #[derive(Debug, PartialEq)]
-pub(crate) struct EstAuth {
+pub struct EstAuth {
 	/// Authentication parameters when using basic HTTP authentication.
-	pub(crate) basic: Option<EstAuthBasic>,
+	pub basic: Option<EstAuthBasic>,
 
 	/// Authentication parameters when using TLS client cert authentication.
-	pub(crate) x509: Option<EstAuthX509>,
+	pub x509: Option<EstAuthX509>,
 }
 
 /// Authentication parameters when using basic HTTP authentication.
 #[derive(Debug, PartialEq)]
-pub(crate) struct EstAuthBasic {
-	pub(crate) username: String,
-	pub(crate) password: String,
+pub struct EstAuthBasic {
+	pub username: String,
+	pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
 #[derive(Debug, PartialEq)]
-pub(crate) struct EstAuthX509 {
+pub struct EstAuthX509 {
 	/// Cert ID and private key ID for the identity cert.
 	///
 	/// If this cert does not exist, it will be requested from the EST server,
 	/// with the bootstrap identity cert used as the initial TLS client cert.
-	pub(crate) identity: (String, String),
+	pub identity: (String, String),
 
 	/// Cert ID and private key ID for the bootstrap identity cert.
 	///
 	/// This is needed if the cert indicated by `identity` does not exist
 	/// and thus also needs to be requested from the EST server.
-	pub(crate) bootstrap_identity: Option<(String, String)>,
+	pub bootstrap_identity: Option<(String, String)>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct EstInner {
+	username: Option<String>,
+	password: Option<String>,
+
+	identity_cert: Option<String>,
+	identity_pk: Option<String>,
+	bootstrap_identity_cert: Option<String>,
+	bootstrap_identity_pk: Option<String>,
+
+	#[serde(default)]
+	trusted_certs: Vec<String>,
+
+	urls: std::collections::BTreeMap<String, url::Url>,
 }
 
 impl<'de> serde::Deserialize<'de> for Est {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::de::Deserializer<'de> {
-		#[derive(Debug, serde::Deserialize)]
-		pub(crate) struct EstInner {
-			username: Option<String>,
-			password: Option<String>,
-
-			identity_cert: Option<String>,
-			identity_pk: Option<String>,
-			bootstrap_identity_cert: Option<String>,
-			bootstrap_identity_pk: Option<String>,
-
-			#[serde(default)]
-			trusted_certs: Vec<String>,
-
-			urls: std::collections::BTreeMap<String, url::Url>,
-		}
-
 		let inner: EstInner = serde::Deserialize::deserialize(deserializer)?;
 
 		let auth_basic = match (inner.username, inner.password) {
@@ -157,29 +157,64 @@ impl<'de> serde::Deserialize<'de> for Est {
 	}
 }
 
+impl serde::Serialize for Est {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+		let mut inner = EstInner {
+			username: None,
+			password: None,
+
+			identity_cert: None,
+			identity_pk: None,
+			bootstrap_identity_cert: None,
+			bootstrap_identity_pk: None,
+
+			trusted_certs: self.trusted_certs.clone(),
+
+			urls: self.urls.clone(),
+		};
+
+		if let Some(basic) = &self.auth.basic {
+			inner.username = Some(basic.username.clone());
+			inner.password = Some(basic.password.clone());
+		}
+
+		if let Some(x509) = &self.auth.x509 {
+			inner.identity_cert = Some(x509.identity.0.clone());
+			inner.identity_pk = Some(x509.identity.1.clone());
+
+			if let Some(bootstrap_identity) = &x509.bootstrap_identity {
+				inner.bootstrap_identity_cert = Some(bootstrap_identity.0.clone());
+				inner.bootstrap_identity_pk = Some(bootstrap_identity.1.clone());
+			}
+		}
+
+		inner.serialize(serializer)
+	}
+}
+
 /// Configuration of parameters for issuing certs via a local CA cert.
-#[derive(Debug, PartialEq, serde::Deserialize)]
-pub(crate) struct LocalCa {
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct LocalCa {
 	/// Certificate ID.
-	pub(crate) cert: String,
+	pub cert: String,
 
 	/// Private key ID.
-	pub(crate) pk: String,
+	pub pk: String,
 }
 
 /// Details for issuing a single cert.
-#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
-pub(crate) struct CertIssuanceOptions {
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CertIssuanceOptions {
 	/// The method used to issue a certificate.
-	pub(crate) method: CertIssuanceMethod,
+	pub method: CertIssuanceMethod,
 
 	/// Common name for the issued certificate. Defaults to the common name specified in CSR if not provided.
-	pub(crate) common_name: Option<String>,
+	pub common_name: Option<String>,
 
 	/// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
 	/// If not provided, defaults to 30.
 	#[serde(default, deserialize_with = "deserialize_expiry_days")]
-	pub(crate) expiry_days: Option<u32>,
+	pub expiry_days: Option<u32>,
 }
 
 fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -194,45 +229,23 @@ fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Er
 }
 
 /// The method used to issue a certificate.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum CertIssuanceMethod {
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum CertIssuanceMethod {
 	/// The certificate is to be issued via EST.
+	#[serde(rename = "est")]
 	Est,
 
 	/// The certificate is to be issued via a local CA cert.
+	#[serde(rename = "local_ca")]
 	LocalCa,
 
 	/// The certificate is to be self-signed.
+	#[serde(rename = "self_signed")]
 	SelfSigned,
 }
 
-impl<'de> serde::Deserialize<'de> for CertIssuanceMethod {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::de::Deserializer<'de> {
-		struct Visitor;
-
-		impl<'de> serde::de::Visitor<'de> for Visitor {
-			type Value = CertIssuanceMethod;
-
-			fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-				f.write_str(stringify!(CertIssuanceMethod))
-			}
-
-			fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where E: serde::de::Error {
-				match v {
-					"est" => Ok(CertIssuanceMethod::Est),
-					"local_ca" => Ok(CertIssuanceMethod::LocalCa),
-					"self_signed" => Ok(CertIssuanceMethod::SelfSigned),
-					v => Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(v), &r#"one of "est" or "local_ca" or "self_signed""#)),
-				}
-			}
-		}
-
-		deserializer.deserialize_str(Visitor)
-	}
-}
-
 /// The location of a preloaded cert.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum PreloadedCert {
 	/// A URI for the location.
@@ -247,7 +260,7 @@ pub enum PreloadedCert {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Endpoints {
 	/// The endpoint that the certd service binds to.
 	pub aziot_certd: http_common::Connector,

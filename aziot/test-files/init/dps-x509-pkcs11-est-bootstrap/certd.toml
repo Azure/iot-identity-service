@@ -1,0 +1,20 @@
+homedir_path = "/var/lib/aziot/certd"
+[cert_issuance.est]
+username = "estuser"
+password = "estpwd"
+identity_cert = "est-id"
+identity_pk = "est-id"
+bootstrap_identity_cert = "est-bootstrap-id"
+bootstrap_identity_pk = "est-bootstrap-id"
+trusted_certs = ["est-server-ca"]
+
+[cert_issuance.est.urls]
+default = "https://example.org/.well-known/est"
+device-id = "https://example.org/.well-known/est/device-id"
+
+[cert_issuance.device-id]
+method = "est"
+
+[preloaded_certs]
+est-bootstrap-id = "file:///var/secrets/est-bootstrap-id.pem"
+est-server-ca = "file:///var/secrets/est-id-ca.pem"

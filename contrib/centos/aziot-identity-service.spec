@@ -109,10 +109,11 @@ fi
 
 
 %files
-# Service binaries
+# Binaries
 %{_libexecdir}/%{name}/aziot-certd
 %{_libexecdir}/%{name}/aziot-identityd
 %{_libexecdir}/%{name}/aziot-keyd
+%{_bindir}/aziot
 
 # libaziot-keys
 %{_libdir}/libaziot_keys.so

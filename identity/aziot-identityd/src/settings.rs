@@ -13,13 +13,14 @@ pub struct Settings {
 
 	pub homedir: std::path::PathBuf,
 
-	pub principal: Option<Vec<Principal>>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub principal: Vec<Principal>,
 
 	pub provisioning: Provisioning,
 
 	/// Only configurable in debug builds for the sake of tests.
-	#[serde(default)]
-	#[cfg_attr(not(debug_assertions), serde(skip))]
+	#[serde(default, skip_serializing)]
+	#[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
 	pub endpoints: Endpoints,
 
 	pub localid: Option<LocalId>,
@@ -34,44 +35,42 @@ impl Settings {
 	}
 
 	fn check(self) -> Result<Self, InternalError> {
-		if let Some(principal) = &self.principal {
-			for p in principal {
-				if let Some(t) = &p.id_type {
-					if t.contains(&aziot_identity_common::IdType::Local) {
-						// Require localid in config if any principal has local id_type.
-						if self.localid.is_none() {
-							return Err(InternalError::BadSettings(std::io::Error::new(
-								std::io::ErrorKind::InvalidInput,
-								format!("invalid config for {}: local id type requires localid config", p.name.0)
-							)));
-						}
-					}
-					else {
-						// Reject principals that specify local identity options without the "local" type.
-						if p.localid.is_some() {
-							return Err(InternalError::BadSettings(std::io::Error::new(
-								std::io::ErrorKind::InvalidInput,
-								format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
-							)));
-						}
-					}
-
-					// Require provisioning if any module or device identities are present.
-					let provisioning_valid = match self.provisioning.provisioning {
-						ProvisioningType::None => {
-							!t.contains(&aziot_identity_common::IdType::Module) &&
-							!t.contains(&aziot_identity_common::IdType::Device)
-						},
-						_ => true,
-					};
-
-					if !provisioning_valid {
+		for p in &self.principal {
+			if let Some(t) = &p.id_type {
+				if t.contains(&aziot_identity_common::IdType::Local) {
+					// Require localid in config if any principal has local id_type.
+					if self.localid.is_none() {
 						return Err(InternalError::BadSettings(std::io::Error::new(
-								std::io::ErrorKind::InvalidInput,
-								format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
-							))
-						);
+							std::io::ErrorKind::InvalidInput,
+							format!("invalid config for {}: local id type requires localid config", p.name.0)
+						)));
 					}
+				}
+				else {
+					// Reject principals that specify local identity options without the "local" type.
+					if p.localid.is_some() {
+						return Err(InternalError::BadSettings(std::io::Error::new(
+							std::io::ErrorKind::InvalidInput,
+							format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
+						)));
+					}
+				}
+
+				// Require provisioning if any module or device identities are present.
+				let provisioning_valid = match self.provisioning.provisioning {
+					ProvisioningType::None => {
+						!t.contains(&aziot_identity_common::IdType::Module) &&
+						!t.contains(&aziot_identity_common::IdType::Device)
+					},
+					_ => true,
+				};
+
+				if !provisioning_valid {
+					return Err(InternalError::BadSettings(std::io::Error::new(
+							std::io::ErrorKind::InvalidInput,
+							format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
+						))
+					);
 				}
 			}
 		}
@@ -172,11 +171,21 @@ pub enum DpsAttestationMethod {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
-	#[serde(flatten)]
-	pub provisioning: ProvisioningType,
+	// This type used to have the `provisioning` field before the `dynamic_provisioning` field. It doesn't matter much except that the fields are
+	// serialized in the order of definition when generating a new config via `aziot init`, and it would've been nice to serialize
+	// the `provisioning` value before the `dynamic_reprovisioning` value.
+	//
+	// Unfortunately the TOML serializer needs "values" (like `dynamic_reprovisioning`) to come before "tables" (like `provisioning`),
+	// otherwise it fails to serialize the value. It ought to not matter for this type because the `provisioning` value is flattened,
+	// but the TOML serializer doesn't know this.
+	//
+	// So we have to move the `dynamic_provisioning` field before the `provisioning` field.
 
 	#[serde(default)]
 	pub dynamic_reprovisioning: bool,
+
+	#[serde(flatten)]
+	pub provisioning: ProvisioningType,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

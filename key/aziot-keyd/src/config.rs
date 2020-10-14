@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
 	/// Parameters passed down to libaziot-keys. The allowed names and values are determined by the libaziot-keys implementation.
 	#[serde(default)]
@@ -13,13 +13,13 @@ pub struct Config {
 	/// Map of service names to endpoint URIs.
 	///
 	/// Only configurable in debug builds for the sake of tests.
-	#[serde(default)]
-	#[cfg_attr(not(debug_assertions), serde(skip))]
+	#[serde(default, skip_serializing)]
+	#[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
 	pub endpoints: Endpoints,
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Endpoints {
 	/// The endpoint that the keyd service binds to.
 	pub aziot_keyd: http_common::Connector,
