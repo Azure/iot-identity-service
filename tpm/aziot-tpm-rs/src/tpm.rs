@@ -6,21 +6,21 @@ use std::os::raw::{c_uchar, c_void};
 use std::ptr;
 use std::slice;
 
-use super::{ManageTpmKeys, SignWithTpm};
-use crate::error::Error;
 use aziot_tpm_sys::{
-    hsm_client_tpm_activate_identity_key, hsm_client_tpm_create, hsm_client_tpm_deinit,
-    hsm_client_tpm_destroy, hsm_client_tpm_free_buffer, hsm_client_tpm_get_endorsement_key,
-    hsm_client_tpm_get_storage_key, hsm_client_tpm_init, hsm_client_tpm_sign_data,
-    HSM_CLIENT_HANDLE,
+    aziot_tpm_create, aziot_tpm_deinit, aziot_tpm_destroy, aziot_tpm_free_buffer,
+    aziot_tpm_get_keys, aziot_tpm_import_auth_key, aziot_tpm_init, aziot_tpm_sign_with_auth_key,
+    AZIOT_TPM_HANDLE,
 };
+
+use crate::Error;
+use crate::{ManageTpmKeys, SignWithTpm};
 
 /// Hsm for TPM
 ///
 /// Create an instance of this to use the TPM interface of an HSM.
 #[derive(Debug)]
 pub struct Tpm {
-    handle: HSM_CLIENT_HANDLE,
+    handle: AZIOT_TPM_HANDLE,
 }
 
 // SAFETY: Handles don't have thread-affinity
@@ -61,26 +61,34 @@ tpm_buffer_newtype!(
     pub struct TpmDigest(TpmBuffer)
 );
 
+/// The TPM's Endorsement and Storage Root Keys.
+pub struct TpmKeys {
+    /// The TPM's Endorsement Key
+    pub endorsement_key: TpmKey,
+    /// The TPM's Storage Root Key
+    pub storage_root_key: TpmKey,
+}
+
 impl Drop for Tpm {
     fn drop(&mut self) {
         unsafe {
-            hsm_client_tpm_destroy(self.handle);
+            aziot_tpm_destroy(self.handle);
         }
         // TODO: unit tests are calling this function, and should avoid doing so.
-        unsafe { hsm_client_tpm_deinit() };
+        unsafe { aziot_tpm_deinit() };
     }
 }
 
 impl Tpm {
     /// Create a new TPM implementation for the HSM API.
     pub fn new() -> Result<Tpm, Error> {
-        let result = unsafe { hsm_client_tpm_init() as isize };
+        let result = unsafe { aziot_tpm_init() as isize };
         if result != 0 {
             return Err(Error::Init(result));
         }
-        let handle = unsafe { hsm_client_tpm_create() };
+        let handle = unsafe { aziot_tpm_create() };
         if handle.is_null() {
-            unsafe { hsm_client_tpm_deinit() };
+            unsafe { aziot_tpm_deinit() };
             return Err(Error::NullResponse);
         }
         Ok(Tpm { handle })
@@ -88,50 +96,39 @@ impl Tpm {
 }
 
 impl ManageTpmKeys for Tpm {
-    /// Imports key that has been previously encrypted with the endorsement key and storage root key into the TPM key storage.
-    fn activate_identity_key(&self, key: &[u8]) -> Result<(), Error> {
-        let result =
-            unsafe { hsm_client_tpm_activate_identity_key(self.handle, key.as_ptr(), key.len()) };
+    fn import_auth_key(&self, key: &[u8]) -> Result<(), Error> {
+        let result = unsafe { aziot_tpm_import_auth_key(self.handle, key.as_ptr(), key.len()) };
         match result {
             0 => Ok(()),
             r => Err(r.into()),
         }
     }
 
-    /// Retrieves the endorsement key of the TPM .
-    fn get_ek(&self) -> Result<TpmKey, Error> {
-        let mut key_ln: usize = 0;
-        let mut ptr = ptr::null_mut();
+    fn get_tpm_keys(&self) -> Result<TpmKeys, Error> {
+        let mut ek = ptr::null_mut();
+        let mut ek_ln: usize = 0;
+        let mut srk = ptr::null_mut();
+        let mut srk_ln: usize = 0;
 
         let result =
-            unsafe { hsm_client_tpm_get_endorsement_key(self.handle, &mut ptr, &mut key_ln) };
+            unsafe { aziot_tpm_get_keys(self.handle, &mut ek, &mut ek_ln, &mut srk, &mut srk_ln) };
         match result {
-            0 => Ok(TpmKey(TpmBuffer::new(ptr as *const _, key_ln))),
-            r => Err(r.into()),
-        }
-    }
-
-    /// Retrieves the storage root key of the TPM
-    fn get_srk(&self) -> Result<TpmKey, Error> {
-        let mut key_ln: usize = 0;
-        let mut ptr = ptr::null_mut();
-
-        let result = unsafe { hsm_client_tpm_get_storage_key(self.handle, &mut ptr, &mut key_ln) };
-        match result {
-            0 => Ok(TpmKey(TpmBuffer::new(ptr as *const _, key_ln))),
+            0 => Ok(TpmKeys {
+                endorsement_key: TpmKey(TpmBuffer::new(ek as *const _, ek_ln)),
+                storage_root_key: TpmKey(TpmBuffer::new(srk as *const _, srk_ln)),
+            }),
             r => Err(r.into()),
         }
     }
 }
 
 impl SignWithTpm for Tpm {
-    /// Hashes the parameter data with the key previously stored in the TPM and returns the value
-    fn sign_with_identity(&self, data: &[u8]) -> Result<TpmDigest, Error> {
+    fn sign_with_auth_key(&self, data: &[u8]) -> Result<TpmDigest, Error> {
         let mut key_ln: usize = 0;
         let mut ptr = ptr::null_mut();
 
         let result = unsafe {
-            hsm_client_tpm_sign_data(
+            aziot_tpm_sign_with_auth_key(
                 self.handle,
                 data.as_ptr(),
                 data.len(),
@@ -156,7 +153,7 @@ pub struct TpmBuffer {
 
 impl Drop for TpmBuffer {
     fn drop(&mut self) {
-        unsafe { hsm_client_tpm_free_buffer(self.key as *mut c_void) };
+        unsafe { aziot_tpm_free_buffer(self.key as *mut c_void) };
     }
 }
 

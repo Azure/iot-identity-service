@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-//! aziot-tpm-sys
-//!
 //! Rust FFI to C library interface.
 
 #![deny(rust_2018_idioms, warnings)]
@@ -11,35 +9,32 @@
 
 use std::os::raw::{c_int, c_uchar, c_void};
 
-pub type HSM_CLIENT_HANDLE = *mut c_void;
+pub type AZIOT_TPM_HANDLE = *mut c_void;
 
 extern "C" {
-    pub fn hsm_client_tpm_init() -> c_int;
-    pub fn hsm_client_tpm_deinit();
+    pub fn aziot_tpm_init() -> c_int;
+    pub fn aziot_tpm_deinit();
 
-    pub fn hsm_client_tpm_create() -> HSM_CLIENT_HANDLE;
-    pub fn hsm_client_tpm_destroy(handle: HSM_CLIENT_HANDLE);
-    pub fn hsm_client_tpm_activate_identity_key(
-        handle: HSM_CLIENT_HANDLE,
+    pub fn aziot_tpm_create() -> AZIOT_TPM_HANDLE;
+    pub fn aziot_tpm_destroy(handle: AZIOT_TPM_HANDLE);
+    pub fn aziot_tpm_import_auth_key(
+        handle: AZIOT_TPM_HANDLE,
         key: *const c_uchar,
         key_len: usize,
     ) -> c_int;
-    pub fn hsm_client_tpm_get_endorsement_key(
-        handle: HSM_CLIENT_HANDLE,
-        key: *mut *mut c_uchar,
-        key_len: *mut usize,
+    pub fn aziot_tpm_get_keys(
+        handle: AZIOT_TPM_HANDLE,
+        ek: *mut *mut c_uchar,
+        ek_len: *mut usize,
+        srk: *mut *mut c_uchar,
+        srk_len: *mut usize,
     ) -> c_int;
-    pub fn hsm_client_tpm_get_storage_key(
-        handle: HSM_CLIENT_HANDLE,
-        key: *mut *mut c_uchar,
-        key_len: *mut usize,
-    ) -> c_int;
-    pub fn hsm_client_tpm_sign_data(
-        handle: HSM_CLIENT_HANDLE,
+    pub fn aziot_tpm_sign_with_auth_key(
+        handle: AZIOT_TPM_HANDLE,
         data: *const c_uchar,
         data_len: usize,
         key: *mut *mut c_uchar,
         key_len: *mut usize,
     ) -> c_int;
-    pub fn hsm_client_tpm_free_buffer(buffer: *mut c_void);
+    pub fn aziot_tpm_free_buffer(buffer: *mut c_void);
 }
