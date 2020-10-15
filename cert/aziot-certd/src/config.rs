@@ -230,17 +230,15 @@ fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Er
 
 /// The method used to issue a certificate.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
 	/// The certificate is to be issued via EST.
-	#[serde(rename = "est")]
 	Est,
 
 	/// The certificate is to be issued via a local CA cert.
-	#[serde(rename = "local_ca")]
 	LocalCa,
 
 	/// The certificate is to be self-signed.
-	#[serde(rename = "self_signed")]
 	SelfSigned,
 }
 
