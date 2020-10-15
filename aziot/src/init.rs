@@ -213,7 +213,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 		},
 
 		ProvisioningMethod::DpsSymmetricKey => {
-			let scope_id = prompt(stdin, "Enter the DPS scope ID.")?;
+			let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
 			let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 			let symmetric_key = loop {
 				let symmetric_key = prompt(stdin, "Enter the DPS symmetric key (in its original base64 form)..")?;
