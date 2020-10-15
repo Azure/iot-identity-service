@@ -20,11 +20,13 @@ find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 
 set(source_c_files
+    ./src/aziot_tpm.c
     ./src/hsm_client_tpm_device.c
     ./src/hsm_log.c
 )
 
 set(source_h_files
+    ./inc/aziot_tpm.h
     ./inc/hsm_client_data.h
     ./src/hsm_client_tpm_device.h
     ./src/hsm_log.h
