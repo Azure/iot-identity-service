@@ -90,7 +90,7 @@ fn main() {
         "ON"
     };
     println!("#Start building HSM dev-mode library");
-    let iothsm = Config::new("azure-iot-hsm-c")
+    let aziottpm = Config::new("azure-iot-hsm-c")
         .define(SSL_OPTION, "ON")
         .define("CMAKE_BUILD_TYPE", "Release")
         .define("run_unittests", rut)
@@ -108,11 +108,14 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=RUN_VALGRIND");
     // For libraries which will just install in target directory
-    println!("cargo:rustc-link-search=native={}", iothsm.display());
+    println!("cargo:rustc-link-search=native={}", aziottpm.display());
     // For libraries (ie. C Shared) which will install in $target/lib
-    println!("cargo:rustc-link-search=native={}/lib", iothsm.display());
-    println!("cargo:rustc-link-search=native={}/lib64", iothsm.display());
-    println!("cargo:rustc-link-lib=iothsm");
+    println!("cargo:rustc-link-search=native={}/lib", aziottpm.display());
+    println!(
+        "cargo:rustc-link-search=native={}/lib64",
+        aziottpm.display()
+    );
+    println!("cargo:rustc-link-lib=aziottpm");
 
     println!("cargo:rustc-link-lib=aziotsharedutil");
     println!("cargo:rustc-link-lib=utpm");

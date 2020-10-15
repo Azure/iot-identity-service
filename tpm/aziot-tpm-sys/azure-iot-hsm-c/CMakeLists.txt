@@ -2,10 +2,10 @@
 #Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 cmake_minimum_required(VERSION 2.8.11)
-project(iothsm)
-set (iothsm_VERSION_MAJOR 1)
-set (iothsm_VERSION_MINOR 0)
-set (iothsm_VERSION_PATCH 8)
+project(aziottpm)
+set (aziottpm_VERSION_MAJOR 1)
+set (aziottpm_VERSION_MINOR 0)
+set (aziottpm_VERSION_PATCH 0)
 
 #Use solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -46,7 +46,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
 endif()
 
-add_library(iothsm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
+add_library(aziottpm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
 
 if (run_unittests)
     enable_testing()
@@ -61,17 +61,17 @@ if (save_ut)
     set(run_unittests ${save_ut} CACHE BOOL "unittests" FORCE)
 endif(save_ut)
 
-target_link_libraries(iothsm aziotsharedutil utpm ${OPENSSL_LIBRARIES})
+target_link_libraries(aziottpm aziotsharedutil utpm ${OPENSSL_LIBRARIES})
 
 if (${run_unittests})
     add_subdirectory(tests)
 endif()
 
-set_target_properties(iothsm PROPERTIES
-        VERSION ${iothsm_VERSION_MAJOR}.${iothsm_VERSION_MINOR}.${iothsm_VERSION_PATCH}
+set_target_properties(aziottpm PROPERTIES
+        VERSION ${aziottpm_VERSION_MAJOR}.${aziottpm_VERSION_MINOR}.${aziottpm_VERSION_PATCH}
         SOVERSION 1)
 
-install(TARGETS iothsm
+install(TARGETS aziottpm
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
