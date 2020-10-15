@@ -144,6 +144,8 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 		return Err("this command must be run as root".into());
 	}
 
+	let hostname = get_hostname()?;
+
 	let (
 		provisioning_type,
 		preloaded_device_id_pk_bytes,
@@ -382,7 +384,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 
 				certd_config.cert_issuance.certs.insert(DEVICE_ID_ID.to_owned(), aziot_certd::CertIssuanceOptions {
 					method: aziot_certd::CertIssuanceMethod::LocalCa,
-					common_name: None,
+					common_name: Some(hostname.clone()),
 					expiry_days: None,
 				});
 			},
@@ -390,7 +392,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 			Some(DeviceIdSource::Est) => {
 				certd_config.cert_issuance.certs.insert(DEVICE_ID_ID.to_owned(), aziot_certd::CertIssuanceOptions {
 					method: aziot_certd::CertIssuanceMethod::Est,
-					common_name: None,
+					common_name: Some(hostname.clone()),
 					expiry_days: None,
 				});
 
@@ -565,7 +567,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 
 	let identityd_config = {
 		aziot_identityd::settings::Settings {
-			hostname: get_hostname()?,
+			hostname,
 			homedir: AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 			principal: vec![],
 			provisioning: aziot_identityd::settings::Provisioning {
