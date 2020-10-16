@@ -8,19 +8,11 @@
 #include "azure_c_shared_utility/strings.h"
 #include "azure_c_shared_utility/uniqueid.h"
 
-#if (defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows)
-    #include <direct.h>
-    #include <intsafe.h>
-    #include <windows.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-    #define SLASH "\\"
-#else
-    #include <sys/stat.h>
-    #include <sys/types.h>
-    #include <unistd.h>
-
-    #define SLASH "/"
-#endif
+#define SLASH "/"
 
 #define UID_SIZE            37
 #define MAX_FILE_NAME_SIZE  256
@@ -34,12 +26,8 @@ static char* get_temp_base_dir(void)
     char *result = calloc(MAX_FILE_NAME_SIZE, 1);
     ASSERT_IS_NOT_NULL(result);
 
-#if (defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows)
-    DWORD count = GetTempPathA(MAX_FILE_NAME_SIZE, result);
-    ASSERT_IS_TRUE(count < MAX_FILE_NAME_SIZE, "TestUtil Line:" TOSTRING(__LINE__));
-#else
     strcpy_s(result, MAX_FILE_NAME_SIZE, "/tmp/");
-#endif
+
     ASSERT_ARE_NOT_EQUAL(size_t, 0, strlen(result), "TestUtil Line:" TOSTRING(__LINE__));
 
     return result;
@@ -48,11 +36,8 @@ static char* get_temp_base_dir(void)
 static int make_test_dir(const char* dir_path)
 {
     int status, result;
-#if defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows
-    status = _mkdir(dir_path);
-#else
+
     status = mkdir(dir_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-#endif
 
     if (status != 0)
     {
@@ -138,18 +123,6 @@ void hsm_test_util_delete_dir(const char *dir_guid)
     char *dir_path = create_temp_dir_path(dir_guid);
     printf("Deleting temp directory '%s'.\r\n", dir_path);
 
-#if (defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows)
-    SHFILEOPSTRUCTA shfo = {
-        NULL,
-        FO_DELETE,
-        dir_path,
-        NULL,
-        FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
-        FALSE,
-        NULL,
-        NULL };
-    status = SHFileOperationA(&shfo);
-#else
     const char *cmd_prefix = "rm -fr ";
     size_t cmd_size = strlen(cmd_prefix) + MAX_FILE_NAME_SIZE + 1;
     char *cmd = calloc(cmd_size, 1);
@@ -159,18 +132,15 @@ void hsm_test_util_delete_dir(const char *dir_guid)
     printf("Deleting directory using command '%s'.\r\n", cmd);
     status = system(cmd);
     free(cmd);
-#endif
+
     ASSERT_ARE_EQUAL(int, 0, status, "TestUtil Line:" TOSTRING(__LINE__));
     free(dir_path);
 }
 
 void hsm_test_util_setenv(const char *key, const char *value)
 {
-    #if defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows
-        errno_t status = _putenv_s(key, value);
-    #else
-        int status = setenv(key, value, 1);
-    #endif
+    int status = setenv(key, value, 1);
+
     ASSERT_ARE_EQUAL(int, 0, status, "TestUtil Line:" TOSTRING(__LINE__));
     const char *retrieved_value = getenv(key);
     if (retrieved_value != NULL)
@@ -182,16 +152,8 @@ void hsm_test_util_setenv(const char *key, const char *value)
 
 void hsm_test_util_unsetenv(const char *key)
 {
-    #if defined __WINDOWS__ || defined _WIN32 || defined _WIN64 || defined _Windows
-        STRING_HANDLE key_handle = STRING_construct(key);
-        ASSERT_IS_NOT_NULL(key_handle, "TestUtil Line:" TOSTRING(__LINE__));
-        int ret_val = STRING_concat(key_handle, "=");
-        ASSERT_ARE_EQUAL(int, 0, ret_val, "TestUtil Line:" TOSTRING(__LINE__));
-        errno_t status = _putenv(STRING_c_str(key_handle));
-        STRING_delete(key_handle);
-    #else
-        int status = unsetenv(key);
-    #endif
+    int status = unsetenv(key);
+
     ASSERT_ARE_EQUAL(int, 0, status, "TestUtil Line:" TOSTRING(__LINE__));
     const char *retrieved_value = getenv(key);
     ASSERT_IS_NULL(retrieved_value, "TestUtil Line:" TOSTRING(__LINE__));
