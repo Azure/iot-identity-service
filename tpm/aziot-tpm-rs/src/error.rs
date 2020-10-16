@@ -25,6 +25,8 @@ impl Display for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
 impl From<c_int> for Error {
     fn from(result: c_int) -> Self {
         Error::Api(result)

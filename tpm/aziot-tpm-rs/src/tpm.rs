@@ -13,11 +13,8 @@ use aziot_tpm_sys::{
 };
 
 use crate::Error;
-use crate::{ManageTpmKeys, SignWithTpm};
 
-/// Hsm for TPM
-///
-/// Create an instance of this to use the TPM interface of an HSM.
+/// An interface to the TPM interface of an HSM.
 #[derive(Debug)]
 pub struct Tpm {
     handle: AZIOT_TPM_HANDLE,
@@ -93,10 +90,10 @@ impl Tpm {
         }
         Ok(Tpm { handle })
     }
-}
 
-impl ManageTpmKeys for Tpm {
-    fn import_auth_key(&self, key: &[u8]) -> Result<(), Error> {
+    /// Imports key that has been previously encrypted with the endorsement key
+    /// and storage root key into the TPM key storage.
+    pub fn import_auth_key(&self, key: &[u8]) -> Result<(), Error> {
         let result = unsafe { aziot_tpm_import_auth_key(self.handle, key.as_ptr(), key.len()) };
         match result {
             0 => Ok(()),
@@ -104,7 +101,8 @@ impl ManageTpmKeys for Tpm {
         }
     }
 
-    fn get_tpm_keys(&self) -> Result<TpmKeys, Error> {
+    /// Retrieves the endorsement and storage root keys of the TPM.
+    pub fn get_tpm_keys(&self) -> Result<TpmKeys, Error> {
         let mut ek = ptr::null_mut();
         let mut ek_ln: usize = 0;
         let mut srk = ptr::null_mut();
@@ -120,10 +118,10 @@ impl ManageTpmKeys for Tpm {
             r => Err(r.into()),
         }
     }
-}
 
-impl SignWithTpm for Tpm {
-    fn sign_with_auth_key(&self, data: &[u8]) -> Result<TpmDigest, Error> {
+    /// Hashes the parameter data with the key previously stored in the TPM and
+    /// returns the value.
+    pub fn sign_with_auth_key(&self, data: &[u8]) -> Result<TpmDigest, Error> {
         let mut key_ln: usize = 0;
         let mut ptr = ptr::null_mut();
 
