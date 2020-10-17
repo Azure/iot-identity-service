@@ -28,9 +28,9 @@ Each component talks to the other components via IPC in the form of HTTP-over-UD
 
 ## Relation to IoT Edge
 
-    The full IoT Edge runtime, in concert with IoT Hub, [provides numerous capabilities](https://docs.microsoft.com/azure/iot-edge/iot-edge-runtime) that are needed to scale out and manage an IoT solution from the cloud. The code for IoT Edge can be found in its [repo](https://github.com/azure/iotedge). 
+The full IoT Edge runtime, in concert with IoT Hub, [provides numerous capabilities](https://docs.microsoft.com/azure/iot-edge/iot-edge-runtime) that are needed to scale out and manage an IoT solution from the cloud. The code for IoT Edge can be found in its [repo](https://github.com/azure/iotedge). 
 
-    IoT Edge exposes APIs for [Edge modules](https://docs.microsoft.com/azure/iot-edge/iot-edge-modules) to request certificates, encrypt/decrypt secrets and obtain SAS tokens for talking to Azure IoT Hub. It implements these runtime operations by talking to the IS, CS and KS on behalf of the containerized modules, ie it forwards these API requests to the identity, cert, and key services after enhancing them with the identity of the module making the request.
+IoT Edge exposes APIs for [Edge modules](https://docs.microsoft.com/azure/iot-edge/iot-edge-modules) to request certificates, encrypt/decrypt secrets and obtain SAS tokens for talking to Azure IoT Hub. It implements these runtime operations by talking to the IS, CS and KS on behalf of the containerized modules, ie it forwards these API requests to the identity, cert, and key services after enhancing them with the identity of the module making the request.
 
 # Provisioning and Runtime Operation
 
