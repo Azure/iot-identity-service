@@ -10,7 +10,7 @@ See [`docs/README.md`](docs/README.md) for an overview of these services and the
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines.
 
-See [`docs/dev/_index.md`](docs/dev/_index.md) for developer documentation.
+See [`docs/dev/index.md`](docs/dev/index.md) for developer documentation.
 
 
 # License
