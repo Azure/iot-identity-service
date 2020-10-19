@@ -5,11 +5,13 @@ use std::ops::{Deref, Drop};
 use std::os::raw::{c_uchar, c_void};
 use std::ptr;
 use std::slice;
+use std::sync::{Mutex, Once};
+
+use lazy_static::lazy_static;
 
 use aziot_tpm_sys::{
-    aziot_tpm_create, aziot_tpm_deinit, aziot_tpm_destroy, aziot_tpm_free_buffer,
-    aziot_tpm_get_keys, aziot_tpm_import_auth_key, aziot_tpm_init, aziot_tpm_sign_with_auth_key,
-    AZIOT_TPM_HANDLE,
+    aziot_tpm_create, aziot_tpm_destroy, aziot_tpm_free_buffer, aziot_tpm_get_keys,
+    aziot_tpm_import_auth_key, aziot_tpm_init, aziot_tpm_sign_with_auth_key, AZIOT_TPM_HANDLE,
 };
 
 use crate::Error;
@@ -71,21 +73,39 @@ impl Drop for Tpm {
         unsafe {
             aziot_tpm_destroy(self.handle);
         }
-        // TODO: unit tests are calling this function, and should avoid doing so.
-        unsafe { aziot_tpm_deinit() };
     }
+}
+
+static mut INIT_RESULT: Option<Result<(), Error>> = None;
+static INIT_C_LIB: Once = Once::new();
+
+lazy_static! {
+    static ref TPM_CREATE_GUARD: Mutex<()> = Mutex::new(());
 }
 
 impl Tpm {
     /// Create a new TPM implementation for the HSM API.
     pub fn new() -> Result<Tpm, Error> {
-        let result = unsafe { aziot_tpm_init() as isize };
-        if result != 0 {
-            return Err(Error::Init(result));
-        }
-        let handle = unsafe { aziot_tpm_create() };
+        // ensure that `aziot_tpm_init` is only called once
+        INIT_C_LIB.call_once(|| unsafe {
+            INIT_RESULT = {
+                let result = aziot_tpm_init() as isize;
+                if result == 0 {
+                    Some(Ok(()))
+                } else {
+                    Some(Err(Error::Init(result)))
+                }
+            }
+        });
+        unsafe { INIT_RESULT.unwrap()? };
+
+        // ensure that calls to `aziot_tpm_create` are serialized
+        let handle = {
+            let _guard = TPM_CREATE_GUARD.lock();
+            unsafe { aziot_tpm_create() }
+        };
+
         if handle.is_null() {
-            unsafe { aziot_tpm_deinit() };
             return Err(Error::NullResponse);
         }
         Ok(Tpm { handle })

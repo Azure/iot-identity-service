@@ -22,12 +22,6 @@ extern "C" {
  */
 int aziot_tpm_init();
 
-/**
- * @brief   Teardown function for the aziot-tpm library
- *
- */
-void aziot_tpm_deinit();
-
 typedef void* AZIOT_TPM_HANDLE;
 
 /**

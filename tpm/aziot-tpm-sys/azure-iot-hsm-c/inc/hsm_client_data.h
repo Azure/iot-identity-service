@@ -16,7 +16,6 @@ extern "C" {
 /** @file */
 
 int hsm_client_tpm_init();
-void hsm_client_tpm_deinit();
 
 typedef void* HSM_CLIENT_HANDLE;
 

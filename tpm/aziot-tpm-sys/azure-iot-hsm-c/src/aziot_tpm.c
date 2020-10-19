@@ -14,10 +14,6 @@ int aziot_tpm_init() {
     return hsm_client_tpm_init();
 }
 
-void aziot_tpm_deinit() {
-    return hsm_client_tpm_deinit();
-}
-
 AZIOT_TPM_HANDLE aziot_tpm_create() {
     return (AZIOT_TPM_HANDLE)hsm_client_tpm_create();
 }

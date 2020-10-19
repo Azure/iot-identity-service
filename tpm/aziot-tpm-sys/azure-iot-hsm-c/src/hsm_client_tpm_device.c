@@ -508,10 +508,6 @@ int hsm_client_tpm_init(void)
     return 0;
 }
 
-void hsm_client_tpm_deinit(void)
-{
-}
-
 static const HSM_CLIENT_TPM_INTERFACE tpm_interface =
 {
     hsm_client_tpm_create,
