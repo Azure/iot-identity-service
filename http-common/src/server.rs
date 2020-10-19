@@ -319,7 +319,11 @@ pub fn json_response(status_code: hyper::StatusCode, body: Option<&impl serde::S
 	res
 }
 
-mod fake_server {
+/// This server is never actually used, but is useful to ensure that the macro
+/// works as expected.
+mod test_server {
+	use crate as http_common;
+
 	#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 	pub enum ApiVersion {
 		FAKE,
@@ -344,24 +348,23 @@ mod fake_server {
 		}
 	}
 
-	use crate as http_common;
 
 	http_common::make_server! {
 		server: Server,
 		api_version: ApiVersion,
 		routes: [
-			fake_route::Route,
+			test_route::Route,
 		],
 	}
 
-	pub(crate) struct Server;
+	pub struct Server;
 
-	mod fake_route {
+	mod test_route {
 		use crate as http_common;
 
 		use super::ApiVersion;
 
-		pub(super) struct Route {}
+		pub(super) struct Route;
 
 		#[async_trait::async_trait]
 		impl http_common::server::Route for Route {
@@ -376,7 +379,7 @@ mod fake_server {
 				_path: &str,
 				_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
 			) -> Option<Self> {
-				Some(Route {})
+				Some(Route)
 			}
 
 			type DeleteBody = serde::de::IgnoredAny;
@@ -390,7 +393,5 @@ mod fake_server {
 			type PutBody = serde::de::IgnoredAny;
 			type PutResponse = ();
 		}
-
 	}
-
 }
