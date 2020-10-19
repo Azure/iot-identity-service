@@ -20,7 +20,6 @@ macro_rules! make_server {
 				std::task::Poll::Ready(Ok(()))
 			}
 
-			#[allow(clippy::too_many_lines)]
 			fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
 				fn call_inner(
 					this: &mut $server_ty,
@@ -325,7 +324,7 @@ mod test_server {
 	use crate as http_common;
 
 	#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-	pub enum ApiVersion {
+	enum ApiVersion {
 		FAKE,
 	}
 
@@ -357,7 +356,7 @@ mod test_server {
 		],
 	}
 
-	pub struct Server;
+	struct Server;
 
 	mod test_route {
 		use crate as http_common;

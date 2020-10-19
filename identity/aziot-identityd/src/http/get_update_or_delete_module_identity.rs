@@ -83,6 +83,11 @@ impl http_common::server::Route for Route {
 
 	type PutBody = serde::de::IgnoredAny;
 	type PutResponse = aziot_identity_common_http::update_module_identity::Response;
+	// clippy fires this lint for the `_body` parameter of the inner fn in the `async-trait` expansion.
+	// It's not clear why clippy does this, especially since it doesn't raise it for other functions
+	// that also ignore their `_body` parameter like `fn delete` above.
+	//
+	// So suppress it manually.
 	#[allow(clippy::needless_pass_by_value)]
 	async fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
 		let mut inner = self.inner.lock().await;
