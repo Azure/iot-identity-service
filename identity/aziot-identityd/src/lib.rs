@@ -215,44 +215,46 @@ impl Server {
 		current_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 	) -> Result<(), Error> {
 
-		let localid = self.settings.localid.as_ref().ok_or_else(||
-			Error::Internal(InternalError::BadSettings(std::io::Error::new(
-				std::io::ErrorKind::InvalidInput,
-				"no local id settings specified"
-			)))
-		)?;
+		if !current_module_map.is_empty() {
+			let localid = self.settings.localid.as_ref().ok_or_else(||
+				Error::Internal(InternalError::BadSettings(std::io::Error::new(
+					std::io::ErrorKind::InvalidInput,
+					"no local id settings specified"
+				)))
+			)?;
 
-		// Create or renew local identity certificates for all modules in current.
-		for id in &current_module_map {
-			let module_id = &(id.0).0;
-			let attributes = id.1.as_ref().map_or(aziot_identity_common::LocalIdAttr::default(), |opts|
-				match opts {
-					settings::LocalIdOpts::X509 {attributes} => *attributes,
-				}
-			);
+			// Create or renew local identity certificates for all modules in current.
+			for id in &current_module_map {
+				let module_id = &(id.0).0;
+				let attributes = id.1.as_ref().map_or(aziot_identity_common::LocalIdAttr::default(), |opts|
+					match opts {
+						settings::LocalIdOpts::X509 {attributes} => *attributes,
+					}
+				);
 
-			// Must reissue certificate if options changed.
-			if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
-				if &prev_opts.1 == id.1 {
-					log::info!("Local identity {} up-to-date.", module_id);
-				}
-				else {
-					log::info!("Options changed for {}. Reissuing certificate.", module_id);
+				// Must reissue certificate if options changed.
+				if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
+					if &prev_opts.1 == id.1 {
+						log::info!("Local identity {} up-to-date.", module_id);
+					}
+					else {
+						log::info!("Options changed for {}. Reissuing certificate.", module_id);
 
-					self.cert_client.delete_cert(module_id).await
-						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						self.cert_client.delete_cert(module_id).await
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+					}
 				}
+
+				let common_name = format!("{}.{}", module_id, localid.domain);
+				self.create_identity_cert_if_not_exist_or_expired(
+					module_id,
+					module_id,
+					common_name.as_str(),
+					Some(attributes)
+				).await?;
+
+				log::info!("Local identity {} ({}) registered.", module_id, attributes);
 			}
-
-			let common_name = format!("{}.{}", module_id, localid.domain);
-			self.create_identity_cert_if_not_exist_or_expired(
-				module_id,
-				module_id,
-				common_name.as_str(),
-				Some(attributes)
-			).await?;
-
-			log::info!("Local identity {} ({}) registered.", module_id, attributes);
 		}
 
 		// Remove local identities for modules in prev but not in current.
