@@ -353,6 +353,15 @@ name = "aziot-tpm"
 version = "0.1.0"
 dependencies = [
  "aziot-tpm-sys",
+ "lazy_static",
+]
+
+[[package]]
+name = "aziot-tpm-common-http"
+version = "0.1.0"
+dependencies = [
+ "http-common",
+ "serde",
 ]
 
 [[package]]
@@ -361,6 +370,28 @@ version = "0.1.0"
 dependencies = [
  "cmake",
  "num_cpus",
+]
+
+[[package]]
+name = "aziot-tpmd"
+version = "0.1.0"
+dependencies = [
+ "aziot-tpm",
+ "aziot-tpm-common-http",
+ "backtrace",
+ "base64",
+ "futures-util",
+ "http",
+ "http-common",
+ "hyper",
+ "lazy_static",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "url",
 ]
 
 [[package]]

@@ -1,0 +1,45 @@
+// Copyright (c) Microsoft. All rights reserved.
+
+#![deny(rust_2018_idioms, warnings)]
+#![deny(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::let_and_return,
+    clippy::missing_errors_doc
+)]
+
+mod config;
+mod error;
+
+pub use config::{Config, Endpoints};
+pub use error::{Error, InternalError};
+
+use aziot_tpm::Tpm;
+
+pub struct Server {
+    tpm: Tpm,
+}
+
+pub struct TpmKeys {
+    pub endorsement_key: Vec<u8>,
+    pub storage_root_key: Vec<u8>,
+}
+
+impl Server {
+    pub fn new() -> Result<Self, Error> {
+        Ok(Server {
+            tpm: Tpm::new().map_err(|e| Error::Internal(InternalError::InitTpm(e)))?,
+        })
+    }
+
+    pub fn get_tpm_keys(&mut self) -> Result<TpmKeys, Error> {
+        let keys = self
+            .tpm
+            .get_tpm_keys()
+            .map_err(|e| Error::Internal(InternalError::GetTpmKeys(e)))?;
+        Ok(TpmKeys {
+            endorsement_key: keys.endorsement_key.to_vec(),
+            storage_root_key: keys.storage_root_key.to_vec(),
+        })
+    }
+}
