@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use crate::DynRangeBounds;
+
 #[macro_export]
 macro_rules! make_server {
 	(
@@ -211,8 +213,8 @@ macro_rules! make_server {
 
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 pub trait Route: Sized {
-	type ApiVersion;
-	fn api_version() -> std::ops::Range<Self::ApiVersion>;
+	type ApiVersion: std::cmp::PartialOrd;
+	fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
 
 	type Server;
 	fn from_uri(

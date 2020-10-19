@@ -12,6 +12,9 @@
 	clippy::type_complexity,
 )]
 
+mod dynrange;
+pub use dynrange::DynRangeBounds;
+
 mod connector;
 pub use connector::{Connector, ConnectorError, Stream};
 #[cfg(feature = "tokio02")]
