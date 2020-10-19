@@ -20,6 +20,7 @@ macro_rules! make_server {
 				std::task::Poll::Ready(Ok(()))
 			}
 
+			#[allow(clippy::too_many_lines)]
 			fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
 				fn call_inner(
 					this: &mut $server_ty,
@@ -212,6 +213,7 @@ macro_rules! make_server {
 }
 
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
+#[async_trait::async_trait]
 pub trait Route: Sized {
 	type ApiVersion: std::cmp::PartialOrd;
 	fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
@@ -223,43 +225,43 @@ pub trait Route: Sized {
 		query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
 	) -> Option<Self>;
 
-	type DeleteBody: serde::de::DeserializeOwned;
+	type DeleteBody: serde::de::DeserializeOwned + Send;
 	type DeleteResponse: serde::Serialize + Send + 'static;
-	fn delete(self, _body: Option<Self::DeleteBody>) -> RouteResponse<Option<Self::DeleteResponse>> {
-		Box::pin(futures_util::future::ready(Err(Error {
+	async fn delete(self, _body: Option<Self::DeleteBody>) -> RouteResponse<Option<Self::DeleteResponse>> {
+		Err(Error {
 			status_code: http::StatusCode::BAD_REQUEST,
 			message: "method not allowed".into(),
-		})))
+		})
 	}
 
 	type GetResponse: serde::Serialize + Send + 'static;
-	fn get(self) -> RouteResponse<Self::GetResponse> {
-		Box::pin(futures_util::future::ready(Err(Error {
+	async fn get(self) -> RouteResponse<Self::GetResponse> {
+		Err(Error {
 			status_code: http::StatusCode::BAD_REQUEST,
 			message: "method not allowed".into(),
-		})))
+		})
 	}
 
-	type PostBody: serde::de::DeserializeOwned;
+	type PostBody: serde::de::DeserializeOwned + Send;
 	type PostResponse: serde::Serialize + Send + 'static;
-	fn post(self, _body: Option<Self::PostBody>) -> RouteResponse<Option<Self::PostResponse>> {
-		Box::pin(futures_util::future::ready(Err(Error {
+	async fn post(self, _body: Option<Self::PostBody>) -> RouteResponse<Option<Self::PostResponse>> {
+		Err(Error {
 			status_code: http::StatusCode::BAD_REQUEST,
 			message: "method not allowed".into(),
-		})))
+		})
 	}
 
-	type PutBody: serde::de::DeserializeOwned;
+	type PutBody: serde::de::DeserializeOwned + Send;
 	type PutResponse: serde::Serialize + Send + 'static;
-	fn put(self, _body: Self::PutBody) -> RouteResponse<Self::PutResponse> {
-		Box::pin(futures_util::future::ready(Err(Error {
+	async fn put(self, _body: Self::PutBody) -> RouteResponse<Self::PutResponse> {
+		Err(Error {
 			status_code: http::StatusCode::BAD_REQUEST,
 			message: "method not allowed".into(),
-		})))
+		})
 	}
 }
 
-pub type RouteResponse<T> = futures_util::future::BoxFuture<'static, Result<(http::StatusCode, T), Error>>;
+pub type RouteResponse<T> = Result<(http::StatusCode, T), Error>;
 
 pub fn error_to_message(err: &impl std::error::Error) -> String {
 	let mut message = String::new();
@@ -315,4 +317,80 @@ pub fn json_response(status_code: hyper::StatusCode, body: Option<&impl serde::S
 		};
 	let res = res.expect("cannot fail to build hyper response");
 	res
+}
+
+mod fake_server {
+	#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+	pub enum ApiVersion {
+		FAKE,
+	}
+
+	impl std::fmt::Display for ApiVersion {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			f.write_str(match self {
+				ApiVersion::FAKE => "fake",
+			})
+		}
+	}
+
+	impl std::str::FromStr for ApiVersion {
+		type Err = ();
+
+		fn from_str(s: &str) -> Result<Self, Self::Err> {
+			match s {
+				"fake" => Ok(ApiVersion::FAKE),
+				_ => Err(()),
+			}
+		}
+	}
+
+	use crate as http_common;
+
+	http_common::make_server! {
+		server: Server,
+		api_version: ApiVersion,
+		routes: [
+			fake_route::Route,
+		],
+	}
+
+	pub(crate) struct Server;
+
+	mod fake_route {
+		use crate as http_common;
+
+		use super::ApiVersion;
+
+		pub(super) struct Route {}
+
+		#[async_trait::async_trait]
+		impl http_common::server::Route for Route {
+			type ApiVersion = ApiVersion;
+			fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
+				&(..)
+			}
+
+			type Server = super::Server;
+			fn from_uri(
+				_server: &Self::Server,
+				_path: &str,
+				_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+			) -> Option<Self> {
+				Some(Route {})
+			}
+
+			type DeleteBody = serde::de::IgnoredAny;
+			type DeleteResponse = ();
+
+			type GetResponse = ();
+
+			type PostBody = serde::de::IgnoredAny;
+			type PostResponse = ();
+
+			type PutBody = serde::de::IgnoredAny;
+			type PutResponse = ();
+		}
+
+	}
+
 }
