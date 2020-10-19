@@ -14,8 +14,8 @@ pub(super) struct Route {
 
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_key_common_http::ApiVersion;
-	fn api_version() -> std::ops::Range<Self::ApiVersion> {
-		(aziot_key_common_http::ApiVersion::V2020_09_01)..(aziot_key_common_http::ApiVersion::Max)
+	fn api_version() -> Box<dyn http_common::DynRangeBounds<Self::ApiVersion>> {
+		Box::new((aziot_key_common_http::ApiVersion::V2020_09_01)..)
 	}
 
 	type Server = super::Server;
@@ -28,7 +28,7 @@ impl http_common::server::Route for Route {
 
 		let type_ = &captures["type"];
 		let type_ = percent_encoding::percent_decode_str(type_).decode_utf8().ok()?;
-	
+
 		let key_id = &captures["keyId"];
 		let key_id = percent_encoding::percent_decode_str(key_id).decode_utf8().ok()?;
 
