@@ -58,7 +58,7 @@ database "HSM"
 [MR API Server] --> [MR Client]
 [IS API Server] -down-> [KS API Server]
 [IS API Server] -down-> [CS API Server]
-[KS API Server] -down-> HSM : libiothsm-keygen
+[KS API Server] -down-> HSM : libaziot-keys
 
 [IS API Server] -up-> [IoTHub Gateway] : HTTPS
 [IS API Server] -up-> [DPS Gateway] : HTTPS

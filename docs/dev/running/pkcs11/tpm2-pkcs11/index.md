@@ -173,4 +173,4 @@ The `TPM2_PKCS11_STORE` environment variable is needed for any process that load
     Do **not** connect the TPM to the left slot of the click shield. The `tpm-slb9670` overlay uses the chip-enable pin that ends up being mapped to the right slot.
 
 
-1. If you want to use the TPM simulator, see [`ibmswtpm2`](./ibmswtpm2.md)
+1. If you want to use the TPM simulator, see [`ibmswtpm2`](ibmswtpm2.html)

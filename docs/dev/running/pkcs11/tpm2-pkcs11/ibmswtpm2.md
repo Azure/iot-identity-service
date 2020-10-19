@@ -2,7 +2,7 @@
 
 [The `ibmswtpm2` project](https://sourceforge.net/projects/ibmswtpm2) is a TPM 2.0 simulator. `tpm2-abrmd` can be configured to use it as a backend instead of a real TPM at `/dev/tpm0`. This document describes how to compile and set up the simulator on Ubuntu 18.04.
 
-Note: It's expected you've already followed the steps in [`_index.md`](_index.md) to compile `tpm2-abrmd`.
+Note: It's expected you've already followed the steps in [the parent document](index.html) to compile `tpm2-abrmd`.
 
 1. Compile and start `/usr/local/bin/tpm_server`
 
