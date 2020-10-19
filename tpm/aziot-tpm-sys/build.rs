@@ -117,8 +117,8 @@ fn main() {
     );
     println!("cargo:rustc-link-lib=aziottpm");
 
-    println!("cargo:rustc-link-lib=aziotsharedutil");
     println!("cargo:rustc-link-lib=utpm");
+    println!("cargo:rustc-link-lib=aziotsharedutil");
 
     #[cfg(target_os = "macos")]
     {
