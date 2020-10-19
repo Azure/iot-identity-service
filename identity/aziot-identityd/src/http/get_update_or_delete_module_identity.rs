@@ -83,6 +83,7 @@ impl http_common::server::Route for Route {
 
 	type PutBody = serde::de::IgnoredAny;
 	type PutResponse = aziot_identity_common_http::update_module_identity::Response;
+	#[allow(clippy::needless_pass_by_value)]
 	async fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
 		let mut inner = self.inner.lock().await;
 		let inner = &mut *inner;
