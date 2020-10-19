@@ -214,7 +214,7 @@ macro_rules! make_server {
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 pub trait Route: Sized {
 	type ApiVersion: std::cmp::PartialOrd;
-	fn api_version() -> Box<dyn DynRangeBounds<Self::ApiVersion>>;
+	fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
 
 	type Server;
 	fn from_uri(
