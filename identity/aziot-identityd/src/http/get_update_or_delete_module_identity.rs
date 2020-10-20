@@ -11,6 +11,7 @@ pub(super) struct Route {
 	module_id: String,
 }
 
+#[async_trait::async_trait]
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_identity_common_http::ApiVersion;
 	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
@@ -36,49 +37,45 @@ impl http_common::server::Route for Route {
 
 	type DeleteBody = serde::de::IgnoredAny;
 	type DeleteResponse = ();
-	fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let user = aziot_identityd::auth::Uid(0);
-			let auth_id = match inner.authenticator.authenticate(user) {
-				Ok(auth_id) => auth_id,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let user = aziot_identityd::auth::Uid(0);
+		let auth_id = match inner.authenticator.authenticate(user) {
+			Ok(auth_id) => auth_id,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			//TODO: get uid from UDS
-			match inner.delete_identity(auth_id, "aziot", &self.module_id).await {
-				Ok(()) => (),
-				Err(err) => return Err(super::to_http_error(&err)),
-			}
+		//TODO: get uid from UDS
+		match inner.delete_identity(auth_id, "aziot", &self.module_id).await {
+			Ok(()) => (),
+			Err(err) => return Err(super::to_http_error(&err)),
+		}
 
-			Ok((hyper::StatusCode::NO_CONTENT, None))
-		})
+		Ok((hyper::StatusCode::NO_CONTENT, None))
 	}
 
 	type GetResponse = aziot_identity_common_http::get_module_identity::Response;
-	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let user = aziot_identityd::auth::Uid(0);
-			let auth_id = match inner.authenticator.authenticate(user) {
-				Ok(auth_id) => auth_id,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let user = aziot_identityd::auth::Uid(0);
+		let auth_id = match inner.authenticator.authenticate(user) {
+			Ok(auth_id) => auth_id,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			//TODO: get uid from UDS
-			let identity = match inner.get_identity(auth_id, "aziot", &self.module_id).await {
-				Ok(v) => v,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
-			let res = aziot_identity_common_http::get_module_identity::Response {
-				identity,
-			};
-			Ok((hyper::StatusCode::OK, res))
-		})
+		//TODO: get uid from UDS
+		let identity = match inner.get_identity(auth_id, "aziot", &self.module_id).await {
+			Ok(v) => v,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
+		let res = aziot_identity_common_http::get_module_identity::Response {
+			identity,
+		};
+		Ok((hyper::StatusCode::OK, res))
 	}
 
 	type PostBody = serde::de::IgnoredAny;
@@ -86,25 +83,29 @@ impl http_common::server::Route for Route {
 
 	type PutBody = serde::de::IgnoredAny;
 	type PutResponse = aziot_identity_common_http::update_module_identity::Response;
-	fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	// clippy fires this lint for the `_body` parameter of the inner fn in the `async-trait` expansion.
+	// It's not clear why clippy does this, especially since it doesn't raise it for other functions
+	// that also ignore their `_body` parameter like `fn delete` above.
+	//
+	// So suppress it manually.
+	#[allow(clippy::needless_pass_by_value)]
+	async fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let user = aziot_identityd::auth::Uid(0);
-			let auth_id = match inner.authenticator.authenticate(user) {
-				Ok(auth_id) => auth_id,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let user = aziot_identityd::auth::Uid(0);
+		let auth_id = match inner.authenticator.authenticate(user) {
+			Ok(auth_id) => auth_id,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			let identity = match inner.update_identity(auth_id, "aziot", &self.module_id).await {
-				Ok(v) => v,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
-			let res = aziot_identity_common_http::update_module_identity::Response {
-				identity,
-			};
-			Ok((hyper::StatusCode::OK, res))
-		})
+		let identity = match inner.update_identity(auth_id, "aziot", &self.module_id).await {
+			Ok(v) => v,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
+		let res = aziot_identity_common_http::update_module_identity::Response {
+			identity,
+		};
+		Ok((hyper::StatusCode::OK, res))
 	}
 }

@@ -4,6 +4,7 @@ pub(super) struct Route {
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
 }
 
+#[async_trait::async_trait]
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_key_common_http::ApiVersion;
 	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
@@ -32,26 +33,24 @@ impl http_common::server::Route for Route {
 
 	type PostBody = aziot_key_common_http::create_derived_key::Request;
 	type PostResponse = aziot_key_common_http::create_derived_key::Response;
-	fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
-		Box::pin(async move {
-			let body = body.ok_or_else(|| http_common::server::Error {
-				status_code: http::StatusCode::BAD_REQUEST,
-				message: "missing request body".into(),
-			})?;
+	async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+		let body = body.ok_or_else(|| http_common::server::Error {
+			status_code: http::StatusCode::BAD_REQUEST,
+			message: "missing request body".into(),
+		})?;
 
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let handle = match inner.create_derived_key(&body.base_handle, &body.derivation_data.0) {
-				Ok(handle) => handle,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let handle = match inner.create_derived_key(&body.base_handle, &body.derivation_data.0) {
+			Ok(handle) => handle,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			let res = aziot_key_common_http::create_derived_key::Response {
-				handle,
-			};
-			Ok((hyper::StatusCode::OK, Some(res)))
-		})
+		let res = aziot_key_common_http::create_derived_key::Response {
+			handle,
+		};
+		Ok((hyper::StatusCode::OK, Some(res)))
 	}
 
 	type PutBody = serde::de::IgnoredAny;
