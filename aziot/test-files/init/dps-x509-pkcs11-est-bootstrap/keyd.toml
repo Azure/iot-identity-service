@@ -4,4 +4,4 @@ pkcs11_base_slot = "pkcs11:slot-id=0?pin-value=1234"
 pkcs11_lib_path = "/usr/lib/libmypkcs11.so"
 
 [preloaded_keys]
-est-bootstrap-id = "pkcs11:slot-id=0;object=est-bootstrap-id?pin-value=1234"
+est-bootstrap-id = "pkcs11:slot-id=0;object=est%2Dbootstrap%2Did?pin-value=1234"

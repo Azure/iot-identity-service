@@ -9,7 +9,6 @@ backtrace = "0.3"
 base64 = "0.12"
 derive_more = "0.99.11"
 nix = "0.18"
-rpassword = "5"
 rustyline = "6"
 structopt = "0.3"
 toml = "0.5"
@@ -18,6 +17,7 @@ url = "2"
 aziot-certd = { path = "../cert/aziot-certd" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
+aziot-keys = { path = "../key/aziot-keys" }
 
 [dev-dependencies]
 bytes = "0.5"

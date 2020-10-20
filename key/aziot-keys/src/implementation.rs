@@ -12,9 +12,18 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Debug)]
-enum PreloadedKeyLocation {
+pub enum PreloadedKeyLocation {
 	Filesystem { path: std::path::PathBuf },
 	Pkcs11 { uri: pkcs11::Uri },
+}
+
+impl std::fmt::Display for PreloadedKeyLocation {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			PreloadedKeyLocation::Filesystem { path } => write!(f, "{}", url::Url::from_file_path(path).map_err(|_| std::fmt::Error)?),
+			PreloadedKeyLocation::Pkcs11 { uri } => uri.fmt(f),
+		}
+	}
 }
 
 impl std::str::FromStr for PreloadedKeyLocation {

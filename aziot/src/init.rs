@@ -1,15 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-// This subcommand interactively asks the user to give out basic provisioning information for their device and
-// creates the config files for the three services based on that information.
-//
-// Notes:
-//
-// - Provisioning with a symmetric key (manual or DPS) requires the key to be preloaded into KS, which means it needs to be
-//   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
-//   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
-//
-// - `dynamic_reprovisioning` is enabled by default in IS provisioning settings.
+/// This subcommand interactively asks the user to give out basic provisioning information for their device and
+/// creates the config files for the three services based on that information.
+///
+/// Notes:
+///
+/// - Provisioning with a symmetric key (manual or DPS) requires the key to be preloaded into KS, which means it needs to be
+///   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
+///   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
+///
+/// - `dynamic_reprovisioning` is enabled by default in IS provisioning settings.
+///
+/// - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
+///   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
 
 const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";
 
@@ -87,21 +90,22 @@ pub(crate) fn run() -> Result<(), crate::Error> {
 	}
 
 	let mut stdin = Stdin {
-		prompter: rustyline::Editor::new(),
+		editor: rustyline::Editor::new(),
 	};
+	stdin.editor.set_helper(Some(StdinHelper { reading_secret: false }));
 
-	let (
+	let RunOutput {
 		keyd_config,
 		certd_config,
 		identityd_config,
-		device_id_pk_bytes,
-	) = run_inner(&mut stdin)?;
+		preloaded_device_id_pk_bytes,
+	} = run_inner(&mut stdin)?;
 
-	if let Some(device_id_pk_bytes) = device_id_pk_bytes {
+	if let Some(preloaded_device_id_pk_bytes) = preloaded_device_id_pk_bytes {
 		println!("Note: Symmetric key will be written to /var/secrets/aziot/keyd/device-id");
 
 		create_dir_all("/var/secrets/aziot/keyd", &aziotks_user, 0o0700)?;
-		write_file("/var/secrets/aziot/keyd/device-id", &device_id_pk_bytes, &aziotks_user, 0o0600)?;
+		write_file("/var/secrets/aziot/keyd/device-id", &preloaded_device_id_pk_bytes, &aziotks_user, 0o0600)?;
 	}
 
 	write_file("/etc/aziot/keyd/config.toml", &keyd_config, &aziotks_user, 0o0600)?;
@@ -109,6 +113,9 @@ pub(crate) fn run() -> Result<(), crate::Error> {
 	write_file("/etc/aziot/certd/config.toml", &certd_config, &aziotcs_user, 0o0600)?;
 
 	write_file("/etc/aziot/identityd/config.toml", &identityd_config, &aziotid_user, 0o0600)?;
+
+	println!("aziot-identity-service has been configured successfully!");
+	println!("You can find the configured files at /etc/aziot/{{key,cert,identity}}d/config.toml");
 
 	Ok(())
 }
@@ -127,13 +134,16 @@ macro_rules! choose {
 	}};
 }
 
+#[derive(Debug)]
+struct RunOutput {
+	certd_config: Vec<u8>,
+	identityd_config: Vec<u8>,
+	keyd_config: Vec<u8>,
+	preloaded_device_id_pk_bytes: Option<Vec<u8>>,
+}
+
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
-fn run_inner(stdin: &mut impl Reader) -> Result<(
-	Vec<u8>,
-	Vec<u8>,
-	Vec<u8>,
-	Option<Vec<u8>>,
-), crate::Error> {
+fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
 	println!("Welcome to the configuration tool for aziot-identity-service.");
 	println!();
 	println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
@@ -240,7 +250,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 		},
 
 		ProvisioningMethod::DpsX509 => {
-			let scope_id = prompt(stdin, "Enter the DPS scope ID.")?;
+			let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
 			let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 
 			(
@@ -286,7 +296,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 		}
 
 		if preloaded_device_id_pk_bytes.is_some() {
-			keyd_config.preloaded_keys.insert(DEVICE_ID_ID.to_owned(), "file:///var/secrets/aziot/keyd/device-id".to_owned());
+			let device_id_pk_uri = aziot_keys::PreloadedKeyLocation::Filesystem { path: "/var/secrets/aziot/keyd/device-id".into() };
+			keyd_config.preloaded_keys.insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
 		}
 		else if matches!(
 			provisioning_type,
@@ -307,11 +318,11 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 						};
 					let device_id_pk_uri = loop {
 						let device_id_pk_uri = prompt(stdin, prompt_question)?;
-						if let Some(device_id_pk_uri) = convert_path_or_uri_to_uri(device_id_pk_uri) {
+						if let Some(device_id_pk_uri) = parse_preloaded_key_location(&device_id_pk_uri) {
 							break device_id_pk_uri;
 						}
 					};
-					keyd_config.preloaded_keys.insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri);
+					keyd_config.preloaded_keys.insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
 
 					DeviceIdSource::Preloaded
 				},
@@ -324,13 +335,13 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 						else {
 							"Enter the filesystem path of the CA certificate's private key file."
 						};
-					let local_ca_uri = loop {
-						let local_ca_uri = prompt(stdin, prompt_question)?;
-						if let Some(local_ca_uri) = convert_path_or_uri_to_uri(local_ca_uri) {
-							break local_ca_uri;
+					let local_ca_pk_uri = loop {
+						let local_ca_pk_uri = prompt(stdin, prompt_question)?;
+						if let Some(local_ca_pk_uri) = parse_preloaded_key_location(&local_ca_pk_uri) {
+							break local_ca_pk_uri;
 						}
 					};
-					keyd_config.preloaded_keys.insert(LOCAL_CA.to_owned(), local_ca_uri);
+					keyd_config.preloaded_keys.insert(LOCAL_CA.to_owned(), local_ca_pk_uri.to_string());
 
 					DeviceIdSource::LocalCa
 				},
@@ -354,11 +365,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 			Some(DeviceIdSource::Preloaded) => {
 				let device_id_cert_uri = loop {
 					let device_id_cert_uri = prompt(stdin, "Enter the filesystem path of the device ID certificate file.")?;
-					if let Some(device_id_cert_uri) = convert_path_or_uri_to_uri(device_id_cert_uri) {
-						match device_id_cert_uri.parse() {
-							Ok(device_id_cert_uri) => break device_id_cert_uri,
-							Err(err) => println!("Could not convert to a file:// URI: {}", err),
-						}
+					if let Some(device_id_cert_uri) = parse_cert_location(&device_id_cert_uri) {
+						break device_id_cert_uri;
 					}
 				};
 				let device_id_cert_uri = aziot_certd::PreloadedCert::Uri(device_id_cert_uri);
@@ -368,11 +376,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 			Some(DeviceIdSource::LocalCa) => {
 				let local_ca_cert_uri = loop {
 					let local_ca_cert_uri = prompt(stdin, "Enter the filesystem path of the CA certificate file.")?;
-					if let Some(local_ca_cert_uri) = convert_path_or_uri_to_uri(local_ca_cert_uri) {
-						match local_ca_cert_uri.parse() {
-							Ok(local_ca_cert_uri) => break local_ca_cert_uri,
-							Err(err) => println!("Could not convert to a file:// URI: {}", err),
-						}
+					if let Some(local_ca_cert_uri) = parse_cert_location(&local_ca_cert_uri) {
+						break local_ca_cert_uri;
 					}
 				};
 				let local_ca_cert_uri = aziot_certd::PreloadedCert::Uri(local_ca_cert_uri);
@@ -431,11 +436,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 					EstTrustedCert::Separate => {
 						let est_trusted_cert_uri = loop {
 							let est_trusted_cert_uri = prompt(stdin, "Enter the filesystem path of the CA certificate that should be used to validate your EST server's server certificate file.")?;
-							if let Some(est_trusted_cert_uri) = convert_path_or_uri_to_uri(est_trusted_cert_uri) {
-								match est_trusted_cert_uri.parse() {
-									Ok(est_trusted_cert_uri) => break est_trusted_cert_uri,
-									Err(err) => println!("Could not convert to a file:// URI: {}", err),
-								}
+							if let Some(est_trusted_cert_uri) = parse_cert_location(&est_trusted_cert_uri) {
+								break est_trusted_cert_uri;
 							}
 						};
 						let est_trusted_cert_uri = aziot_certd::PreloadedCert::Uri(est_trusted_cert_uri);
@@ -479,19 +481,16 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 								};
 							let est_id_pk_uri = loop {
 								let est_id_pk_uri = prompt(stdin, prompt_question)?;
-								if let Some(est_id_pk_uri) = convert_path_or_uri_to_uri(est_id_pk_uri) {
+								if let Some(est_id_pk_uri) = parse_preloaded_key_location(&est_id_pk_uri) {
 									break est_id_pk_uri;
 								}
 							};
-							keyd_config.preloaded_keys.insert(EST_ID_ID.to_owned(), est_id_pk_uri);
+							keyd_config.preloaded_keys.insert(EST_ID_ID.to_owned(), est_id_pk_uri.to_string());
 
 							let est_id_cert_uri = loop {
 								let est_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST ID certificate file.")?;
-								if let Some(est_id_cert_uri) = convert_path_or_uri_to_uri(est_id_cert_uri) {
-									match est_id_cert_uri.parse() {
-										Ok(est_id_cert_uri) => break est_id_cert_uri,
-										Err(err) => println!("Could not convert to a file:// URI: {}", err),
-									}
+								if let Some(est_id_cert_uri) = parse_cert_location(&est_id_cert_uri) {
+									break est_id_cert_uri;
 								}
 							};
 							let est_id_cert_uri = aziot_certd::PreloadedCert::Uri(est_id_cert_uri);
@@ -513,19 +512,16 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 								};
 							let est_bootstrap_id_pk_uri = loop {
 								let est_bootstrap_id_pk_uri = prompt(stdin, prompt_question)?;
-								if let Some(est_bootstrap_id_pk_uri) = convert_path_or_uri_to_uri(est_bootstrap_id_pk_uri) {
+								if let Some(est_bootstrap_id_pk_uri) = parse_preloaded_key_location(&est_bootstrap_id_pk_uri) {
 									break est_bootstrap_id_pk_uri;
 								}
 							};
-							keyd_config.preloaded_keys.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri);
+							keyd_config.preloaded_keys.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri.to_string());
 
 							let est_bootstrap_id_cert_uri = loop {
 								let est_bootstrap_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST bootstrap ID certificate file.")?;
-								if let Some(est_bootstrap_id_cert_uri) = convert_path_or_uri_to_uri(est_bootstrap_id_cert_uri) {
-									match est_bootstrap_id_cert_uri.parse() {
-										Ok(est_bootstrap_id_cert_uri) => break est_bootstrap_id_cert_uri,
-										Err(err) => println!("Could not convert to a file:// URI: {}", err),
-									}
+								if let Some(est_bootstrap_id_cert_uri) = parse_cert_location(&est_bootstrap_id_cert_uri) {
+									break est_bootstrap_id_cert_uri;
 								}
 							};
 							let est_bootstrap_id_cert_uri = aziot_certd::PreloadedCert::Uri(est_bootstrap_id_cert_uri);
@@ -577,12 +573,12 @@ fn run_inner(stdin: &mut impl Reader) -> Result<(
 	};
 	let identityd_config = toml::to_vec(&identityd_config).map_err(|err| format!("could not serialize aziot-identityd config: {}", err))?;
 
-	Ok((
+	Ok(RunOutput {
 		keyd_config,
 		certd_config,
 		identityd_config,
 		preloaded_device_id_pk_bytes,
-	))
+	})
 }
 
 #[derive(Clone, Copy, Debug, derive_more::Display)]
@@ -661,13 +657,16 @@ trait Reader {
 }
 
 struct Stdin {
-	prompter: rustyline::Editor<()>,
+	editor: rustyline::Editor<StdinHelper>,
 }
 
 impl Reader for Stdin {
 	fn read_line(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
+		self.editor.helper_mut().expect("helper is always Some").reading_secret = false;
+		// rustyline::config::Configurer::set_color_mode(&mut self.editor, rustyline::config::ColorMode::Disabled);
+
 		loop {
-			match self.prompter.readline(prompt) {
+			match self.editor.readline(prompt) {
 				Ok(response) => {
 					line.push_str(&response);
 					return Ok(response.len());
@@ -688,11 +687,63 @@ impl Reader for Stdin {
 	}
 
 	fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
-		let password = rpassword::prompt_password_stdout(prompt)?;
-		line.push_str(&password);
-		Ok(password.len())
+		self.editor.helper_mut().expect("helper is always Some").reading_secret = true;
+		// rustyline::config::Configurer::set_color_mode(&mut self.editor, rustyline::config::ColorMode::Forced);
+
+		match self.editor.readline(prompt) {
+			Ok(response) => {
+				line.push_str(&response);
+				Ok(response.len())
+			},
+
+			Err(rustyline::error::ReadlineError::Io(err)) => Err(err),
+
+			Err(rustyline::error::ReadlineError::Eof) |
+			Err(rustyline::error::ReadlineError::Interrupted) => Err(std::io::ErrorKind::UnexpectedEof.into()),
+
+			Err(rustyline::error::ReadlineError::Utf8Error) => Err(std::io::Error::new(std::io::ErrorKind::Other, "Input could not be parsed as UTF-8")),
+
+			Err(rustyline::error::ReadlineError::Errno(err)) => Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+
+			Err(err) => Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+		}
 	}
 }
+
+/// This is an impl of `rustyline::Helper` for use with the `rustyline::Editor`.
+///
+/// rustyline uses a "highlighter" to override the text the user types. Its primary goal is syntax highlighting.
+/// We use ours to mask the input of secrets.
+///
+/// Ref: <https://github.com/kkawakam/rustyline/blob/v6.3.0/examples/read_password.rs>
+struct StdinHelper {
+	reading_secret: bool,
+}
+
+impl rustyline::completion::Completer for StdinHelper {
+	type Candidate = <() as rustyline::completion::Completer>::Candidate;
+}
+
+impl rustyline::hint::Hinter for StdinHelper { }
+
+impl rustyline::highlight::Highlighter for StdinHelper {
+	fn highlight<'l>(&self, line: &'l str, _pos: usize) -> std::borrow::Cow<'l, str> {
+		if self.reading_secret {
+			std::borrow::Cow::Owned("*".repeat(line.len()))
+		}
+		else {
+			std::borrow::Cow::Borrowed(line)
+		}
+	}
+
+	fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
+		self.reading_secret
+	}
+}
+
+impl rustyline::validate::Validator for StdinHelper { }
+
+impl rustyline::Helper for StdinHelper { }
 
 fn choose<'a, TChoice>(
 	stdin: &mut impl Reader,
@@ -753,7 +804,7 @@ fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String, crat
 	let mut line = String::new();
 
 	loop {
-		stdin.read_secret("(echo disabled) > ", &mut line)?;
+		stdin.read_secret("> ", &mut line)?;
 		if line.is_empty() {
 			continue;
 		}
@@ -795,18 +846,46 @@ fn parse_manual_connection_string(connection_string: &str) -> Result<(String, St
 	Ok((iothub_hostname.to_owned(), device_id.to_owned(), symmetric_key))
 }
 
-fn convert_path_or_uri_to_uri(value: String) -> Option<String> {
-	if value.starts_with("file://") || value.starts_with("pkcs11:") {
-		Some(value)
+fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys::PreloadedKeyLocation> {
+	match value.parse::<aziot_keys::PreloadedKeyLocation>() {
+		Ok(value) => Some(value),
+
+		Err(err) => {
+			// Might be a path
+
+			let value =
+				url::Url::from_file_path(&value)
+				.map_err(|()| err) // Url::from_file_path doesn't give a printable error, so just print the original one.
+				.and_then(|value| value.to_string().parse::<aziot_keys::PreloadedKeyLocation>());
+			match value {
+				Ok(value) => Some(value),
+
+				Err(err) => {
+					println!("Could not parse input as a file path or a preloaded key URI: {}", err);
+					None
+				},
+			}
+		},
 	}
-	else {
-		match url::Url::from_file_path(&value) {
-			Ok(value) => Some(value.to_string()),
-			Err(()) => {
-				println!("Could not convert path to a file:// URI");
-				None
-			},
-		}
+}
+
+fn parse_cert_location(value: &str) -> Option<url::Url> {
+	let value =
+		value.parse::<url::Url>()
+		.or_else(|err| url::Url::from_file_path(&value).map_err(|()| err));
+	match value {
+		Ok(value) if value.scheme() == "file" =>
+			Some(value),
+
+		Ok(value) => {
+			println!(r#"Input has invalid scheme {:?}. Only "file://" URIs are supported."#, value.scheme());
+			None
+		},
+
+		Err(err) => {
+			println!("Could not parse input as a file path or a file:// URI: {}", err);
+			None
+		},
 	}
 }
 
@@ -917,32 +996,32 @@ mod tests {
 
 			let test_name = case_directory.file_name().unwrap().to_str().unwrap();
 
-			println!("Running test {}", test_name);
+			println!(".\n.\n=========\n.\nRunning test {}", test_name);
 
 			let mut input = Stdin(std::io::BufReader::new(std::fs::File::open(case_directory.join("input.txt")).unwrap()));
 			let expected_keyd_config = std::fs::read(case_directory.join("keyd.toml")).unwrap();
 			let expected_certd_config = std::fs::read(case_directory.join("certd.toml")).unwrap();
 			let expected_identityd_config = std::fs::read(case_directory.join("identityd.toml")).unwrap();
 
-			let expected_device_id_pk_bytes = match std::fs::read(case_directory.join("device-id")) {
+			let expected_preloaded_device_id_pk_bytes = match std::fs::read(case_directory.join("device-id")) {
 				Ok(contents) => Some(contents),
 				Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
 				Err(err) => panic!("could not read device-id file: {}", err),
 			};
 
-			let (
-				actual_keyd_config,
-				actual_certd_config,
-				actual_identityd_config,
-				actual_device_id_pk_bytes,
-			) = super::run_inner(&mut input).unwrap();
+			let super::RunOutput {
+				keyd_config: actual_keyd_config,
+				certd_config: actual_certd_config,
+				identityd_config: actual_identityd_config,
+				preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
+			} = super::run_inner(&mut input).unwrap();
 
 			// Convert the three configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
 			// It doesn't matter for the device ID file since it's binary anyway.
 			assert_eq!(bytes::Bytes::from(expected_keyd_config), bytes::Bytes::from(actual_keyd_config), "keyd config does not match");
 			assert_eq!(bytes::Bytes::from(expected_certd_config), bytes::Bytes::from(actual_certd_config), "certd config does not match");
 			assert_eq!(bytes::Bytes::from(expected_identityd_config), bytes::Bytes::from(actual_identityd_config), "identityd config does not match");
-			assert_eq!(expected_device_id_pk_bytes, actual_device_id_pk_bytes, "device ID key bytes do not match");
+			assert_eq!(expected_preloaded_device_id_pk_bytes, actual_preloaded_device_id_pk_bytes, "device ID key bytes do not match");
 		}
 	}
 }
