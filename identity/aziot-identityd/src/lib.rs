@@ -28,6 +28,16 @@ const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
 /// This is the number of seconds to wait for DPS to complete assignment to a hub
 const DPS_ASSIGNMENT_TIMEOUT_SECS: u64 = 120;
 
+/// Private key types when creating a new identity certificate.
+#[derive(Clone)]
+enum KeyType<'a> {
+	/// Key handle managed by keyd.
+	Handle(&'a String),
+
+	/// Private key stored on the filesystem.
+	File(std::path::PathBuf),
+}
+
 pub struct Server {
 	pub settings: settings::Settings,
 	pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error>  + Send + Sync>,
@@ -246,9 +256,13 @@ impl Server {
 					}
 				}
 
+				let mut key_path = self.settings.homedir.to_owned();
+				key_path.push("local_id_keys");
+				key_path.push(format!("{}.pem", module_id));
+
 				let common_name = format!("{}.{}", module_id, localid.domain);
-				let key_handle = self.create_identity_cert_if_not_exist_or_expired(
-					module_id,
+				let (cert, key) = self.create_identity_cert_if_not_exist_or_expired(
+					KeyType::File(key_path),
 					module_id,
 					common_name.as_str(),
 					Some(attributes)
@@ -257,11 +271,9 @@ impl Server {
 				// Build the local id spec that will be returned by HTTP APIs.
 				let spec = aziot_identity_common::LocalIdSpec {
 					attr: attributes,
-					auth: aziot_identity_common::AuthenticationInfo {
-						auth_type: aziot_identity_common::AuthenticationType::X509,
-						cert_id: Some(module_id.to_string()),
-						key_handle,
-					},
+					auth_type: aziot_identity_common::AuthenticationType::X509,
+					cert,
+					key,
 				};
 
 				self.local_identities.insert(aziot_identity_common::ModuleId(module_id.to_string()), spec);
@@ -273,10 +285,20 @@ impl Server {
 		// Remove local identities for modules in prev but not in current.
 		for id in prev_module_map {
 			let module_id = &(id.0).0;
-			self.cert_client.delete_cert(module_id).await
-				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-			// TODO: need to delete private key too.
-			log::info!("Local identity {} removed.", module_id);
+
+			let mut key_path = self.settings.homedir.to_owned();
+			key_path.push("local_id_keys");
+			key_path.push(format!("{}.pem", module_id));
+
+			log::info!("Removing local identity {}.", module_id);
+
+			if let Err(err) = self.cert_client.delete_cert(module_id).await {
+				log::warn!("Failed to delete local identity cert {}: {}", module_id, err);
+			}
+
+			if let Err(err) = std::fs::remove_file(key_path) {
+				log::warn!("Failed to delete local identity key {}: {}", module_id, err);
+			}
 		}
 
 		Ok(())
@@ -291,7 +313,7 @@ impl Server {
 						aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
 					},
 					settings::ManualAuthMethod::X509 { identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &device_id, None).await?;
+						self.create_identity_cert_if_not_exist_or_expired(KeyType::Handle(&identity_pk), &identity_cert, &device_id, None).await?;
 						aziot_identity_common::Credentials::X509{identity_cert, identity_pk}
 					}
 				};
@@ -374,7 +396,7 @@ impl Server {
 						aziot_identity_common::ProvisioningStatus::Provisioned(device)
 					},
 					settings::DpsAttestationMethod::X509 { registration_id, identity_cert, identity_pk } => {
-						self.create_identity_cert_if_not_exist_or_expired(&identity_pk, &identity_cert, &registration_id, None).await?;
+						self.create_identity_cert_if_not_exist_or_expired(KeyType::Handle(&identity_pk), &identity_cert, &registration_id, None).await?;
 
 						let result = {
 							let mut key_engine = self.key_engine.lock().await;
@@ -462,68 +484,134 @@ impl Server {
 
 	async fn create_identity_cert_if_not_exist_or_expired(
 		&self,
-		identity_pk: &str,
+		identity_pk: KeyType<'_>,
 		identity_cert: &str,
 		subject: &str,
 		attributes: Option<aziot_identity_common::LocalIdAttr>
-	) -> Result<aziot_key_common::KeyHandle, Error> {
-		let device_id_cert = self.cert_client.get_cert(identity_cert).await;
-		let create_cert = match device_id_cert {
-			Ok(device_id_cert) => {
-				let x509_req = openssl::x509::X509::from_pem(&device_id_cert).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-				let cert_expiration = x509_req.as_ref().not_after();
+	) -> Result<(String, String), Error> {
+		// Retrieve existing cert and check it for expiry.
+		let mut device_id_cert = match self.cert_client.get_cert(identity_cert).await {
+			Ok(pem) => {
+				let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				let cert_expiration = cert.as_ref().not_after();
 				let current_time = openssl::asn1::Asn1Time::days_from_now(0)
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 				let expiration_time = current_time.diff(cert_expiration)
 					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-				expiration_time.days < 1
+
+				if expiration_time.days < 1 {
+					None
+				}
+				else {
+					Some(pem)
+				}
 			},
 			Err(_) => {
-				true
+				None
 			}
 		};
 
-		// Create the private key. If the private key exists, this function retrieves its key handle.
-		let identity_pk_key_handle = self.key_client.create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*")).await
-			.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-		if create_cert {
-			// TODO: need to delete private key before returning if any function below fails.
-			let csr = {
-				let mut key_engine = self.key_engine.lock().await;
-
-				let (identity_public_key, identity_private_key) = {
-					let identity_pk = std::ffi::CString::new(identity_pk_key_handle.0.clone())
+		// Retrieve private key. Create new key and cert if needed.
+		let private_key = if device_id_cert.is_none() {
+			let (key, key_string) = match identity_pk.clone() {
+				KeyType::Handle(key_id) => {
+					let key_handle = self.key_client.create_key_pair_if_not_exists(key_id, Some("rsa-2048:*")).await
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-					let identity_public_key = key_engine.load_public_key(&identity_pk)
-						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-					let identity_private_key = key_engine.load_private_key(&identity_pk)
+					let key_string = key_handle.0.clone();
+					let key_handle = std::ffi::CString::new(key_string.clone())
 						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-					(identity_public_key, identity_private_key)
-				};
+					let mut key_engine = self.key_engine.lock().await;
+					let key = key_engine.load_private_key(&key_handle)
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-				let csr = create_csr(
-					&subject,
-					&identity_public_key,
-					&identity_private_key,
-					attributes)
-					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-				csr
+					(key, key_string)
+				},
+				KeyType::File(path) => {
+					if let Ok(pem) = std::fs::read_to_string(path.clone()) {
+						let key = openssl::pkey::PKey::private_key_from_pem(pem.as_bytes())
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+						(key, pem)
+					}
+					else {
+						let rsa = openssl::rsa::Rsa::generate(2048)
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						let key = openssl::pkey::PKey::from_rsa(rsa)
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						let pem = key.private_key_to_pem_pkcs8()
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						let pem = std::string::String::from_utf8(pem)
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+						std::fs::write(path, pem.clone())
+							.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+						(key, pem)
+					}
+				},
 			};
 
-			let _new_cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
-				.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-		}
+			let result = async {
+				let csr = create_csr(
+					&subject,
+					&key,
+					attributes)
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-		Ok(identity_pk_key_handle)
+				let cert = self.cert_client.create_cert(&identity_cert, &csr, None).await
+					.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+				device_id_cert = Some(cert);
+
+				Ok::<(), Error>(())
+			}.await;
+
+			if let Err(err) = result {
+				match identity_pk {
+					KeyType::Handle(_key_id) => {
+						// TODO: need to delete key from keyd.
+					},
+					KeyType::File(path) => {
+						let _ = std::fs::remove_file(path);
+					},
+				};
+
+				return Err(err);
+			}
+
+			key_string
+		}
+		else {
+			match identity_pk {
+				KeyType::Handle(key_id) => {
+					let key_handle = self.key_client.load_key_pair(key_id).await
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+					key_handle.0
+				},
+				KeyType::File(path) => {
+					let pem = std::fs::read_to_string(path)
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+					// Verify that the key can be parsed.
+					let _ = openssl::pkey::PKey::private_key_from_pem(pem.as_bytes())
+						.map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+					pem
+				}
+			}
+		};
+
+		// Convert device ID cert to String. Cannot fail because valid certificates are always
+		// UTF-8 encodable characters.
+		let device_id_cert = std::string::String::from_utf8(device_id_cert.unwrap()).unwrap();
+
+		Ok((device_id_cert, private_key))
 	}
 }
 
 fn create_csr(
 	subject: &str,
-	public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
-	private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+	key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
 	attributes: Option<aziot_identity_common::LocalIdAttr>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
 	let mut csr = openssl::x509::X509Req::builder()?;
@@ -567,8 +655,8 @@ fn create_csr(
 	subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
 	let subject_name = subject_name.build();
 	csr.set_subject_name(&subject_name)?;
-	csr.set_pubkey(public_key)?;
-	csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
+	csr.set_pubkey(key)?;
+	csr.sign(key, openssl::hash::MessageDigest::sha256())?;
 
 	let csr = csr.build();
 	let csr = csr.to_pem()?;

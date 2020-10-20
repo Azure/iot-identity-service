@@ -35,7 +35,9 @@ pub struct AzureIoTSpec {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct LocalIdSpec {
 	pub attr: LocalIdAttr,
-	pub auth: AuthenticationInfo,
+	pub auth_type: AuthenticationType,
+	pub key: String,
+	pub cert: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
