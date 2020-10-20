@@ -1,11 +1,13 @@
 This repository contains the code of the Azure IoT Identity Service and related services. Together these services make a basic device "runtime" for Azure IoT devices.
 
 
-# Contributing
+# Documentation
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines.
+The contents of the `docs/` directory are served at <https://azure.github.io/iot-identity-service/>
 
-See [`docs/_index.md`](docs/_index.md) for developer documentation.
+Go to <https://azure.github.io/iot-identity-service/> for an overview of the services in this repository.
+
+Go to <https://azure.github.io/iot-identity-service/dev/> for developer documentation, and see [`CONTRIBUTING`](CONTRIBUTING.html) for contribution guidelines.
 
 
 # License

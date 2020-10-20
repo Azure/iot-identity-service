@@ -1,3 +1,5 @@
+# Packaging
+
 The Identity Service (IS), Keys Service (KS) and Certificates Service (CS) have been explicitly designed to not be Azure IoT Edge-specific; they can be used on non-Edge Azure IoT devices also. To this end, we want to cleanly separate these components from existing association with IoT Edge in the form of hosting it in a separate source repository and shipping it as a separate package. Furthermore, the existing IoT Edge daemon will be modified to depend on these components for provisioning the device, managing module identities, and managing cryptographic keys and certificates, and thus its only responsibility will be to act as a Module Runtime (MR).
 
 Because of these large-scale changes, we plan to make 1.0.10 (LTS) the last series of releases of the existing `iotedge` Linux package. The new components, including the new `iotedged` with smaller responsibilities, will be shipped in two new lines of packages:
@@ -239,7 +241,7 @@ Note that the configuration is now in TOML format.
 </table>
 
 
-# Installation procedure (`aziot-identity-service` only)
+## Installation procedure (`aziot-identity-service` only)
 
 ```sh
 apt install aziot-identity-service
@@ -250,7 +252,7 @@ aziot init --...
 The user installs the package, then runs `aziot init` to set up the configuration with minimal information like the device provisioning method.
 
 
-# Installation procedure (`iotedge-aziot`)
+## Installation procedure (`iotedge-aziot`)
 
 ```sh
 apt install iotedge-aziot
@@ -261,7 +263,7 @@ aziot init --...
 The user installs the package, then runs `aziot init` to set up the configuration of the IS+KS+CS components.
 
 
-# Migration procedure for existing users of `iotedge` to `iotedge-aziot`
+## Migration procedure for existing users of `iotedge` to `iotedge-aziot`
 
 ```sh
 apt remove iotedge libiothsm-std
