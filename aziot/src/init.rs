@@ -1,18 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-/// This subcommand interactively asks the user to give out basic provisioning information for their device and
-/// creates the config files for the three services based on that information.
-///
-/// Notes:
-///
-/// - Provisioning with a symmetric key (manual or DPS) requires the key to be preloaded into KS, which means it needs to be
-///   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
-///   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
-///
-/// - `dynamic_reprovisioning` is enabled by default in IS provisioning settings.
-///
-/// - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
-///   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
+//! This subcommand interactively asks the user to give out basic provisioning information for their device and
+//! creates the config files for the three services based on that information.
+//!
+//! Notes:
+//!
+//! - Provisioning with a symmetric key (manual or DPS) requires the key to be preloaded into KS, which means it needs to be
+//!   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
+//!   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
+//!
+//! - `dynamic_reprovisioning` is enabled by default in IS provisioning settings.
+//!
+//! - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
+//!   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
 
 const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";
 
