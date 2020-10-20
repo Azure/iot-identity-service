@@ -64,7 +64,7 @@ database "HSM"
 [IS API Server] -down-> [CS API Server]
 [IS API Server] -down-> [TPMS API Server]
 [TPMS API Server] -down-> HSM : aziot-tpm
-[KS API Server] -down-> HSM : libiothsm-keygen
+[KS API Server] -down-> HSM : libaziot-keys
 
 [IS API Server] -up-> [IoTHub Gateway] : HTTPS
 [IS API Server] -up-> [DPS Gateway] : HTTPS

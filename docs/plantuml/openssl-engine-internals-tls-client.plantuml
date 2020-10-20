@@ -9,7 +9,7 @@ participant "openssl-engine-ks"
 
 box KS
 participant KS
-participant "libiothsm-keygen"
+participant "libaziot-keys"
 participant "openssl-engine-pkcs11"
 participant "PKCS#11 library" as pkcs11
 end box
@@ -24,13 +24,13 @@ autonumber
 group Get key corresponding to key ID from KS
 	Client -> KS ++: load_key_pair("key_id")
 	KS -> KS: Evaluate policies
-	KS -> "libiothsm-keygen" ++: load_key_pair("key_id")
-	"libiothsm-keygen" -> "libiothsm-keygen": Convert key ID to key URI
-	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_public_key("key_uri")
+	KS -> "libaziot-keys" ++: load_key_pair("key_id")
+	"libaziot-keys" -> "libaziot-keys": Convert key ID to key URI
+	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_public_key("key_uri")
 	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
 	return OBJECT_HANDLE
 	return OK
-	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
+	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
 	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
 	return OBJECT_HANDLE
 	return OK
@@ -61,13 +61,13 @@ group Create TLS connection
 	"openssl-engine-ks" -> KS ++: sign("key handle", ...)
 	KS -> KS: Evaluate policies
 	KS -> KS: Convert key handle to key ID
-	KS -> "libiothsm-keygen" ++: sign("key ID", ...)
-	"libiothsm-keygen" -> "libiothsm-keygen": Convert key ID to key URI
-	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
+	KS -> "libaziot-keys" ++: sign("key ID", ...)
+	"libaziot-keys" -> "libaziot-keys": Convert key ID to key URI
+	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
 	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
 	return OBJECT_HANDLE
 	return OK
-	"libiothsm-keygen" -> "openssl-engine-pkcs11" ++: openssl::sign(openssl::EVP_PKEY, ...)
+	"libaziot-keys" -> "openssl-engine-pkcs11" ++: openssl::sign(openssl::EVP_PKEY, ...)
 	"openssl-engine-pkcs11" -> pkcs11 ++: C_Sign(pkcs11::OBJECT_HANDLE, ...)
 	return OK(signature)
 	return OK(signature)

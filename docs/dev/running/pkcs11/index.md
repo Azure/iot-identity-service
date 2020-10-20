@@ -16,9 +16,9 @@ Follow the column corresponding to your hardware:
 </thead>
 <tbody>
 <tr>
-<td><a href="softhsm2.md">Install and configure</a></td>
-<td><a href="cryptoauthlib.md">Install and configure</a></td>
-<td><a href="tpm2-pkcs11/_index.md">Install and configure</a></td>
+<td><a href="softhsm2.html">Install and configure</a></td>
+<td><a href="cryptoauthlib.html">Install and configure</a></td>
+<td><a href="tpm2-pkcs11/index.html">Install and configure</a></td>
 </tr>
 <tr>
 <td>

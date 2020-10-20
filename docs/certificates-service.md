@@ -1,12 +1,14 @@
-# API
+# Certificates Service
+
+## API
 
 Note: For both requests and responses, the PEM string can contain multiple certificates. This happens when the certificates form a chain where the first cert is the leaf cert.
 
-## Create New Certificate from CSR
+### Create New Certificate from CSR
 
-`POST /certificates`
+`POST /certificates?api-version=2020-09-01`
 
-### Request
+#### Request
 
 ```json
 {
@@ -21,7 +23,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 `issuer` is ignored (and thus need not be specified) if the CS is configured to issue the requested certificate via an external service using EST protocol.
 
-### Response
+#### Response
 
 ```json
 {
@@ -31,19 +33,11 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ---
 
-## Import Certificate
+### Import Certificate
 
-`PUT /certificates/{certId}`
+`PUT /certificates/{certId}?api-version=2020-09-01`
 
-### Request
-
-```json
-{
-    "pem": "string"
-}
-```
-
-### Response
+#### Request
 
 ```json
 {
@@ -51,13 +45,7 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 }
 ```
 
----
-
-## Get Existing Certificate
-
-`GET /certificates/{certId}`
-
-### Response
+#### Response
 
 ```json
 {
@@ -67,11 +55,25 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 ---
 
-## Delete Existing Certificate
+### Get Existing Certificate
 
-`DELETE /certificates/{certId}`
+`GET /certificates/{certId}?api-version=2020-09-01`
 
-### Response
+#### Response
+
+```json
+{
+    "pem": "string"
+}
+```
+
+---
+
+### Delete Existing Certificate
+
+`DELETE /certificates/{certId}?api-version=2020-09-01`
+
+#### Response
 
 HTTP 204 No Content
 
