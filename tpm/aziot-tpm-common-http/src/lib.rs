@@ -46,3 +46,32 @@ pub mod get_tpm_keys {
         pub storage_root_key: http_common::ByteString,
     }
 }
+
+pub mod import_auth_key {
+    use super::*;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    pub struct Request {
+        /// The key to import
+        pub key: http_common::ByteString,
+    }
+
+    #[derive(Debug, Deserialize, Serialize)]
+    pub struct Response {}
+}
+
+pub mod sign_with_auth_key {
+    use super::*;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    pub struct Request {
+        /// The data to sign
+        pub data: http_common::ByteString,
+    }
+
+    #[derive(Debug, Deserialize, Serialize)]
+    pub struct Response {
+        /// The data's digest
+        pub digest: http_common::ByteString
+    }
+}

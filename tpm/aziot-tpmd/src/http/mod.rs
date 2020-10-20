@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 mod get_tpm_keys;
+mod import_auth_key;
+mod sign_with_auth_key;
 
 pub(crate) struct Server {
     pub(crate) inner: std::sync::Arc<futures_util::lock::Mutex<aziot_tpmd::Server>>,
@@ -11,6 +13,8 @@ http_common::make_server! {
     api_version: aziot_tpm_common_http::ApiVersion,
     routes: [
         get_tpm_keys::Route,
+        import_auth_key::Route,
+        sign_with_auth_key::Route,
     ],
 }
 

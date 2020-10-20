@@ -5,6 +5,7 @@ authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1"
 backtrace = "0.3"
 base64 = "0.12"
 futures-util = "0.3"
