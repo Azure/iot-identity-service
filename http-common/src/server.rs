@@ -214,183 +214,186 @@ macro_rules! make_server {
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 #[async_trait::async_trait]
 pub trait Route: Sized {
-	type ApiVersion: std::cmp::PartialOrd;
-	fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
+    type ApiVersion: std::cmp::PartialOrd;
+    fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
 
-	type Server;
-	fn from_uri(
-		server: &Self::Server,
-		path: &str,
-		query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-	) -> Option<Self>;
+    type Server;
+    fn from_uri(
+        server: &Self::Server,
+        path: &str,
+        query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+    ) -> Option<Self>;
 
-	type DeleteBody: serde::de::DeserializeOwned + Send;
-	type DeleteResponse: serde::Serialize + Send + 'static;
-	async fn delete(self, _body: Option<Self::DeleteBody>) -> RouteResponse<Option<Self::DeleteResponse>> {
-		Err(Error {
-			status_code: http::StatusCode::BAD_REQUEST,
-			message: "method not allowed".into(),
-		})
-	}
+    type DeleteBody: serde::de::DeserializeOwned + Send;
+    type DeleteResponse: serde::Serialize + Send + 'static;
+    async fn delete(
+        self,
+        _body: Option<Self::DeleteBody>,
+    ) -> RouteResponse<Option<Self::DeleteResponse>> {
+        Err(Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "method not allowed".into(),
+        })
+    }
 
-	type GetResponse: serde::Serialize + Send + 'static;
-	async fn get(self) -> RouteResponse<Self::GetResponse> {
-		Err(Error {
-			status_code: http::StatusCode::BAD_REQUEST,
-			message: "method not allowed".into(),
-		})
-	}
+    type GetResponse: serde::Serialize + Send + 'static;
+    async fn get(self) -> RouteResponse<Self::GetResponse> {
+        Err(Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "method not allowed".into(),
+        })
+    }
 
-	type PostBody: serde::de::DeserializeOwned + Send;
-	type PostResponse: serde::Serialize + Send + 'static;
-	async fn post(self, _body: Option<Self::PostBody>) -> RouteResponse<Option<Self::PostResponse>> {
-		Err(Error {
-			status_code: http::StatusCode::BAD_REQUEST,
-			message: "method not allowed".into(),
-		})
-	}
+    type PostBody: serde::de::DeserializeOwned + Send;
+    type PostResponse: serde::Serialize + Send + 'static;
+    async fn post(
+        self,
+        _body: Option<Self::PostBody>,
+    ) -> RouteResponse<Option<Self::PostResponse>> {
+        Err(Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "method not allowed".into(),
+        })
+    }
 
-	type PutBody: serde::de::DeserializeOwned + Send;
-	type PutResponse: serde::Serialize + Send + 'static;
-	async fn put(self, _body: Self::PutBody) -> RouteResponse<Self::PutResponse> {
-		Err(Error {
-			status_code: http::StatusCode::BAD_REQUEST,
-			message: "method not allowed".into(),
-		})
-	}
+    type PutBody: serde::de::DeserializeOwned + Send;
+    type PutResponse: serde::Serialize + Send + 'static;
+    async fn put(self, _body: Self::PutBody) -> RouteResponse<Self::PutResponse> {
+        Err(Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "method not allowed".into(),
+        })
+    }
 }
 
 pub type RouteResponse<T> = Result<(http::StatusCode, T), Error>;
 
 pub fn error_to_message(err: &impl std::error::Error) -> String {
-	let mut message = String::new();
+    let mut message = String::new();
 
-	message.push_str(&err.to_string());
+    message.push_str(&err.to_string());
 
-	let mut source = err.source();
-	while let Some(err) = source {
-		message.push_str("\ncaused by: ");
-		message.push_str(&err.to_string());
-		source = err.source();
-	}
+    let mut source = err.source();
+    while let Some(err) = source {
+        message.push_str("\ncaused by: ");
+        message.push_str(&err.to_string());
+        source = err.source();
+    }
 
-	message
+    message
 }
 
 #[derive(Debug)]
 pub struct Error {
-	pub status_code: http::StatusCode,
-	pub message: std::borrow::Cow<'static, str>,
+    pub status_code: http::StatusCode,
+    pub message: std::borrow::Cow<'static, str>,
 }
 
 #[cfg(feature = "tokio02")]
 impl Error {
-	pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
-		let body = crate::ErrorBody {
-			message: std::borrow::Cow::Borrowed(std::borrow::Borrow::borrow(&self.message)),
-		};
-		let res = json_response(self.status_code, Some(&body));
-		res
-	}
+    pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
+        let body = crate::ErrorBody {
+            message: std::borrow::Cow::Borrowed(std::borrow::Borrow::borrow(&self.message)),
+        };
+        let res = json_response(self.status_code, Some(&body));
+        res
+    }
 }
 
 #[cfg(feature = "tokio02")]
-pub fn json_response(status_code: hyper::StatusCode, body: Option<&impl serde::Serialize>) -> hyper::Response<hyper::Body> {
-	let res =
-		hyper::Response::builder()
-		.status(status_code);
-	// `res` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
-	//
-	// Ref: https://github.com/rust-lang/rust-clippy/issues/5822
-	#[allow(clippy::option_if_let_else)]
-	let res =
-		if let Some(body) = body {
-			let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
-			let body = hyper::Body::from(body);
-			res
-				.header(hyper::header::CONTENT_TYPE, "application/json")
-				.body(body)
-		}
-		else {
-			res.body(Default::default())
-		};
-	let res = res.expect("cannot fail to build hyper response");
-	res
+pub fn json_response(
+    status_code: hyper::StatusCode,
+    body: Option<&impl serde::Serialize>,
+) -> hyper::Response<hyper::Body> {
+    let res = hyper::Response::builder().status(status_code);
+    // `res` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
+    //
+    // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
+    #[allow(clippy::option_if_let_else)]
+    let res = if let Some(body) = body {
+        let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
+        let body = hyper::Body::from(body);
+        res.header(hyper::header::CONTENT_TYPE, "application/json")
+            .body(body)
+    } else {
+        res.body(Default::default())
+    };
+    let res = res.expect("cannot fail to build hyper response");
+    res
 }
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
 mod test_server {
-	use crate as http_common;
+    use crate as http_common;
 
-	#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-	enum ApiVersion {
-		FAKE,
-	}
+    #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    enum ApiVersion {
+        FAKE,
+    }
 
-	impl std::fmt::Display for ApiVersion {
-		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-			f.write_str(match self {
-				ApiVersion::FAKE => "fake",
-			})
-		}
-	}
+    impl std::fmt::Display for ApiVersion {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(match self {
+                ApiVersion::FAKE => "fake",
+            })
+        }
+    }
 
-	impl std::str::FromStr for ApiVersion {
-		type Err = ();
+    impl std::str::FromStr for ApiVersion {
+        type Err = ();
 
-		fn from_str(s: &str) -> Result<Self, Self::Err> {
-			match s {
-				"fake" => Ok(ApiVersion::FAKE),
-				_ => Err(()),
-			}
-		}
-	}
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "fake" => Ok(ApiVersion::FAKE),
+                _ => Err(()),
+            }
+        }
+    }
 
+    http_common::make_server! {
+        server: Server,
+        api_version: ApiVersion,
+        routes: [
+            test_route::Route,
+        ],
+    }
 
-	http_common::make_server! {
-		server: Server,
-		api_version: ApiVersion,
-		routes: [
-			test_route::Route,
-		],
-	}
+    struct Server;
 
-	struct Server;
+    mod test_route {
+        use crate as http_common;
 
-	mod test_route {
-		use crate as http_common;
+        use super::ApiVersion;
 
-		use super::ApiVersion;
+        pub(super) struct Route;
 
-		pub(super) struct Route;
+        #[async_trait::async_trait]
+        impl http_common::server::Route for Route {
+            type ApiVersion = ApiVersion;
+            fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
+                &(..)
+            }
 
-		#[async_trait::async_trait]
-		impl http_common::server::Route for Route {
-			type ApiVersion = ApiVersion;
-			fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
-				&(..)
-			}
+            type Server = super::Server;
+            fn from_uri(
+                _server: &Self::Server,
+                _path: &str,
+                _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+            ) -> Option<Self> {
+                Some(Route)
+            }
 
-			type Server = super::Server;
-			fn from_uri(
-				_server: &Self::Server,
-				_path: &str,
-				_query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-			) -> Option<Self> {
-				Some(Route)
-			}
+            type DeleteBody = serde::de::IgnoredAny;
+            type DeleteResponse = ();
 
-			type DeleteBody = serde::de::IgnoredAny;
-			type DeleteResponse = ();
+            type GetResponse = ();
 
-			type GetResponse = ();
+            type PostBody = serde::de::IgnoredAny;
+            type PostResponse = ();
 
-			type PostBody = serde::de::IgnoredAny;
-			type PostResponse = ();
-
-			type PutBody = serde::de::IgnoredAny;
-			type PutResponse = ();
-		}
-	}
+            type PutBody = serde::de::IgnoredAny;
+            type PutResponse = ();
+        }
+    }
 }

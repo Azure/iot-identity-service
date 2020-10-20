@@ -70,18 +70,18 @@
 // (Incidentally, this would backfire if we did use a macro to generate the fns and enabled expansion in the cbindgen config. This is because
 // cbindgen does expansion via `rustc --pretty=expanded`, which also resolves `cfg()`s, so these fns would end up getting ignored by cbindgen too.
 
-
+mod implementation;
 mod key;
 mod key_pair;
-mod implementation;
-
 
 /// Error type. This is a transparent wrapper around a `std::os::raw::c_uint` (`unsigned int`).
 ///
 /// Either `AZIOT_KEYS_SUCCESS` or one of the `AZIOT_KEYS_ERROR_*` constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_STATUS { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_STATUS {
+    inner: std::os::raw::c_uint,
+}
 
 /// The operation succeeded.
 pub const AZIOT_KEYS_SUCCESS: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 0 };
@@ -95,197 +95,195 @@ pub const AZIOT_KEYS_ERROR_INVALID_PARAMETER: AZIOT_KEYS_STATUS = AZIOT_KEYS_STA
 /// The library encountered an error with an external resource, such as an I/O error or RPC error.
 pub const AZIOT_KEYS_ERROR_EXTERNAL: AZIOT_KEYS_STATUS = AZIOT_KEYS_STATUS { inner: 3 };
 
-
 /// Represents the version of the API exported by this library.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_VERSION { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_VERSION {
+    inner: std::os::raw::c_uint,
+}
 
 /// Version 2.0.0.0
-pub const AZIOT_KEYS_VERSION_2_0_0_0: AZIOT_KEYS_VERSION = AZIOT_KEYS_VERSION { inner: 0x02_00_00_00 };
-
+pub const AZIOT_KEYS_VERSION_2_0_0_0: AZIOT_KEYS_VERSION = AZIOT_KEYS_VERSION {
+    inner: 0x02_00_00_00,
+};
 
 /// The base struct of all of function lists.
 #[derive(Debug)]
 #[repr(C)]
 pub struct AZIOT_KEYS_FUNCTION_LIST {
-	/// The version of the API represented in this function list.
-	///
-	/// The specific subtype of `AZIOT_KEYS_FUNCTION_LIST` can be determined by inspecting this value.
-	pub version: AZIOT_KEYS_VERSION,
+    /// The version of the API represented in this function list.
+    ///
+    /// The specific subtype of `AZIOT_KEYS_FUNCTION_LIST` can be determined by inspecting this value.
+    pub version: AZIOT_KEYS_VERSION,
 }
 
 /// The specific implementation of [`AZIOT_KEYS_FUNCTION_LIST`] for API version 2.0.0.0
 #[derive(Debug)]
 #[repr(C)]
 pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
-	/// The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_0_0_0`].
-	pub base: AZIOT_KEYS_FUNCTION_LIST,
+    /// The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_0_0_0`].
+    pub base: AZIOT_KEYS_FUNCTION_LIST,
 
-	/// Set a parameter on this library.
-	///
-	/// `name` must not be `NULL`.
-	/// `value` may be `NULL`.
-	///
-	/// The caller may free the name string after this method returns. If the implementation needs to hold on to it, it must make a copy.
-	///
-	/// The interpretation of names and values depends on the implementation.
-	///
-	/// # Errors
-	///
-	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
-	///   - `name` is `NULL`.
-	///   - `name` is not recognized by this implementation.
-	///   - `value` is invalid.
-	///
-	/// - `AZIOT_KEYS_ERROR_FATAL`
-	pub set_parameter: unsafe extern "C" fn(
-		name: *const std::os::raw::c_char,
-		value: *const std::os::raw::c_char,
-	) -> AZIOT_KEYS_STATUS,
+    /// Set a parameter on this library.
+    ///
+    /// `name` must not be `NULL`.
+    /// `value` may be `NULL`.
+    ///
+    /// The caller may free the name string after this method returns. If the implementation needs to hold on to it, it must make a copy.
+    ///
+    /// The interpretation of names and values depends on the implementation.
+    ///
+    /// # Errors
+    ///
+    /// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
+    ///   - `name` is `NULL`.
+    ///   - `name` is not recognized by this implementation.
+    ///   - `value` is invalid.
+    ///
+    /// - `AZIOT_KEYS_ERROR_FATAL`
+    pub set_parameter: unsafe extern "C" fn(
+        name: *const std::os::raw::c_char,
+        value: *const std::os::raw::c_char,
+    ) -> AZIOT_KEYS_STATUS,
 
-	/// Create or load a key identified by the specified `id`.
-	///
-	/// - If a key with that ID exists, the key will be loaded from that URI and returned.
-	/// - If a key with that ID does not exist, a new key will be created. It will be saved such that it can be looked up later using that same ID.
-	///
-	/// `preferred_algorithms` dictates the caller's preference for the key algorithm. It is a string with components separated by COLON U+003A `:`,
-	/// where each component specifies the name of an algorithm and will be attempted by the implementation in that order.
-	/// The valid components are `"ec-p256"` for secp256r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates
-	/// any algorithm of the implementation's choice. For example, the caller might use `"ec-p256:rsa-2048:*"` to indicate that it would like
-	/// the implementation to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the implementation's choice if that also fails.
-	///
-	/// If an implementation does not recognize a particular component as an algorithm, or is unable to use the algorithm to generate a key pair,
-	/// it should ignore that component and try the next one. If no components are left, the implementation should return an error.
-	/// It is allowed for the implementation to unable to generate a key pair even if the wildcard algorithm is specified.
-	///
-	/// If `preferred_algorithms` is NULL, it should be interpreted the same as if it was `"*"`.
-	///
-	/// The public key is written to `ppublic_key` and the private key to `pprivate_key`.
-	/// For keys generated by openssl in memory, the private and public components of a key live in the same `EVP_PKEY` value.
-	/// However keys loaded from engines do differentiate between the two, so separate `EVP_PKEY` values are required.
-	/// Even if the implementation generates keys in memory using openssl, it must copy the public parameters out of the key into a new `EVP_PKEY`
-	/// and set `ppublic_parameters` to that.
-	///
-	/// # Errors
-	///
-	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
-	///   - `id` is NULL.
-	///   - `ppublic_key` is `NULL`.
-	///   - `pprivate_key` is `NULL`.
-	///
-	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
-	pub create_key_pair_if_not_exists: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		preferred_algorithms: *const std::os::raw::c_char,
-	) -> AZIOT_KEYS_STATUS,
+    /// Create or load a key identified by the specified `id`.
+    ///
+    /// - If a key with that ID exists, the key will be loaded from that URI and returned.
+    /// - If a key with that ID does not exist, a new key will be created. It will be saved such that it can be looked up later using that same ID.
+    ///
+    /// `preferred_algorithms` dictates the caller's preference for the key algorithm. It is a string with components separated by COLON U+003A `:`,
+    /// where each component specifies the name of an algorithm and will be attempted by the implementation in that order.
+    /// The valid components are `"ec-p256"` for secp256r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates
+    /// any algorithm of the implementation's choice. For example, the caller might use `"ec-p256:rsa-2048:*"` to indicate that it would like
+    /// the implementation to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the implementation's choice if that also fails.
+    ///
+    /// If an implementation does not recognize a particular component as an algorithm, or is unable to use the algorithm to generate a key pair,
+    /// it should ignore that component and try the next one. If no components are left, the implementation should return an error.
+    /// It is allowed for the implementation to unable to generate a key pair even if the wildcard algorithm is specified.
+    ///
+    /// If `preferred_algorithms` is NULL, it should be interpreted the same as if it was `"*"`.
+    ///
+    /// The public key is written to `ppublic_key` and the private key to `pprivate_key`.
+    /// For keys generated by openssl in memory, the private and public components of a key live in the same `EVP_PKEY` value.
+    /// However keys loaded from engines do differentiate between the two, so separate `EVP_PKEY` values are required.
+    /// Even if the implementation generates keys in memory using openssl, it must copy the public parameters out of the key into a new `EVP_PKEY`
+    /// and set `ppublic_parameters` to that.
+    ///
+    /// # Errors
+    ///
+    /// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
+    ///   - `id` is NULL.
+    ///   - `ppublic_key` is `NULL`.
+    ///   - `pprivate_key` is `NULL`.
+    ///
+    /// - `AZIOT_KEYS_ERROR_EXTERNAL`
+    pub create_key_pair_if_not_exists: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        preferred_algorithms: *const std::os::raw::c_char,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub load_key_pair: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-	) -> AZIOT_KEYS_STATUS,
+    pub load_key_pair: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> AZIOT_KEYS_STATUS,
 
-	/// Gets the value of a parameter of the key identified by the specified `id`.
-	///
-	/// `type_` must be set to one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_*` constants.
-	///
-	/// # Errors
-	///
-	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
-	///   - `id` is NULL.
-	///   - The key specified by `id` does not exist.
-	///   - `type_` is not a valid parameter type for the key specified by `id`.
-	///
-	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
-	pub get_key_pair_parameter: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		type_: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE, // Would be nice to be able to use r#type, but https://github.com/eqrion/cbindgen/issues/410
-		value: *mut std::os::raw::c_uchar,
-		value_len: *mut usize,
-	) -> AZIOT_KEYS_STATUS,
+    /// Gets the value of a parameter of the key identified by the specified `id`.
+    ///
+    /// `type_` must be set to one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_*` constants.
+    ///
+    /// # Errors
+    ///
+    /// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
+    ///   - `id` is NULL.
+    ///   - The key specified by `id` does not exist.
+    ///   - `type_` is not a valid parameter type for the key specified by `id`.
+    ///
+    /// - `AZIOT_KEYS_ERROR_EXTERNAL`
+    pub get_key_pair_parameter: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        type_: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE, // Would be nice to be able to use r#type, but https://github.com/eqrion/cbindgen/issues/410
+        value: *mut std::os::raw::c_uchar,
+        value_len: *mut usize,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub create_key_if_not_exists: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		length: usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub create_key_if_not_exists:
+        unsafe extern "C" fn(id: *const std::os::raw::c_char, length: usize) -> AZIOT_KEYS_STATUS,
 
-	pub load_key: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-	) -> AZIOT_KEYS_STATUS,
+    pub load_key: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> AZIOT_KEYS_STATUS,
 
-	pub import_key: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		bytes: *const u8,
-		bytes_len: usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub import_key: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        bytes: *const u8,
+        bytes_len: usize,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub derive_key: unsafe extern "C" fn(
-		base_id: *const std::os::raw::c_char,
-		derivation_data: *const u8,
-		derivation_data_len: usize,
-		derived_key: *mut std::os::raw::c_uchar,
-		derived_key_len: *mut usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub derive_key: unsafe extern "C" fn(
+        base_id: *const std::os::raw::c_char,
+        derivation_data: *const u8,
+        derivation_data_len: usize,
+        derived_key: *mut std::os::raw::c_uchar,
+        derived_key_len: *mut usize,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub sign: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		mechanism: AZIOT_KEYS_SIGN_MECHANISM,
-		parameters: *const std::ffi::c_void,
-		digest: *const std::os::raw::c_uchar,
-		digest_len: usize,
-		signature: *mut std::os::raw::c_uchar,
-		signature_len: *mut usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub sign: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        mechanism: AZIOT_KEYS_SIGN_MECHANISM,
+        parameters: *const std::ffi::c_void,
+        digest: *const std::os::raw::c_uchar,
+        digest_len: usize,
+        signature: *mut std::os::raw::c_uchar,
+        signature_len: *mut usize,
+    ) -> AZIOT_KEYS_STATUS,
 
-	/// Verifies the signature of the given digest using the key identified by the specified `id`.
-	///
-	/// `mechanism` must be set to one of the `AZIOT_KEYS_SIGN_MECHANISM_*` constants.
-	///
-	/// If the function returns `AZIOT_KEYS_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
-	///
-	/// # Errors
-	///
-	/// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
-	///   - `id` is NULL.
-	///   - The key specified by `id` does not exist.
-	///   - `mechanism` is not a valid parameter type for the key specified by `id`.
-	///
-	/// - `AZIOT_KEYS_ERROR_EXTERNAL`
-	pub verify: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		mechanism: AZIOT_KEYS_SIGN_MECHANISM,
-		parameters: *const std::ffi::c_void,
-		digest: *const std::os::raw::c_uchar,
-		digest_len: usize,
-		signature: *const std::os::raw::c_uchar,
-		signature_len: usize,
-		ok: *mut std::os::raw::c_int,
-	) -> AZIOT_KEYS_STATUS,
+    /// Verifies the signature of the given digest using the key identified by the specified `id`.
+    ///
+    /// `mechanism` must be set to one of the `AZIOT_KEYS_SIGN_MECHANISM_*` constants.
+    ///
+    /// If the function returns `AZIOT_KEYS_SUCCESS`, then `ok` is set to 0 if the signature is invalid and non-zero if the signature is valid.
+    ///
+    /// # Errors
+    ///
+    /// - `AZIOT_KEYS_ERROR_INVALID_PARAMETER`:
+    ///   - `id` is NULL.
+    ///   - The key specified by `id` does not exist.
+    ///   - `mechanism` is not a valid parameter type for the key specified by `id`.
+    ///
+    /// - `AZIOT_KEYS_ERROR_EXTERNAL`
+    pub verify: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        mechanism: AZIOT_KEYS_SIGN_MECHANISM,
+        parameters: *const std::ffi::c_void,
+        digest: *const std::os::raw::c_uchar,
+        digest_len: usize,
+        signature: *const std::os::raw::c_uchar,
+        signature_len: usize,
+        ok: *mut std::os::raw::c_int,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub encrypt: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
-		parameters: *const std::ffi::c_void,
-		plaintext: *const std::os::raw::c_uchar,
-		plaintext_len: usize,
-		ciphertext: *mut std::os::raw::c_uchar,
-		ciphertext_len: *mut usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub encrypt: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
+        parameters: *const std::ffi::c_void,
+        plaintext: *const std::os::raw::c_uchar,
+        plaintext_len: usize,
+        ciphertext: *mut std::os::raw::c_uchar,
+        ciphertext_len: *mut usize,
+    ) -> AZIOT_KEYS_STATUS,
 
-	pub decrypt: unsafe extern "C" fn(
-		id: *const std::os::raw::c_char,
-		mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
-		parameters: *const std::ffi::c_void,
-		ciphertext: *const std::os::raw::c_uchar,
-		ciphertext_len: usize,
-		plaintext: *mut std::os::raw::c_uchar,
-		plaintext_len: *mut usize,
-	) -> AZIOT_KEYS_STATUS,
+    pub decrypt: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
+        parameters: *const std::ffi::c_void,
+        ciphertext: *const std::os::raw::c_uchar,
+        ciphertext_len: usize,
+        plaintext: *mut std::os::raw::c_uchar,
+        plaintext_len: *mut usize,
+    ) -> AZIOT_KEYS_STATUS,
 }
 
 #[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0() -> AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 { unimplemented!(); }
-
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0(
+) -> AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+    unimplemented!();
+}
 
 /// Get the list of functions for operations corresponding to the specified version.
 ///
@@ -302,134 +300,157 @@ pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0() -> AZIOT_KE
 ///   - `pfunction_list` is NULL.
 #[no_mangle]
 pub unsafe extern "C" fn aziot_keys_get_function_list(
-	version: AZIOT_KEYS_VERSION,
-	pfunction_list: *mut *const AZIOT_KEYS_FUNCTION_LIST,
+    version: AZIOT_KEYS_VERSION,
+    pfunction_list: *mut *const AZIOT_KEYS_FUNCTION_LIST,
 ) -> AZIOT_KEYS_STATUS {
-	implementation::get_function_list(version, pfunction_list)
+    implementation::get_function_list(version, pfunction_list)
 }
-
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE {
+    inner: std::os::raw::c_uint,
+}
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the key algorithm.
 ///
 /// The value returned by `get_key_pair_parameter` will be one of the `AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_*` constants.
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 1 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 1 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the curve OID of an EC key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded OID.
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 2 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 2 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the point of an EC key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer containing a DER-encoded octet string in RFC 5490 format.
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 3 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 3 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the modulus of an RSA key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 4 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 4 };
 
 /// Used as the parameter type with `get_key_pair_parameter` to get the exponent of an RSA key.
 ///
 /// The value returned by `get_key_pair_parameter` will be a byte buffer holding a big-endian bignum.
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE = AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 5 };
-
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT: AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE { inner: 5 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM {
+    inner: std::os::raw::c_uint,
+}
 
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 1 };
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 1 };
 
-pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 2 };
-
+pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM =
+    AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 2 };
 
 /// Represents the mechanism used for a sign operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_SIGN_MECHANISM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_SIGN_MECHANISM {
+    inner: std::os::raw::c_uint,
+}
 
 /// ECDSA
-pub const AZIOT_KEYS_SIGN_MECHANISM_ECDSA: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 1 };
+pub const AZIOT_KEYS_SIGN_MECHANISM_ECDSA: AZIOT_KEYS_SIGN_MECHANISM =
+    AZIOT_KEYS_SIGN_MECHANISM { inner: 1 };
 
 /// HMAC-SHA256
-pub const AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 2 };
+pub const AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256: AZIOT_KEYS_SIGN_MECHANISM =
+    AZIOT_KEYS_SIGN_MECHANISM { inner: 2 };
 
 /// Sign with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_SIGN_DERIVED_PARAMETERS` value.
-pub const AZIOT_KEYS_SIGN_MECHANISM_DERIVED: AZIOT_KEYS_SIGN_MECHANISM = AZIOT_KEYS_SIGN_MECHANISM { inner: 3 };
-
+pub const AZIOT_KEYS_SIGN_MECHANISM_DERIVED: AZIOT_KEYS_SIGN_MECHANISM =
+    AZIOT_KEYS_SIGN_MECHANISM { inner: 3 };
 
 /// Holds parameters for a sign operation with the [`AZIOT_KEYS_SIGN_MECHANISM_DERIVED`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
-	pub derivation_data: *const std::os::raw::c_uchar,
-	pub derivation_data_len: usize,
-	pub mechanism: AZIOT_KEYS_SIGN_MECHANISM,
-	pub parameters: *const std::ffi::c_void,
+    pub derivation_data: *const std::os::raw::c_uchar,
+    pub derivation_data_len: usize,
+    pub mechanism: AZIOT_KEYS_SIGN_MECHANISM,
+    pub parameters: *const std::ffi::c_void,
 }
 
 #[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_SIGN_DERIVED_PARAMETERS() -> AZIOT_KEYS_SIGN_DERIVED_PARAMETERS { unimplemented!(); }
-
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_SIGN_DERIVED_PARAMETERS(
+) -> AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
+    unimplemented!();
+}
 
 /// Represents the mechanism used for an encrypt operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct AZIOT_KEYS_ENCRYPT_MECHANISM { inner: std::os::raw::c_uint }
+pub struct AZIOT_KEYS_ENCRYPT_MECHANISM {
+    inner: std::os::raw::c_uint,
+}
 
 /// AEAD mechanism, like AES-256-GCM.
-pub const AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 1 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD: AZIOT_KEYS_ENCRYPT_MECHANISM =
+    AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 1 };
 
 /// RSA with PKCS1 padding.
-pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 2 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1: AZIOT_KEYS_ENCRYPT_MECHANISM =
+    AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 2 };
 
 /// RSA with no padding. Padding will have been performed by the caller.
-pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 3 };
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING: AZIOT_KEYS_ENCRYPT_MECHANISM =
+    AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 3 };
 
 /// Encrypt with a derived key. The `parameters` parameter must be set to a `AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS` value.
-pub const AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED: AZIOT_KEYS_ENCRYPT_MECHANISM = AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 4 };
-
+pub const AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED: AZIOT_KEYS_ENCRYPT_MECHANISM =
+    AZIOT_KEYS_ENCRYPT_MECHANISM { inner: 4 };
 
 /// Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
-	pub iv: *const std::os::raw::c_uchar,
-	pub iv_len: usize,
-	pub aad: *const std::os::raw::c_uchar,
-	pub aad_len: usize,
+    pub iv: *const std::os::raw::c_uchar,
+    pub iv_len: usize,
+    pub aad: *const std::os::raw::c_uchar,
+    pub aad_len: usize,
 }
 
 #[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS() -> AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS { unimplemented!(); }
-
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS(
+) -> AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
+    unimplemented!();
+}
 
 /// Holds parameters for an encrypt operation with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED`] mechanism.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
-	pub derivation_data: *const std::os::raw::c_uchar,
-	pub derivation_data_len: usize,
-	pub mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
-	pub parameters: *const std::ffi::c_void,
+    pub derivation_data: *const std::os::raw::c_uchar,
+    pub derivation_data_len: usize,
+    pub mechanism: AZIOT_KEYS_ENCRYPT_MECHANISM,
+    pub parameters: *const std::ffi::c_void,
 }
 
 #[cfg(any())]
 #[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS() -> AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS { unimplemented!(); }
-
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS(
+) -> AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
+    unimplemented!();
+}
 
 /// Catches the error, if any, and returns it. Otherwise returns [`AZIOT_KEYS_SUCCESS`].
 fn r#catch(f: impl FnOnce() -> Result<(), AZIOT_KEYS_STATUS>) -> AZIOT_KEYS_STATUS {
-	match f() {
-		Ok(()) => AZIOT_KEYS_SUCCESS,
-		Err(err) => err,
-	}
+    match f() {
+        Ok(()) => AZIOT_KEYS_SUCCESS,
+        Err(err) => err,
+    }
 }
