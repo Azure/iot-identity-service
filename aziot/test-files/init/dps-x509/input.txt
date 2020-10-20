@@ -1,0 +1,7 @@
+5
+0ab1234C5D6
+my-symmkey-devices
+2
+1
+/var/secrets/device-id.key.pem
+/var/secrets/device-id.pem

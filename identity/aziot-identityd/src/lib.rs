@@ -214,7 +214,6 @@ impl Server {
 		mut prev_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 		current_module_map: std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 	) -> Result<(), Error> {
-
 		if !current_module_map.is_empty() {
 			let localid = self.settings.localid.as_ref().ok_or_else(||
 				Error::Internal(InternalError::BadSettings(std::io::Error::new(
