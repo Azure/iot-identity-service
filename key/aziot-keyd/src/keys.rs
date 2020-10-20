@@ -426,11 +426,13 @@ impl std::fmt::Display for GetKeyPairPublicParameterError {
                 "could not get key pair parameter: key has unknown algorithm {}",
                 algorithm
             ),
-            GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len } => write!(
+            GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len } => {
+                write!(
                 f,
                 "could not get key pair parameter: key has unknown algorithm value of length {}",
                 algorithm_len
-            ),
+            )
+            }
         }
     }
 }

@@ -125,7 +125,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn convert_to_map(
-    principal: &Option<Vec<aziot_identityd::settings::Principal>>,
+    principal: &[aziot_identityd::settings::Principal],
 ) -> (
     std::collections::BTreeMap<aziot_identityd::auth::Uid, aziot_identityd::settings::Principal>,
     std::collections::BTreeSet<aziot_identity_common::ModuleId>,
@@ -144,8 +144,6 @@ fn convert_to_map(
         aziot_identityd::auth::Uid,
         aziot_identityd::settings::Principal,
     > = std::collections::BTreeMap::new();
-
-    let principal = principal.iter().flat_map(|p| p.iter());
 
     for p in principal {
         if let Some(id_type) = &p.id_type {
@@ -191,7 +189,7 @@ mod tests {
             localid: None,
         };
         let v = vec![module_p.clone(), local_p.clone()];
-        let (map, _, _) = convert_to_map(&Some(v));
+        let (map, _, _) = convert_to_map(&v);
 
         assert!(map.contains_key(&Uid(1000)));
         assert_eq!(map.get(&Uid(1000)).unwrap(), &local_p);
@@ -222,7 +220,7 @@ mod tests {
             },
         ];
 
-        let (_, hub_modules, local_modules) = convert_to_map(&Some(v));
+        let (_, hub_modules, local_modules) = convert_to_map(&v);
 
         assert!(hub_modules.contains(&ModuleId("hubmodule".to_owned())));
         assert!(hub_modules.contains(&ModuleId("globalmodule".to_owned())));
@@ -262,11 +260,10 @@ mod tests {
     #[test]
     fn local_id_opts() {
         let s = Settings::new(std::path::Path::new("test/good_local_opts.toml")).unwrap();
-        let principals = s.principal.unwrap();
 
         assert_eq!(
-            principals,
-            vec![
+            &s.principal,
+            &[
                 Principal {
                     uid: Uid(1000),
                     name: ModuleId("module1".to_owned()),
@@ -295,7 +292,7 @@ mod tests {
 
     #[test]
     fn empty_auth_settings_deny_any_action() {
-        let (pmap, mset, _) = convert_to_map(&None);
+        let (pmap, mset, _) = convert_to_map(&[]);
         let auth = SettingsAuthorizer { pmap, mset };
         let operation = Operation {
             auth_id: AuthId::Unknown,

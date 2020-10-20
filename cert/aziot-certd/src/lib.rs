@@ -12,7 +12,10 @@
 )]
 
 mod config;
-pub use config::{Config, Endpoints};
+pub use config::{
+    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuth,
+    EstAuthBasic, EstAuthX509, LocalCa, PreloadedCert,
+};
 
 mod error;
 pub use error::{Error, InternalError};

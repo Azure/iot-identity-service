@@ -88,6 +88,7 @@ default:
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
 	$(CARGO) build \
+		-p aziot \
 		-p aziot-certd \
 		-p aziot-identityd \
 		-p aziot-keyd \
@@ -135,6 +136,8 @@ test:
 	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
+	$(CARGO) fmt --all $(CARGO_VERBOSE) -- --check
+
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
 		grep -v '\.generated\.rs$$' | \
@@ -167,7 +170,9 @@ dist:
 	mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# Copy source files
-	cp -R ./cert ./http-common ./identity ./key ./iotedged ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 /tmp/aziot-identity-service-$(PACKAGE_VERSION)
+	cp -R \
+		./aziot ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 \
+		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# `cargo vendor` for offline builds
@@ -258,6 +263,7 @@ install-common:
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-certd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-keyd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-identityd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
+	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot $(DESTDIR)$(bindir)/aziot
 
 	# libaziot-keys
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so

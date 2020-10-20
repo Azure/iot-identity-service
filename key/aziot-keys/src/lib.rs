@@ -447,6 +447,11 @@ pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS(
     unimplemented!();
 }
 
+// rlib-only exports:
+
+// Re-exported so that `aziot init` can use it for parsing user input.
+pub use implementation::PreloadedKeyLocation;
+
 /// Catches the error, if any, and returns it. Otherwise returns [`AZIOT_KEYS_SUCCESS`].
 fn r#catch(f: impl FnOnce() -> Result<(), AZIOT_KEYS_STATUS>) -> AZIOT_KEYS_STATUS {
     match f() {
