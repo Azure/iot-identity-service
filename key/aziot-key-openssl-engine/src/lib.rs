@@ -33,10 +33,10 @@ pub(crate) mod ex_data;
 mod rsa;
 
 /// Load a new instance of the openssl engine with the given Keys Service client.
-pub fn load(client: std::sync::Arc<aziot_key_client::Client>) -> Result<openssl2::FunctionalEngine, openssl2::Error> {
-	unsafe {
-		engine::Engine::load(client)
-	}
+pub fn load(
+    client: std::sync::Arc<aziot_key_client::Client>,
+) -> Result<openssl2::FunctionalEngine, openssl2::Error> {
+    unsafe { engine::Engine::load(client) }
 }
 
 /// Register the openssl engine with the given init function on the given structural instance.
@@ -44,10 +44,10 @@ pub fn load(client: std::sync::Arc<aziot_key_client::Client>) -> Result<openssl2
 /// This is intended to be used by aziot-key-engine-shared.
 #[doc(hidden)]
 pub unsafe fn register(
-	e: *mut openssl_sys::ENGINE,
-	init: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
+    e: *mut openssl_sys::ENGINE,
+    init: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
 ) -> Result<(), openssl2::Error> {
-	engine::Engine::register(e, Some(init))
+    engine::Engine::register(e, Some(init))
 }
 
 /// Initialize an existing structural instance of the openssl engine with the given Keys Service client.
@@ -55,30 +55,30 @@ pub unsafe fn register(
 /// This is intended to be used by aziot-key-engine-shared.
 #[doc(hidden)]
 pub unsafe fn init(
-	e: *mut openssl_sys::ENGINE,
-	client: std::sync::Arc<aziot_key_client::Client>,
+    e: *mut openssl_sys::ENGINE,
+    client: std::sync::Arc<aziot_key_client::Client>,
 ) -> Result<(), openssl2::Error> {
-	engine::Engine::init(e, client)
+    engine::Engine::init(e, client)
 }
 
 openssl_errors::openssl_errors! {
-	#[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
-	library Error("aziot_key_openssl_engine") {
-		functions {
-			ENGINE_LOAD_PRIVKEY("aziot_key_engine_load_privkey");
-			ENGINE_LOAD_PUBKEY("aziot_key_engine_load_pubkey");
+    #[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
+    library Error("aziot_key_openssl_engine") {
+        functions {
+            ENGINE_LOAD_PRIVKEY("aziot_key_engine_load_privkey");
+            ENGINE_LOAD_PUBKEY("aziot_key_engine_load_pubkey");
 
-			ENGINE_PKEY_METHS("aziot_key_engine_pkey_meths");
+            ENGINE_PKEY_METHS("aziot_key_engine_pkey_meths");
 
-			AZIOT_KEY_EC_SIGN("aziot_key_ec_sign");
+            AZIOT_KEY_EC_SIGN("aziot_key_ec_sign");
 
-			AZIOT_KEY_RSA_PRIV_ENC("aziot_key_rsa_priv_enc");
-		}
+            AZIOT_KEY_RSA_PRIV_ENC("aziot_key_rsa_priv_enc");
+        }
 
-		reasons {
-			MESSAGE("");
-		}
-	}
+        reasons {
+            MESSAGE("");
+        }
+    }
 }
 
 /// Catches the error, if any, from evaluating the given callback and converts it to a unit sentinel.
@@ -87,38 +87,36 @@ openssl_errors::openssl_errors! {
 ///
 /// Intended to be used at FFI boundaries, where a Rust error cannot pass through and must be converted to an integer, nullptr, etc.
 fn r#catch<T>(
-	function: Option<fn() -> openssl_errors::Function<Error>>,
-	f: impl FnOnce() -> Result<T, Box<dyn std::error::Error>>,
+    function: Option<fn() -> openssl_errors::Function<Error>>,
+    f: impl FnOnce() -> Result<T, Box<dyn std::error::Error>>,
 ) -> Result<T, ()> {
-	match f() {
-		Ok(value) => Ok(value),
-		Err(err) => {
-			// Technically, the order the errors should be put onto the openssl error stack is from root cause to top error.
-			// Unfortunately this is backwards from how Rust errors work, since they are top error to root cause.
-			//
-			// We could do it the right way by collect()ing into a Vec<&dyn Error> and iterating it backwards,
-			// but it seems too wasteful to be worth it. So just put them in the wrong order.
+    match f() {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            // Technically, the order the errors should be put onto the openssl error stack is from root cause to top error.
+            // Unfortunately this is backwards from how Rust errors work, since they are top error to root cause.
+            //
+            // We could do it the right way by collect()ing into a Vec<&dyn Error> and iterating it backwards,
+            // but it seems too wasteful to be worth it. So just put them in the wrong order.
 
-			if let Some(function) = function {
-				openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
-			}
-			else {
-				eprintln!("[aziot-key-openssl-engine] error: {}", err);
-			}
+            if let Some(function) = function {
+                openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
+            } else {
+                eprintln!("[aziot-key-openssl-engine] error: {}", err);
+            }
 
-			let mut source = err.source();
-			while let Some(err) = source {
-				if let Some(function) = function {
-					openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
-				}
-				else {
-					eprintln!("[aziot-key-openssl-engine] caused by: {}", err);
-				}
+            let mut source = err.source();
+            while let Some(err) = source {
+                if let Some(function) = function {
+                    openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
+                } else {
+                    eprintln!("[aziot-key-openssl-engine] caused by: {}", err);
+                }
 
-				source = err.source();
-			}
+                source = err.source();
+            }
 
-			Err(())
-		},
-	}
+            Err(())
+        }
+    }
 }

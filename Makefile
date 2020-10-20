@@ -136,6 +136,8 @@ test:
 	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
+	$(CARGO) fmt --all $(CARGO_VERBOSE) -- --check
+
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
 		grep -v '\.generated\.rs$$' | \
