@@ -86,8 +86,9 @@ pub(crate) fn run() -> Result<(), crate::Error> {
 		}
 	}
 
-	let stdin = std::io::stdin();
-	let mut stdin = stdin.lock();
+	let mut stdin = Stdin {
+		prompter: rustyline::Editor::new(),
+	};
 
 	let (
 		keyd_config,
@@ -127,7 +128,7 @@ macro_rules! choose {
 }
 
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
-fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
+fn run_inner(stdin: &mut impl Reader) -> Result<(
 	Vec<u8>,
 	Vec<u8>,
 	Vec<u8>,
@@ -178,7 +179,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 			let iothub_hostname = prompt(stdin, "Enter the IoT Hub hostname.")?;
 			let device_id = prompt(stdin, "Enter the device ID.")?;
 			let symmetric_key = loop {
-				let symmetric_key = prompt(stdin, "Enter the device symmetric key (in its original base64 form).")?;
+				let symmetric_key = prompt_secret(stdin, "Enter the device symmetric key (in its original base64 form).")?;
 				match base64::decode(symmetric_key) {
 					Ok(symmetric_key) => break symmetric_key,
 					Err(err) => println!(r#"Symmetric key could not be decoded from base64: {}"#, err),
@@ -218,7 +219,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 			let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
 			let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 			let symmetric_key = loop {
-				let symmetric_key = prompt(stdin, "Enter the DPS symmetric key (in its original base64 form)..")?;
+				let symmetric_key = prompt_secret(stdin, "Enter the DPS symmetric key (in its original base64 form).")?;
 				match base64::decode(symmetric_key) {
 					Ok(symmetric_key) => break symmetric_key,
 					Err(err) => println!(r#"Symmetric key could not be decoded from base64: {}"#, err),
@@ -450,11 +451,7 @@ fn run_inner(stdin: &mut impl std::io::BufRead) -> Result<(
 
 					YesNo::Yes => {
 						let username = prompt(stdin, "Enter the username used to authenticate with your EST server.")?;
-						// It would be nice to use the rpassword crate so that the password isn't echoed as the user types it.
-						// But the rpassword crates needs access to the real stdin to be able to disable the echo attribute on it,
-						// which we cannot give it because we've locked stdin ourselves.
-
-						let password = prompt(stdin, "Enter the password used to authenticate with your EST server.")?;
+						let password = prompt_secret(stdin, "Enter the password used to authenticate with your EST server.")?;
 						Some(aziot_certd::EstAuthBasic {
 							username,
 							password,
@@ -645,8 +642,60 @@ enum EstTrustedCert {
 	Separate,
 }
 
+/// This trait exists to read lines from stdin without directly using `std::io::StdinLock`,
+/// because reading secrets (symmetric keys, etc) requires disabling echo on the tty directly which can't be done while stdin is locked.
+///
+/// Making a trait also allows it to be mocked for tests where the input comes from files.
+trait Reader {
+	/// Prints the given prompt string, reads a line from the user and appends the response to the given line buffer.
+	///
+	/// Unlike `std::io::BufRead::read_line`, this does not include a trailing newline. Specifically, empty input is returned as an empty string.
+	/// EOF is indicated by returning a `Err(std::io::ErrorKind::UnexpectedEof)` instead.
+	fn read_line(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize>;
+
+	/// Prints the given prompt string, reads a secret from the user and appends the response to the given line buffer.
+	///
+	/// Unlike `std::io::BufRead::read_line`, this does not include a trailing newline. Specifically, empty input is returned as an empty string.
+	/// EOF is indicated by returning a `Err(std::io::ErrorKind::UnexpectedEof)` instead.
+	fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize>;
+}
+
+struct Stdin {
+	prompter: rustyline::Editor<()>,
+}
+
+impl Reader for Stdin {
+	fn read_line(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
+		loop {
+			match self.prompter.readline(prompt) {
+				Ok(response) => {
+					line.push_str(&response);
+					return Ok(response.len());
+				},
+
+				Err(rustyline::error::ReadlineError::Io(err)) => return Err(err),
+
+				Err(rustyline::error::ReadlineError::Eof) |
+				Err(rustyline::error::ReadlineError::Interrupted) => return Err(std::io::ErrorKind::UnexpectedEof.into()),
+
+				Err(rustyline::error::ReadlineError::Utf8Error) => println!("Input could not be parsed as UTF-8"),
+
+				Err(rustyline::error::ReadlineError::Errno(err)) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+
+				Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+			}
+		}
+	}
+
+	fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
+		let password = rpassword::prompt_password_stdout(prompt)?;
+		line.push_str(&password);
+		Ok(password.len())
+	}
+}
+
 fn choose<'a, TChoice>(
-	stdin: &mut impl std::io::BufRead,
+	stdin: &mut impl Reader,
 	question: &str,
 	choices: &'a [TChoice],
 ) -> Result<&'a TChoice, crate::Error> where TChoice: std::fmt::Display {
@@ -677,30 +726,41 @@ fn choose<'a, TChoice>(
 			return Ok(answer);
 		}
 
-		print!("Invalid choice. ");
+		println!("Invalid choice.");
 	}
 }
 
-fn prompt(stdin: &mut impl std::io::BufRead, question: &str) -> Result<String, crate::Error> {
+fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String, crate::Error> {
 	println!("{}", question);
 
 	let mut line = String::new();
 
 	loop {
-		print!("> ");
-		std::io::Write::flush(&mut std::io::stdout())?;
-
-		stdin.read_line(&mut line)?;
+		stdin.read_line("> ", &mut line)?;
 		if line.is_empty() {
-			return Err(std::io::Error::from(std::io::ErrorKind::UnexpectedEof).into());
+			continue;
 		}
 
 		println!();
 
-		let answer = line.trim();
-		if !answer.is_empty() {
-			return Ok(answer.to_owned());
+		return Ok(line);
+	}
+}
+
+fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String, crate::Error> {
+	println!("{}", question);
+
+	let mut line = String::new();
+
+	loop {
+		stdin.read_secret("(echo disabled) > ", &mut line)?;
+		if line.is_empty() {
+			continue;
 		}
+
+		println!();
+
+		return Ok(line);
 	}
 }
 
@@ -763,7 +823,7 @@ fn get_hostname() -> Result<String, crate::Error> {
 }
 
 /// Prompts the user to enter an EST server URL, and fixes it to have a "/.well-known/est" component if it doesn't already.
-fn read_est_url(stdin: &mut impl std::io::BufRead, prompt_question: &str) -> Result<url::Url, crate::Error> {
+fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> Result<url::Url, crate::Error> {
 	loop {
 		let url = prompt(stdin, prompt_question)?;
 		let url =
@@ -825,6 +885,25 @@ fn write_file(
 
 #[cfg(test)]
 mod tests {
+	struct Stdin(std::io::BufReader<std::fs::File>);
+
+	impl super::Reader for Stdin {
+		fn read_line(&mut self, _prompt: &str, line: &mut String) -> std::io::Result<usize> {
+			match std::io::BufRead::read_line(&mut self.0, line)? {
+				0 => Err(std::io::ErrorKind::UnexpectedEof.into()),
+				result => {
+					// Remove trailing newline to match `Reader::read_line` API.
+					line.pop();
+					Ok(result - 1)
+				},
+			}
+		}
+
+		fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
+			self.read_line(prompt, line)
+		}
+	}
+
 	#[test]
 	fn test() {
 		let files_directory = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/test-files/init"));
@@ -840,7 +919,7 @@ mod tests {
 
 			println!("Running test {}", test_name);
 
-			let mut input = std::io::BufReader::new(std::fs::File::open(case_directory.join("input.txt")).unwrap());
+			let mut input = Stdin(std::io::BufReader::new(std::fs::File::open(case_directory.join("input.txt")).unwrap()));
 			let expected_keyd_config = std::fs::read(case_directory.join("keyd.toml")).unwrap();
 			let expected_certd_config = std::fs::read(case_directory.join("certd.toml")).unwrap();
 			let expected_identityd_config = std::fs::read(case_directory.join("identityd.toml")).unwrap();
