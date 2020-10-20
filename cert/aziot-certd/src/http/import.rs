@@ -11,6 +11,7 @@ pub(super) struct Route {
 	cert_id: String,
 }
 
+#[async_trait::async_trait]
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_cert_common_http::ApiVersion;
 	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
@@ -44,20 +45,18 @@ impl http_common::server::Route for Route {
 
 	type PutBody = aziot_cert_common_http::import_cert::Request;
 	type PutResponse = aziot_cert_common_http::import_cert::Response;
-	fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse<Self::PutResponse> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			match inner.import_cert(&self.cert_id, &body.pem.0) {
-				Ok(()) => (),
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		match inner.import_cert(&self.cert_id, &body.pem.0) {
+			Ok(()) => (),
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			let res = aziot_cert_common_http::import_cert::Response {
-				pem: body.pem,
-			};
-			Ok((hyper::StatusCode::CREATED, res))
-		})
+		let res = aziot_cert_common_http::import_cert::Response {
+			pem: body.pem,
+		};
+		Ok((hyper::StatusCode::CREATED, res))
 	}
 }
