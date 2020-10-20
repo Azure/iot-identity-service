@@ -40,6 +40,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34fde25430d87a9388dadbe6e34d7f72a462c8b43ac8d309b42b0a8505d7e2a5"
 
 [[package]]
+name = "async-trait"
+version = "0.1.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b246867b8b3b6ae56035f1eb1ed557c1d8eae97f0d53696138a50fa0e3a3b8c0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -105,6 +116,7 @@ dependencies = [
 name = "aziot-certd"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "aziot-cert-common-http",
  "aziot-key-client",
  "aziot-key-common",
@@ -214,6 +226,7 @@ dependencies = [
 name = "aziot-identityd"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "aziot-cert-client-async",
  "aziot-cert-common-http",
  "aziot-dps-client-async",
@@ -327,6 +340,7 @@ dependencies = [
 name = "aziot-keyd"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-keys",
@@ -765,6 +779,7 @@ dependencies = [
 name = "http-common"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64",
  "futures-util",
  "http",

@@ -9,6 +9,7 @@ The code used for Identity Service.
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1"
 base64 = "0.12"
 chrono = "0.4"
 clap = "2.31"
