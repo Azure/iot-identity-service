@@ -1,4 +1,3 @@
-
 # Configuring and running `aziot-identityd`
 
 Basic Identity Service configuration file consists of following mandatory settings:

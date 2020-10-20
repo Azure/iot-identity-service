@@ -1,8 +1,8 @@
 # Running the services locally
 
-1. Follow the steps in [Building the services](../building.md) to build the services.
+1. Follow the steps in [Building the services](../building.html) to build the services.
 
-1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11/_index.md)
+1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11/index.html)
 
 1. Create an Azure IoT Hub and an Azure IoT Device identity in that IoT Hub. Depending on the auth method you choose for the device identity, the services will be configured accordingly later.
 
@@ -14,11 +14,11 @@
 
     For `x509_thumbprint` and `x509_ca`, you can use hardware-backed private keys for the certs if you're using PKCS#11.
 
-1. Start `aziot-keyd` in one shell. See [Configuring and running `aziot-keyd`](aziot-keyd.md)
+1. Start `aziot-keyd` in one shell. See [Configuring and running `aziot-keyd`](aziot-keyd.html)
 
-1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.md)
+1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.html)
 
-1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
+1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.html)
 
 1. Run `iotedged` in another shell.
 
