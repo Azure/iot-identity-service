@@ -11,10 +11,11 @@ pub(super) struct Route {
 	cert_id: String,
 }
 
+#[async_trait::async_trait]
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_cert_common_http::ApiVersion;
-	fn api_version() -> std::ops::Range<Self::ApiVersion> {
-		(aziot_cert_common_http::ApiVersion::V2020_09_01)..(aziot_cert_common_http::ApiVersion::Max)
+	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
+		&((aziot_cert_common_http::ApiVersion::V2020_09_01)..)
 	}
 
 	type Server = super::Server;
@@ -36,36 +37,32 @@ impl http_common::server::Route for Route {
 
 	type DeleteBody = serde::de::IgnoredAny;
 	type DeleteResponse = ();
-	fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			if let Err(err) = inner.delete_cert(&self.cert_id) {
-				return Err(super::to_http_error(&err));
-			}
+		if let Err(err) = inner.delete_cert(&self.cert_id) {
+			return Err(super::to_http_error(&err));
+		}
 
-			Ok((hyper::StatusCode::NO_CONTENT, None))
-		})
+		Ok((hyper::StatusCode::NO_CONTENT, None))
 	}
 
 	type GetResponse = aziot_cert_common_http::get_cert::Response;
-	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let pem = inner.get_cert(&self.cert_id);
-			let pem = match pem {
-				Ok(pem) => pem,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let pem = inner.get_cert(&self.cert_id);
+		let pem = match pem {
+			Ok(pem) => pem,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			let res = aziot_cert_common_http::get_cert::Response {
-				pem: aziot_cert_common_http::Pem(pem),
-			};
-			Ok((hyper::StatusCode::OK, res))
-		})
+		let res = aziot_cert_common_http::get_cert::Response {
+			pem: aziot_cert_common_http::Pem(pem),
+		};
+		Ok((hyper::StatusCode::OK, res))
 	}
 
 	type PostBody = serde::de::IgnoredAny;

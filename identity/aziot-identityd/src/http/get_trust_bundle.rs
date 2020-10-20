@@ -4,10 +4,11 @@ pub(super) struct Route {
 	inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
 }
 
+#[async_trait::async_trait]
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_identity_common_http::ApiVersion;
-	fn api_version() -> std::ops::Range<Self::ApiVersion> {
-		(aziot_identity_common_http::ApiVersion::V2020_09_01)..(aziot_identity_common_http::ApiVersion::Max)
+	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
+		&((aziot_identity_common_http::ApiVersion::V2020_09_01)..)
 	}
 
 	type Server = super::Server;
@@ -29,28 +30,26 @@ impl http_common::server::Route for Route {
 	type DeleteResponse = ();
 
 	type GetResponse = aziot_identity_common_http::get_trust_bundle::Response;
-	fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
-		Box::pin(async move {
-			let mut inner = self.inner.lock().await;
-			let inner = &mut *inner;
+	async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+		let mut inner = self.inner.lock().await;
+		let inner = &mut *inner;
 
-			let user = aziot_identityd::auth::Uid(0);
-			let auth_id = match inner.authenticator.authenticate(user) {
-				Ok(auth_id) => auth_id,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		let user = aziot_identityd::auth::Uid(0);
+		let auth_id = match inner.authenticator.authenticate(user) {
+			Ok(auth_id) => auth_id,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			//TODO: get uid from UDS
-			let certificate = match inner.get_trust_bundle(auth_id).await {
-				Ok(v) => v,
-				Err(err) => return Err(super::to_http_error(&err)),
-			};
+		//TODO: get uid from UDS
+		let certificate = match inner.get_trust_bundle(auth_id).await {
+			Ok(v) => v,
+			Err(err) => return Err(super::to_http_error(&err)),
+		};
 
-			let res = aziot_identity_common_http::get_trust_bundle::Response {
-				certificate,
-			};
-			Ok((hyper::StatusCode::OK, res))
-		})
+		let res = aziot_identity_common_http::get_trust_bundle::Response {
+			certificate,
+		};
+		Ok((hyper::StatusCode::OK, res))
 	}
 
 	type PostBody = serde::de::IgnoredAny;
