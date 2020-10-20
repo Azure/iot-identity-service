@@ -663,7 +663,6 @@ struct Stdin {
 impl Reader for Stdin {
 	fn read_line(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
 		self.editor.helper_mut().expect("helper is always Some").reading_secret = false;
-		// rustyline::config::Configurer::set_color_mode(&mut self.editor, rustyline::config::ColorMode::Disabled);
 
 		loop {
 			match self.editor.readline(prompt) {
@@ -688,7 +687,6 @@ impl Reader for Stdin {
 
 	fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize> {
 		self.editor.helper_mut().expect("helper is always Some").reading_secret = true;
-		// rustyline::config::Configurer::set_color_mode(&mut self.editor, rustyline::config::ColorMode::Forced);
 
 		match self.editor.readline(prompt) {
 			Ok(response) => {
