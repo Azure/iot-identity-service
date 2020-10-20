@@ -13,8 +13,8 @@ pub(super) struct Route {
 
 impl http_common::server::Route for Route {
 	type ApiVersion = aziot_cert_common_http::ApiVersion;
-	fn api_version() -> std::ops::Range<Self::ApiVersion> {
-		(aziot_cert_common_http::ApiVersion::V2020_09_01)..(aziot_cert_common_http::ApiVersion::Max)
+	fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
+		&((aziot_cert_common_http::ApiVersion::V2020_09_01)..)
 	}
 
 	type Server = super::Server;
