@@ -2,9 +2,7 @@
 
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
-#![allow(
-	non_camel_case_types,
-)]
+#![allow(non_camel_case_types)]
 
 mod asn1;
 pub use asn1::*;
