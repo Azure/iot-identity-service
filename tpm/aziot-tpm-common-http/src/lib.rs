@@ -72,6 +72,6 @@ pub mod sign_with_auth_key {
     #[derive(Debug, Deserialize, Serialize)]
     pub struct Response {
         /// The data's digest
-        pub digest: http_common::ByteString
+        pub digest: http_common::ByteString,
     }
 }

@@ -44,16 +44,14 @@ impl Server {
     }
 
     pub fn sign_with_auth_key(&mut self, data: &[u8]) -> Result<Vec<u8>, Error> {
-        self
-            .tpm
+        self.tpm
             .sign_with_auth_key(data)
             .map(|digest| digest.to_vec())
             .map_err(|e| Error::Internal(InternalError::SignWithAuthKey(e)))
     }
 
     pub fn import_auth_key(&mut self, key: &[u8]) -> Result<(), Error> {
-        self
-            .tpm
+        self.tpm
             .import_auth_key(key)
             .map_err(|e| Error::Internal(InternalError::SignWithAuthKey(e)))
     }
