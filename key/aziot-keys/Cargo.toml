@@ -5,7 +5,7 @@ authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 foreign-types-shared = "0.1"

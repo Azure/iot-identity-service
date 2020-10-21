@@ -4,5 +4,5 @@
 #![deny(clippy::all, clippy::pedantic)]
 
 fn main() {
-	println!("cargo:rustc-link-lib=aziot_keys");
+    println!("cargo:rustc-link-lib=aziot_keys");
 }

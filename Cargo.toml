@@ -1,5 +1,7 @@
 [workspace]
 members = [
+	"aziot",
+
 	"cert/aziot-cert-client-async",
 	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",

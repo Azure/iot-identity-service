@@ -4,5 +4,5 @@
 #![deny(clippy::all, clippy::pedantic)]
 
 fn main() {
-	openssl_build::define_version_number_cfg();
+    openssl_build::define_version_number_cfg();
 }
