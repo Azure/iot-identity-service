@@ -3,13 +3,12 @@
 
 <style>
     #nav-sidebar {
-        float: left;
-        width: 20%;
-        position: relative;
-        left: 5%;
-        padding-top: 2%;
-        padding-right: 5%;
-        z-index: 1;
+        margin: 0;
+        min-width: 18%;
+        max-width: 18%;
+        padding-top: 40px;
+        padding-right: 20px;
+        padding-left: 40px;
     }
 </style>
 
@@ -39,15 +38,17 @@
                 {% assign level = path_level %}
             {% endif %}
 
+            <li><a href="{{ urlbase }}{{ i.url }}">
             {% if i.url == page.url %}
                 <b>
             {% endif %}
 
-            <li><a href="{{ urlbase }}{{ i.url }}">{{ i.title }}</a></li>
+            {{ i.title }}
 
             {% if i.url == page.url %}
                 </b>
             {% endif %}
+            </a></li>
         {% endfor %}
     </ul>
 </div>
