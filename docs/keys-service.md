@@ -2,6 +2,8 @@
 
 ## API
 
+An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/2020-09-01.yaml`
+
 ### Generate New Symmetric Key
 
 `POST /key?api-version=2020-09-01`
