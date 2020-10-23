@@ -2,7 +2,7 @@
 
 [The `ibmswtpm2` project](https://sourceforge.net/projects/ibmswtpm2) is a TPM 2.0 simulator. `tpm2-abrmd` can be configured to use it as a backend instead of a real TPM at `/dev/tpm0`. This document describes how to compile and set up the simulator on Ubuntu 18.04.
 
-Note: It's expected you've already followed the steps in [the parent document](index.html) to compile `tpm2-abrmd`.
+Note: It's expected you've already followed the steps in [the parent document](index.md) to compile `tpm2-abrmd`.
 
 1. Compile and start `/usr/local/bin/tpm_server`
 
@@ -14,7 +14,9 @@ Note: It's expected you've already followed the steps in [the parent document](i
     mkdir -p ~/src
     cd ~/src
 
-    curl -Lo ibmtpm1637.tar.gz 'https://sourceforge.net/projects/ibmswtpm2/files/ibmtpm1637.tar.gz'
+    curl -L \
+        -o ibmtpm1637.tar.gz \
+        'https://sourceforge.net/projects/ibmswtpm2/files/ibmtpm1637.tar.gz'
     tar x --one-top-level=ibmtpm1637 -f ibmtpm1637.tar.gz
     cd ibmtpm1637/
 
@@ -150,8 +152,17 @@ Note: It's expected you've already followed the steps in [the parent document](i
 1. Verify that everything is working.
 
     ```sh
-    sudo systemctl status ibmswtpm2   # Should be active (running)
-    sudo systemctl status tpm2-abrmd   # Should be active (running), and its log should say "tcti_conf after: "mssim""
+    # Should be active (running)
+    sudo systemctl status ibmswtpm2
 
-    tpm2_pcrread sha256   # Should print a large array of bytes instead of an error like "ERROR: Esys_GetCapability(0xA000A) - tcti:IO failure"
+    # Should be active (running), and its log should say
+    #
+    #     tcti_conf after: "mssim"
+    sudo systemctl status tpm2-abrmd
+
+    # Should print a large array of bytes,
+    # instead of an error like
+    #
+    #     ERROR: Esys_GetCapability(0xA000A) - tcti:IO failure"
+    tpm2_pcrread sha256
     ```
