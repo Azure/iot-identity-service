@@ -1,0 +1,53 @@
+{% assign items = site.pages | sort: 'url' %}
+{% assign urlbase = site.url | append: "/iot-identity-service" %}
+
+<style>
+    #nav-sidebar {
+        margin: 0;
+        min-width: 18%;
+        max-width: 18%;
+        padding-top: 40px;
+        padding-right: 20px;
+        padding-left: 40px;
+        z-index: 1;
+    }
+</style>
+
+<div id="nav-sidebar">
+    <h3>Contents</h3>
+    <ul>
+        {% assign level = 1 %}
+        {% for i in items %}
+            {% unless i.title %}
+                {% continue %}
+            {% endunless %}
+
+            {% assign path = i.url | split: "/" %}
+            {% assign path_level = path.size | minus: 1 | at_least: 1 %}
+
+            {% if path_level > level %}
+                {% assign limit = path_level | minus: 1 %}
+                {% for l in (level..limit) %}
+                    <ul style="margin-bottom:0;">
+                {% endfor %}
+                {% assign level = path_level %}
+            {% elsif path_level < level %}
+                {% assign limit = level | minus: 1 %}
+                {% for l in (path_level..limit) %}
+                    </ul>
+                {% endfor %}
+                {% assign level = path_level %}
+            {% endif %}
+
+            <li>
+            {% if i.url == page.url %}
+                <a href="{{ urlbase }}{{ i.url }}" style="font-weight: bold;">
+            {% else %}
+                <a href="{{ urlbase }}{{ i.url }}">
+            {% endif %}
+
+            {{ i.title }}
+            </a></li>
+        {% endfor %}
+    </ul>
+</div>
