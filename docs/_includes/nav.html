@@ -9,6 +9,7 @@
         padding-top: 40px;
         padding-right: 20px;
         padding-left: 40px;
+        z-index: 1;
     }
 </style>
 
@@ -27,7 +28,7 @@
             {% if path_level > level %}
                 {% assign limit = path_level | minus: 1 %}
                 {% for l in (level..limit) %}
-                    <ul>
+                    <ul style="margin-bottom:0;">
                 {% endfor %}
                 {% assign level = path_level %}
             {% elsif path_level < level %}
