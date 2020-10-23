@@ -38,16 +38,14 @@
                 {% assign level = path_level %}
             {% endif %}
 
-            <li><a href="{{ urlbase }}{{ i.url }}">
+            <li>
             {% if i.url == page.url %}
-                <b>
+                <a href="{{ urlbase }}{{ i.url }}" style="font-weight: bold;">
+            {% else %}
+                <a href="{{ urlbase }}{{ i.url }}">
             {% endif %}
 
             {{ i.title }}
-
-            {% if i.url == page.url %}
-                </b>
-            {% endif %}
             </a></li>
         {% endfor %}
     </ul>
