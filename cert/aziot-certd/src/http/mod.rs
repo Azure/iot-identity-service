@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 mod create;
-mod get_or_delete;
-mod import;
+mod get_or_import_or_delete;
 
 pub(crate) struct Server {
     pub(crate) inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
@@ -13,8 +12,7 @@ http_common::make_server! {
     api_version: aziot_cert_common_http::ApiVersion,
     routes: [
         create::Route,
-        get_or_delete::Route,
-        import::Route,
+        get_or_import_or_delete::Route,
     ],
 }
 

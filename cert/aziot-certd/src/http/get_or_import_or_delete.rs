@@ -39,8 +39,36 @@ impl http_common::server::Route for Route {
 
     type DeleteBody = serde::de::IgnoredAny;
     type DeleteResponse = ();
+    async fn delete(
+        self,
+        _body: Option<Self::DeleteBody>,
+    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+        let mut inner = self.inner.lock().await;
+        let inner = &mut *inner;
 
-    type GetResponse = ();
+        if let Err(err) = inner.delete_cert(&self.cert_id) {
+            return Err(super::to_http_error(&err));
+        }
+
+        Ok((hyper::StatusCode::NO_CONTENT, None))
+    }
+
+    type GetResponse = aziot_cert_common_http::get_cert::Response;
+    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+        let mut inner = self.inner.lock().await;
+        let inner = &mut *inner;
+
+        let pem = inner.get_cert(&self.cert_id);
+        let pem = match pem {
+            Ok(pem) => pem,
+            Err(err) => return Err(super::to_http_error(&err)),
+        };
+
+        let res = aziot_cert_common_http::get_cert::Response {
+            pem: aziot_cert_common_http::Pem(pem),
+        };
+        Ok((hyper::StatusCode::OK, res))
+    }
 
     type PostBody = serde::de::IgnoredAny;
     type PostResponse = ();
