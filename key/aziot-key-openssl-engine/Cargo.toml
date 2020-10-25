@@ -10,6 +10,7 @@ build = "build/main.rs"
 [dependencies]
 base64 = "0.12"
 foreign-types-shared = "0.1"
+log = "0.4"
 openssl = "0.10"
 openssl-errors = "0.1"
 openssl-sys = "0.9"

@@ -2,6 +2,8 @@
 members = [
 	"aziot",
 
+	"aziotd",
+
 	"cert/aziot-cert-client-async",
 	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",
@@ -25,6 +27,7 @@ members = [
 	"key/aziot-key-openssl-engine",
 	"key/aziot-key-openssl-engine-shared",
 	"key/aziot-keys",
+	"key/aziot-keys-common",
 
 	"openssl2",
 	"openssl-build",

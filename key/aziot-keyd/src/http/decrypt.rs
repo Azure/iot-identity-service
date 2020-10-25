@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
 
 #[async_trait::async_trait]
@@ -11,9 +11,9 @@ impl http_common::server::Route for Route {
         &((aziot_key_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -22,7 +22,7 @@ impl http_common::server::Route for Route {
         }
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
         })
     }
 
@@ -59,10 +59,10 @@ impl http_common::server::Route for Route {
             }
         };
 
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-        let plaintext = match inner.decrypt(&body.key_handle, mechanism, &body.ciphertext.0) {
+        let plaintext = match api.decrypt(&body.key_handle, mechanism, &body.ciphertext.0) {
             Ok(plaintext) => plaintext,
             Err(err) => return Err(super::to_http_error(&err)),
         };

@@ -318,7 +318,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         }
 
         if preloaded_device_id_pk_bytes.is_some() {
-            let device_id_pk_uri = aziot_keys::PreloadedKeyLocation::Filesystem {
+            let device_id_pk_uri = aziot_keys_common::PreloadedKeyLocation::Filesystem {
                 path: "/var/secrets/aziot/keyd/device-id".into(),
             };
             keyd_config
@@ -935,8 +935,8 @@ fn parse_manual_connection_string(
     ))
 }
 
-fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys::PreloadedKeyLocation> {
-    match value.parse::<aziot_keys::PreloadedKeyLocation>() {
+fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys_common::PreloadedKeyLocation> {
+    match value.parse::<aziot_keys_common::PreloadedKeyLocation>() {
         Ok(value) => Some(value),
 
         Err(err) => {
@@ -947,7 +947,7 @@ fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys::PreloadedKeyL
                 .and_then(|value| {
                     value
                         .to_string()
-                        .parse::<aziot_keys::PreloadedKeyLocation>()
+                        .parse::<aziot_keys_common::PreloadedKeyLocation>()
                 });
             match value {
                 Ok(value) => Some(value),

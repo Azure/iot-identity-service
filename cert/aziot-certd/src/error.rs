@@ -42,7 +42,6 @@ pub enum InternalError {
     DeleteFile(std::io::Error),
     GetPath(Box<dyn std::error::Error + Send + Sync>),
     LoadKeyOpensslEngine(openssl2::Error),
-    ReadConfig(Box<dyn std::error::Error + Send + Sync>),
     ReadFile(std::io::Error),
 }
 
@@ -57,7 +56,6 @@ impl std::fmt::Display for InternalError {
             InternalError::LoadKeyOpensslEngine(_) => {
                 f.write_str("could not load aziot-key-openssl-engine")
             }
-            InternalError::ReadConfig(_) => f.write_str("could not read config"),
             InternalError::ReadFile(_) => f.write_str("could not read cert file"),
         }
     }
@@ -71,7 +69,6 @@ impl std::error::Error for InternalError {
             InternalError::DeleteFile(err) => Some(err),
             InternalError::GetPath(err) => Some(&**err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
-            InternalError::ReadConfig(err) => Some(&**err),
             InternalError::ReadFile(err) => Some(err),
         }
     }

@@ -1,0 +1,10 @@
+[package]
+name = "aziot-keys-common"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+edition = "2018"
+
+[dependencies]
+url = "2"
+
+pkcs11 = { path = "../../pkcs11/pkcs11" }

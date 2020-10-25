@@ -18,11 +18,56 @@ pub use config::{
 };
 
 mod error;
-pub use error::{Error, InternalError};
+use error::{Error, InternalError};
 
 mod est;
 
-pub struct Server {
+mod http;
+
+pub async fn main(
+    config: Config,
+) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+    let Config {
+        homedir_path,
+        cert_issuance,
+        preloaded_certs,
+        endpoints:
+            Endpoints {
+                aziot_certd: connector,
+                aziot_keyd: key_connector,
+            },
+    } = config;
+
+    let api = {
+        let key_client = {
+            let key_client = aziot_key_client::Client::new(
+                aziot_key_common_http::ApiVersion::V2020_09_01,
+                key_connector,
+            );
+            let key_client = std::sync::Arc::new(key_client);
+            key_client
+        };
+
+        let key_engine = aziot_key_openssl_engine::load(key_client.clone())
+            .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
+
+        Api {
+            homedir_path,
+            cert_issuance,
+            preloaded_certs,
+
+            key_client,
+            key_engine,
+        }
+    };
+    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    let service = http::Service { api };
+
+    Ok((connector, service))
+}
+
+struct Api {
     homedir_path: std::path::PathBuf,
     cert_issuance: crate::config::CertIssuance,
     preloaded_certs: std::collections::BTreeMap<String, crate::config::PreloadedCert>,
@@ -31,30 +76,9 @@ pub struct Server {
     key_engine: openssl2::FunctionalEngine,
 }
 
-impl Server {
-    pub fn new(
-        homedir_path: std::path::PathBuf,
-        cert_issuance: crate::config::CertIssuance,
-        preloaded_certs: std::collections::BTreeMap<String, crate::config::PreloadedCert>,
-        key_client: std::sync::Arc<aziot_key_client::Client>,
-    ) -> Result<Self, Error> {
-        let key_engine = aziot_key_openssl_engine::load(key_client.clone())
-            .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
-
-        Ok(Server {
-            homedir_path,
-            cert_issuance,
-            preloaded_certs,
-
-            key_client,
-            key_engine,
-        })
-    }
-}
-
-impl Server {
+impl Api {
     pub async fn create_cert(
-        this: std::sync::Arc<futures_util::lock::Mutex<Server>>,
+        this: std::sync::Arc<futures_util::lock::Mutex<Self>>,
         id: String,
         csr: Vec<u8>,
         issuer: Option<(String, aziot_key_common::KeyHandle)>,
@@ -177,7 +201,7 @@ fn load_inner(path: &std::path::Path) -> Result<Option<Vec<u8>>, Error> {
 }
 
 fn create_cert<'a>(
-    server: &'a mut Server,
+    api: &'a mut Api,
     id: &'a str,
     csr: &'a [u8],
     issuer: Option<(&'a str, &'a aziot_key_common::KeyHandle)>,
@@ -187,13 +211,13 @@ fn create_cert<'a>(
     // and the recursive call is for the outer boxed-future-returning fn.
 
     async fn create_cert_inner(
-        server: &mut Server,
+        api: &mut Api,
         id: &str,
         csr: &[u8],
         issuer: Option<(&str, &aziot_key_common::KeyHandle)>,
     ) -> Result<Vec<u8>, Error> {
         // Look up issuance options for this certificate ID.
-        let cert_options = server.cert_issuance.certs.get(id);
+        let cert_options = api.cert_issuance.certs.get(id);
 
         if let Some((issuer_id, issuer_private_key)) = issuer {
             // Issuer is explicitly specified, so load it and use it to sign the CSR.
@@ -270,7 +294,7 @@ fn create_cert<'a>(
 
             let issuer_private_key = std::ffi::CString::new(issuer_private_key.0.clone())
                 .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
-            let issuer_private_key = server
+            let issuer_private_key = api
                 .key_engine
                 .load_private_key(&issuer_private_key)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -290,8 +314,7 @@ fn create_cert<'a>(
             } else {
                 // Load the issuer and use it to sign the CSR.
 
-                let issuer_path =
-                    get_path(&server.homedir_path, &server.preloaded_certs, issuer_id)?;
+                let issuer_path = get_path(&api.homedir_path, &api.preloaded_certs, issuer_id)?;
                 let issuer_x509_pem = load_inner(&issuer_path)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
                     .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
@@ -317,7 +340,7 @@ fn create_cert<'a>(
                 x509
             };
 
-            let path = get_path(&server.homedir_path, &server.preloaded_certs, id)?;
+            let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
             std::fs::write(path, &x509)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -335,12 +358,12 @@ fn create_cert<'a>(
                         auth,
                         trusted_certs,
                         urls,
-                    } = server.cert_issuance.est.as_ref().ok_or_else(|| {
+                    } = api.cert_issuance.est.as_ref().ok_or_else(|| {
                         Error::Internal(InternalError::CreateCert(
                             format!(
-							"cert {:?} is configured to be issued by EST, but EST is not configured",
-							id,
-						)
+                                "cert {:?} is configured to be issued by EST, but EST is not configured",
+                                id,
+                            )
                             .into(),
                         ))
                     })?;
@@ -351,9 +374,9 @@ fn create_cert<'a>(
                         .ok_or_else(|| {
                             Error::Internal(InternalError::CreateCert(
                                 format!(
-							"cert {:?} is configured to be issued by EST, but the EST endpoint URL for it is not configured",
-							id,
-						)
+                                    "cert {:?} is configured to be issued by EST, but the EST endpoint URL for it is not configured",
+                                    id,
+                                )
                                 .into(),
                             ))
                         })?;
@@ -367,20 +390,17 @@ fn create_cert<'a>(
 
                     let mut trusted_certs_x509 = vec![];
                     for trusted_cert in trusted_certs {
-                        let pem = get_cert_inner(
-                            &server.homedir_path,
-                            &server.preloaded_certs,
-                            trusted_cert,
-                        )?
-                        .ok_or_else(|| {
-                            Error::Internal(InternalError::CreateCert(
-                                format!(
+                        let pem =
+                            get_cert_inner(&api.homedir_path, &api.preloaded_certs, trusted_cert)?
+                                .ok_or_else(|| {
+                                    Error::Internal(InternalError::CreateCert(
+                                        format!(
                                     "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
                                     trusted_cert,
                                 )
-                                .into(),
-                            ))
-                        })?;
+                                        .into(),
+                                    ))
+                                })?;
                         let x509 = openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
                             Error::Internal(InternalError::CreateCert(Box::new(err)))
                         })?;
@@ -397,12 +417,12 @@ fn create_cert<'a>(
                         // Try to load the EST identity cert.
 
                         let identity = match get_cert_inner(
-                            &server.homedir_path,
-                            &server.preloaded_certs,
+                            &api.homedir_path,
+                            &api.preloaded_certs,
                             identity_cert,
                         ) {
                             Ok(Some(identity_cert)) => {
-                                match server.key_client.load_key_pair(identity_private_key) {
+                                match api.key_client.load_key_pair(identity_private_key) {
                                     Ok(identity_private_key) => {
                                         Ok((identity_cert, identity_private_key))
                                     }
@@ -428,7 +448,7 @@ fn create_cert<'a>(
                                                 err,
                                             )))
                                         })?;
-                                let identity_private_key = server
+                                let identity_private_key = api
                                     .key_engine
                                     .load_private_key(&identity_private_key)
                                     .map_err(|err| {
@@ -444,8 +464,7 @@ fn create_cert<'a>(
                                 )
                                 .await?;
 
-                                let path =
-                                    get_path(&server.homedir_path, &server.preloaded_certs, id)?;
+                                let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
                                 std::fs::write(path, &x509).map_err(|err| {
                                     Error::Internal(InternalError::CreateCert(Box::new(err)))
                                 })?;
@@ -460,24 +479,24 @@ fn create_cert<'a>(
                                     bootstrap_identity_private_key,
                                 )) = bootstrap_identity
                                 {
-                                    match get_cert_inner(&server.homedir_path, &server.preloaded_certs, bootstrap_identity_cert) {
-											Ok(Some(bootstrap_identity_cert)) => match server.key_client.load_key_pair(bootstrap_identity_private_key) {
-												Ok(bootstrap_identity_private_key) => Ok((bootstrap_identity_cert, bootstrap_identity_private_key)),
-												Err(err) => Err(format!("could not get EST bootstrap identity cert private key: {}", err)),
-											},
+                                    match get_cert_inner(&api.homedir_path, &api.preloaded_certs, bootstrap_identity_cert) {
+                                        Ok(Some(bootstrap_identity_cert)) => match api.key_client.load_key_pair(bootstrap_identity_private_key) {
+                                            Ok(bootstrap_identity_private_key) => Ok((bootstrap_identity_cert, bootstrap_identity_private_key)),
+                                            Err(err) => Err(format!("could not get EST bootstrap identity cert private key: {}", err)),
+                                        },
 
-											Ok(None) => Err(format!(
-												"could not get EST bootstrap identity cert: {}",
-												std::io::Error::from(std::io::ErrorKind::NotFound),
-											)),
+                                        Ok(None) => Err(format!(
+                                            "could not get EST bootstrap identity cert: {}",
+                                            std::io::Error::from(std::io::ErrorKind::NotFound),
+                                        )),
 
-											Err(err) => Err(format!("could not get EST bootstrap identity cert: {}", err)),
-										}
+                                        Err(err) => Err(format!("could not get EST bootstrap identity cert: {}", err)),
+                                    }
                                 } else {
                                     Err(format!(
                                         "cert {:?} is configured to be issued by EST, \
-											but EST identity could not be obtained \
-											and EST bootstrap identity is not configured; {}",
+                                        but EST identity could not be obtained \
+                                        and EST bootstrap identity is not configured; {}",
                                         id, identity_err,
                                     ))
                                 };
@@ -489,7 +508,7 @@ fn create_cert<'a>(
                                     )) => {
                                         // Create a CSR for the new EST identity cert.
 
-                                        let identity_key_pair_handle = server
+                                        let identity_key_pair_handle = api
                                             .key_client
                                             .create_key_pair_if_not_exists(
                                                 identity_private_key,
@@ -510,7 +529,7 @@ fn create_cert<'a>(
                                                     Box::new(err),
                                                 ))
                                             })?;
-                                            let identity_public_key = server
+                                            let identity_public_key = api
                                                 .key_engine
                                                 .load_public_key(&identity_key_pair_handle)
                                                 .map_err(|err| {
@@ -518,7 +537,7 @@ fn create_cert<'a>(
                                                         Box::new(err),
                                                     ))
                                                 })?;
-                                            let identity_private_key = server
+                                            let identity_private_key = api
                                                 .key_engine
                                                 .load_private_key(&identity_key_pair_handle)
                                                 .map_err(|err| {
@@ -623,12 +642,12 @@ fn create_cert<'a>(
                                             })?;
 
                                         let identity_url =
-											urls.get(identity_cert)
-											.or_else(|| urls.get("default"))
-											.ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
-												"cert {:?} is configured to be issued by EST, but the EST endpoint URL for the EST identity is not configured",
-												id,
-											).into())))?;
+                                            urls.get(identity_cert)
+                                            .or_else(|| urls.get("default"))
+                                            .ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
+                                                "cert {:?} is configured to be issued by EST, but the EST endpoint URL for the EST identity is not configured",
+                                                id,
+                                            ).into())))?;
 
                                         // Request the new EST identity cert using the EST bootstrap identity cert.
 
@@ -643,7 +662,7 @@ fn create_cert<'a>(
                                                     ))
                                                 },
                                             )?;
-                                        let bootstrap_identity_private_key = server
+                                        let bootstrap_identity_private_key = api
                                             .key_engine
                                             .load_private_key(&bootstrap_identity_private_key)
                                             .map_err(|err| {
@@ -665,8 +684,8 @@ fn create_cert<'a>(
                                         .await?;
 
                                         let path = get_path(
-                                            &server.homedir_path,
-                                            &server.preloaded_certs,
+                                            &api.homedir_path,
+                                            &api.preloaded_certs,
                                             identity_cert,
                                         )?;
                                         std::fs::write(path, &x509).map_err(|err| {
@@ -677,19 +696,19 @@ fn create_cert<'a>(
 
                                         // EST identity cert was obtained and persisted successfully. Now recurse to retry the original cert request.
 
-                                        let x509 = create_cert(server, id, csr, issuer).await?;
+                                        let x509 = create_cert(api, id, csr, issuer).await?;
                                         Ok(x509)
                                     }
 
                                     Err(bootstrap_identity_err) => {
                                         // Neither EST identity cert nor EST bootstrap identity cert could be obtained.
                                         Err(Error::Internal(InternalError::CreateCert(format!(
-											"cert {:?} is configured to be issued by EST, but neither EST identity nor EST bootstrap identity could be obtained; \
-											{} {}",
-											id,
-											identity_err,
-											bootstrap_identity_err,
-										).into())))
+                                            "cert {:?} is configured to be issued by EST, but neither EST identity nor EST bootstrap identity could be obtained; \
+                                            {} {}",
+                                            id,
+                                            identity_err,
+                                            bootstrap_identity_err,
+                                        ).into())))
                                     }
                                 }
                             }
@@ -706,7 +725,7 @@ fn create_cert<'a>(
                         )
                         .await?;
 
-                        let path = get_path(&server.homedir_path, &server.preloaded_certs, id)?;
+                        let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
                         std::fs::write(path, &x509).map_err(|err| {
                             Error::Internal(InternalError::CreateCert(Box::new(err)))
                         })?;
@@ -718,10 +737,10 @@ fn create_cert<'a>(
                 config::CertIssuanceMethod::LocalCa => {
                     // Indirect reference to the local CA. Look it up.
 
-                    let (issuer_cert, issuer_private_key) = match &server.cert_issuance.local_ca {
+                    let (issuer_cert, issuer_private_key) = match &api.cert_issuance.local_ca {
                         Some(config::LocalCa { cert, pk }) => {
                             let private_key =
-                                server.key_client.load_key_pair(pk).map_err(|err| {
+                                api.key_client.load_key_pair(pk).map_err(|err| {
                                     Error::Internal(InternalError::CreateCert(Box::new(err)))
                                 })?;
                             (cert.clone(), private_key)
@@ -730,9 +749,9 @@ fn create_cert<'a>(
                         None => {
                             return Err(Error::Internal(InternalError::CreateCert(
                                 format!(
-							"cert {:?} is configured to be issued by local CA, but local CA is not configured",
-							id,
-						)
+                                    "cert {:?} is configured to be issued by local CA, but local CA is not configured",
+                                    id,
+                                )
                                 .into(),
                             )))
                         }
@@ -740,9 +759,8 @@ fn create_cert<'a>(
 
                     // Recurse with the local CA set explicitly as the issuer parameter.
 
-                    let x509 =
-                        create_cert(server, id, csr, Some((&issuer_cert, &issuer_private_key)))
-                            .await?;
+                    let x509 = create_cert(api, id, csr, Some((&issuer_cert, &issuer_private_key)))
+                        .await?;
                     Ok(x509)
                 }
 
@@ -750,20 +768,20 @@ fn create_cert<'a>(
                     // Since the client did not give us their private key handle, we assume that the key is named the same as the cert.
                     //
                     // TODO: Is there a way to not have to assume this?
-                    let key_pair_handle = server
+                    let key_pair_handle = api
                         .key_client
                         .load_key_pair(id)
                         .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                     // Recurse with explicit issuer.
-                    let x509 = create_cert(server, id, csr, Some((id, &key_pair_handle))).await?;
+                    let x509 = create_cert(api, id, csr, Some((id, &key_pair_handle))).await?;
                     Ok(x509)
                 }
             }
         }
     }
 
-    Box::pin(create_cert_inner(server, id, csr, issuer))
+    Box::pin(create_cert_inner(api, id, csr, issuer))
 }
 
 fn get_cert_inner(

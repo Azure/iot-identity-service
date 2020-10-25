@@ -5,9 +5,9 @@ authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 build = "build/main.rs"
 
+
 [dependencies]
 async-trait = "0.1"
-backtrace = "0.3"
 base64 = "0.12"
 foreign-types-shared = "0.1"
 futures-util = "0.3"
@@ -16,14 +16,14 @@ http = "0.2"
 hyper = "0.13"
 hyper-openssl = "0.8"
 lazy_static = "1"
+log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
 percent-encoding = "2"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "0.2", features = ["macros"] }
-toml = "0.5"
+tokio = "0.2"
 url = { version = "2", features = ["serde"] }
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
@@ -34,5 +34,10 @@ aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
+
 [build-dependencies]
 openssl-build = { path = "../../openssl-build/" }
+
+
+[dev-dependencies]
+toml = "0.5"
