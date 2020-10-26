@@ -1,5 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+//! This binary is the process entrypoint for aziot-certd, -identityd and -keyd.
+//! Rather than be three separate binaries, all three services are symlinks to
+//! this one aziotd binary. The aziotd binary looks at its command-line args to figure out
+//! which service it's being invoked as, and runs the code of that service accordingly.
+
 #![deny(rust_2018_idioms, warnings)]
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
@@ -77,6 +82,12 @@ enum ProcessName {
     Keyd,
 }
 
+/// If the symlink is being used to invoke this binary, the process name can be determined
+/// from the first arg, ie `argv[0]` in C terms.
+///
+/// An alternative is supported where the binary is invoked as aziotd itself,
+/// and the process name is instead the next arg, ie `argv[1]` in C terms.
+/// This is primary useful for local development, so it's only allowed in debug builds.
 fn process_name_from_args<I>(args: &mut I) -> Result<ProcessName, Error>
 where
     I: Iterator,
@@ -106,7 +117,8 @@ where
 
         Some("aziot-keyd") => Ok(ProcessName::Keyd),
 
-        // The next is the process name
+        // The next arg is the process name
+        #[cfg(debug_assertions)]
         Some("aziotd") => process_name_from_args(args),
 
         _ => Err(ErrorKind::GetProcessName(
