@@ -4,7 +4,10 @@
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
 
+mod error;
 mod logging;
+
+use error::{Error, ErrorKind};
 
 #[tokio::main]
 async fn main() {
@@ -191,8 +194,10 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
 
     if let toml::Value::Table(base) = base {
         if let toml::Value::Table(patch) = patch {
-            for (k, v) in patch {
-                merge_toml(base.entry(k).or_insert(toml::Value::Boolean(false)), v);
+            for (key, value) in patch {
+                // Insert a dummy `false` if the original key didn't exist at all. It'll be overwritten by `value` in that case.
+                let original_value = base.entry(key).or_insert(toml::Value::Boolean(false));
+                merge_toml(original_value, value);
             }
 
             return;
@@ -202,42 +207,62 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     *base = patch;
 }
 
-#[derive(Debug)]
-struct Error(ErrorKind, backtrace::Backtrace);
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn merge_toml() {
+        let base = r#"
+foo_key = "A"
+foo_parent_key = { foo_sub_key = "B" }
 
-#[derive(Debug)]
-enum ErrorKind {
-    GetProcessName(std::borrow::Cow<'static, str>),
-    ReadConfig(Option<std::path::PathBuf>, Box<dyn std::error::Error>),
-    Service(Box<dyn std::error::Error>),
-}
+[bar_table]
+bar_table_key = "C"
+bar_table_parent_key = { bar_table_sub_key = "D" }
 
-impl std::fmt::Display for ErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ErrorKind::GetProcessName(message) => write!(f, "could not read argv[0]: {}", message),
-            ErrorKind::ReadConfig(Some(path), _) => {
-                write!(f, "could not read config from {}", path.display())
-            }
-            ErrorKind::ReadConfig(None, _) => f.write_str("could not read config"),
-            ErrorKind::Service(_) => f.write_str("service encountered an error"),
-        }
-    }
-}
+[[baz_table_array]]
+baz_table_array_key = "E"
+baz_table_array_parent_key = { baz_table_sub_key = "F" }
+"#;
+        let mut base: toml::Value = toml::from_str(base).unwrap();
 
-impl std::error::Error for ErrorKind {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        #[allow(clippy::match_same_arms)]
-        match self {
-            ErrorKind::GetProcessName(_) => None,
-            ErrorKind::ReadConfig(_, err) => Some(&**err),
-            ErrorKind::Service(err) => Some(&**err),
-        }
-    }
-}
+        let patch = r#"
+foo_key = "A2"
+foo_key_new = "A3"
+foo_parent_key = { foo_sub_key = "B2", foo_sub_key2 = "B3" }
+foo_parent_key_new = { foo_sub_key = "B4", foo_sub_key2 = "B5" }
 
-impl From<ErrorKind> for Error {
-    fn from(err: ErrorKind) -> Self {
-        Error(err, Default::default())
+[bar_table]
+bar_table_key = "C2"
+bar_table_key_new = "C3"
+bar_table_parent_key = { bar_table_sub_key = "D2", bar_table_sub_key2 = "D3" }
+bar_table_parent_key_new = { bar_table_sub_key = "D4", bar_table_sub_key2 = "D5" }
+
+[[baz_table_array]]
+baz_table_array_key = "G"
+baz_table_array_parent_key = { baz_table_sub_key = "H" }
+"#;
+        let patch: toml::Value = toml::from_str(patch).unwrap();
+
+        super::merge_toml(&mut base, patch);
+
+        let expected = r#"
+foo_key = "A2"
+foo_key_new = "A3"
+foo_parent_key = { foo_sub_key = "B2", foo_sub_key2 = "B3" }
+foo_parent_key_new = { foo_sub_key = "B4", foo_sub_key2 = "B5" }
+
+
+[bar_table]
+bar_table_key = "C2"
+bar_table_key_new = "C3"
+bar_table_parent_key = { bar_table_sub_key = "D2", bar_table_sub_key2 = "D3" }
+bar_table_parent_key_new = { bar_table_sub_key = "D4", bar_table_sub_key2 = "D5" }
+
+[[baz_table_array]]
+baz_table_array_key = "G"
+baz_table_array_parent_key = { baz_table_sub_key = "H" }
+"#;
+        let expected: toml::Value = toml::from_str(expected).unwrap();
+        assert_eq!(expected, base);
     }
 }
