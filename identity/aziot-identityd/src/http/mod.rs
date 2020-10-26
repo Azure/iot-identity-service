@@ -31,10 +31,9 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
     // TODO: When we get distributed tracing, associate these logs with the tracing ID.
     for line in error_message.split('\n') {
         log::log!(
-            if matches!(err, crate::Error::Internal(_)) {
-                log::Level::Error
-            } else {
-                log::Level::Info
+            match err {
+                crate::Error::Internal(_) => log::Level::Error,
+                _ => log::Level::Info,
             },
             "!!! {}",
             line,
