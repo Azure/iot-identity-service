@@ -227,10 +227,13 @@ where
 }
 
 fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
-    // Similar to JSON patch, except that maps are called tables, and
-    // there is no equivalent of null that can be used to remove keys from an object.
+    // Similar to JSON patch, except that:
+    //
+    // - Maps are called tables
+    // - There is no equivalent of null that can be used to remove keys from an object.
+    // - Arrays are merged via concatenating the patch to the base, rather than replacing the base with the patch.
 
-    if let toml::Value::Table(base) = base {
+    if let toml::Value::Table(base) = &mut *base {
         if let toml::Value::Table(patch) = patch {
             for (key, value) in patch {
                 // Insert a dummy `false` if the original key didn't exist at all. It'll be overwritten by `value` in that case.
@@ -238,6 +241,13 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
                 merge_toml(original_value, value);
             }
 
+            return;
+        }
+    }
+
+    if let toml::Value::Array(base) = base {
+        if let toml::Value::Array(patch) = patch {
+            base.extend(patch);
             return;
         }
     }
@@ -344,12 +354,15 @@ foo_key_new = "A3"
 foo_parent_key = { foo_sub_key = "B2", foo_sub_key2 = "B3" }
 foo_parent_key_new = { foo_sub_key = "B4", foo_sub_key2 = "B5" }
 
-
 [bar_table]
 bar_table_key = "C2"
 bar_table_key_new = "C3"
 bar_table_parent_key = { bar_table_sub_key = "D2", bar_table_sub_key2 = "D3" }
 bar_table_parent_key_new = { bar_table_sub_key = "D4", bar_table_sub_key2 = "D5" }
+
+[[baz_table_array]]
+baz_table_array_key = "E"
+baz_table_array_parent_key = { baz_table_sub_key = "F" }
 
 [[baz_table_array]]
 baz_table_array_key = "G"
