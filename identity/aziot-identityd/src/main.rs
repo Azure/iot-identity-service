@@ -26,12 +26,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut prev_device_info_path = homedir_path.clone();
     prev_device_info_path.push("device_info");
 
-    let mut local_id_keys_path = homedir_path.clone();
-    local_id_keys_path.push("local_id_keys");
-
-    if !local_id_keys_path.exists() {
-        // Creates both the homedir_path and local_id_keys_path, since local_id_keys_path is a subdirectory of homedir.
-        let () = std::fs::create_dir_all(&local_id_keys_path)
+    if !homedir_path.exists() {
+        let () = std::fs::create_dir_all(&homedir_path)
             .map_err(aziot_identityd::error::InternalError::CreateHomeDir)?;
     }
 
