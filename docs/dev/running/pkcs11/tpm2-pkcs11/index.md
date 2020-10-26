@@ -27,7 +27,8 @@ sudo apt install \
     autoconf automake doxygen libtool \
     libcurl4-openssl-dev libdbus-1-dev libgcrypt-dev \
     libglib2.0-dev libjson-c-dev libsqlite3-dev libssl-dev \
-    python3-cryptography python3-pyasn1-modules python3-yaml uuid-dev libyaml-dev
+    python3-cryptography python3-pyasn1-modules python3-yaml \
+    uuid-dev libyaml-dev
 
 
 # Create base source directory
@@ -54,8 +55,14 @@ checkouts['tpm2-tss']='2.4.1'
 
 # Download `autoconf-2019.01.06` and extract it
 
-[ -f ~/src/autoconf-archive-2019.01.06.tar.gz ] || curl -Lo ~/src/autoconf-archive-2019.01.06.tar.gz 'https://github.com/autoconf-archive/autoconf-archive/archive/v2019.01.06.tar.gz'
-[ -d ~/src/autoconf-archive-2019.01.06 ] || (cd ~/src/ && tar xf ~/src/autoconf-archive-2019.01.06.tar.gz)
+if ! [ -f ~/src/autoconf-archive-2019.01.06.tar.gz ]; then
+    curl -L \
+        -o ~/src/autoconf-archive-2019.01.06.tar.gz \
+        'https://github.com/autoconf-archive/autoconf-archive/archive/v2019.01.06.tar.gz'
+fi
+if ! [ -d ~/src/autoconf-archive-2019.01.06 ]; then
+    (cd ~/src/ && tar xf ~/src/autoconf-archive-2019.01.06.tar.gz)
+fi
 
 
 # Clone and bootstrap the repositories
@@ -64,7 +71,9 @@ for d in "${!checkouts[@]}"; do
     (
         set -euo pipefail
 
-        [ -d ~/src/"$d" ] || git clone "https://github.com/tpm2-software/$d" ~/src/"$d"
+        if ! [ -d ~/src/"$d" ]; then
+            git clone "https://github.com/tpm2-software/$d" ~/src/"$d"
+        fi
         cd ~/src/"$d"
 
         git fetch --all --prune
@@ -88,7 +97,9 @@ wait $(jobs -pr)
 
     cd ~/src/tpm2-tss
 
-    ./configure --with-udevrulesdir=/etc/udev/rules.d --with-udevrulesprefix=70-
+    ./configure \
+        --with-udevrulesdir=/etc/udev/rules.d \
+        --with-udevrulesprefix=70-
     make "-j$(nproc)"
     sudo make install
     id -u tss || sudo useradd --system --user-group tss
@@ -105,7 +116,11 @@ wait $(jobs -pr)
 
     cd ~/src/tpm2-abrmd
 
-    ./configure --with-dbuspolicydir=/etc/dbus-1/system.d --with-systemdsystemunitdir=/lib/systemd/system --with-systemdpresetdir=/lib/systemd/system-preset --datarootdir=/usr/share
+    ./configure \
+        --with-dbuspolicydir=/etc/dbus-1/system.d \
+        --with-systemdsystemunitdir=/lib/systemd/system \
+        --with-systemdpresetdir=/lib/systemd/system-preset \
+        --datarootdir=/usr/share
     make "-j$(nproc)"
     sudo make install
     sudo ldconfig
@@ -115,7 +130,12 @@ wait $(jobs -pr)
     sudo systemctl restart tpm2-abrmd.service
 
     # Verify that the service started and registered itself with dbus
-    dbus-send --system '--dest=org.freedesktop.DBus' '--type=method_call' --print-reply '/org/freedesktop/DBus' 'org.freedesktop.DBus.ListNames' | grep -q 'com.intel.tss2.Tabrmd' || :
+    dbus-send \
+        --system \
+        --dest=org.freedesktop.DBus --type=method_call \
+        --print-reply \
+        /org/freedesktop/DBus org.freedesktop.DBus.ListNames |
+        (grep -q 'com.intel.tss2.Tabrmd' || :)
 )
 
 
@@ -139,13 +159,17 @@ wait $(jobs -pr)
 
     cd ~/src/tpm2-pkcs11
 
-    # The `tpm2-pkcs11` library uses a filesystem directory to store wrapped keys.
-    # Ensure this directory is readable and writable by the user you'll be running `pkcs11-test` / `aziot-keyd` as, not just root.
+    # The `tpm2-pkcs11` library uses a filesystem directory to store
+    # wrapped keys. Ensure this directory is readable and writable by
+    # the user you'll be running `pkcs11-test` / `aziot-keyd` as,
+    # not just root.
     sudo mkdir -p /opt/tpm2-pkcs11
     sudo chown "$(id -u):$(id -g)" /opt/tpm2-pkcs11
     sudo chmod 0700 /opt/tpm2-pkcs11
 
-    ./configure --enable-esapi-session-manage-flags --with-storedir=/opt/tpm2-pkcs11
+    ./configure \
+        --enable-esapi-session-manage-flags \
+        --with-storedir=/opt/tpm2-pkcs11
     make "-j$(nproc)"
     sudo make install
 )
@@ -173,4 +197,4 @@ The `TPM2_PKCS11_STORE` environment variable is needed for any process that load
     Do **not** connect the TPM to the left slot of the click shield. The `tpm-slb9670` overlay uses the chip-enable pin that ends up being mapped to the right slot.
 
 
-1. If you want to use the TPM simulator, see [`ibmswtpm2`](ibmswtpm2.html)
+1. If you want to use the TPM simulator, see [`ibmswtpm2`](ibmswtpm2.md)

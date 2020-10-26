@@ -7,7 +7,7 @@ The contents of the `docs/` directory are served at <https://azure.github.io/iot
 
 Go to <https://azure.github.io/iot-identity-service/> for an overview of the services in this repository.
 
-Go to <https://azure.github.io/iot-identity-service/dev/> for developer documentation, and see [`CONTRIBUTING`](CONTRIBUTING.html) for contribution guidelines.
+Go to <https://azure.github.io/iot-identity-service/dev/> for developer documentation, and see [`CONTRIBUTING`](CONTRIBUTING.md) for contribution guidelines.
 
 
 # License

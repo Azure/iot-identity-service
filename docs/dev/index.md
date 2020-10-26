@@ -1,7 +1,7 @@
 # Developer documentation
 
-- [Building the services](building.html)
+- [Building the services](building.md)
 
-- [Running the services locally](running/index.html)
+- [Running the services locally](running/index.md)
 
-- [Building the packages](packages.html)
+- [Building the packages](packages.md)

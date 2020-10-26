@@ -2,7 +2,7 @@
 
 The Identity Service (IS), Keys Service (KS) and Certificates Service (CS) have been explicitly designed to not be Azure IoT Edge-specific; they can be used on non-Edge Azure IoT devices also. To this end, we want to cleanly separate these components from existing association with IoT Edge in the form of hosting it in a separate source repository and shipping it as a separate package. Furthermore, the existing IoT Edge daemon will be modified to depend on these components for provisioning the device, managing module identities, and managing cryptographic keys and certificates, and thus its only responsibility will be to act as a Module Runtime (MR).
 
-Because of these large-scale changes, we plan to make 1.0.10 (LTS) the last series of releases of the existing `iotedge` Linux package. The new components, including the new `iotedged` with smaller responsibilities, will be shipped in two new lines of packages:
+Because of these large-scale changes, we plan to make the current `iotedge` Linux package into an LTS line. The new components, including the new `iotedged` with smaller responsibilities, will be shipped in two new lines of packages:
 
 - `aziot-identity-service`: This package contains the IS, KS and CS components.
 
@@ -46,12 +46,13 @@ The `iotedge` CLI tool is used to interact with the `iotedged` service.
 /usr/
 ├── bin/
 │   └── aziot
-└── lib/
-    ├── aziot/
-    │   └── aziot-certd
-    │   └── aziot-identityd
-    │   └── aziot-keyd
-    └── libaziot_keys.so
+├── lib/
+│   └── libaziot_keys.so
+└── libexec/
+    └── aziot/
+        ├── aziot-certd
+        ├── aziot-identityd
+        └── aziot-keyd
 ```
 
 The `aziot` CLI tool is used to interact with the three `aziot-*` services.
@@ -64,7 +65,7 @@ The `aziot` CLI tool is used to interact with the three `aziot-*` services.
 /usr/
 ├── bin/
 │   └── iotedge
-└── lib/
+└── libexec/
     └── aziot/
         └── aziot-edged
 ```
@@ -121,7 +122,7 @@ Note that the configuration is now in TOML format.
 <td>
 
 ```
-/var/run/aziot/
+/run/aziot/
 ├── certd.sock
 ├── identityd.sock
 └── keyd.sock
@@ -130,7 +131,7 @@ Note that the configuration is now in TOML format.
 <td>
 
 ```
-/var/run/aziot/
+/run/aziot/
 └── edged/
     ├── mgmt.sock
     └── workload.sock
@@ -246,7 +247,7 @@ Note that the configuration is now in TOML format.
 ```sh
 apt install aziot-identity-service
 
-aziot init --...
+aziot init
 ```
 
 The user installs the package, then runs `aziot init` to set up the configuration with minimal information like the device provisioning method.
@@ -257,10 +258,10 @@ The user installs the package, then runs `aziot init` to set up the configuratio
 ```sh
 apt install iotedge-aziot
 
-aziot init --...
+iotedge init
 ```
 
-The user installs the package, then runs `aziot init` to set up the configuration of the IS+KS+CS components.
+The user installs the package, then runs `iotedge init` to set up the configuration of the IS+KS+CS+MR components.
 
 
 ## Migration procedure for existing users of `iotedge` to `iotedge-aziot`
@@ -273,7 +274,7 @@ apt install iotedge-aziot
 iotedge migrate
 ```
 
-The user removes the existing `iotedge` and `libiothsm-std` packages, installs the new package, then runs `iotedge migrate` to migrate the configuration of 1.0.10 to the new 1.0.11 format. It is important that the user uninstalls the `iotedge` package before installing the `iotedge-aziot` (or even the `aziot-identity-service` package; we do not want a situation where the services from both packages are running at the same time because they will step over each other trying to provision the device and trying to manage Docker modules. We will enforce this in the packages by having them conflict with each other, so that the distribution's package manager will not allow them both to be installed at the same time either.
+The user removes the existing `iotedge` and `libiothsm-std` packages, installs the new package, then runs `iotedge migrate` to migrate the configuration of the old IoT Edge installation to the new one. It is important that the user uninstalls the `iotedge` package before installing the `iotedge-aziot` (or even the `aziot-identity-service` package; we do not want a situation where the services from both packages are running at the same time because they will step over each other trying to provision the device and trying to manage Docker modules. We will enforce this in the packages by having them conflict with each other, so that the distribution's package manager will not allow them both to be installed at the same time either.
 
 The precise details of the migration are still being worked out. A high-level view is:
 
@@ -291,6 +292,6 @@ The precise details of the migration are still being worked out. A high-level vi
 
 The process of migration is intentionally designed to be run manually by the user, rather than being done automatically by the new services, because it is both fallible and could potentially offline the device. Therefore we expect that users will manually run the tool to update the device. Of course, if the user has tested on M devices and is confident that it will succeed on their remaining N devices, they can use some custom deployment tooling to automatically perform the migration at scale across all their devices.
 
-For the files that are copied to new locations, it is important to note that they are not deleted from their previous locations. Therefore the user can still downgrade from 1.0.11 to 1.0.10 by uninstalling the `iotedge-aziot` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
+For the files that are copied to new locations, it is important to note that they are not deleted from their previous locations. Therefore the user can still downgrade from the new package to the old one by uninstalling the `iotedge-aziot` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
 
-It is not yet certain whether Edge Agent, Edge Hub and other modules will be able to decrypt any data with 1.0.11 that they previously encrypted using the workload API with 1.0.10.
+It is not yet certain whether Edge Agent, Edge Hub and other modules will be able to decrypt any data when running against the new services that they previously encrypted using the workload API with the old service.

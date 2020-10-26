@@ -110,7 +110,39 @@ pkcs11-test:
 	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
+target/openapi-schema-validated: cert/aziot-certd/openapi/2020-09-01.yaml
+target/openapi-schema-validated: key/aziot-keyd/openapi/2020-09-01.yaml
+target/openapi-schema-validated:
+	mkdir -p target
+	$(RM) target/openapi-schema-validated
+
+	# Pretend the task succeeds if docker isn't installed. This is because the CI runs `make test` inside a container
+	# so it can't run docker there without mounting the host socket. Also some of the distros have very old versions of docker.
+	#
+	# We still want this task to be a dependency of the test target so that it runs by default on developers' machines.
+	#
+	# The resolution is to have CI run this target separately after running `make test`.
+	if [ -f /usr/bin/docker ]; then \
+		set -euo pipefail; \
+		for f in 'cert/aziot-certd/openapi/2020-09-01.yaml' 'key/aziot-keyd/openapi/2020-09-01.yaml'; do \
+			validator_output="$$( \
+				docker run --rm -v "$$PWD:/src" --user 1000 \
+					openapitools/openapi-generator-cli:v4.3.1 \
+					validate -i "/src/$$f" --recommend || \
+				: \
+			)"; \
+			if ! (<<< "$$validator_output" grep -q 'No validation issues detected'); then \
+				printf '%s\n' "$$validator_output"; \
+				exit 1; \
+			fi; \
+		done; \
+	fi
+
+	touch target/openapi-schema-validated
+
+
 test: default iotedged pkcs11-test
+test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
 	$(CARGO) test --all --exclude aziot-key-openssl-engine-shared \

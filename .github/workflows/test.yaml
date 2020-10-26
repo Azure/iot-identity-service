@@ -131,3 +131,13 @@ jobs:
         CONTAINER_OS: "${{ matrix.container_os }}"
         ARCH: "${{ matrix.arch }}"
         KEY_TYPE: "${{ matrix.key_type }}"
+
+
+  openapi:
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+    - name: 'Test OpenAPI specs'
+      run: |
+        make target/openapi-schema-validated

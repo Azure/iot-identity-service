@@ -1,0 +1,127 @@
+# Ref: https://spec.openapis.org/oas/v3.0.3
+
+openapi: '3.0.3'
+
+
+info:
+  title: 'aziot-certd API specification'
+
+  version: '2020-09-01'
+
+  description: |
+    This is the specification of the HTTP API of the aziot-certd service.
+
+  license:
+    name: 'MIT'
+
+
+servers:
+- url: 'http://foo/'
+  description: |
+    The server listens on a unix socket `/run/aziot/certd.sock`
+
+
+paths:
+  '/certificates?api-version=2020-09-01':
+    post:
+      operationId: 'createCertificate'
+      summary: 'Creates a new certificate with the given ID from the given CSR.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/CreateCertRequest'
+        required: true
+      responses:
+        '201':
+          description: 'HTTP 201 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/CertResponse'
+
+  '/certificates/{certId}?api-version=2020-09-01':
+    parameters:
+    - name: 'certId'
+      in: 'path'
+      required: true
+      schema:
+        type: 'string'
+    get:
+      operationId: 'getCertificate'
+      summary: 'Gets the certificate with the given ID.'
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/CertResponse'
+    put:
+      operationId: 'importCertificate'
+      summary: 'Imports a PEM as a certificate with the given ID.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/ImportCertRequest'
+        required: true
+      responses:
+        '201':
+          description: 'HTTP 201 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/CertResponse'
+    delete:
+      operationId: 'deleteCertificate'
+      summary: 'Deletes the certificate with the given ID.'
+      responses:
+        '204':
+          description: 'HTTP 204 response'
+
+
+components:
+  schemas:
+    'Pem':
+      type: 'string'
+
+    'CertResponse':
+      type: 'object'
+      properties:
+        'pem':
+          $ref: '#/components/schemas/Pem'
+      required:
+      - 'pem'
+
+    'CreateCertRequest':
+      type: 'object'
+      properties:
+        'certId':
+          type: 'string'
+        'csr':
+          $ref: '#/components/schemas/Pem'
+        'issuer':
+          $ref: '#/components/schemas/CreateCertRequest_Issuer'
+      required:
+      - 'certId'
+      - 'csr'
+
+    'CreateCertRequest_Issuer':
+      type: 'object'
+      properties:
+        'certId':
+          type: 'string'
+        'privateKeyHandle':
+          $ref: '../../../key/aziot-keyd/openapi/2020-09-01.yaml#/components/schemas/KeyHandle'
+      required:
+      - 'certId'
+      - 'privateKeyHandle'
+
+    'ImportCertRequest':
+      type: 'object'
+      properties:
+        'pem':
+          $ref: '#/components/schemas/Pem'
+      required:
+      - 'pem'

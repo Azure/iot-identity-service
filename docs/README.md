@@ -4,21 +4,27 @@ The IoT Identity Service package provides provisioning and cryptographic service
 
 The package is made up of three services:
 
-- [Identity Service](identity-service.html)
+- [Identity Service](identity-service.md)
 
     This service provisions the device's [identity](https://docs.microsoft.com/azure/iot-hub/iot-hub-devguide-identity-registry) with Azure. The device identity can be based on symmetric keys or X.509 certificates, and be used with manual device registrations, DPS individual enrollments or DPS group enrollments.
 
     The Identity Service also provides access to native processes ("host processes") to connect to the cloud. Depending on how the user configures the Identity Service, host processes can get their own *module identities* provisioned by the Identity Service, or use the device identity, or both.
 
 
-- [Keys Service](keys-service.html)
+- [Keys Service](keys-service.md)
 
     This service stores cryptographic keys, and allows callers to perform operations with those keys like encrypt, decrypt and sign. The service protects the keys by storing them in HSMs, and ensures that no operations against those keys export the keys to the device's memory.
 
 
-- [Certificates Service](certificates-service.html)
+- [Certificates Service](certificates-service.md)
 
     This service stores certificates, and allows callers to import and export them. Depending on the certificate issuance method, the Certificate Service may also provision certificates from a user-provided certificate issuer endpoint via a protocol like EST.
+
+
+Each component talks to the other components via IPC in the form of HTTP-over-UDS.
+
+![New component overview](img/new-component-overview-simple.svg)
+[(Click here for detailed version)](img/new-component-overview-detailed.svg)
 
 
 # Relationship with IoT Edge
@@ -28,21 +34,15 @@ For IoT Edge devices, module identity provisioning and cryptographic services us
 Note that IoT Edge modules run in containers and thus do not communicate with the three services directly. They still only communicate with the IoT Edge runtime as before via the IoT Edge Management and Workload APIs, and their requests are forwarded by the IoT Edge runtime to the three services on the modules' behalf. Refer to <https://github.com/Azure/iotedge> for more details about the IoT Edge runtime.
 
 
-Each component talks to the other components via IPC in the form of HTTP-over-UDS.
-
-![New component overview](img/new-component-overview-simple.svg)
-[(Click here for detailed version)](img/new-component-overview-detailed.svg)
-
-
 # Provisioning and Runtime Operation
 
 This spec covers the following modes of provisioning and runtime operation.
 
-- [Provisioning using EST, with certificates issued by EST (On-prem PKI)](est-ca.html)
+- [Provisioning using EST, with certificates issued by EST (On-prem PKI)](est-ca.md)
 
 
 # Misc
 
-- [Developer documentation](dev/index.html)
+- [Developer documentation](dev/index.md)
 
-- [Openssl engine internals](openssl-engine-internals.html)
+- [Openssl engine internals](openssl-engine-internals.md)

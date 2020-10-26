@@ -1,8 +1,8 @@
 # Running the services locally
 
-1. Follow the steps in [Building the services](../building.html) to build the services.
+1. Follow the steps in [Building the services](../building.md) to build the services.
 
-1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11/index.html)
+1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11/index.md)
 
 1. Create an Azure IoT Hub and an Azure IoT Device identity in that IoT Hub. Depending on the auth method you choose for the device identity, the services will be configured accordingly later.
 
@@ -14,35 +14,48 @@
 
     For `x509_thumbprint` and `x509_ca`, you can use hardware-backed private keys for the certs if you're using PKCS#11.
 
-1. Start `aziot-keyd` in one shell. See [Configuring and running `aziot-keyd`](aziot-keyd.html)
+1. Start `aziot-keyd` in one shell. See [Configuring and running `aziot-keyd`](aziot-keyd.md)
 
-1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.html)
+1. Start `aziot-certd` in another shell. See [Configuring and running `aziot-certd`](aziot-certd.md)
 
-1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.html)
+1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
 
 1. Run `iotedged` in another shell.
 
     - If the device identity is set to use the `shared_private_key` auth method, run the program with the SAS key:
 
         ```sh
-        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --sas-key 'QXp1cmUgSW9UIEVkZ2U='
+        cargo run -p iotedged -- \
+            --hub-id 'example.azure-devices.net' \
+            --device-id 'example-1' \
+            --sas-key 'QXp1cmUgSW9UIEVkZ2U='
         ```
 
     - If the device identity is set to use the `x509_thumbprint` auth method, run the program with the identifier of the device ID cert and private key:
 
         ```sh
-        # The value of `--preloaded-device-id-cert` matches the name of the `PRELOADED_KEY:` and `PRELOADED_CERT:` env vars set above.
-        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --preloaded-device-id-cert 'device-id'
+        # The value of `--preloaded-device-id-cert` matches
+        # the name of the key preloaded into keyd and
+        # the name of the cert preloaded into certd.
+        cargo run -p iotedged -- \
+            --hub-id 'example.azure-devices.net' \
+            --device-id 'example-1' \
+            --preloaded-device-id-cert 'device-id'
         ```
 
     - If the device identity is set to use the `x509_ca` auth method, run the program with the identifier of the device ID CA cert and private key:
 
         ```sh
-        # The value of `--preloaded-device-id-ca-cert` matches the name of the `PRELOADED_KEY:` and `PRELOADED_CERT:` env vars set above.
-        cargo run -p iotedged -- --hub-id 'example.azure-devices.net' --device-id 'example-1' --preloaded-device-id-ca-cert 'device-id-ca'
+        # The value of `--preloaded-device-id-ca-cert` matches
+        # the name of the key preloaded into keyd and
+        # the name of the cert preloaded into certd.
+        cargo run -p iotedged -- \
+            --hub-id 'example.azure-devices.net' \
+            --device-id 'example-1' \
+            --preloaded-device-id-ca-cert 'device-id-ca'
         ```
 
-`iotedged` is a prototype that performs some operations that would be done by the Identity Service or Edge Module Runtime. Specifically, it connects to `aziot-keyd` and `aziot-certd` and does the following:
+`iotedged` is a test binary that performs some operations that would be done by the Identity Service or Edge Module Runtime. Specifically, it connects to `aziot-keyd` and `aziot-certd` and does the following:
 
 1. Create a self-signed device CA cert.
 
@@ -72,47 +85,103 @@ IOT_HUB_NAME=example
 IOT_DEVICE_ID=example-1
 
 # Certs will be stored here
-mkdir -p ~/iotedge/scratch
-cd ~/iotedge/scratch
+mkdir -p scratch
+cd scratch
 
 # Create self-signed root CA
-rm -f device-id-root.key.pem device-id-root.pem
-openssl req -x509 -newkey rsa:4096 -keyout device-id-root.key.pem -out device-id-root.pem -days 365 -nodes
+rm -f \
+    device-id-root.key.pem \
+    device-id-root.pem
+openssl req \
+    -x509 \
+    -newkey rsa:4096 -keyout device-id-root.key.pem -nodes \
+    -out device-id-root.pem \
+    -days 365
 
 # Upload root CA to IoT Hub
-az iot hub certificate create --hub-name "$IOT_HUB_NAME" --name device-id-root --path "$PWD/device-id-root.pem"
+az iot hub certificate create \
+    --hub-name "$IOT_HUB_NAME" --name device-id-root \
+    --path "$PWD/device-id-root.pem"
 
 # Generate first etag for verification code request
-etag="$(az iot hub certificate show --hub-name "$IOT_HUB_NAME" --name device-id-root --query etag --output tsv)"
+etag="$(
+    az iot hub certificate show \
+    --hub-name "$IOT_HUB_NAME" --name device-id-root \
+    --query etag --output tsv
+)"
 
 # Generate verification code and also save new etag
-cloud_certificate="$(az iot hub certificate generate-verification-code --hub-name "$IOT_HUB_NAME" --name device-id-root --etag "$etag")"
+cloud_certificate="$(
+    az iot hub certificate generate-verification-code \
+    --hub-name "$IOT_HUB_NAME" --name device-id-root \
+    --etag "$etag"
+)"
 etag="$(<<< "$cloud_certificate" jq '.etag' -r)"
-verification_code="$(<<< "$cloud_certificate" jq '.properties.verificationCode' -r)"
+verification_code="$(
+    <<< "$cloud_certificate" jq '.properties.verificationCode' -r
+)"
 
-# Print the verification code. This becomes the CN of the verification cert.
+# Print the verification code.
+# This becomes the CN of the verification cert.
 echo "$verification_code"
 
-# Generate CSR for verification cert and sign it with the root CA to get the verification cert.
+# Generate CSR for verification cert and sign it
+# with the root CA to get the verification cert.
 #
 # Set CN to `$verificationCode` (printed above) when prompted.
-rm -f device-id-root-verify.key.pem device-id-root-verify.csr device-id-root-verify.pem
-openssl req -newkey rsa:2048 -keyout device-id-root-verify.key.pem -out device-id-root-verify.csr -days 1 -nodes
-openssl x509 -req -in device-id-root-verify.csr -CA device-id-root.pem -CAkey device-id-root.key.pem -out device-id-root-verify.pem -days 365 -CAcreateserial
+rm -f \
+    device-id-root-verify.key.pem \
+    device-id-root-verify.csr \
+    device-id-root-verify.pem
+openssl req \
+    -newkey rsa:2048 -keyout device-id-root-verify.key.pem -nodes \
+    -out device-id-root-verify.csr \
+    -days 1
+openssl x509 -req \
+    -in device-id-root-verify.csr \
+    -CA device-id-root.pem -CAkey device-id-root.key.pem \
+    -out device-id-root-verify.pem \
+    -days 365 -CAcreateserial
 
 # Upload verification cert to IoT Hub
-az iot hub certificate verify --hub-name "$IOT_HUB_NAME" --name device-id-root --path $PWD/device-id-root-verify.pem --etag "$etag"
+az iot hub certificate verify \
+    --hub-name "$IOT_HUB_NAME" --name device-id-root \
+    --path $PWD/device-id-root-verify.pem \
+    --etag "$etag"
 
 # Clean up verification cert
-rm -f device-id-root-verify.key.pem device-id-root-verify.csr device-id-root-verify.pem
+rm -f \
+    device-id-root-verify.key.pem \
+    device-id-root-verify.csr \
+    device-id-root-verify.pem
+
+# device-id-root.pem and device-id-root.key.pem are no ready
+# to be used to issue device ID certs.
+
+# ---
+
+# To manually issue a device ID cert signed by this CA cert:
 
 # Create device identity with X.509-CA auth mode
-az iot hub device-identity create --hub-name "$IOT_HUB_NAME" --device-id "$IOT_DEVICE_ID" --auth-method x509_ca
+az iot hub device-identity create \
+    --hub-name "$IOT_HUB_NAME" --device-id "$IOT_DEVICE_ID" \
+    --auth-method x509_ca
 
-# Generate CSR for device ID cert and sign it with the root CA to get the device ID cert.
-rm -f device-id.key.pem device-id.csr device-id.pem
-openssl req -newkey rsa:2048 -keyout device-id.key.pem -out device-id.csr -days 1 -nodes
-openssl x509 -req -in device-id.csr -CA device-id-root.pem -CAkey device-id-root.key.pem -out device-id.pem -days 365 -CAcreateserial
+# Generate CSR for device ID cert and sign it
+# with the root CA to get the device ID cert.
+rm -f \
+    device-id.key.pem \
+    device-id.csr \
+    device-id.pem
+openssl req \
+    -newkey rsa:2048 -keyout device-id.key.pem -nodes \
+    -out device-id.csr \
+    -days 1
+openssl x509 -req \
+    -in device-id.csr \
+    -CA device-id-root.pem -CAkey device-id-root.key.pem \
+    -out device-id.pem \
+    -days 365 -CAcreateserial
 
 # Clean up device ID CSR
 rm -f device-id.csr
