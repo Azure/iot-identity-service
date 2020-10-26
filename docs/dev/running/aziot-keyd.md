@@ -127,7 +127,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
     export AZIOT_KEYD_CONFIG='...'
 
-    (exec -a aziot-keyd target/x86_64-unknown-linux-gnu/debug/aziotd)
+    cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-keyd
     ```
 
     The service will remain running.

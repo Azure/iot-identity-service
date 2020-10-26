@@ -211,7 +211,7 @@ With this basic file, fill it out depending on what workflow you want to test:
 
     export AZIOT_CERTD_CONFIG='...'
 
-    (exec -a aziot-certd target/x86_64-unknown-linux-gnu/debug/aziotd)
+    cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-certd
     ```
 
     The service will remain running.

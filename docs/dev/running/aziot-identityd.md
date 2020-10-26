@@ -156,5 +156,5 @@ export AZIOT_LOG=aziot=debug
 
 export AZIOT_IDENTITYD_CONFIG='...'
 
-(exec -a aziot-identityd target/x86_64-unknown-linux-gnu/debug/aziotd)
+cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-identityd
 ```

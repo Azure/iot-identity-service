@@ -29,25 +29,11 @@ async fn main() {
 }
 
 async fn main_inner() -> Result<(), Error> {
-    let argv0 = std::env::args_os()
-        .next()
-        .ok_or_else(|| ErrorKind::GetProcessName("argv[0] not set".into()))?;
+    let mut args = std::env::args_os();
+    let process_name = process_name_from_args(&mut args)?;
 
-    // argv[0] could be a single component like "aziot-certd", or a path that ends with "aziot-certd",
-    // so parse it as a Path and get the last component. This does the right thing in either case.
-    let argv0 = std::path::Path::new(&argv0);
-    let process_name = argv0.file_name().ok_or_else(|| {
-        ErrorKind::GetProcessName(
-            format!(
-                "could not extract process name from argv[0] {:?}",
-                argv0.display(),
-            )
-            .into(),
-        )
-    })?;
-
-    match process_name.to_str() {
-        Some("aziot-certd") => {
+    match process_name {
+        ProcessName::Certd => {
             run(
                 aziot_certd::main,
                 "AZIOT_CERTD_CONFIG",
@@ -58,7 +44,7 @@ async fn main_inner() -> Result<(), Error> {
             .await?
         }
 
-        Some("aziot-identityd") => {
+        ProcessName::Identityd => {
             run(
                 aziot_identityd::main,
                 "AZIOT_IDENTITYD_CONFIG",
@@ -69,7 +55,7 @@ async fn main_inner() -> Result<(), Error> {
             .await?
         }
 
-        Some("aziot-keyd") => {
+        ProcessName::Keyd => {
             run(
                 aziot_keyd::main,
                 "AZIOT_CERTD_CONFIG",
@@ -79,15 +65,55 @@ async fn main_inner() -> Result<(), Error> {
             )
             .await?
         }
-        _ => {
-            return Err(ErrorKind::GetProcessName(
-                format!("unrecognized process name {:?}", process_name).into(),
-            )
-            .into())
-        }
     }
 
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ProcessName {
+    Certd,
+    Identityd,
+    Keyd,
+}
+
+fn process_name_from_args<I>(args: &mut I) -> Result<ProcessName, Error>
+where
+    I: Iterator,
+    <I as Iterator>::Item: AsRef<std::ffi::OsStr>,
+{
+    let arg = args.next().ok_or_else(|| {
+        ErrorKind::GetProcessName("could not extract process name from args".into())
+    })?;
+
+    // arg could be a single component like "aziot-certd", or a path that ends with "aziot-certd",
+    // so parse it as a Path and get the last component. This does the right thing in either case.
+    let arg = std::path::Path::new(&arg);
+    let process_name = arg.file_name().ok_or_else(|| {
+        ErrorKind::GetProcessName(
+            format!(
+                "could not extract process name from arg {:?}",
+                arg.display(),
+            )
+            .into(),
+        )
+    })?;
+
+    match process_name.to_str() {
+        Some("aziot-certd") => Ok(ProcessName::Certd),
+
+        Some("aziot-identityd") => Ok(ProcessName::Identityd),
+
+        Some("aziot-keyd") => Ok(ProcessName::Keyd),
+
+        // The next is the process name
+        Some("aziotd") => process_name_from_args(args),
+
+        _ => Err(ErrorKind::GetProcessName(
+            format!("unrecognized process name {:?}", process_name).into(),
+        )
+        .into()),
+    }
 }
 
 async fn run<TMain, TConfig, TFuture, TServer>(
@@ -209,6 +235,61 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn process_name_from_args() {
+        for &(input, expected) in &[
+            (&["aziot-certd"][..], super::ProcessName::Certd),
+            (&["aziot-identityd"][..], super::ProcessName::Identityd),
+            (&["aziot-keyd"][..], super::ProcessName::Keyd),
+            (
+                &["/usr/libexec/aziot/aziot-certd"][..],
+                super::ProcessName::Certd,
+            ),
+            (
+                &["/usr/libexec/aziot/aziot-identityd"][..],
+                super::ProcessName::Identityd,
+            ),
+            (
+                &["/usr/libexec/aziot/aziot-keyd"][..],
+                super::ProcessName::Keyd,
+            ),
+            (&["aziotd", "aziot-certd"][..], super::ProcessName::Certd),
+            (
+                &["aziotd", "aziot-identityd"][..],
+                super::ProcessName::Identityd,
+            ),
+            (&["aziotd", "aziot-keyd"][..], super::ProcessName::Keyd),
+            (
+                &["/usr/libexec/aziot/aziotd", "aziot-certd"][..],
+                super::ProcessName::Certd,
+            ),
+            (
+                &["/usr/libexec/aziot/aziotd", "aziot-identityd"][..],
+                super::ProcessName::Identityd,
+            ),
+            (
+                &["/usr/libexec/aziot/aziotd", "aziot-keyd"][..],
+                super::ProcessName::Keyd,
+            ),
+        ] {
+            let mut input = input.iter().copied().map(std::ffi::OsStr::new);
+            let actual = super::process_name_from_args(&mut input).unwrap();
+            assert_eq!(None, input.next());
+            assert_eq!(expected, actual);
+        }
+
+        for &input in &[
+            &["foo"][..],
+            &["/usr/libexec/aziot/foo"][..],
+            &["aziotd", "foo"][..],
+            &["/usr/libexec/aziot/aziotd", "foo"][..],
+            &["/usr/libexec/aziot/foo", "aziot-certd"][..],
+        ] {
+            let mut input = input.iter().copied().map(std::ffi::OsStr::new);
+            let _ = super::process_name_from_args(&mut input).unwrap_err();
+        }
+    }
+
     #[test]
     fn merge_toml() {
         let base = r#"
