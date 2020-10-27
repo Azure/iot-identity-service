@@ -121,9 +121,13 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 1. Run the service, setting the `AZIOT_KEYD_CONFIG` env var if necessary.
 
     ```sh
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/target/x86_64-unknown-linux-gnu/debug"
+
+    export AZIOT_LOG=aziot=debug
+
     export AZIOT_KEYD_CONFIG='...'
 
-    cargo run -p aziot-keyd
+    cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-keyd
     ```
 
     The service will remain running.

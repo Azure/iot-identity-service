@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_identityd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
 
 #[async_trait::async_trait]
@@ -11,9 +11,9 @@ impl http_common::server::Route for Route {
         &((aziot_identity_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -22,7 +22,7 @@ impl http_common::server::Route for Route {
         }
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
         })
     }
 
@@ -31,17 +31,17 @@ impl http_common::server::Route for Route {
 
     type GetResponse = aziot_identity_common_http::get_module_identities::Response;
     async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
+        let user = crate::auth::Uid(0);
+        let auth_id = match api.authenticator.authenticate(user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
         //TODO: get uid from UDS
-        let identities = match inner.get_identities(auth_id, "aziot").await {
+        let identities = match api.get_identities(auth_id, "aziot").await {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
@@ -60,17 +60,17 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-        let user = aziot_identityd::auth::Uid(0);
-        let auth_id = match inner.authenticator.authenticate(user) {
+        let user = crate::auth::Uid(0);
+        let auth_id = match api.authenticator.authenticate(user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
         //TODO: get uid from UDS
-        let identity = match inner
+        let identity = match api
             .create_identity(auth_id, &body.id_type, &body.module_id)
             .await
         {

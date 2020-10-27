@@ -7,7 +7,7 @@ lazy_static::lazy_static! {
 }
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     parameter_name: String,
 }
 
@@ -18,9 +18,9 @@ impl http_common::server::Route for Route {
         &((aziot_key_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -32,7 +32,7 @@ impl http_common::server::Route for Route {
             .ok()?;
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
             parameter_name: parameter_name.into_owned(),
         })
     }
@@ -53,11 +53,11 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
         let parameter_value =
-            match inner.get_key_pair_public_parameter(&body.key_handle, &self.parameter_name) {
+            match api.get_key_pair_public_parameter(&body.key_handle, &self.parameter_name) {
                 Ok(parameter_value) => parameter_value,
                 Err(err) => return Err(super::to_http_error(&err)),
             };
