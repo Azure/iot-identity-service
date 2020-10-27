@@ -126,10 +126,11 @@ impl Server {
 
         self.id_manager.get_device_identity().await
     }
+
     pub async fn get_identity(
         &self,
         auth_id: auth::AuthId,
-        _idtype: &str,
+        id_type: Option<String>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -139,7 +140,13 @@ impl Server {
             return Err(Error::Authorization);
         }
 
-        self.id_manager.get_module_identity(module_id).await
+        // If id_type is not provided, return module identity.
+        let id_type = id_type.unwrap_or_else(|| "module".to_owned());
+
+        match id_type.as_str() {
+            "module" => self.id_manager.get_module_identity(module_id).await,
+            _ => Err(Error::invalid_parameter("id_type", "invalid id_type")),
+        }
     }
 
     pub async fn get_identities(
@@ -644,29 +651,28 @@ impl Server {
         // so a new cert must always be generated if KeyType is Raw.
         let mut device_id_cert = match identity_pk {
             KeyType::Raw => None,
-            KeyType::Handle(_) => {
-                match self.cert_client.get_cert(identity_cert).await {
-                    Ok(pem) => {
-                        let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
+            KeyType::Handle(_) => match self.cert_client.get_cert(identity_cert).await {
+                Ok(pem) => {
+                    let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let cert_expiration = cert.as_ref().not_after();
+                    let current_time =
+                        openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
                             Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                         })?;
-                        let cert_expiration = cert.as_ref().not_after();
-                        let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                        let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
+                    let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
 
-                        if expiration_time.days < 1 {
-                            None
-                        } else {
-                            Some(pem)
-                        }
+                    if expiration_time.days < 1 {
+                        None
+                    } else {
+                        Some(pem)
                     }
-                    Err(_) => None,
                 }
-            }
+                Err(_) => None,
+            },
         };
 
         // Retrieve private key for handles or generate new key bytes.
@@ -741,13 +747,16 @@ impl Server {
             match identity_pk {
                 KeyType::Handle(key_id) => {
                     let key_handle =
-                        self.key_client.load_key_pair(&key_id).await.map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
+                        self.key_client
+                            .load_key_pair(&key_id)
+                            .await
+                            .map_err(|err| {
+                                Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                            })?;
 
                     key_handle.0
-                },
-                KeyType::Raw => unreachable!()
+                }
+                KeyType::Raw => unreachable!(),
             }
         };
 
