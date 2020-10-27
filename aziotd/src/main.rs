@@ -259,7 +259,8 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
 mod tests {
     #[test]
     fn process_name_from_args() {
-        for &(input, expected) in &[
+        // Success test cases
+        let mut test_cases = vec![
             (&["aziot-certd"][..], super::ProcessName::Certd),
             (&["aziot-identityd"][..], super::ProcessName::Identityd),
             (&["aziot-keyd"][..], super::ProcessName::Keyd),
@@ -275,43 +276,50 @@ mod tests {
                 &["/usr/libexec/aziot/aziot-keyd"][..],
                 super::ProcessName::Keyd,
             ),
-            #[cfg(debug_assertions)]
-            (&["aziotd", "aziot-certd"][..], super::ProcessName::Certd),
-            #[cfg(debug_assertions)]
-            (
-                &["aziotd", "aziot-identityd"][..],
-                super::ProcessName::Identityd,
-            ),
-            #[cfg(debug_assertions)]
-            (&["aziotd", "aziot-keyd"][..], super::ProcessName::Keyd),
-            #[cfg(debug_assertions)]
-            (
-                &["/usr/libexec/aziot/aziotd", "aziot-certd"][..],
-                super::ProcessName::Certd,
-            ),
-            #[cfg(debug_assertions)]
-            (
-                &["/usr/libexec/aziot/aziotd", "aziot-identityd"][..],
-                super::ProcessName::Identityd,
-            ),
-            #[cfg(debug_assertions)]
-            (
-                &["/usr/libexec/aziot/aziotd", "aziot-keyd"][..],
-                super::ProcessName::Keyd,
-            ),
-        ] {
+        ];
+
+        // argv[1] fallback is only in release builds.
+        if cfg!(debug_assertions) {
+            test_cases.extend_from_slice(&[
+                (&["aziotd", "aziot-certd"][..], super::ProcessName::Certd),
+                (
+                    &["aziotd", "aziot-identityd"][..],
+                    super::ProcessName::Identityd,
+                ),
+                (&["aziotd", "aziot-keyd"][..], super::ProcessName::Keyd),
+                (
+                    &["/usr/libexec/aziot/aziotd", "aziot-certd"][..],
+                    super::ProcessName::Certd,
+                ),
+                (
+                    &["/usr/libexec/aziot/aziotd", "aziot-identityd"][..],
+                    super::ProcessName::Identityd,
+                ),
+                (
+                    &["/usr/libexec/aziot/aziotd", "aziot-keyd"][..],
+                    super::ProcessName::Keyd,
+                ),
+            ]);
+        }
+
+        for (input, expected) in test_cases {
             let mut input = input.iter().copied().map(std::ffi::OsStr::new);
             let actual = super::process_name_from_args(&mut input).unwrap();
             assert_eq!(None, input.next());
             assert_eq!(expected, actual);
         }
 
+        // Failure test cases
         for &input in &[
+            // Unrecognized process name in argv[0]
             &["foo"][..],
             &["/usr/libexec/aziot/foo"][..],
+            &["/usr/libexec/aziot/foo", "aziot-certd"][..],
+            // Either fails because it's a release build so argv[1] fallback is disabled,
+            // or fails because it's a debug build where argv[1] fallback is enabled
+            // but the process name in argv[1] is unrecognized anyway.
             &["aziotd", "foo"][..],
             &["/usr/libexec/aziot/aziotd", "foo"][..],
-            &["/usr/libexec/aziot/foo", "aziot-certd"][..],
         ] {
             let mut input = input.iter().copied().map(std::ffi::OsStr::new);
             let _ = super::process_name_from_args(&mut input).unwrap_err();
