@@ -233,7 +233,7 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     // - There is no equivalent of null that can be used to remove keys from an object.
     // - Arrays are merged via concatenating the patch to the base, rather than replacing the base with the patch.
 
-    if let toml::Value::Table(base) = &mut *base {
+    if let toml::Value::Table(base) = base {
         if let toml::Value::Table(patch) = patch {
             for (key, value) in patch {
                 // Insert a dummy `false` if the original key didn't exist at all. It'll be overwritten by `value` in that case.
