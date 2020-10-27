@@ -229,7 +229,7 @@ where
 fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     // Similar to JSON patch, except that:
     //
-    // - Maps are called tables
+    // - Maps are called tables.
     // - There is no equivalent of null that can be used to remove keys from an object.
     // - Arrays are merged via concatenating the patch to the base, rather than replacing the base with the patch.
 
@@ -275,20 +275,26 @@ mod tests {
                 &["/usr/libexec/aziot/aziot-keyd"][..],
                 super::ProcessName::Keyd,
             ),
+            #[cfg(debug_assertions)]
             (&["aziotd", "aziot-certd"][..], super::ProcessName::Certd),
+            #[cfg(debug_assertions)]
             (
                 &["aziotd", "aziot-identityd"][..],
                 super::ProcessName::Identityd,
             ),
+            #[cfg(debug_assertions)]
             (&["aziotd", "aziot-keyd"][..], super::ProcessName::Keyd),
+            #[cfg(debug_assertions)]
             (
                 &["/usr/libexec/aziot/aziotd", "aziot-certd"][..],
                 super::ProcessName::Certd,
             ),
+            #[cfg(debug_assertions)]
             (
                 &["/usr/libexec/aziot/aziotd", "aziot-identityd"][..],
                 super::ProcessName::Identityd,
             ),
+            #[cfg(debug_assertions)]
             (
                 &["/usr/libexec/aziot/aziotd", "aziot-keyd"][..],
                 super::ProcessName::Keyd,

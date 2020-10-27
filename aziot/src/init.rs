@@ -1065,6 +1065,7 @@ fn write_file(
     Ok(())
 }
 
+#[cfg(debug_assertions)]
 #[cfg(test)]
 mod tests {
     struct Stdin(std::io::BufReader<std::fs::File>);
