@@ -169,6 +169,7 @@ where
 
     match std::fs::read_dir(&config_directory_path) {
         Ok(entries) => {
+            let mut patch_paths = vec![];
             for entry in entries {
                 let entry = entry.map_err(|err| {
                     ErrorKind::ReadConfig(Some(config_directory_path.clone()), Box::new(err))
@@ -186,6 +187,11 @@ where
                     continue;
                 }
 
+                patch_paths.push(patch_path);
+            }
+            patch_paths.sort();
+
+            for patch_path in patch_paths {
                 let patch = std::fs::read(&patch_path).map_err(|err| {
                     ErrorKind::ReadConfig(Some(patch_path.clone()), Box::new(err))
                 })?;
