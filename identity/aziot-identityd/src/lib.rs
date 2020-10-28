@@ -224,10 +224,10 @@ impl Api {
         }
 
         // If id_type is not provided, return module identity.
-        let id_type = id_type.unwrap_or_else(|| "module".to_owned());
+        let id_type = id_type.unwrap_or_else(|| "aziot".to_owned());
 
         match id_type.as_str() {
-            "module" => self.id_manager.get_module_identity(module_id).await,
+            "aziot" => self.id_manager.get_module_identity(module_id).await,
             "local" => self.issue_local_identity(module_id).await,
             _ => Err(Error::invalid_parameter("id_type", "invalid id_type")),
         }
