@@ -70,6 +70,17 @@ async fn main_inner() -> Result<(), Error> {
             )
             .await?
         }
+
+        ProcessName::Tpmd => {
+            run(
+                aziot_tpmd::main,
+                "AZIOT_TPMD_CONFIG",
+                "/etc/aziot/tpmd/config.toml",
+                "AZIOT_TPMD_CONFIG_DIR",
+                "/etc/aziot/tpmd/config.d",
+            )
+            .await?
+        }
     }
 
     Ok(())
@@ -80,6 +91,7 @@ enum ProcessName {
     Certd,
     Identityd,
     Keyd,
+    Tpmd,
 }
 
 /// If the symlink is being used to invoke this binary, the process name can be determined
@@ -112,10 +124,9 @@ where
 
     match process_name.to_str() {
         Some("aziot-certd") => Ok(ProcessName::Certd),
-
         Some("aziot-identityd") => Ok(ProcessName::Identityd),
-
         Some("aziot-keyd") => Ok(ProcessName::Keyd),
+        Some("aziot-tpmd") => Ok(ProcessName::Tpmd),
 
         // The next arg is the process name
         #[cfg(debug_assertions)]
@@ -270,6 +281,7 @@ mod tests {
             (&["aziot-certd"][..], super::ProcessName::Certd),
             (&["aziot-identityd"][..], super::ProcessName::Identityd),
             (&["aziot-keyd"][..], super::ProcessName::Keyd),
+            (&["aziot-tpmd"][..], super::ProcessName::Tpmd),
             (
                 &["/usr/libexec/aziot/aziot-certd"][..],
                 super::ProcessName::Certd,
@@ -281,6 +293,10 @@ mod tests {
             (
                 &["/usr/libexec/aziot/aziot-keyd"][..],
                 super::ProcessName::Keyd,
+            ),
+            (
+                &["/usr/libexec/aziot/aziot-tpmd"][..],
+                super::ProcessName::Tpmd,
             ),
         ];
 
@@ -304,6 +320,10 @@ mod tests {
                 (
                     &["/usr/libexec/aziot/aziotd", "aziot-keyd"][..],
                     super::ProcessName::Keyd,
+                ),
+                (
+                    &["/usr/libexec/aziot/aziotd", "aziot-tpmd"][..],
+                    super::ProcessName::Tpmd,
                 ),
             ]);
         }

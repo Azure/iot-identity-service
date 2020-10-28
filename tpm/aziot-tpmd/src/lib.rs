@@ -11,12 +11,31 @@
 mod config;
 mod error;
 
+mod http;
+
 pub use config::{Config, Endpoints};
 pub use error::{Error, InternalError};
 
 use aziot_tpm::Tpm;
 
-pub struct Server {
+pub async fn main(
+    config: Config,
+) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+    let Config {
+        endpoints: Endpoints {
+            aziot_tpmd: connector,
+        },
+    } = config;
+
+    let api = Api::new()?;
+    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    let service = http::Service { api };
+
+    Ok((connector, service))
+}
+
+pub struct Api {
     tpm: Tpm,
 }
 
@@ -25,9 +44,9 @@ pub struct TpmKeys {
     pub storage_root_key: Vec<u8>,
 }
 
-impl Server {
+impl Api {
     pub fn new() -> Result<Self, Error> {
-        Ok(Server {
+        Ok(Api {
             tpm: Tpm::new().map_err(|e| Error::Internal(InternalError::InitTpm(e)))?,
         })
     }

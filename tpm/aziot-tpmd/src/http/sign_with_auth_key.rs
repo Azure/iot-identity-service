@@ -3,7 +3,7 @@
 use http_common::server::RouteResponse;
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_tpmd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
 
 #[async_trait::async_trait]
@@ -13,9 +13,9 @@ impl http_common::server::Route for Route {
         &((aziot_tpm_common_http::ApiVersion::V2020_10_15)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        server: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -24,7 +24,7 @@ impl http_common::server::Route for Route {
         }
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: server.api.clone(),
         })
     }
 
@@ -41,10 +41,10 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-        let digest = inner
+        let digest = api
             .sign_with_auth_key(&body.data.0)
             .map_err(|e| super::to_http_error(&e))?;
 
