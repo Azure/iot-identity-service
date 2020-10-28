@@ -36,14 +36,12 @@ jobs:
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
-          -e "CONTAINER_OS=$CONTAINER_OS" \
           -e "ARCH=$ARCH" \
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
           "${{ matrix.container_os }}" \
           '/src/ci/package.sh'
       env:
-        CONTAINER_OS: "${{ matrix.container_os }}"
         ARCH: "${{ matrix.arch }}"
         PACKAGE_VERSION: '1.1.0'
         PACKAGE_RELEASE: '0'
