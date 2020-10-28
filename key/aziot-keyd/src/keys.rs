@@ -176,9 +176,10 @@ impl Keys {
                     .ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
             };
 
-            println!(
+            log::info!(
                 "Loaded libaziot-keys with version 0x{:08x}, {:?}",
-                api_version, result
+                api_version,
+                result,
             );
 
             Ok(result)

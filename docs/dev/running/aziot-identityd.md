@@ -147,9 +147,14 @@ The table of principal accounts in Identity Service configuration represents eac
 
 ## Running `aziot-identityd`
 
-Run the following command to launch the Identity Service, passing the `config.toml` file path as an argument:
+Run the following command to launch the Identity Service, setting the path of the `config.toml` file as the `AZIOT_IDENTITYD_CONFIG` env var:
 
 ```sh
-cargo run -p aziot-identityd -- -c /path/to/default.toml
-```
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/target/x86_64-unknown-linux-gnu/debug"
 
+export AZIOT_LOG=aziot=debug
+
+export AZIOT_IDENTITYD_CONFIG='...'
+
+cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-identityd
+```

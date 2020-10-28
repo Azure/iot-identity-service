@@ -70,6 +70,7 @@ pub mod create_key_pair_if_not_exists {
         #[serde(rename = "keyId")]
         pub id: String,
 
+        #[serde(rename = "preferredAlgorithms")]
         pub preferred_algorithms: Option<String>,
     }
 

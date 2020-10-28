@@ -7,7 +7,7 @@ lazy_static::lazy_static! {
 }
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_keyd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     type_: String,
     key_id: String,
 }
@@ -19,9 +19,9 @@ impl http_common::server::Route for Route {
         &((aziot_key_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -38,7 +38,7 @@ impl http_common::server::Route for Route {
             .ok()?;
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
             type_: type_.into_owned(),
             key_id: key_id.into_owned(),
         })
@@ -49,15 +49,15 @@ impl http_common::server::Route for Route {
 
     type GetResponse = aziot_key_common_http::load::Response;
     async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
         let handle = match &*self.type_ {
-            "keypair" => match inner.load_key_pair(&self.key_id) {
+            "keypair" => match api.load_key_pair(&self.key_id) {
                 Ok(handle) => handle,
                 Err(err) => return Err(super::to_http_error(&err)),
             },
-            "key" => match inner.load_key(&self.key_id) {
+            "key" => match api.load_key(&self.key_id) {
                 Ok(handle) => handle,
                 Err(err) => return Err(super::to_http_error(&err)),
             },

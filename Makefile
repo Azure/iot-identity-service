@@ -87,13 +87,20 @@ default:
 			$(BINDGEN_EXTRA_FLAGS); \
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
+
+	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
+	# But we can't do this with Cargo dependencies because of a cargo issue that causes spurious rebuilds.
+	# So instead we do it manually.
+	#
+	# See the doc header of the aziot-keys-common crate for more info.
+	$(CARGO) build \
+		-p aziot-keys \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+
 	$(CARGO) build \
 		-p aziot \
-		-p aziot-certd \
-		-p aziot-identityd \
-		-p aziot-keyd \
+		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
-		-p aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
@@ -110,10 +117,42 @@ pkcs11-test:
 	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
+target/openapi-schema-validated: cert/aziot-certd/openapi/2020-09-01.yaml
+target/openapi-schema-validated: key/aziot-keyd/openapi/2020-09-01.yaml
+target/openapi-schema-validated:
+	mkdir -p target
+	$(RM) target/openapi-schema-validated
+
+	# Pretend the task succeeds if docker isn't installed. This is because the CI runs `make test` inside a container
+	# so it can't run docker there without mounting the host socket. Also some of the distros have very old versions of docker.
+	#
+	# We still want this task to be a dependency of the test target so that it runs by default on developers' machines.
+	#
+	# The resolution is to have CI run this target separately after running `make test`.
+	if [ -f /usr/bin/docker ]; then \
+		set -euo pipefail; \
+		for f in 'cert/aziot-certd/openapi/2020-09-01.yaml' 'key/aziot-keyd/openapi/2020-09-01.yaml'; do \
+			validator_output="$$( \
+				docker run --rm -v "$$PWD:/src" --user 1000 \
+					openapitools/openapi-generator-cli:v4.3.1 \
+					validate -i "/src/$$f" --recommend || \
+				: \
+			)"; \
+			if ! (<<< "$$validator_output" grep -q 'No validation issues detected'); then \
+				printf '%s\n' "$$validator_output"; \
+				exit 1; \
+			fi; \
+		done; \
+	fi
+
+	touch target/openapi-schema-validated
+
+
 test: default iotedged pkcs11-test
+test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
-	$(CARGO) test --all --exclude aziot-key-openssl-engine-shared \
+	$(CARGO) test --all --exclude aziot-key-openssl-engine-shared --exclude aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
@@ -137,7 +176,7 @@ test:
 	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
-	$(CARGO) fmt --all $(CARGO_VERBOSE) -- --check
+	$(CARGO) fmt --all -- --check
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
@@ -174,7 +213,7 @@ dist:
 
 	# Copy source files
 	cp -R \
-		./aziot ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
+		./aziot ./aziotd ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
@@ -263,18 +302,25 @@ install-common:
 	# Ref: https://www.gnu.org/software/make/manual/html_node/DESTDIR.html
 
 	# Binaries
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-certd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-keyd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot-identityd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
+	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
+	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
+	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
+	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
+
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot $(DESTDIR)$(bindir)/aziot
 
 	# libaziot-keys
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
 
-	# Default configs
+	# Default configs and config directories
 	$(INSTALL_DATA) -D cert/aziot-certd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/certd/config.toml.default
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/certd/config.d
+
 	$(INSTALL_DATA) -D identity/aziot-identityd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/identityd/config.toml.default
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/identityd/config.d
+
 	$(INSTALL_DATA) -D key/aziot-keyd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/keyd/config.toml.default
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/keyd/config.d
 
 	# Home directories
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/certd

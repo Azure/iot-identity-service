@@ -78,7 +78,7 @@ fn r#catch<T>(
             if let Some(function) = function {
                 openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
             } else {
-                eprintln!("[pkcs11-openssl-engine] error: {}", err);
+                log::error!("[pkcs11-openssl-engine] error: {}", err);
             }
 
             let mut source = err.source();
@@ -86,7 +86,7 @@ fn r#catch<T>(
                 if let Some(function) = function {
                     openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
                 } else {
-                    eprintln!("[pkcs11-openssl-engine] caused by: {}", err);
+                    log::error!("[pkcs11-openssl-engine] caused by: {}", err);
                 }
 
                 source = err.source();

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
+
 [dependencies]
 backtrace = "0.3"
 base64 = "0.12"
@@ -17,7 +18,8 @@ url = "2"
 aziot-certd = { path = "../cert/aziot-certd" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
-aziot-keys = { path = "../key/aziot-keys" }
+aziot-keys-common = { path = "../key/aziot-keys-common" }
+
 
 [dev-dependencies]
 bytes = "0.5"

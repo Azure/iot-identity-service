@@ -109,10 +109,13 @@ fi
 
 
 %files
+
 # Binaries
+%{_libexecdir}/%{name}/aziotd
 %{_libexecdir}/%{name}/aziot-certd
 %{_libexecdir}/%{name}/aziot-identityd
 %{_libexecdir}/%{name}/aziot-keyd
+
 %{_bindir}/aziot
 
 # libaziot-keys
@@ -121,10 +124,15 @@ fi
 # libaziot-key-openssl-engine-shared
 %{_libdir}/openssl/engines/libaziot_keys.so
 
-# Default configs
+# Default configs and config directories
 %attr(400, aziotcs, aziotcs) %{_sysconfdir}/aziot/certd/config.toml.default
+%attr(700, aziotcs, aziotcs) %dir %{_sysconfdir}/aziot/certd/config.d
+
 %attr(400, aziotid, aziotid) %{_sysconfdir}/aziot/identityd/config.toml.default
+%attr(700, aziotid, aziotid) %dir %{_sysconfdir}/aziot/identityd/config.d
+
 %attr(400, aziotks, aziotks) %{_sysconfdir}/aziot/keyd/config.toml.default
+%attr(700, aziotks, aziotks) %dir %{_sysconfdir}/aziot/keyd/config.d
 
 # Home directories
 %attr(-, aziotcs, aziotcs) %dir /var/lib/aziot/certd

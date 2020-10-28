@@ -7,7 +7,7 @@ lazy_static::lazy_static! {
 }
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     cert_id: String,
 }
 
@@ -18,9 +18,9 @@ impl http_common::server::Route for Route {
         &((aziot_cert_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -32,15 +32,43 @@ impl http_common::server::Route for Route {
             .ok()?;
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
             cert_id: cert_id.into_owned(),
         })
     }
 
     type DeleteBody = serde::de::IgnoredAny;
     type DeleteResponse = ();
+    async fn delete(
+        self,
+        _body: Option<Self::DeleteBody>,
+    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-    type GetResponse = ();
+        if let Err(err) = api.delete_cert(&self.cert_id) {
+            return Err(super::to_http_error(&err));
+        }
+
+        Ok((hyper::StatusCode::NO_CONTENT, None))
+    }
+
+    type GetResponse = aziot_cert_common_http::get_cert::Response;
+    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
+
+        let pem = api.get_cert(&self.cert_id);
+        let pem = match pem {
+            Ok(pem) => pem,
+            Err(err) => return Err(super::to_http_error(&err)),
+        };
+
+        let res = aziot_cert_common_http::get_cert::Response {
+            pem: aziot_cert_common_http::Pem(pem),
+        };
+        Ok((hyper::StatusCode::OK, res))
+    }
 
     type PostBody = serde::de::IgnoredAny;
     type PostResponse = ();
@@ -51,10 +79,10 @@ impl http_common::server::Route for Route {
         self,
         body: Self::PutBody,
     ) -> http_common::server::RouteResponse<Self::PutResponse> {
-        let mut inner = self.inner.lock().await;
-        let inner = &mut *inner;
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
 
-        match inner.import_cert(&self.cert_id, &body.pem.0) {
+        match api.import_cert(&self.cert_id, &body.pem.0) {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
         };

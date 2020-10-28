@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 pub(super) struct Route {
-    inner: std::sync::Arc<futures_util::lock::Mutex<aziot_certd::Server>>,
+    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
 
 #[async_trait::async_trait]
@@ -11,9 +11,9 @@ impl http_common::server::Route for Route {
         &((aziot_cert_common_http::ApiVersion::V2020_09_01)..)
     }
 
-    type Server = super::Server;
+    type Service = super::Service;
     fn from_uri(
-        server: &Self::Server,
+        service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
@@ -22,7 +22,7 @@ impl http_common::server::Route for Route {
         }
 
         Some(Route {
-            inner: server.inner.clone(),
+            api: service.api.clone(),
         })
     }
 
@@ -42,8 +42,8 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let pem = aziot_certd::Server::create_cert(
-            self.inner,
+        let pem = crate::Api::create_cert(
+            self.api,
             body.cert_id,
             body.csr.0,
             body.issuer.map(
