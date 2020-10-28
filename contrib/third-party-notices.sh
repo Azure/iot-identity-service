@@ -19,6 +19,7 @@ case "$ARCH" in
         ;;
 
     *)
+        echo "Unsupported ARCH $ARCH" >&2
         exit 1
         ;;
 esac
@@ -179,6 +180,7 @@ cargo metadata --format-version 1 |
                 ;;
 
             *)
+                echo "$name:$version at $manifest_path has unsupported license $license" >&2
                 exit 1
                 ;;
         esac
