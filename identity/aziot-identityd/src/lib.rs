@@ -675,16 +675,17 @@ impl Api {
                     )
                     .await?;
 
-                // Parse certificate expiration time. Cannot fail for valid certificate.
-                let expiration = openssl::x509::X509::from_pem(certificate.as_bytes())
-                    .unwrap()
-                    .not_after()
-                    .to_string();
+                // Parse certificate expiration time
+                let expiration =
+                    openssl::x509::X509::from_pem(certificate.as_bytes()).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let expiration = expiration.not_after().to_string();
                 let expiration = chrono::NaiveDateTime::parse_from_str(
                     expiration.as_str(),
                     "%b %e %H:%M:%S %Y GMT",
                 )
-                .unwrap();
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
                 let expiration =
                     chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 
