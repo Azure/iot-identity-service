@@ -725,7 +725,7 @@ impl Api {
 
         // Retrieve private key for handles or generate new key bytes.
         let private_key = if device_id_cert.is_none() {
-            let (key, key_string) = match identity_pk.clone() {
+            let (private_key, private_key_string, public_key) = match identity_pk.clone() {
                 KeyType::Handle(key_id) => {
                     let key_handle = self
                         .key_client
@@ -734,38 +734,47 @@ impl Api {
                         .map_err(|err| {
                             Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                         })?;
-                    let key_string = key_handle.0.clone();
-                    let key_handle = std::ffi::CString::new(key_string.clone()).map_err(|err| {
+                    let private_key_string = key_handle.0.clone();
+                    let key_handle = std::ffi::CString::new(private_key_string.clone()).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
 
                     let mut key_engine = self.key_engine.lock().await;
-                    let key = key_engine.load_private_key(&key_handle).map_err(|err| {
+                    let private_key = key_engine.load_private_key(&key_handle).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let public_key = key_engine.load_public_key(&key_handle).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
 
-                    (key, key_string)
+                    (private_key, private_key_string, public_key)
                 }
                 KeyType::Raw => {
                     let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
-                    let key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
+                    let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
-                    let pem = key.private_key_to_pem_pkcs8().map_err(|err| {
+                    let private_key_pem = private_key.private_key_to_pem_pkcs8().map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
-                    let pem = std::string::String::from_utf8(pem).map_err(|err| {
+                    let private_key_pem = std::string::String::from_utf8(private_key_pem).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let public_key = private_key.public_key_to_pem().map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let public_key = openssl::pkey::PKey::public_key_from_pem(&public_key).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
 
-                    (key, pem)
+                    (private_key, private_key_pem, public_key)
                 }
             };
 
             let result = async {
-                let csr = create_csr(&subject, &key, attributes).map_err(|err| {
+                let csr = create_csr(&subject, &public_key, &private_key, attributes).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
 
@@ -790,7 +799,7 @@ impl Api {
                 return Err(err);
             }
 
-            key_string
+            private_key_string
         } else {
             match identity_pk {
                 KeyType::Handle(key_id) => {
@@ -818,7 +827,8 @@ impl Api {
 
 fn create_csr(
     subject: &str,
-    key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+    public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
+    private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
     attributes: Option<aziot_identity_common::LocalIdAttr>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
     let mut csr = openssl::x509::X509Req::builder()?;
@@ -865,8 +875,8 @@ fn create_csr(
     subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
     let subject_name = subject_name.build();
     csr.set_subject_name(&subject_name)?;
-    csr.set_pubkey(key)?;
-    csr.sign(key, openssl::hash::MessageDigest::sha256())?;
+    csr.set_pubkey(public_key)?;
+    csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
 
     let csr = csr.build();
     let csr = csr.to_pem()?;
