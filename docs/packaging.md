@@ -272,7 +272,7 @@ apt install aziot-edge
 iotedge init
 ```
 
-You must remove the existing `iotedge` and `libiothsm-std` packages before installing the `aziot-edge` package (or even the `aziot-identity-service` package). We do not want a situation where the services from both packages are running at the same time. They would step over each other trying to provision the device and manage Docker modules. We enforce mutual exclusivity between the packages by having them conflict with each other so that the distribution's package manager does not allow them both to be installed at the same time.
+The user must remove the existing `iotedge` and `libiothsm-std` packages before installing the `aziot-edge` package (or even the `aziot-identity-service` package). We do not want a situation where the services from both packages are running at the same time. They would step over each other trying to provision the device and manage Docker modules. We enforce mutual exclusivity between the packages by having them conflict with each other so that the distribution's package manager does not allow them both to be installed at the same time.
 
 The `iotedge init` automatically detects when the configuration of the old IoT Edge installation is available and prompts whether to create the new configuration based on the old. Agreeing to import the old configuation does not remove it. This allows downgrading from `aziot-edge` to `iotedge`.
 
@@ -290,7 +290,7 @@ iotedge init --import
 ```
 
 ### Automating Upgrades of `iotedge` to `aziot-edge`
-We expect that users will manually run the tool when updating the install on the device. Of course, if it has tested on M devices and you are confident that it will succeed on the remaining N devices, you can use your own tooling to automatically perform the update at scale across all the devices.
+We expect that users will manually run the tool when updating the install on the device. Of course, if it has tested on M devices and the user is confident that it will succeed on the remaining N devices, they can use some custom deployment tooling to automatically perform the update at scale across all their devices.
 The process of importing the configuration is intentionally designed to be run manually, rather than being done automatically by the new services. It is potentially fallible and could offline the device. 
 
 ### Downgrading
