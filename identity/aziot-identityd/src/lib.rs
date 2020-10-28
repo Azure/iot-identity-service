@@ -676,9 +676,11 @@ impl Api {
 
                     aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
                         attr: attributes,
-                        auth_type: aziot_identity_common::AuthenticationType::X509,
-                        key,
-                        cert,
+                        auth: aziot_identity_common::AuthenticationInfo {
+                            auth_type: aziot_identity_common::AuthenticationType::X509,
+                            key_handle: key,
+                            cert_id: Some(cert),
+                        },
                     })
                 }
             };

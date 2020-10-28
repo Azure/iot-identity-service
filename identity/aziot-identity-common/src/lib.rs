@@ -29,25 +29,23 @@ pub struct AzureIoTSpec {
     #[serde(rename = "genId", skip_serializing_if = "Option::is_none")]
     pub gen_id: Option<GenId>,
     #[serde(rename = "auth", skip_serializing_if = "Option::is_none")]
-    pub auth: Option<AuthenticationInfo>,
+    pub auth: Option<AuthenticationInfo<aziot_key_common::KeyHandle, String>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct LocalIdSpec {
     pub attr: LocalIdAttr,
-    pub auth_type: AuthenticationType,
-    pub key: String,
-    pub cert: String,
+    pub auth: AuthenticationInfo<String, String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthenticationInfo {
+pub struct AuthenticationInfo<K, C> {
     #[serde(rename = "type")]
     pub auth_type: AuthenticationType,
     #[serde(rename = "keyHandle")]
-    pub key_handle: aziot_key_common::KeyHandle,
+    pub key_handle: K,
     #[serde(rename = "certId", skip_serializing_if = "Option::is_none")]
-    pub cert_id: Option<String>,
+    pub cert_id: Option<C>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -133,7 +131,7 @@ pub enum Credentials {
     },
 }
 
-impl From<Credentials> for AuthenticationInfo {
+impl From<Credentials> for AuthenticationInfo<aziot_key_common::KeyHandle, String> {
     fn from(c: Credentials) -> Self {
         match c {
             Credentials::SharedPrivateKey(k) => AuthenticationInfo {
