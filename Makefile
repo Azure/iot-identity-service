@@ -64,16 +64,19 @@ SHELL := /bin/bash
 
 
 default:
-	cd key/aziot-keys/ && $(CBINDGEN) --config cbindgen.toml --output aziot-keys.h.tmp $(CBINDGEN_VERBOSE)
-	cp key/aziot-keys/cbindgen.prelude.h key/aziot-keys/aziot-keys.h.new
-	< key/aziot-keys/aziot-keys.h.tmp grep -v 'cbindgen_unused_' >> key/aziot-keys/aziot-keys.h.new
-	$(RM) key/aziot-keys/aziot-keys.h.tmp
-	if ! diff -q key/aziot-keys/aziot-keys.h key/aziot-keys/aziot-keys.h.new; then \
-		mv key/aziot-keys/aziot-keys.h.new key/aziot-keys/aziot-keys.h; \
+	# Re-generate aziot-keys.h if necessary
+	set -euo pipefail; \
+	aziot_keys_h_new="$$(mktemp --tmpdir 'aziot-keys.h.new.XXXXXXXXXX')"; \
+	trap "$(RM) '$$aziot_keys_h_new'" EXIT; \
+	cp key/aziot-keys/cbindgen.prelude.h "$$aziot_keys_h_new"; \
+	$(CBINDGEN) --config key/aziot-keys/cbindgen.toml --crate aziot-keys --lockfile "$$PWD/Cargo.lock" --output /dev/stdout $(CBINDGEN_VERBOSE) | \
+		grep -v 'cbindgen_unused_' >> "$$aziot_keys_h_new"; \
+	if ! diff -q key/aziot-keys/aziot-keys.h "$$aziot_keys_h_new"; then \
+		mv "$$aziot_keys_h_new" key/aziot-keys/aziot-keys.h; \
 		$(RM) key/aziot-keyd/src/keys.generated.rs; \
-	else \
-		$(RM) key/aziot-keys/aziot-keys.h.new; \
 	fi
+
+	# Re-generate keys.generated.rs if necessary
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
 			--blacklist-type '__.*' \
