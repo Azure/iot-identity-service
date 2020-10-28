@@ -264,6 +264,7 @@ iotedge init
 After installing the `aziot-edge` package, run `iotedge init` to interactively set up the configuration. It performs the initialization for both the IS+KS+CS components installed by the `aziot-identity-service` package and the MR component installed by the `aziot-edge` package.
 
 ## Updating from `iotedge` to `aziot-edge`
+
 ```sh
 apt remove iotedge libiothsm-std 
 
@@ -279,6 +280,7 @@ The `iotedge init` automatically detects when the configuration of the old IoT E
 ### Initialization Options
 
 The `--force` option can be used to force the initialization sequence.  This rewrites the new configuration values.
+
 ```sh
 iotedge init --force
 ```
@@ -290,10 +292,12 @@ iotedge init --import
 ```
 
 ### Automating Upgrades of `iotedge` to `aziot-edge`
+
 We expect that users will manually run the tool when updating the install on the device. Of course, if it has tested on M devices and the user is confident that it will succeed on the remaining N devices, they can use some custom deployment tooling to automatically perform the update at scale across all their devices.
 The process of importing the configuration is intentionally designed to be run manually, rather than being done automatically by the new services. It is potentially fallible and could offline the device. 
 
 ### Downgrading
+
 The old configuration from `iotedge` is not removed from its location by any of the above actions; therefore, downgrading from the new package to the old one simply involves uninstalling the `aziot-edge` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
 
 ### Technical Details on Migrating Configuration
@@ -313,4 +317,5 @@ The precise details are still being worked out. A high-level view is:
 - Certs like workload CA and module server certs that are created dynamically by `iotedged`, and can be regenerated trivially without any problems, will not be copied or imported into the new services.
 
 ## Open Issues
+
 It is not yet certain whether Edge Agent, Edge Hub and other modules will be able to decrypt any data when running against the new services that they previously encrypted using the workload API with the old service.
