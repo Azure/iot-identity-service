@@ -1021,6 +1021,7 @@ mod tests {
     async fn init_identities_with_empty_args_exits_early() {
         let api = Api::new(
             make_empty_settings(),
+            std::collections::BTreeMap::new(),
             Box::new(|_| Ok(AuthId::Unknown)),
             Box::new(|_| Ok(true)),
         )
