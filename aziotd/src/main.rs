@@ -63,9 +63,9 @@ async fn main_inner() -> Result<(), Error> {
         ProcessName::Keyd => {
             run(
                 aziot_keyd::main,
-                "AZIOT_CERTD_CONFIG",
+                "AZIOT_KEYD_CONFIG",
                 "/etc/aziot/keyd/config.toml",
-                "AZIOT_CERTD_CONFIG_DIR",
+                "AZIOT_KEYD_CONFIG_DIR",
                 "/etc/aziot/keyd/config.d",
             )
             .await?
