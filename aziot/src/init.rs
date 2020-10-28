@@ -36,33 +36,35 @@ const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
 const EST_SERVER_CA_ID: &str = "est-server-ca";
 
 pub(crate) fn run() -> Result<(), crate::Error> {
-    // Get the three users.
+    // In production, running as root is the easiest way to guarantee the tool has write access to every service's config file.
+    // But it's convenient to not do this for the sake of development because the the development machine doesn't necessarily
+    // have the package installed and the users created, and it's easier to have the config files owned by the current user anyway.
     //
-    // In debug builds, we allow `aziot init` to be run without root. In that case, use the current user.
+    // So when running as root, get the three users appropriately.
+    // Otherwise, if this is a debug build, fall back to using the current user.
+    // Otherwise, tell the user to re-run as root.
+    let (aziotks_user, aziotcs_user, aziotid_user) = if nix::unistd::Uid::current().is_root() {
+        let aziotks_user = nix::unistd::User::from_name("aziotks")
+            .map_err(|err| format!("could not query aziotks user information: {}", err))?
+            .ok_or_else(|| "could not query aziotks user information")?;
 
-    let aziotks_user = (if cfg!(debug_assertions) && !nix::unistd::Uid::current().is_root() {
-        nix::unistd::User::from_uid(nix::unistd::Uid::current())
-    } else {
-        nix::unistd::User::from_name("aziotks")
-    })
-    .map_err(|err| format!("could not query aziotks user information: {}", err))?
-    .ok_or_else(|| "could not query aziotks user information")?;
+        let aziotcs_user = nix::unistd::User::from_name("aziotcs")
+            .map_err(|err| format!("could not query aziotcs user information: {}", err))?
+            .ok_or_else(|| "could not query aziotcs user information")?;
 
-    let aziotcs_user = (if cfg!(debug_assertions) && !nix::unistd::Uid::current().is_root() {
-        nix::unistd::User::from_uid(nix::unistd::Uid::current())
-    } else {
-        nix::unistd::User::from_name("aziotcs")
-    })
-    .map_err(|err| format!("could not query aziotcs user information: {}", err))?
-    .ok_or_else(|| "could not query aziotcs user information")?;
+        let aziotid_user = nix::unistd::User::from_name("aziotid")
+            .map_err(|err| format!("could not query aziotid user information: {}", err))?
+            .ok_or_else(|| "could not query aziotid user information")?;
 
-    let aziotid_user = (if cfg!(debug_assertions) && !nix::unistd::Uid::current().is_root() {
-        nix::unistd::User::from_uid(nix::unistd::Uid::current())
+        (aziotks_user, aziotcs_user, aziotid_user)
+    } else if cfg!(debug_assertions) {
+        let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
+            .map_err(|err| format!("could not query current user information: {}", err))?
+            .ok_or_else(|| "could not query current user information")?;
+        (current_user.clone(), current_user.clone(), current_user)
     } else {
-        nix::unistd::User::from_name("aziotid")
-    })
-    .map_err(|err| format!("could not query aziotid user information: {}", err))?
-    .ok_or_else(|| "could not query aziotid user information")?;
+        return Err("this command must be run as root".into());
+    };
 
     for &f in &[
         "/etc/aziot/certd/config.toml",
@@ -76,9 +78,9 @@ pub(crate) fn run() -> Result<(), crate::Error> {
         if std::path::Path::new(f).exists() {
             return Err(format!(
                 "\
-				Cannot run because file {} already exists. \
-				Delete this file (after taking a backup if necessary) before running this command.\
-			",
+                Cannot run because file {} already exists. \
+                Delete this file (after taking a backup if necessary) before running this command.\
+            ",
                 f
             )
             .into());
@@ -141,15 +143,15 @@ pub(crate) fn run() -> Result<(), crate::Error> {
 /// This macro expands to a relatively straightforward expression. The advantage of using this macro instead of calling
 /// [`choose`] directly is that the macro forces you to use each one of your choice enum variants exactly once, no more and no less.
 macro_rules! choose {
-	(
-		$stdin:ident ,
-		$question:expr ,
-		$($choice:path => $value:expr ,)*
-	) => {{
-		match choose($stdin, $question, &[$($choice ,)*])? {
-			$($choice => $value ,)*
-		}
-	}};
+    (
+        $stdin:ident ,
+        $question:expr ,
+        $($choice:path => $value:expr ,)*
+    ) => {{
+        match choose($stdin, $question, &[$($choice ,)*])? {
+            $($choice => $value ,)*
+        }
+    }};
 }
 
 #[derive(Debug)]
@@ -166,12 +168,6 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
     println!();
     println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
     println!();
-
-    // In production, running as root is the easiest way to guarantee the tool has write access to every service's config file.
-    // But allow running as a regular use in debug builds for the sake of development.
-    if !cfg!(debug_assertions) && !nix::unistd::Uid::current().is_root() {
-        return Err("this command must be run as root".into());
-    }
 
     let hostname = get_hostname()?;
 
@@ -318,7 +314,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         }
 
         if preloaded_device_id_pk_bytes.is_some() {
-            let device_id_pk_uri = aziot_keys::PreloadedKeyLocation::Filesystem {
+            let device_id_pk_uri = aziot_keys_common::PreloadedKeyLocation::Filesystem {
                 path: "/var/secrets/aziot/keyd/device-id".into(),
             };
             keyd_config
@@ -925,8 +921,8 @@ fn parse_manual_connection_string(
     let symmetric_key =
         symmetric_key.ok_or(r#"required parameter "SharedAccessKey" is missing"#)?;
     let symmetric_key =
-		base64::decode(symmetric_key)
-		.map_err(|err| format!(r#"connection string's "SharedAccessKey" parameter could not be decoded from base64: {}"#, err))?;
+        base64::decode(symmetric_key)
+        .map_err(|err| format!(r#"connection string's "SharedAccessKey" parameter could not be decoded from base64: {}"#, err))?;
 
     Ok((
         iothub_hostname.to_owned(),
@@ -935,8 +931,8 @@ fn parse_manual_connection_string(
     ))
 }
 
-fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys::PreloadedKeyLocation> {
-    match value.parse::<aziot_keys::PreloadedKeyLocation>() {
+fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys_common::PreloadedKeyLocation> {
+    match value.parse::<aziot_keys_common::PreloadedKeyLocation>() {
         Ok(value) => Some(value),
 
         Err(err) => {
@@ -947,7 +943,7 @@ fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys::PreloadedKeyL
                 .and_then(|value| {
                     value
                         .to_string()
-                        .parse::<aziot_keys::PreloadedKeyLocation>()
+                        .parse::<aziot_keys_common::PreloadedKeyLocation>()
                 });
             match value {
                 Ok(value) => Some(value),

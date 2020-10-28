@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use aziot_keys_common::PreloadedKeyLocation;
+
 lazy_static::lazy_static! {
     static ref HOMEDIR_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
 
@@ -9,51 +11,6 @@ lazy_static::lazy_static! {
     static ref PRELOADED_KEYS: std::sync::RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>> = Default::default();
 
     static ref PKCS11_BASE_SLOT_SESSION: std::sync::Mutex<Option<std::sync::Arc<pkcs11::Session>>> = Default::default();
-}
-
-#[derive(Debug)]
-pub enum PreloadedKeyLocation {
-    Filesystem { path: std::path::PathBuf },
-    Pkcs11 { uri: pkcs11::Uri },
-}
-
-impl std::fmt::Display for PreloadedKeyLocation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PreloadedKeyLocation::Filesystem { path } => write!(
-                f,
-                "{}",
-                url::Url::from_file_path(path).map_err(|_| std::fmt::Error)?
-            ),
-            PreloadedKeyLocation::Pkcs11 { uri } => uri.fmt(f),
-        }
-    }
-}
-
-impl std::str::FromStr for PreloadedKeyLocation {
-    type Err = Box<dyn std::error::Error>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let scheme_end_index = s.find(':').ok_or("missing scheme")?;
-        let scheme = &s[..scheme_end_index];
-
-        match scheme {
-            "file" => {
-                let uri: url::Url = s.parse()?;
-                let path = uri
-                    .to_file_path()
-                    .map_err(|()| "cannot convert to file path")?;
-                Ok(PreloadedKeyLocation::Filesystem { path })
-            }
-
-            "pkcs11" => {
-                let uri = s.parse()?;
-                Ok(PreloadedKeyLocation::Pkcs11 { uri })
-            }
-
-            _ => Err("unrecognized scheme".into()),
-        }
-    }
 }
 
 pub(crate) unsafe fn get_function_list(
@@ -573,7 +530,7 @@ pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_STATUS
 where
     E: std::fmt::Display,
 {
-    eprintln!("{}", err);
+    log::error!("{}", err);
     crate::AZIOT_KEYS_ERROR_EXTERNAL
 }
 
@@ -581,7 +538,7 @@ pub(crate) fn err_fatal<E>(err: E) -> crate::AZIOT_KEYS_STATUS
 where
     E: std::fmt::Display,
 {
-    eprintln!("{}", err);
+    log::error!("{}", err);
     crate::AZIOT_KEYS_ERROR_EXTERNAL
 }
 
@@ -589,6 +546,6 @@ pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_
 where
     E: std::fmt::Display,
 {
-    eprintln!("invalid parameter {:?}: {}", name, err);
+    log::error!("invalid parameter {:?}: {}", name, err);
     crate::AZIOT_KEYS_ERROR_INVALID_PARAMETER
 }

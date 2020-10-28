@@ -205,9 +205,13 @@ With this basic file, fill it out depending on what workflow you want to test:
     As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `AZIOT_CERTD_CONFIG` env var to its actual path.
 
     ```sh
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/target/x86_64-unknown-linux-gnu/debug"
+
+    export AZIOT_LOG=aziot=debug
+
     export AZIOT_CERTD_CONFIG='...'
 
-    cargo run -p aziot-certd
+    cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-certd
     ```
 
     The service will remain running.

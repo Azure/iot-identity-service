@@ -8,12 +8,11 @@ The code used for Identity Service.
 """
 edition = "2018"
 
+
 [dependencies]
 async-trait = "0.1"
 base64 = "0.12"
 chrono = "0.4"
-clap = "2.31"
-env_logger = "0.5"
 futures-util = "0.3"
 http = "0.2"
 hyper = "0.13"
@@ -25,10 +24,9 @@ percent-encoding = "2"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "0.2", features = ["macros", "time"] }
+tokio = { version = "0.2", features = ["time"] }
 toml = "0.5"
 url = { version = "2.0", features = ["serde"] }
-
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
@@ -44,5 +42,7 @@ aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
+
 [dev-dependencies]
 test-case = "1.0.0"
+tokio = { version = "0.2", features = ["macros"] }

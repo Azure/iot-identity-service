@@ -5,6 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_unit_value,
     clippy::missing_errors_doc
 )]
 
@@ -16,11 +17,73 @@ pub use error::{Error, InternalError};
 
 mod keys;
 
-pub struct Server {
+mod http;
+
+pub async fn main(
+    config: Config,
+) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+    let Config {
+        aziot_keys,
+        preloaded_keys,
+        endpoints: Endpoints {
+            aziot_keyd: connector,
+        },
+    } = config;
+
+    let api = {
+        let mut keys = keys::Keys::new()?;
+
+        for (name, value) in aziot_keys {
+            let name = std::ffi::CString::new(name.clone()).map_err(|err| {
+                Error::Internal(InternalError::ReadConfig(
+                    format!(
+                        "key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+                        name, err,
+                    )
+                    .into(),
+                ))
+            })?;
+
+            let value =
+                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+                    name, err,
+                ).into())))?;
+
+            keys.set_parameter(&name, &value)?;
+        }
+
+        for (key_id, value) in preloaded_keys {
+            let name = format!("preloaded_key:{}", key_id);
+            let name =
+                std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+                    key_id, err,
+                ).into())))?;
+
+            let value =
+                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+                    key_id, err,
+                ).into())))?;
+
+            keys.set_parameter(&name, &value)?;
+        }
+
+        Api { keys }
+    };
+    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    let service = http::Service { api };
+
+    Ok((connector, service))
+}
+
+pub struct Api {
     keys: keys::Keys,
 }
 
-impl Server {
+impl Api {
     pub fn new(
         aziot_keys: std::collections::BTreeMap<String, String>,
         preloaded_keys: std::collections::BTreeMap<String, String>,
@@ -31,18 +94,18 @@ impl Server {
             let name = std::ffi::CString::new(name.clone()).map_err(|err| {
                 Error::Internal(InternalError::ReadConfig(
                     format!(
-					"key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-					name, err,
-				)
+                        "key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+                        name, err,
+                    )
                     .into(),
                 ))
             })?;
 
             let value =
-				std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-					"value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-					name, err,
-				).into())))?;
+                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
+                    name, err,
+                ).into())))?;
 
             keys.set_parameter(&name, &value)?;
         }
@@ -50,21 +113,21 @@ impl Server {
         for (key_id, value) in preloaded_keys {
             let name = format!("preloaded_key:{}", key_id);
             let name =
-				std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-					"key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-					key_id, err,
-				).into())))?;
+                std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+                    key_id, err,
+                ).into())))?;
 
             let value =
-				std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-					"location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-					key_id, err,
-				).into())))?;
+                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                    "location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
+                    key_id, err,
+                ).into())))?;
 
             keys.set_parameter(&name, &value)?;
         }
 
-        Ok(Server { keys })
+        Ok(Api { keys })
     }
 
     pub fn create_key_pair_if_not_exists(
