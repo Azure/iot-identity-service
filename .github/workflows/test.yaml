@@ -33,12 +33,10 @@ jobs:
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
-          -e "CONTAINER_OS=$CONTAINER_OS" \
           -e "ARCH=$ARCH" \
           "${{ matrix.container_os }}" \
           '/src/ci/test-basic.sh'
       env:
-        CONTAINER_OS: "${{ matrix.container_os }}"
         ARCH: "${{ matrix.arch }}"
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
@@ -122,13 +120,11 @@ jobs:
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
-          -e "CONTAINER_OS=$CONTAINER_OS" \
           -e "ARCH=$ARCH" \
           -e "KEY_TYPE=$KEY_TYPE" \
           "${{ matrix.container_os }}" \
           '/src/ci/test-pkcs11-softhsm.sh'
       env:
-        CONTAINER_OS: "${{ matrix.container_os }}"
         ARCH: "${{ matrix.arch }}"
         KEY_TYPE: "${{ matrix.key_type }}"
 

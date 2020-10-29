@@ -10,7 +10,7 @@ cd /src
 mkdir -p packages
 
 
-case "$CONTAINER_OS" in
+case "$OS" in
     'centos:7')
         case "$ARCH" in
             'arm32v7'|'aarch64')
@@ -35,18 +35,18 @@ case "$CONTAINER_OS" in
             "packages/centos7/$ARCH/"
         ;;
 
-    'debian:9-slim'|'debian:10-slim'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:9'|'debian:10'|'ubuntu:18.04'|'ubuntu:20.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make dh-systemd
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 deb
 
-        case "$CONTAINER_OS" in
-            'debian:9-slim')
+        case "$OS" in
+            'debian:9')
                 TARGET_DIR="debian9/$ARCH"
                 DBGSYM_EXT='deb'
                 ;;
 
-            'debian:10-slim')
+            'debian:10')
                 TARGET_DIR="debian10/$ARCH"
                 DBGSYM_EXT='deb'
                 ;;
@@ -62,7 +62,7 @@ case "$CONTAINER_OS" in
                 ;;
 
             *)
-                # unreachable
+                echo 'unreachable' >&2
                 exit 1
         esac
 
@@ -92,5 +92,6 @@ case "$CONTAINER_OS" in
         ;;
 
     *)
+        echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
 esac
