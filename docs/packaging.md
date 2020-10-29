@@ -293,12 +293,18 @@ iotedge init --import
 
 ### Automating Upgrades of `iotedge` to `aziot-edge`
 
-We expect that users will manually run the tool when updating the install on the device. Of course, if it has tested on M devices and the user is confident that it will succeed on the remaining N devices, they can use some custom deployment tooling to automatically perform the update at scale across all their devices.
+We expect that users will manually run the tool when updating the install on the device. Of course, if it has been tested on M devices and the user is confident that it will succeed on the remaining N devices, they can use some custom deployment tooling to automatically perform the update at scale across all their devices.
 The process of importing the configuration is intentionally designed to be run manually, rather than being done automatically by the new services. It is potentially fallible and could offline the device. 
 
 ### Downgrading
 
 The old configuration from `iotedge` is not removed from its location by any of the above actions; therefore, downgrading from the new package to the old one simply involves uninstalling the `aziot-edge` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
+
+```sh
+sudo apt remove aziot-edge aziot-identity-service
+
+sudo apt install iotedge
+```
 
 ### Technical Details on Migrating Configuration
 
