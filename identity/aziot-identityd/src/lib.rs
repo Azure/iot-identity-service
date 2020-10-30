@@ -645,46 +645,45 @@ impl Api {
             )))
         })?;
 
-        let local_identity = match self
-            .local_identities
-            .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
-        {
-            None => {
-                return Err(Error::invalid_parameter(
-                    "module_id",
-                    format!("no local identity found for {}", module_id),
-                ))
-            }
-            Some(opts) => {
-                let attributes =
-                    opts.as_ref()
-                        .map_or(
-                            aziot_identity_common::LocalIdAttr::default(),
-                            |opts| match opts {
-                                settings::LocalIdOpts::X509 { attributes } => *attributes,
-                            },
-                        );
+        let local_identity =
+            match self
+                .local_identities
+                .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
+            {
+                None => {
+                    return Err(Error::invalid_parameter(
+                        "module_id",
+                        format!("no local identity found for {}", module_id),
+                    ))
+                }
+                Some(opts) => {
+                    let attributes = opts.as_ref().map_or(
+                        aziot_identity_common::LocalIdAttr::default(),
+                        |opts| match opts {
+                            settings::LocalIdOpts::X509 { attributes } => *attributes,
+                        },
+                    );
 
-                let subject = format!("{}.{}", module_id, localid.domain);
-                let (certificate, private_key) = self
-                    .create_identity_cert_if_not_exist_or_expired(
-                        KeyType::Raw,
-                        module_id,
-                        subject.as_str(),
-                        Some(attributes),
-                    )
-                    .await?;
+                    let subject = format!("{}.{}", module_id, localid.domain);
+                    let (certificate, private_key) = self
+                        .create_identity_cert_if_not_exist_or_expired(
+                            KeyType::Raw,
+                            module_id,
+                            subject.as_str(),
+                            Some(attributes),
+                        )
+                        .await?;
 
-                // Parse certificate expiration time.
-                let expiration = get_cert_expiration(&certificate)?;
+                    // Parse certificate expiration time.
+                    let expiration = get_cert_expiration(&certificate)?;
 
-                aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
-                    private_key,
-                    certificate,
-                    expiration,
-                })
-            }
-        };
+                    aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
+                        private_key,
+                        certificate,
+                        expiration,
+                    })
+                }
+            };
 
         Ok(local_identity)
     }
@@ -947,17 +946,17 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
 }
 
 fn get_cert_expiration(cert: &str) -> Result<String, Error> {
-    let cert = openssl::x509::X509::from_pem(cert.as_bytes()).map_err(|err| {
-        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-    })?;
+    let cert = openssl::x509::X509::from_pem(cert.as_bytes())
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
     let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
-    let diff = epoch.diff(&cert.not_after()).map_err(|err| {
-        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-    })?;
+    let diff = epoch
+        .diff(&cert.not_after())
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
     let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);
-    let expiration = chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
+    let expiration =
+        chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 
     Ok(expiration)
 }
