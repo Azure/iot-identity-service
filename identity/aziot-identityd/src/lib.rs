@@ -675,19 +675,8 @@ impl Api {
                     )
                     .await?;
 
-                // Parse certificate expiration time
-                let expiration =
-                    openssl::x509::X509::from_pem(certificate.as_bytes()).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                let expiration = expiration.not_after().to_string();
-                let expiration = chrono::NaiveDateTime::parse_from_str(
-                    expiration.as_str(),
-                    "%b %e %H:%M:%S %Y GMT",
-                )
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-                let expiration =
-                    chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
+                // Parse certificate expiration time.
+                let expiration = get_cert_expiration(&certificate)?;
 
                 aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
                     private_key,
@@ -955,6 +944,22 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
         }
         Ok(false)
     }
+}
+
+fn get_cert_expiration(cert: &str) -> Result<String, Error> {
+    let cert = openssl::x509::X509::from_pem(cert.as_bytes()).map_err(|err| {
+        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+    })?;
+
+    let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
+    let diff = epoch.diff(&cert.not_after()).map_err(|err| {
+        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+    })?;
+    let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
+    let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);
+    let expiration = chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
+
+    Ok(expiration)
 }
 
 fn convert_to_map(
