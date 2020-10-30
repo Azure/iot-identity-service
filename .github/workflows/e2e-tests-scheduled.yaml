@@ -1,0 +1,53 @@
+# Runs the E2E tests against a set of branches every day.
+#
+# Note that the workflow file is always used from main, even when running against a different branch.
+#
+# DEVNOTE: Keep in sync with e2e-tests-manual.yaml
+
+name: 'e2e-tests-scheduled'
+
+on:
+  schedule:
+  - cron: '0 1 * * *'
+
+jobs:
+  e2e-tests:
+    if: 'github.repository == "Azure/iot-identity-service"'
+
+    runs-on: 'ubuntu-18.04'
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        branch:
+        - 'main'
+
+        os:
+        - 'centos:7'
+        - 'debian:9'
+        - 'debian:10'
+        - 'ubuntu:18.04'
+        - 'ubuntu:20.04'
+        test_name:
+        - 'manual-symmetric-key'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        ref: "${{ matrix.branch }}"
+
+    - name: 'Run'
+      run: |
+        ./ci/e2e-tests.sh ${{ matrix.test_name }}
+      env:
+        BRANCH: "${{ matrix.branch }}"
+
+        OS: "${{ matrix.os }}"
+
+        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
+        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
+
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
