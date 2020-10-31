@@ -12,7 +12,7 @@ on:
 
 jobs:
   e2e-tests:
-    if: 'github.repository == "Azure/iot-identity-service"'
+    if: "github.repository == 'Azure/iot-identity-service'"
 
     runs-on: 'ubuntu-18.04'
 
