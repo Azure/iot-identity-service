@@ -4,7 +4,7 @@
 #
 # e2e-tests.sh <test_name>
 #
-# See /docs/dev/e2e-tests.md for details of some env vars that need to be defined.
+# See https://azure.github.io/iot-identity-service/dev/e2e-tests.html for details of some env vars that need to be defined.
 #
 # <test_name>:
 #     manual-symmetric-key
