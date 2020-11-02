@@ -26,7 +26,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
     This is enforced by `make test-release`.
 
-    When developing locally, consider using `make test` instead, which does not enforcing rustfmt code formatting.
+    Make sure to run `make test-release` before pushing to your remote so that you run all the checks that CI would run, as `make test` does not enforce rustfmt!
 
 1. Every crate root must enable the major lint groups and warnings-as-errors:
 
