@@ -678,9 +678,12 @@ impl Api {
                     let expiration = get_cert_expiration(&certificate)?;
 
                     aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
-                        private_key,
-                        certificate,
-                        expiration,
+                        module_id: module_id.to_owned(),
+                        auth: aziot_identity_common::LocalAuthenticationInfo {
+                            private_key,
+                            certificate,
+                            expiration,
+                        },
                     })
                 }
             };
@@ -714,6 +717,8 @@ impl Api {
                     })?;
 
                     if expiration_time.days < 1 {
+                        log::info!("{} has expired. Renewing certificate", identity_cert);
+
                         None
                     } else {
                         Some(pem)
