@@ -149,9 +149,10 @@ echo "Run ID: $run_id" >&2
 
 # Temp directory used as scratch space to store the downloaded package from GitHub
 # and the config files for the package that are scp'd to the test VM.
-rm -rf /tmp/iot-identity-service-e2e-tests
-mkdir -p /tmp/iot-identity-service-e2e-tests
-cd /tmp/iot-identity-service-e2e-tests
+working_directory="iot-identity-service-e2e-tests-$run_id.XXXXXXXXXX"
+echo "Working directory: $working_directory" >&2
+mkdir -p "$working_directory"
+cd "$working_directory"
 
 
 package="$(get_package)"
