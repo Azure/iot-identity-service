@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 
 /// This crate exists to hold any types that need to be shared between aziot-keys and the other crates,
 /// so that aziot-keys does not have to be compiled as an rlib.
