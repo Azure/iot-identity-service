@@ -20,16 +20,22 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
     - Rust: `// Copyright (c) Microsoft. All rights reserved.`
     - C: `/* Copyright (c) Microsoft. All rights reserved. */`
 
-    This is enforced by `make test`
+    This is enforced by `make test`.
+
+1. Rust code must be formatted with `rustfmt`
+
+    This is enforced by `make test-release`.
+
+    When developing locally, consider using `make test` instead, which does not enforcing rustfmt code formatting.
 
 1. Every crate root must enable the major lint groups and warnings-as-errors:
 
     ```rust
-    #![deny(rust_2018_idioms, warnings)]
-    #![deny(clippy::all, clippy::pedantic)]
+    #![deny(rust_2018_idioms)]
+    #![warn(clippy::all, clippy::pedantic)]
     ```
 
-    This is enforced by `make test`
+    This is enforced by `make test`.
 
     A crate root is any file that is the entrypoint of a crate. This includes `lib.rs`, `main.rs`, `build.rs` (build scripts), `tests/*.rs` (integration tests) and `examples/*.rs` (examples).
 
@@ -37,13 +43,13 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
     - `rust_2018_idioms`: This lint group fires for code that could be written in a better style in Edition 2018. For example, it enforces that `extern crate` statements are not used, and that trait objects are written like `dyn Trait` instead of just `Trait`.
 
-    - `warnings`: Denying this lint group converts all warnings to errors.
-
     - `clippy::all`: This lint group contains the mostly-uncontroversial clippy lints.
 
-    - `clippy::pedantic`: This lint group contains more subjective clippy lints. While some of these lints are overly pedantic and okay to `allow` (see below), there are some lints in this group that are useful, so we prefer to `deny` this group by default.
+    - `clippy::pedantic`: This lint group contains more subjective clippy lints. While some of these lints are overly pedantic and okay to `allow` (see below), there are some lints in this group that are useful, so we prefer to `warn` this group by default.
 
-    In general, if any of the above lint groups raises an error, it should be fixed by modifying the code to satisfy the lint. However, there are some lints that it is acceptable to `allow`. The list below enumerates these lints. Note that it is okay to `allow` these lints at the crate level with `#![allow(...)]`, rather than at the smallest scope where the lint was raised with `#[allow(...)]`, unless indicated otherwise.
+    When running in CI, the `make test-release` target is used, and all warnings are treated as errors.
+
+    In general, if any of the above lint groups raises an error/warning, it should be fixed by modifying the code to satisfy the lint. However, there are some lints that it is acceptable to `allow`. The list below enumerates these lints. Note that it is okay to `allow` these lints at the crate level with `#![allow(...)]`, rather than at the smallest scope where the lint was raised with `#[allow(...)]`, unless indicated otherwise.
 
     1. `clippy::default_trait_access`: This lint fires for code that uses `Default::default()` and suggests using `ConcreteType::default()`. However, in most cases, there is no benefit to naming the `ConcreteType` explicitly because it doesn't matter which type's default is being used, and it can create more noise from having to `use path::to::ConcreteType` than to leave it unnamed.
 

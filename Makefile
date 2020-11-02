@@ -59,7 +59,7 @@ endif
 SHELL := /bin/bash
 
 
-.PHONY: clean default iotedged pkcs11-test test
+.PHONY: clean default iotedged pkcs11-test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
 
 
@@ -151,6 +151,12 @@ target/openapi-schema-validated:
 	touch target/openapi-schema-validated
 
 
+test-release: export RUSTFLAGS += -D warnings
+test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
+test-release: test
+	$(CARGO) fmt --all -- --check
+
+
 test: default iotedged pkcs11-test
 test: target/openapi-schema-validated
 test:
@@ -164,21 +170,19 @@ test:
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
 		while read -r f; do \
-			if ! grep -Eq '^#!\[deny\(rust_2018_idioms, warnings\)\]$$' "$$f"; then \
-				echo "missing #![deny(rust_2018_idioms, warnings)] in $$f" >&2; \
+			if ! grep -Eq '^#!\[deny\(rust_2018_idioms\)\]$$' "$$f"; then \
+				echo "missing #![deny(rust_2018_idioms)] in $$f" >&2; \
 				exit 1; \
 			fi; \
-			if ! grep -Eq '^#!\[deny\(clippy::all, clippy::pedantic\)\]$$' "$$f"; then \
-				echo "missing #![deny(clippy::all, clippy::pedantic)] in $$f" >&2; \
+			if ! grep -Eq '^#!\[warn\(clippy::all, clippy::pedantic\)\]$$' "$$f"; then \
+				echo "missing #![warn(clippy::all, clippy::pedantic)] in $$f" >&2; \
 				exit 1; \
 			fi; \
 		done
 
-	$(CARGO) clippy --all $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-
-	$(CARGO) fmt --all -- --check
+	$(CARGO) clippy --all $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
