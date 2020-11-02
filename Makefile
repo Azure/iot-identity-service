@@ -151,7 +151,6 @@ target/openapi-schema-validated:
 	touch target/openapi-schema-validated
 
 
-test-release: export RUSTFLAGS += -D warnings
 test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
 test-release: test
 	$(CARGO) fmt --all -- --check
