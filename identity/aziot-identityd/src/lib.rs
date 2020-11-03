@@ -741,7 +741,7 @@ impl Api {
                 // TODO: Need to check if key exists.
                 // If this function fails, delete any key it creates but don't delete an existing key.
 
-                None,
+                None
             }
         };
 
