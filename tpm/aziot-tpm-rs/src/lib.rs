@@ -2,8 +2,8 @@
 
 //! Idiomatic Rust bindings to the `aziot-tpm` C library.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc, clippy::module_name_repetitions)]
 #![deny(missing_docs)]
 

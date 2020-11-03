@@ -2,8 +2,8 @@
 
 //! Request/Response types used by the TPM Service's HTTP API.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::wildcard_imports)] // to use `super::*`
 
 use serde::{Deserialize, Serialize};

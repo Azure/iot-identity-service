@@ -2,8 +2,8 @@
 
 //! Rust FFI to C library interface.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::must_use_candidate, clippy::too_many_lines)]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 
