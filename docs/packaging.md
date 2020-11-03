@@ -242,19 +242,6 @@ Note that the configuration is still in YAML format, but reduced in scope.
 </table>
 
 
-## Installation procedure for non-IoT Edge (`aziot-identity-service` only)
-
-The IS+KS+CS components can still be installed as a standalone package on devices where IoT Edge will **not** be used. They enable an application to provision a device, manage module identities, and manage cryptographic keys and certificates.
-
-```sh
-apt install aziot-identity-service
-
-aziot init
-```
-
-Similar to IoT Edge's installation procedure, run `aziot init` after installng the package to interactively set up the configuration with minimal information like the device provisioning method.
-
-
 ## Installation procedure for IoT Edge (`aziot-edge`)
 
 ```sh
@@ -325,6 +312,18 @@ The precise details are still being worked out. A high-level view is:
 
 - Certs like workload CA and module server certs that are created dynamically by `iotedged`, and can be regenerated trivially without any problems, will not be copied or imported into the new services.
 
-## Open Issues
+### Open Issues
 
 It is not yet certain whether Edge Agent, Edge Hub and other modules will be able to decrypt any data when running against the new services that they previously encrypted using the workload API with the old service.
+
+## Installation procedure for non-IoT Edge (`aziot-identity-service` only)
+
+The IS+KS+CS components can still be installed as a standalone package on devices where IoT Edge will **not** be used. They enable an application to provision a device, manage module identities, and manage cryptographic keys and certificates.
+
+```sh
+apt install aziot-identity-service
+
+aziot init
+```
+
+After installing the package, run `aziot init` to interactively set up the configuration with minimal information like the device provisioning method.
