@@ -28,16 +28,6 @@ const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
 /// This is the number of seconds to wait for DPS to complete assignment to a hub
 const DPS_ASSIGNMENT_TIMEOUT_SECS: u64 = 120;
 
-/// Private key types when creating a new identity certificate.
-#[derive(Clone)]
-enum KeyType {
-    /// Key handle managed by keyd.
-    Handle(String),
-
-    /// Raw private key stored in memory. These keys are not persisted across runs of identityd.
-    Raw,
-}
-
 pub async fn main(
     settings: settings::Settings,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
@@ -400,10 +390,9 @@ impl Api {
                         identity_pk,
                     } => {
                         self.create_identity_cert_if_not_exist_or_expired(
-                            KeyType::Handle(identity_pk.clone()),
+                            &identity_pk,
                             &identity_cert,
                             &device_id,
-                            None,
                         )
                         .await?;
                         aziot_identity_common::Credentials::X509 {
@@ -525,10 +514,9 @@ impl Api {
                         identity_pk,
                     } => {
                         self.create_identity_cert_if_not_exist_or_expired(
-                            KeyType::Handle(identity_pk.clone()),
+                            &identity_pk,
                             &identity_cert,
                             &registration_id,
-                            None,
                         )
                         .await?;
 
@@ -645,193 +633,156 @@ impl Api {
             )))
         })?;
 
-        let local_identity =
-            match self
-                .local_identities
-                .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
-            {
-                None => {
-                    return Err(Error::invalid_parameter(
-                        "module_id",
-                        format!("no local identity found for {}", module_id),
-                    ))
-                }
-                Some(opts) => {
-                    let attributes = opts.as_ref().map_or(
-                        aziot_identity_common::LocalIdAttr::default(),
-                        |opts| match opts {
-                            settings::LocalIdOpts::X509 { attributes } => *attributes,
-                        },
-                    );
+        let local_identity = match self
+            .local_identities
+            .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
+        {
+            None => {
+                return Err(Error::invalid_parameter(
+                    "module_id",
+                    format!("no local identity found for {}", module_id),
+                ))
+            }
+            Some(opts) => {
+                let attributes =
+                    opts.as_ref()
+                        .map_or(
+                            aziot_identity_common::LocalIdAttr::default(),
+                            |opts| match opts {
+                                settings::LocalIdOpts::X509 { attributes } => *attributes,
+                            },
+                        );
 
-                    let subject = format!("{}.{}", module_id, localid.domain);
-                    let (certificate, private_key) = self
-                        .create_identity_cert_if_not_exist_or_expired(
-                            KeyType::Raw,
-                            module_id,
-                            subject.as_str(),
-                            Some(attributes),
-                        )
-                        .await?;
+                // Generate new private key for local identity.
+                let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key_pem = private_key.private_key_to_pem_pkcs8().map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key_pem =
+                    std::string::String::from_utf8(private_key_pem).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let public_key = private_key.public_key_to_pem().map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let public_key =
+                    openssl::pkey::PKey::public_key_from_pem(&public_key).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
 
-                    // Parse certificate expiration time.
-                    let expiration = get_cert_expiration(&certificate)?;
+                // Create local identity CSR.
+                let subject = format!("{}.{}", module_id, localid.domain);
+                let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let certificate = self
+                    .cert_client
+                    .create_cert(&module_id, &csr, None)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let certificate = String::from_utf8(certificate).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
 
-                    aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
-                        module_id: module_id.to_owned(),
-                        auth: aziot_identity_common::LocalAuthenticationInfo {
-                            private_key,
-                            certificate,
-                            expiration,
-                        },
-                    })
-                }
-            };
+                // Parse certificate expiration time.
+                let expiration = get_cert_expiration(&certificate)?;
+
+                aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
+                    module_id: module_id.to_owned(),
+                    auth: aziot_identity_common::LocalAuthenticationInfo {
+                        private_key: private_key_pem,
+                        certificate,
+                        expiration,
+                    },
+                })
+            }
+        };
 
         Ok(local_identity)
     }
 
     async fn create_identity_cert_if_not_exist_or_expired(
         &self,
-        identity_pk: KeyType,
+        identity_pk: &str,
         identity_cert: &str,
         subject: &str,
-        attributes: Option<aziot_identity_common::LocalIdAttr>,
-    ) -> Result<(String, String), Error> {
-        // Retrieve existing cert and check it for expiry. Raw key bytes are not persisted,
-        // so a new cert must always be generated if KeyType is Raw.
-        let mut device_id_cert = match identity_pk {
-            KeyType::Raw => None,
-            KeyType::Handle(_) => match self.cert_client.get_cert(identity_cert).await {
-                Ok(pem) => {
-                    let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                    let cert_expiration = cert.as_ref().not_after();
-                    let current_time =
-                        openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
+    ) -> Result<(), Error> {
+        // Retrieve existing cert and check it for expiry.
+        let device_id_cert = match self.cert_client.get_cert(identity_cert).await {
+            Ok(pem) => {
+                let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let cert_expiration = cert.as_ref().not_after();
+                let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
 
-                    if expiration_time.days < 1 {
-                        log::info!("{} has expired. Renewing certificate", identity_cert);
+                if expiration_time.days < 1 {
+                    log::info!("{} has expired. Renewing certificate", identity_cert);
 
-                        None
-                    } else {
-                        Some(pem)
-                    }
+                    None
+                } else {
+                    Some(pem)
                 }
-                Err(_) => None,
-            },
+            }
+            Err(_) => None,
         };
 
-        // Retrieve private key for handles or generate new key bytes.
-        let private_key = if device_id_cert.is_none() {
-            let (private_key, private_key_string, public_key) = match identity_pk.clone() {
-                KeyType::Handle(key_id) => {
-                    let key_handle = self
-                        .key_client
-                        .create_key_pair_if_not_exists(&key_id, Some("rsa-2048:*"))
-                        .await
-                        .map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let private_key_string = key_handle.0.clone();
-                    let key_handle =
-                        std::ffi::CString::new(private_key_string.clone()).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
+        // Create new certificate if needed.
+        if device_id_cert.is_none() {
+            let key_handle = self
+                .key_client
+                .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let key_handle = std::ffi::CString::new(key_handle.0)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-                    let mut key_engine = self.key_engine.lock().await;
-                    let private_key = key_engine.load_private_key(&key_handle).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                    let public_key = key_engine.load_public_key(&key_handle).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-
-                    (private_key, private_key_string, public_key)
-                }
-                KeyType::Raw => {
-                    let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                    let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                    let private_key_pem =
-                        private_key.private_key_to_pem_pkcs8().map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let private_key_pem =
-                        std::string::String::from_utf8(private_key_pem).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let public_key = private_key.public_key_to_pem().map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                    let public_key = openssl::pkey::PKey::public_key_from_pem(&public_key)
-                        .map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-
-                    (private_key, private_key_pem, public_key)
-                }
-            };
+            let mut key_engine = self.key_engine.lock().await;
+            let private_key = key_engine
+                .load_private_key(&key_handle)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let public_key = key_engine
+                .load_public_key(&key_handle)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
             let result = async {
-                let csr =
-                    create_csr(&subject, &public_key, &private_key, attributes).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
+                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
 
-                let cert = self
+                let _ = self
                     .cert_client
                     .create_cert(&identity_cert, &csr, None)
                     .await
                     .map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
-                device_id_cert = Some(cert);
 
                 Ok::<(), Error>(())
             }
             .await;
 
             if let Err(err) = result {
-                if let KeyType::Handle(_key_id) = identity_pk {
-                    // TODO: need to delete key from keyd.
-                }
+                // TODO: need to delete key from keyd.
 
                 return Err(err);
             }
+        }
 
-            private_key_string
-        } else {
-            match identity_pk {
-                KeyType::Handle(key_id) => {
-                    let key_handle =
-                        self.key_client
-                            .load_key_pair(&key_id)
-                            .await
-                            .map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                            })?;
-
-                    key_handle.0
-                }
-                KeyType::Raw => unreachable!(),
-            }
-        };
-
-        // Convert device ID cert to String. Cannot fail because valid certificates are always
-        // UTF-8 encodable characters.
-        let device_id_cert = std::string::String::from_utf8(device_id_cert.unwrap()).unwrap();
-
-        Ok((device_id_cert, private_key))
+        Ok(())
     }
 }
 
