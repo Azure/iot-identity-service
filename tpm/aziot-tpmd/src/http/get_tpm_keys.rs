@@ -10,7 +10,7 @@ pub(super) struct Route {
 impl http_common::server::Route for Route {
     type ApiVersion = aziot_tpm_common_http::ApiVersion;
     fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
-        &((aziot_tpm_common_http::ApiVersion::V2020_10_15)..)
+        &((aziot_tpm_common_http::ApiVersion::V2020_09_01)..)
     }
 
     type Service = super::Service;
