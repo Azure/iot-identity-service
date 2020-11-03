@@ -315,15 +315,15 @@ impl IdentityManager {
         Error,
     > {
         let mut module_derived_name = module.module_id;
-        module_derived_name.push_str(":");
+        module_derived_name.push(':');
         module_derived_name.push_str(&module.generation_id.ok_or(Error::ModuleNotFound)?);
 
         let mut primary_derived_name = module_derived_name.clone();
-        primary_derived_name.push_str(":");
+        primary_derived_name.push(':');
         primary_derived_name.push_str("primary");
 
         let mut secondary_derived_name = module_derived_name;
-        secondary_derived_name.push_str(":");
+        secondary_derived_name.push(':');
         secondary_derived_name.push_str("secondary");
 
         let primary_key_handle = self
