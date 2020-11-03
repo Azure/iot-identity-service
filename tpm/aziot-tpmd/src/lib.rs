@@ -17,6 +17,7 @@ pub use config::{Config, Endpoints};
 pub use error::{Error, InternalError};
 
 use aziot_tpm::Tpm;
+use aziot_tpm_common::TpmKeys;
 
 pub async fn main(
     config: Config,
@@ -37,11 +38,6 @@ pub async fn main(
 
 pub struct Api {
     tpm: Tpm,
-}
-
-pub struct TpmKeys {
-    pub endorsement_key: Vec<u8>,
-    pub storage_root_key: Vec<u8>,
 }
 
 impl Api {
