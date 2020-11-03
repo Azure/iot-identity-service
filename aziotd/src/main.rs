@@ -183,7 +183,7 @@ where
                 }
 
                 let patch_path = entry.path();
-                if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some(".toml") {
+                if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some("toml") {
                     continue;
                 }
 

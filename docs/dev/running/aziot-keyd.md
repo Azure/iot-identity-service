@@ -118,6 +118,8 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
     export TPM2_PKCS11_STORE=/opt/tpm2-pkcs11
     ```
 
+1. Create the `/run/aziot` directory if it doesn't already exist, and make sure it's readable and writable by the user you will run the service as.
+
 1. Run the service, setting the `AZIOT_KEYD_CONFIG` env var if necessary.
 
     ```sh

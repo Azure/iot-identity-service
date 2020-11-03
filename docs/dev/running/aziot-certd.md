@@ -200,6 +200,8 @@ With this basic file, fill it out depending on what workflow you want to test:
         "est-ca" = "file:///path/to/est/ca/cert.pem"
         ```
 
+1. Create the `/run/aziot` directory if it doesn't already exist, and make sure it's readable and writable by the user you will run the service as.
+
 1. Finally, run the service.
 
     As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `AZIOT_CERTD_CONFIG` env var to its actual path.
