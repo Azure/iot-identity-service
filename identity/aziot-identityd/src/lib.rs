@@ -450,17 +450,13 @@ impl Api {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn dps_get_registered_device(
         &mut self,
         credential: aziot_identity_common::Credentials,
-        global_endpoint: &str,
-        scope_id: &str,
         registration_id: &str,
         operation_id: &str,
-        symmetric_key: Option<String>,
-        identity_cert: Option<String>,
-        identity_pk: Option<String>,
+        dps_client: aziot_dps_client_async::Client,
+        dps_auth_kind: &aziot_dps_client_async::DpsAuthKind,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let mut retry_count =
             (DPS_ASSIGNMENT_TIMEOUT_SECS / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS) + 1;
@@ -471,23 +467,10 @@ impl Api {
             retry_count -= 1;
 
             let credential_clone = credential.clone();
-            let reg_status = {
-                let mut key_engine = self.key_engine.lock().await;
-                aziot_dps_client_async::get_operation_status(
-                    global_endpoint,
-                    &scope_id,
-                    &registration_id,
-                    &operation_id,
-                    symmetric_key.clone(),
-                    identity_cert.clone(),
-                    identity_pk.clone(),
-                    &self.key_client,
-                    &mut *key_engine,
-                    &self.cert_client,
-                )
+            let reg_status = dps_client
+                .get_operation_status(registration_id, operation_id, dps_auth_kind)
                 .await
-                .map_err(Error::DPSClient)?
-            };
+                .map_err(Error::DPSClient)?;
 
             let status = reg_status.status.ok_or(Error::DeviceNotFound)?;
             if !status.eq_ignore_ascii_case("assigning") {
@@ -553,6 +536,14 @@ impl Api {
                 scope_id,
                 attestation,
             } => {
+                let dps_client = aziot_dps_client_async::Client::new(
+                    &global_endpoint,
+                    &scope_id,
+                    self.key_client.clone(),
+                    self.key_engine.clone(),
+                    self.cert_client.clone(),
+                );
+
                 let device = match attestation {
                     settings::DpsAttestationMethod::TPM { registration_id } => {
                         let _ = registration_id;
@@ -563,37 +554,26 @@ impl Api {
                         registration_id,
                         symmetric_key,
                     } => {
-                        let operation = {
-                            let mut key_engine = self.key_engine.lock().await;
-                            aziot_dps_client_async::register(
-                                global_endpoint.as_str(),
-                                &scope_id,
-                                &registration_id,
-                                Some(symmetric_key.clone()),
-                                None,
-                                None,
-                                &self.key_client,
-                                &mut *key_engine,
-                                &self.cert_client,
-                            )
-                            .await
-                            .map_err(Error::DPSClient)?
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
+                            sas_key: symmetric_key.clone(),
                         };
 
                         let credential = aziot_identity_common::Credentials::SharedPrivateKey(
                             symmetric_key.clone(),
                         );
 
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
+                            .await
+                            .map_err(Error::DPSClient)?;
+
                         let device = self
                             .dps_get_registered_device(
                                 credential,
-                                global_endpoint.as_str(),
-                                &scope_id,
                                 &registration_id,
                                 &operation.operation_id,
-                                Some(symmetric_key),
-                                None,
-                                None,
+                                dps_client,
+                                &dps_auth_kind,
                             )
                             .await?;
                         device
@@ -611,21 +591,9 @@ impl Api {
                         )
                         .await?;
 
-                        let operation = {
-                            let mut key_engine = self.key_engine.lock().await;
-                            aziot_dps_client_async::register(
-                                global_endpoint.as_str(),
-                                &scope_id,
-                                &registration_id,
-                                None,
-                                Some(identity_cert.clone()),
-                                Some(identity_pk.clone()),
-                                &self.key_client,
-                                &mut *key_engine,
-                                &self.cert_client,
-                            )
-                            .await
-                            .map_err(Error::DPSClient)?
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
+                            identity_cert: identity_cert.clone(),
+                            identity_pk: identity_pk.clone(),
                         };
 
                         let credential = aziot_identity_common::Credentials::X509 {
@@ -633,16 +601,18 @@ impl Api {
                             identity_pk: identity_pk.clone(),
                         };
 
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
+                            .await
+                            .map_err(Error::DPSClient)?;
+
                         let device = self
                             .dps_get_registered_device(
                                 credential,
-                                global_endpoint.as_str(),
-                                &scope_id,
                                 &registration_id,
                                 &operation.operation_id,
-                                None,
-                                Some(identity_cert.clone()),
-                                Some(identity_pk.clone()),
+                                dps_client,
+                                &dps_auth_kind,
                             )
                             .await?;
                         device
