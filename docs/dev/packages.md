@@ -1,6 +1,6 @@
 # Building the packages
 
-This repository contains three services - `aziot-certd`, `aziot-identityd` and `aziot-keyd` - as well as the `libaziot_keys.so` library. These four components ship in a single distro package named `aziot-identity-service`. The package can be built for a particular distro and a particular architecture by running the `/ci/package.sh` script in a Docker container of that distro, with some environment variables set to identify the distro and the architecture to build the packages for.
+This repository contains three services - `aziot-certd`, `aziot-identityd` and `aziot-keyd` - as well as the `libaziot_keys.so` library. These four components ship in a single distro package named `aziot-identity-service`. The package can be built for a particular distro and a particular architecture by running the `/ci/package.sh` script in a Docker container of that distro, with an environment variable set to identify the architecture to build the packages for.
 
 
 <table>
@@ -8,33 +8,27 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <tr>
 <th>Distro</th>
 <th>Docker image</th>
-<th><code>CONTAINER_OS</code> env var</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>CentOS 7</td>
 <td><code>centos:7</code></td>
-<td><code>centos:7</code></td>
 </tr>
 <tr>
 <td>Debian 9 / Raspbian 9</td>
-<td><code>debian:9-slim</code></td>
 <td><code>debian:9-slim</code></td>
 </tr>
 <tr>
 <td>Debian 10 / Raspbian 10</td>
 <td><code>debian:10-slim</code></td>
-<td><code>debian:10-slim</code></td>
 </tr>
 <tr>
 <td>Ubuntu 18.04</td>
 <td><code>ubuntu:18.04</code></td>
-<td><code>ubuntu:18.04</code></td>
 </tr>
 <tr>
 <td>Ubuntu 20.04</td>
-<td><code>ubuntu:20.04</code></td>
 <td><code>ubuntu:20.04</code></td>
 </tr>
 </tbody>
@@ -73,7 +67,6 @@ For an example to put it all together, let's say you want to build the CentOS 7 
 ```sh
 docker run -it --rm \
 	-v "$(realpath ~/src/iot-identity-service):/src" \
-	-e 'CONTAINER_OS=centos:7' \
 	-e 'ARCH=amd64' \
 	-e 'PACKAGE_VERSION=1.1.0' \
 	-e 'PACKAGE_RELEASE=0' \
@@ -103,7 +96,6 @@ For another example, let's say you want to build the Debian 10 package for ARM32
 ```sh
 docker run -it --rm \
 	-v "$(realpath ~/src/iot-identity-service):/src" \
-	-e 'CONTAINER_OS=debian:10-slim' \
 	-e 'ARCH=arm32v7' \
 	-e 'PACKAGE_VERSION=1.1.0' \
 	-e 'PACKAGE_RELEASE=0' \

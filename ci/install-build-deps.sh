@@ -6,22 +6,25 @@
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
 
 
+OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
+
+
 # OS packages
 
-case "$CONTAINER_OS.$ARCH" in
-    'centos:7.amd64')
+case "$OS:$ARCH" in
+    'centos:7:amd64')
         yum install -y epel-release
         yum install -y \
             curl gcc gcc-c++ jq make pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
-    'centos:7.arm32v7'|'centos:7.aarch64')
+    'centos:7:arm32v7'|'centos:7:aarch64')
         echo 'Cross-compilation on CentOS 7 is not supported' >&2
         exit 1
         ;;
 
-    'debian:9-slim.amd64'|'debian:10-slim.amd64'|'ubuntu:18.04.amd64'|'ubuntu:20.04.amd64')
+    'debian:9:amd64'|'debian:10:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -32,7 +35,7 @@ case "$CONTAINER_OS.$ARCH" in
             libclang1 libssl-dev llvm-dev
         ;;
 
-    'debian:9-slim.arm32v7'|'debian:10-slim.arm32v7')
+    'debian:9:arm32v7'|'debian:10:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -44,7 +47,7 @@ case "$CONTAINER_OS.$ARCH" in
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'debian:9-slim.aarch64'|'debian:10-slim.aarch64')
+    'debian:9:aarch64'|'debian:10:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -56,7 +59,7 @@ case "$CONTAINER_OS.$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'ubuntu:18.04.arm32v7'|'ubuntu:20.04.arm32v7')
+    'ubuntu:18.04:arm32v7'|'ubuntu:20.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -81,7 +84,7 @@ case "$CONTAINER_OS.$ARCH" in
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'ubuntu:18.04.aarch64'|'ubuntu:20.04.aarch64')
+    'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -107,6 +110,7 @@ case "$CONTAINER_OS.$ARCH" in
         ;;
 
     *)
+        echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
 esac
 
@@ -150,8 +154,8 @@ case "$ARCH" in
         ;;
 esac
 
-case "$CONTAINER_OS.$ARCH" in
-    debian:*.arm32v7|ubuntu*.arm32v7)
+case "$OS:$ARCH" in
+    debian:*:arm32v7|ubuntu:*:arm32v7)
         mkdir -p ~/.cargo
         echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config
         echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config
@@ -159,7 +163,7 @@ case "$CONTAINER_OS.$ARCH" in
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_INCLUDE_DIR=/usr/include
         ;;
 
-    debian:*.aarch64|ubuntu*.aarch64)
+    debian:*:aarch64|ubuntu:*:aarch64)
         mkdir -p ~/.cargo
         echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config
         echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
