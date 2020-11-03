@@ -5,8 +5,8 @@
 //! this one aziotd binary. The aziotd binary looks at its command-line args to figure out
 //! which service it's being invoked as, and runs the code of that service accordingly.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
 
 mod error;
@@ -183,7 +183,7 @@ where
                 }
 
                 let patch_path = entry.path();
-                if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some(".toml") {
+                if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some("toml") {
                     continue;
                 }
 

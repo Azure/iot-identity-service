@@ -103,9 +103,21 @@ fi
 
 
 %post
+%systemd_post aziot-certd.socket
+%systemd_post aziot-identityd.socket
+%systemd_post aziot-keyd.socket
+
+
+%preun
+%systemd_preun aziot-certd.socket
+%systemd_preun aziot-identityd.socket
+%systemd_preun aziot-keyd.socket
 
 
 %postun
+%systemd_postun_with_restart aziot-certd.service
+%systemd_postun_with_restart aziot-identityd.service
+%systemd_postun_with_restart aziot-keyd.service
 
 
 %files
