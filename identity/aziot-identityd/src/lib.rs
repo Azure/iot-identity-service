@@ -57,21 +57,10 @@ pub async fn main(
     // let authorizer = Box::new(authorizer);
     let authorizer = Box::new(|_| Ok(true));
 
-    let api = Api::new(settings, authenticator, authorizer)?;
+    let api = Api::new(settings, local_mmap, authenticator, authorizer)?;
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
 
     {
-        let (mut prev_hub_mset, prev_local_mmap) = if prev_settings_path.exists() {
-            let prev_settings = settings::Settings::new(&prev_settings_path)?;
-            let (_, h, l) = convert_to_map(&prev_settings.principal);
-            (h, l)
-        } else {
-            (
-                std::collections::BTreeSet::default(),
-                std::collections::BTreeMap::default(),
-            )
-        };
-
         let mut api_ = api.lock().await;
 
         log::info!("Provisioning starting.");
@@ -85,36 +74,30 @@ pub async fn main(
                 hub_name: device.iothub_hostname,
                 device_id: device.device_id,
             };
+            let device_status = toml::to_string(&curr_hub_device_info)?;
 
             // Only consider the previous Hub modules if the current and previous Hub devices match.
-            let mut use_prev = false;
-
-            if prev_device_info_path.exists() {
+            let prev_hub_mset = if prev_settings_path.exists() && prev_device_info_path.exists() {
                 let prev_hub_device_info = settings::HubDeviceInfo::new(&prev_device_info_path)?;
 
-                if let Some(prev_info) = prev_hub_device_info {
-                    if prev_info == curr_hub_device_info {
-                        use_prev = true;
-                    }
+                if prev_hub_device_info == Some(curr_hub_device_info) {
+                    let prev_settings = settings::Settings::new(&prev_settings_path)?;
+                    let (_, prev_hub_mset, _) = convert_to_map(&prev_settings.principal);
+                    prev_hub_mset
+                } else {
+                    std::collections::BTreeSet::default()
                 }
-            }
-
-            if !use_prev {
-                prev_hub_mset = std::collections::BTreeSet::default();
-            }
+            } else {
+                std::collections::BTreeSet::default()
+            };
 
             let () = api_.init_hub_identities(prev_hub_mset, hub_mset).await?;
             log::info!("Identity reconciliation with IoT Hub complete.");
 
-            toml::to_string(&curr_hub_device_info)?
+            device_status
         } else {
             settings::HubDeviceInfo::unprovisioned()
         };
-
-        let () = api_
-            .init_local_identities(prev_local_mmap, local_mmap)
-            .await?;
-        log::info!("Local identity reconciliation complete.");
 
         std::fs::write(prev_device_info_path, device_status)
             .map_err(error::InternalError::SaveDeviceInfo)?;
@@ -132,6 +115,8 @@ pub struct Api {
     pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
     pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
     pub id_manager: identity::IdentityManager,
+    pub local_identities:
+        std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 
     key_client: std::sync::Arc<aziot_key_client_async::Client>,
     key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -141,6 +126,10 @@ pub struct Api {
 impl Api {
     pub fn new(
         settings: settings::Settings,
+        local_identities: std::collections::BTreeMap<
+            aziot_identity_common::ModuleId,
+            Option<settings::LocalIdOpts>,
+        >,
         authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
         authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
     ) -> Result<Self, Error> {
@@ -189,6 +178,7 @@ impl Api {
             authenticator,
             authorizer,
             id_manager,
+            local_identities,
 
             key_client,
             key_engine,
@@ -209,10 +199,11 @@ impl Api {
 
         self.id_manager.get_device_identity().await
     }
+
     pub async fn get_identity(
         &self,
         auth_id: auth::AuthId,
-        _idtype: &str,
+        id_type: Option<String>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -222,7 +213,14 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        self.id_manager.get_module_identity(module_id).await
+        // If id_type is not provided, return module identity.
+        let id_type = id_type.unwrap_or_else(|| "aziot".to_owned());
+
+        match id_type.as_str() {
+            "aziot" => self.id_manager.get_module_identity(module_id).await,
+            "local" => self.issue_local_identity(module_id).await,
+            _ => Err(Error::invalid_parameter("id_type", "invalid id_type")),
+        }
     }
 
     pub async fn get_identities(
@@ -351,19 +349,17 @@ impl Api {
         let hub_module_ids = self.id_manager.get_module_identities().await?;
 
         for m in hub_module_ids {
-            match m {
-                aziot_identity_common::Identity::Aziot(m) => {
-                    if let Some(m) = m.module_id {
-                        if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-                            self.id_manager.delete_module_identity(&m.0).await?;
-                            log::info!("Hub identity {:?} removed", &m.0);
-                        } else if current_module_set.contains(&m) {
-                            current_module_set.remove(&m);
-                            log::info!("Hub identity {:?} already exists", &m.0);
-                        }
-                    } else {
-                        log::warn!("invalid identity type returned by get_module_identities");
+            if let aziot_identity_common::Identity::Aziot(m) = m {
+                if let Some(m) = m.module_id {
+                    if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+                        self.id_manager.delete_module_identity(&m.0).await?;
+                        log::info!("Hub identity {:?} removed", &m.0);
+                    } else if current_module_set.contains(&m) {
+                        current_module_set.remove(&m);
+                        log::info!("Hub identity {:?} already exists", &m.0);
                     }
+                } else {
+                    log::warn!("invalid identity type returned by get_module_identities");
                 }
             }
         }
@@ -371,80 +367,6 @@ impl Api {
         for m in current_module_set {
             self.id_manager.create_module_identity(&m.0).await?;
             log::info!("Hub identity {:?} added", &m.0);
-        }
-
-        Ok(())
-    }
-
-    pub async fn init_local_identities(
-        &self,
-        mut prev_module_map: std::collections::BTreeMap<
-            aziot_identity_common::ModuleId,
-            Option<settings::LocalIdOpts>,
-        >,
-        current_module_map: std::collections::BTreeMap<
-            aziot_identity_common::ModuleId,
-            Option<settings::LocalIdOpts>,
-        >,
-    ) -> Result<(), Error> {
-        if !current_module_map.is_empty() {
-            let localid = self.settings.localid.as_ref().ok_or_else(|| {
-                Error::Internal(InternalError::BadSettings(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "no local id settings specified",
-                )))
-            })?;
-
-            // Create or renew local identity certificates for all modules in current.
-            for id in &current_module_map {
-                let module_id = &(id.0).0;
-                let attributes =
-                    id.1.as_ref()
-                        .map_or(
-                            aziot_identity_common::LocalIdAttr::default(),
-                            |opts| match opts {
-                                settings::LocalIdOpts::X509 { attributes } => *attributes,
-                            },
-                        );
-
-                // Must reissue certificate if options changed.
-                if let Some(prev_opts) = prev_module_map.remove_entry(id.0) {
-                    if &prev_opts.1 == id.1 {
-                        log::info!("Local identity {} up-to-date.", module_id);
-                    } else {
-                        log::info!("Options changed for {}. Reissuing certificate.", module_id);
-
-                        self.cert_client
-                            .delete_cert(module_id)
-                            .await
-                            .map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                            })?;
-                    }
-                }
-
-                let common_name = format!("{}.{}", module_id, localid.domain);
-                self.create_identity_cert_if_not_exist_or_expired(
-                    module_id,
-                    module_id,
-                    common_name.as_str(),
-                    Some(attributes),
-                )
-                .await?;
-
-                log::info!("Local identity {} ({}) registered.", module_id, attributes);
-            }
-        }
-
-        // Remove local identities for modules in prev but not in current.
-        for id in prev_module_map {
-            let module_id = &(id.0).0;
-            self.cert_client
-                .delete_cert(module_id)
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            // TODO: need to delete private key too.
-            log::info!("Local identity {} removed.", module_id);
         }
 
         Ok(())
@@ -471,7 +393,6 @@ impl Api {
                             &identity_pk,
                             &identity_cert,
                             &device_id,
-                            None,
                         )
                         .await?;
                         aziot_identity_common::Credentials::X509 {
@@ -596,7 +517,6 @@ impl Api {
                             &identity_pk,
                             &identity_cert,
                             &registration_id,
-                            None,
                         )
                         .await?;
 
@@ -702,73 +622,169 @@ impl Api {
         Ok(device)
     }
 
+    async fn issue_local_identity(
+        &self,
+        module_id: &str,
+    ) -> Result<aziot_identity_common::Identity, Error> {
+        let localid = self.settings.localid.as_ref().ok_or_else(|| {
+            Error::Internal(InternalError::BadSettings(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "no local id settings specified",
+            )))
+        })?;
+
+        let local_identity = match self
+            .local_identities
+            .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
+        {
+            None => {
+                return Err(Error::invalid_parameter(
+                    "module_id",
+                    format!("no local identity found for {}", module_id),
+                ))
+            }
+            Some(opts) => {
+                let attributes =
+                    opts.as_ref()
+                        .map_or(
+                            aziot_identity_common::LocalIdAttr::default(),
+                            |opts| match opts {
+                                settings::LocalIdOpts::X509 { attributes } => *attributes,
+                            },
+                        );
+
+                // Generate new private key for local identity.
+                let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key_pem = private_key.private_key_to_pem_pkcs8().map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let private_key_pem =
+                    std::string::String::from_utf8(private_key_pem).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let public_key = private_key.public_key_to_pem().map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let public_key =
+                    openssl::pkey::PKey::public_key_from_pem(&public_key).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+
+                // Create local identity CSR.
+                let subject = format!("{}.{}", module_id, localid.domain);
+                let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let certificate = self
+                    .cert_client
+                    .create_cert(&module_id, &csr, None)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                let certificate = String::from_utf8(certificate).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+
+                // Parse certificate expiration time.
+                let expiration = get_cert_expiration(&certificate)?;
+
+                aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
+                    module_id: module_id.to_owned(),
+                    auth: aziot_identity_common::LocalAuthenticationInfo {
+                        private_key: private_key_pem,
+                        certificate,
+                        expiration,
+                    },
+                })
+            }
+        };
+
+        Ok(local_identity)
+    }
+
     async fn create_identity_cert_if_not_exist_or_expired(
         &self,
         identity_pk: &str,
         identity_cert: &str,
         subject: &str,
-        attributes: Option<aziot_identity_common::LocalIdAttr>,
     ) -> Result<(), Error> {
-        let device_id_cert = self.cert_client.get_cert(identity_cert).await;
-        let create_cert = match device_id_cert {
-            Ok(device_id_cert) => {
-                let x509_req = openssl::x509::X509::from_pem(&device_id_cert).map_err(|err| {
+        // Retrieve existing cert and check it for expiry.
+        let device_id_cert = match self.cert_client.get_cert(identity_cert).await {
+            Ok(pem) => {
+                let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
-                let cert_expiration = x509_req.as_ref().not_after();
+                let cert_expiration = cert.as_ref().not_after();
                 let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
                 let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
-                expiration_time.days < 1
+
+                if expiration_time.days < 1 {
+                    log::info!("{} has expired. Renewing certificate", identity_cert);
+
+                    None
+                } else {
+                    Some(pem)
+                }
             }
-            Err(_) => true,
+            Err(_) => {
+                // TODO: Need to check if key exists.
+                // If this function fails, delete any key it creates but don't delete an existing key.
+
+                None
+            }
         };
 
-        if create_cert {
-            let identity_pk_key_handle = self
+        // Create new certificate if needed.
+        if device_id_cert.is_none() {
+            let key_handle = self
                 .key_client
                 .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
                 .await
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            // TODO: need to delete private key before returning if any function below fails.
-            let csr = {
-                let mut key_engine = self.key_engine.lock().await;
-
-                let (identity_public_key, identity_private_key) = {
-                    let identity_pk = std::ffi::CString::new(identity_pk_key_handle.0.clone())
-                        .map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let identity_public_key =
-                        key_engine.load_public_key(&identity_pk).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-                    let identity_private_key =
-                        key_engine.load_private_key(&identity_pk).map_err(|err| {
-                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                        })?;
-
-                    (identity_public_key, identity_private_key)
-                };
-
-                let csr = create_csr(
-                    &subject,
-                    &identity_public_key,
-                    &identity_private_key,
-                    attributes,
-                )
+            let key_handle = std::ffi::CString::new(key_handle.0)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-                csr
-            };
 
-            let _new_cert = self
-                .cert_client
-                .create_cert(&identity_cert, &csr, None)
-                .await
+            let mut key_engine = self.key_engine.lock().await;
+            let private_key = key_engine
+                .load_private_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let public_key = key_engine
+                .load_public_key(&key_handle)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+            let result = async {
+                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+
+                let _ = self
+                    .cert_client
+                    .create_cert(&identity_cert, &csr, None)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+
+                Ok::<(), Error>(())
+            }
+            .await;
+
+            if let Err(err) = result {
+                // TODO: need to delete key from keyd.
+
+                return Err(err);
+            }
         }
 
         Ok(())
@@ -890,6 +906,22 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
     }
 }
 
+fn get_cert_expiration(cert: &str) -> Result<String, Error> {
+    let cert = openssl::x509::X509::from_pem(cert.as_bytes())
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+    let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
+    let diff = epoch
+        .diff(&cert.not_after())
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+    let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
+    let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);
+    let expiration =
+        chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
+
+    Ok(expiration)
+}
+
 fn convert_to_map(
     principal: &[settings::Principal],
 ) -> (
@@ -981,6 +1013,7 @@ mod tests {
     async fn init_identities_with_empty_args_exits_early() {
         let api = Api::new(
             make_empty_settings(),
+            std::collections::BTreeMap::new(),
             Box::new(|_| Ok(AuthId::Unknown)),
             Box::new(|_| Ok(true)),
         )

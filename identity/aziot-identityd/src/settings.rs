@@ -34,7 +34,17 @@ impl Settings {
     }
 
     fn check(self) -> Result<Self, InternalError> {
+        let mut existing_names: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
+            std::collections::BTreeSet::default();
+
         for p in &self.principal {
+            if !existing_names.insert(p.name.clone()) {
+                return Err(InternalError::BadSettings(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("duplicate module name: {}", p.name.0),
+                )));
+            }
+
             if let Some(t) = &p.id_type {
                 if t.contains(&aziot_identity_common::IdType::Local) {
                     // Require localid in config if any principal has local id_type.
@@ -51,9 +61,9 @@ impl Settings {
                     // Reject principals that specify local identity options without the "local" type.
                     if p.localid.is_some() {
                         return Err(InternalError::BadSettings(std::io::Error::new(
-							std::io::ErrorKind::InvalidInput,
-							format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
-						)));
+                            std::io::ErrorKind::InvalidInput,
+                            format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
+                        )));
                     }
                 }
 
@@ -68,10 +78,10 @@ impl Settings {
 
                 if !provisioning_valid {
                     return Err(InternalError::BadSettings(std::io::Error::new(
-							std::io::ErrorKind::InvalidInput,
-							format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
-						))
-					);
+                            std::io::ErrorKind::InvalidInput,
+                            format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
+                        ))
+                    );
                 }
             }
         }
