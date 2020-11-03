@@ -15,6 +15,7 @@ pub struct GenId(pub String);
 #[serde(tag = "type", content = "spec")]
 pub enum Identity {
     Aziot(AzureIoTSpec),
+    Local(LocalIdSpec),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -29,6 +30,19 @@ pub struct AzureIoTSpec {
     pub gen_id: Option<GenId>,
     #[serde(rename = "auth", skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthenticationInfo>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct LocalIdSpec {
+    pub module_id: String,
+    pub auth: LocalAuthenticationInfo,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct LocalAuthenticationInfo {
+    pub private_key: String,
+    pub certificate: String,
+    pub expiration: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

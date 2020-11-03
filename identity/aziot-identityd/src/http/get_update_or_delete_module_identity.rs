@@ -9,6 +9,7 @@ lazy_static::lazy_static! {
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     module_id: String,
+    id_type: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -22,7 +23,7 @@ impl http_common::server::Route for Route {
     fn from_uri(
         service: &Self::Service,
         path: &str,
-        _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
         let captures = URI_REGEX.captures(path)?;
 
@@ -31,9 +32,18 @@ impl http_common::server::Route for Route {
             .decode_utf8()
             .ok()?;
 
+        let id_type: Option<String> = query.iter().find_map(|q| {
+            if q.0.to_lowercase() == "type" {
+                Some(q.1.to_string())
+            } else {
+                None
+            }
+        });
+
         Some(Route {
             api: service.api.clone(),
             module_id: module_id.into_owned(),
+            id_type,
         })
     }
 
@@ -73,7 +83,10 @@ impl http_common::server::Route for Route {
         };
 
         //TODO: get uid from UDS
-        let identity = match api.get_identity(auth_id, "aziot", &self.module_id).await {
+        let identity = match api
+            .get_identity(auth_id, self.id_type, &self.module_id)
+            .await
+        {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
