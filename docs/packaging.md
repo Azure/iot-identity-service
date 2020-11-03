@@ -327,3 +327,4 @@ aziot init
 ```
 
 After installing the package, run `aziot init` to interactively set up the configuration with minimal information like the device provisioning method.
+
