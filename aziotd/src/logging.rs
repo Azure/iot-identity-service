@@ -1,10 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-// use std::env;
-// use std::io::Write;
-
-// use log::{Level, LevelFilter};
-
 const LOG_LEVEL_ENV_VAR: &str = "AZIOT_LOG";
 
 pub(crate) fn init() {
