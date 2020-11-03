@@ -18,20 +18,19 @@ Put all together, there are three ways to run the script:
 The workflows use an Azure service principal and an Azure resource group that the principal must be able to create resources under.
 
 ```sh
-set -euo pipefail
-
 AZURE_ACCOUNT="$(az account show)"
 AZURE_SUBSCRIPTION_ID="$(<<< "$AZURE_ACCOUNT" jq --raw-output '.id')"
 
-export AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
+AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
 AZURE_SP_NAME="http://iot-identity-service-e2e-tests"
 
 # The location of the resource group as well as resources created in the group.
-AZURE_LOCATION='westcentralus'
+AZURE_LOCATION='...'
 
 az group create --name "$AZURE_RESOURCE_GROUP_NAME" --location "$AZURE_LOCATION"
 
-# Save the output of this command. It contains the password for the SP which cannot be obtained later.
+# Save the output of this command. It contains the password for the SP
+# which cannot be obtained later.
 az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment
 
 az role assignment create \
@@ -63,7 +62,10 @@ If you've never created an IoT Hub under your subscription, you'll need to regis
 az provider register --namespace 'Microsoft.Devices'
 
 # Wait for it to go from "Registering" to "Registered"
-watch -c -- az provider show --namespace 'Microsoft.Devices' --query 'registrationState' --output tsv
+watch -c -- \
+    az provider show \
+        --namespace 'Microsoft.Devices' \
+        --query 'registrationState' --output tsv
 ```
 
 Lastly, in order to download packages for the branch you want to test, you will need a Github Personal Access Token. This token must have the `repo.public_repo` scope. You don't need this if you're instead going to run the tests against packages you've built yourself (with `package.sh`).
@@ -79,43 +81,48 @@ export AZURE_USERNAME="$AZURE_SP_NAME"
 # The `password` property from the `az ad sp create-for-rbac` output.
 export AZURE_PASSWORD='...'
 
-# Already done in the setup script.
-export AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
+# Already defined in the setup script.
+export AZURE_RESOURCE_GROUP_NAME
 
-# Already done in the setup script.
+# Already defined in the setup script.
 #
-# As explained in the previous section, you can use a different value here than the resource group's location in order to
-# override the location of the resources instead of using the resource group's location.
-export AZURE_LOCATION='...'
+# As explained in the previous section, you can assign a different value here
+# than the resource group's location in order to use a different location
+# for the resources.
+export AZURE_LOCATION
 
 
-# When running as a GH action, GH provides the script with a token that it can use for the GH API.
-# Since we're running the script ourselves, we have the choice of also using the latest package from a packages workflow run,
-# or a locally-built package file.
-#
-# For the former case, we need to give it a PAT instead, along with env vars used for the API requests and to identify the branch
-# to download the package for.
-#
-# The value is of the format "$github_username:$pat"
+# We can either specify a branch name, in which case the script will fetch
+# the latest package built for that branch by the packages workflow.
+# For this we need to set some env vars to pass in the PAT as mentioned above
+# and to identify the API endpoint and the repository.
+export BRANCH='main'
+# The format is "$github_username:$pat"
 export GITHUB_PAT='foobar:1234abcd'
 export GITHUB_API_URL='https://api.github.com'
+# Ensure this is set to your fork, if that's what you're running against.
 export GITHUB_REPOSITORY='Azure/iot-identity-service'
-export BRANCH='main'
 
-# For the latter case, set the PACKAGE env var to the path of the .deb or .rpm instead.
+# Alternatively, we can tell it to use a package file we built ourselves.
+# Set the PACKAGE env var to the path of the .deb / .rpm.
 #
 # export PACKAGE='/path/to/file.deb'
 
-# These are used to ensure the Azure resources don't conflict with other resources in the RG.
-# When running as a GH action, these env vars will be automatically set by GH.
+
+# These are used to ensure the Azure resources don't conflict with
+# other resources in the RG. When running in a GH workflow, these env vars
+# are set by GH automatically. Here we need to set them ourselves.
 export GITHUB_RUN_ID='1000'
 export GITHUB_RUN_NUMBER='1'
 
-# One of the supported OSes. The GH workflows use a matrix dimension for every supported OS.
+
+# One of the supported OSes. The full list can be found in the workflows files.
 export OS='ubuntu:18.04'
 
+
 # The parameter to the script is the name of the test to run.
+# The names can be found in the doc comment at the top of the script.
 ~/src/iot-identity-service/ci/e2e-tests.sh 'manual_symmetric_key'
 ```
 
-Note: The script deletes the resources on exit. If you want to keep the resources around for debugging, comment out the `trap ... EXIT` command.
+Note: The script deletes the resources on exit. If you want to keep the resources around for debugging, comment out the `trap ... EXIT` command in the script.
