@@ -737,7 +737,12 @@ impl Api {
                     Some(pem)
                 }
             }
-            Err(_) => None,
+            Err(_) => {
+                // TODO: Need to check if key exists.
+                // If this function fails, delete any key it creates but don't delete existing an key.
+
+                None,
+            }
         };
 
         // Create new certificate if needed.
