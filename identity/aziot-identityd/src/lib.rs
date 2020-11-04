@@ -466,11 +466,6 @@ impl Api {
                 );
 
                 let device = match attestation {
-                    settings::DpsAttestationMethod::TPM { registration_id } => {
-                        let _ = registration_id;
-                        log::warn!("DPS-TPM provisioning is unimplemented!");
-                        return Err(Error::DeviceNotFound);
-                    }
                     settings::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,

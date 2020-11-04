@@ -175,9 +175,6 @@ pub enum DpsAttestationMethod {
         identity_cert: String,
         identity_pk: String,
     },
-    TPM {
-        registration_id: String,
-    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
