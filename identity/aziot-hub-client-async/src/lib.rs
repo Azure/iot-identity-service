@@ -13,6 +13,8 @@
     clippy::type_complexity
 )]
 
+use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
+
 pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
@@ -235,13 +237,11 @@ where
 
     let connector = match hub_device.credentials.clone() {
         aziot_identity_common::Credentials::SharedPrivateKey(key) => {
-            let (connector, token) = get_sas_connector(
-                hub_device.iothub_hostname.clone(),
-                hub_device.device_id.clone(),
-                key,
-                key_client,
-            )
-            .await?;
+            let audience = format!(
+                "{}/devices/{}",
+                hub_device.iothub_hostname, hub_device.device_id
+            );
+            let (connector, token) = get_sas_connector(&audience, &key, key_client).await?;
 
             let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -254,8 +254,8 @@ where
             identity_pk,
         } => {
             get_x509_connector(
-                identity_cert,
-                identity_pk,
+                &identity_cert,
+                &identity_pk,
                 key_client,
                 key_engine,
                 cert_client,
@@ -368,13 +368,11 @@ where
 
     let connector = match hub_device.credentials.clone() {
         aziot_identity_common::Credentials::SharedPrivateKey(key) => {
-            let (connector, token) = get_sas_connector(
-                hub_device.iothub_hostname.clone(),
-                hub_device.device_id.clone(),
-                key,
-                key_client,
-            )
-            .await?;
+            let audience = format!(
+                "{}/devices/{}",
+                hub_device.iothub_hostname, hub_device.device_id
+            );
+            let (connector, token) = get_sas_connector(&audience, &key, key_client).await?;
 
             let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -387,8 +385,8 @@ where
             identity_pk,
         } => {
             get_x509_connector(
-                identity_cert,
-                identity_pk,
+                &identity_cert,
+                &identity_pk,
                 key_client,
                 key_engine,
                 cert_client,
@@ -451,116 +449,4 @@ where
             "malformed HTTP response",
         )),
     }
-}
-
-async fn get_sas_connector(
-    hub_name: String,
-    device_id: String,
-    key_handle: String,
-    key_client: &aziot_key_client_async::Client,
-) -> Result<
-    (
-        hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-        String,
-    ),
-    std::io::Error,
-> {
-    let key_handle = key_client.load_key(&*key_handle).await?;
-
-    let token = {
-        let expiry = chrono::Utc::now()
-            + chrono::Duration::from_std(std::time::Duration::from_secs(30))
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        let expiry = expiry.timestamp().to_string();
-        let audience = format!("{}/devices/{}", hub_name, device_id);
-
-        let resource_uri = percent_encoding::percent_encode(
-            audience.to_lowercase().as_bytes(),
-            IOT_HUB_ENCODE_SET,
-        )
-        .to_string();
-        let sig_data = format!("{}\n{}", &resource_uri, expiry);
-
-        let signature = key_client
-            .sign(
-                &key_handle,
-                aziot_key_common::SignMechanism::HmacSha256,
-                sig_data.as_bytes(),
-            )
-            .await
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-        let signature = base64::encode(&signature);
-
-        let token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
-            .append_pair("sig", &signature)
-            .append_pair("se", &expiry)
-            .finish();
-        token
-    };
-
-    let token = format!("SharedAccessSignature {}", token);
-
-    let tls_connector = hyper_openssl::HttpsConnector::new()
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-    Ok((tls_connector, token))
-}
-
-async fn get_x509_connector(
-    identity_cert: String,
-    identity_pk: String,
-    key_client: &aziot_key_client_async::Client,
-    key_engine: &mut openssl2::FunctionalEngineRef,
-    cert_client: &aziot_cert_client_async::Client,
-) -> Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, std::io::Error> {
-    let connector = {
-        let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-        let device_id_private_key = {
-            let device_id_key_handle = key_client
-                .load_key_pair(&identity_pk)
-                .await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            let device_id_private_key = key_engine
-                .load_private_key(&device_id_key_handle)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            device_id_private_key
-        };
-        tls_connector
-            .set_private_key(&device_id_private_key)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-        let mut device_id_certs = {
-            let device_id_certs = cert_client
-                .get_cert(&identity_cert)
-                .await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?
-                .into_iter();
-            device_id_certs
-        };
-        let client_cert = device_id_certs.next().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::Other, "device identity cert not found")
-        })?;
-        tls_connector
-            .set_certificate(&client_cert)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        for cert in device_id_certs {
-            tls_connector
-                .add_extra_chain_cert(cert)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        }
-
-        let mut http_connector = hyper::client::HttpConnector::new();
-        http_connector.enforce_http(false);
-        let tls_connector =
-            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        tls_connector
-    };
-    Ok(connector)
 }

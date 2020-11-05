@@ -15,6 +15,8 @@
 
 use std::sync::Arc;
 
+use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
+
 pub mod model;
 
 pub const DPS_ENCODE_SET: &percent_encoding::AsciiSet =
@@ -142,7 +144,9 @@ impl Client {
 
         let connector = match auth_kind {
             DpsAuthKind::SymmetricKey { sas_key } => {
-                let (connector, token) = self.get_sas_connector(registration_id, &sas_key).await?;
+                let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
+                let (connector, token) =
+                    get_sas_connector(&audience, &sas_key, &self.key_client).await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -154,8 +158,14 @@ impl Client {
                 identity_cert,
                 identity_pk,
             } => {
-                self.get_x509_connector(&identity_cert, &identity_pk)
-                    .await?
+                get_x509_connector(
+                    &identity_cert,
+                    &identity_pk,
+                    &self.key_client,
+                    &mut *self.key_engine.lock().await,
+                    &self.cert_client,
+                )
+                .await?
             }
         };
 
@@ -231,121 +241,5 @@ impl Client {
         };
 
         Ok(res)
-    }
-
-    async fn get_sas_connector(
-        &self,
-        registration_id: &str,
-        key_handle: &str,
-    ) -> Result<
-        (
-            hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-            String,
-        ),
-        std::io::Error,
-    > {
-        let key_handle = self.key_client.load_key(key_handle).await?;
-
-        let token = {
-            let expiry = chrono::Utc::now()
-                + chrono::Duration::from_std(std::time::Duration::from_secs(30))
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            let expiry = expiry.timestamp().to_string();
-            let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-
-            let resource_uri = percent_encoding::percent_encode(
-                audience.to_lowercase().as_bytes(),
-                DPS_ENCODE_SET,
-            )
-            .to_string();
-            let sig_data = format!("{}\n{}", &resource_uri, expiry);
-
-            let signature = self
-                .key_client
-                .sign(
-                    &key_handle,
-                    aziot_key_common::SignMechanism::HmacSha256,
-                    sig_data.as_bytes(),
-                )
-                .await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-            let signature = base64::encode(&signature);
-
-            let token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
-                .append_pair("sig", &signature)
-                .append_pair("se", &expiry)
-                .finish();
-            token
-        };
-
-        let token = format!("SharedAccessSignature {}", token);
-
-        let tls_connector = hyper_openssl::HttpsConnector::new()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        Ok((tls_connector, token))
-    }
-
-    async fn get_x509_connector(
-        &self,
-        identity_cert: &str,
-        identity_pk: &str,
-    ) -> Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>, std::io::Error> {
-        let connector = {
-            let mut tls_connector =
-                openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-            let device_id_private_key = {
-                let device_id_key_handle = self
-                    .key_client
-                    .load_key_pair(identity_pk)
-                    .await
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                let device_id_private_key = self
-                    .key_engine
-                    .lock()
-                    .await
-                    .load_private_key(&device_id_key_handle)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                device_id_private_key
-            };
-            tls_connector
-                .set_private_key(&device_id_private_key)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-            let mut device_id_certs = {
-                let device_id_certs = self
-                    .cert_client
-                    .get_cert(identity_cert)
-                    .await
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                let device_id_certs = openssl::x509::X509::stack_from_pem(&device_id_certs)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?
-                    .into_iter();
-                device_id_certs
-            };
-            let client_cert = device_id_certs.next().ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::Other, "device identity cert not found")
-            })?;
-            tls_connector
-                .set_certificate(&client_cert)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            for cert in device_id_certs {
-                tls_connector
-                    .add_extra_chain_cert(cert)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            }
-
-            let mut http_connector = hyper::client::HttpConnector::new();
-            http_connector.enforce_http(false);
-            let tls_connector =
-                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            tls_connector
-        };
-        Ok(connector)
     }
 }
