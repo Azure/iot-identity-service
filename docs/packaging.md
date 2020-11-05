@@ -1,12 +1,12 @@
 # Packaging
 
-The Identity Service (IS), Keys Service (KS) and Certificates Service (CS) have been explicitly designed to not be Azure IoT Edge-specific; they can be used on non-Edge Azure IoT devices also. To this end, we want to cleanly separate these components from existing association with IoT Edge in the form of hosting it in a separate source repository and shipping it as a separate package. Furthermore, the existing IoT Edge daemon will be modified to depend on these components for provisioning the device, managing module identities, and managing cryptographic keys and certificates, and thus its only responsibility will be to act as a Module Runtime (MR).
+The Identity Service (IS), Keys Service (KS) and Certificates Service (CS) have been explicitly designed to not be Azure IoT Edge-specific; they can be used on non-Edge Azure IoT devices also. To this end, we want to cleanly separate these components from existing association with IoT Edge in the form of hosting it in a separate source repository and shipping it as a separate package. Furthermore, the existing IoT Edge daemon will be renamed (`iotedged` -> `aziot-edged`) and modified to depend on these new components for provisioning the device, managing module identities, and managing cryptographic keys and certificates. `aziot-edged`'s only responsibility will be to act as a Module Runtime (MR) for containerized Edge modules.
 
-Because of these large-scale changes, we plan to make the current `iotedge` Linux package into an LTS line. The new components, including the new `iotedged` with smaller responsibilities, will be shipped in two new lines of packages:
+Because of these large-scale changes, we plan to make the current `iotedge` Linux package into a long-term servicing (LTS) release. The new components (IS/KS/CS), along with the refactoring for an `aziot-edged` with smaller responsibilities, will be shipped in two new lines of packages:
 
 - `aziot-identity-service`: This package contains the IS, KS and CS components.
 
-- `iotedge-aziot`: This package contains the MR component needed to deploy dockerized Edge modules. It will have a dependency on the `aziot-identity-service` package, and on the Moby runtime package.
+- `aziot-edge`: This package contains the MR component needed to deploy dockerized Edge modules. It will have a dependency on the `aziot-identity-service` package, and on the Moby runtime package.
 
 A detailed comparison of the contents of the packages is below.
 
@@ -16,7 +16,7 @@ A detailed comparison of the contents of the packages is below.
 <th>Item</th>
 <th><code>iotedge</code> + <code>libiothsm-std</code></th>
 <th><code>aziot-identity-service</code></th>
-<th><code>iotedge-aziot</code></th>
+<th><code>aziot-edge</code></th>
 </thead>
 <tbody>
 <tr>
@@ -102,10 +102,10 @@ Note that the configuration is now in TOML format.
 ```
 /etc/aziot/
 └── edged/
-    └── config.toml
+    └── config.yaml
 ```
 
-Note that the configuration is now in TOML format.
+Note that the configuration is still in YAML format, but reduced in scope.
 </td>
 </tr>
 <tr>
@@ -242,45 +242,67 @@ Note that the configuration is now in TOML format.
 </table>
 
 
-## Installation procedure (`aziot-identity-service` only)
+## Installation procedure for IoT Edge (`aziot-edge`)
 
 ```sh
-apt install aziot-identity-service
-
-aziot init
-```
-
-The user installs the package, then runs `aziot init` to set up the configuration with minimal information like the device provisioning method.
-
-
-## Installation procedure (`iotedge-aziot`)
-
-```sh
-apt install iotedge-aziot
+apt install aziot-edge
 
 iotedge init
 ```
 
-The user installs the package, then runs `iotedge init` to set up the configuration of the IS+KS+CS+MR components.
+After installing the `aziot-edge` package, run `iotedge init` to interactively set up the configuration. It performs the initialization for both the IS+KS+CS components installed by the `aziot-identity-service` package and the MR component installed by the `aziot-edge` package.
 
 
-## Migration procedure for existing users of `iotedge` to `iotedge-aziot`
+## Updating from `iotedge` to `aziot-edge`
 
 ```sh
 apt remove iotedge libiothsm-std
 
-apt install iotedge-aziot
+apt install aziot-edge
 
-iotedge migrate
+iotedge init
 ```
 
-The user removes the existing `iotedge` and `libiothsm-std` packages, installs the new package, then runs `iotedge migrate` to migrate the configuration of the old IoT Edge installation to the new one. It is important that the user uninstalls the `iotedge` package before installing the `iotedge-aziot` (or even the `aziot-identity-service` package; we do not want a situation where the services from both packages are running at the same time because they will step over each other trying to provision the device and trying to manage Docker modules. We will enforce this in the packages by having them conflict with each other, so that the distribution's package manager will not allow them both to be installed at the same time either.
+The user must remove the existing `iotedge` and `libiothsm-std` packages before installing the `aziot-edge` package (or even the `aziot-identity-service` package). We do not want a situation where the services from both packages are running at the same time. They would step over each other trying to provision the device and manage Docker modules. We enforce mutual exclusivity between the packages by having them conflict with each other so that the distribution's package manager does not allow them both to be installed at the same time.
 
-The precise details of the migration are still being worked out. A high-level view is:
+The `iotedge init` automatically detects when the configuration of the old IoT Edge installation is available and prompts whether to create the new configuration based on the old. Agreeing to import the old configuation does not remove it.
+
+### Initialization Options
+
+The `--force` option can be used to force the initialization sequence to select new configuration values. This writes a new configuration file(s).
+
+```sh
+iotedge init --force
+```
+
+A non-interactive initialization that attempts to import the old configuration from `iotedge` can be done using the `--import` option.
+
+```sh
+iotedge init --import
+```
+
+### Automating Upgrades of `iotedge` to `aziot-edge`
+
+We expect that users will manually run the tool when updating the install on the device. Of course, if it has been tested on M devices and the user is confident that it will succeed on the remaining N devices, they can use some custom deployment tooling to automatically perform the update at scale across all their devices.
+The process of importing the configuration is intentionally designed to be run manually, rather than being done automatically by the new services. It is potentially fallible and could offline the device.
+
+### Downgrading
+
+The old configuration from `iotedge` is not removed from its location by any of the above actions; therefore, downgrading from the new package to the old one simply involves uninstalling the `aziot-edge` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
+
+```sh
+sudo apt remove aziot-edge aziot-identity-service
+
+sudo apt install iotedge
+```
+
+### Technical Details on Migrating Configuration
+
+The precise details are still being worked out. A high-level view is:
 
 - Device provisioning method is parsed from `config.yaml` and translated into the provisioning information in `identityd/config.toml`, `keyd/config.toml` and `certd/config.toml`. For example, in case of manual-symmetric-key provisioning, the SAS key will be imported as a preloaded key in `keyd/config.toml`, and `identityd/config.toml` will be updated to use manual provisioning with a reference to the key ID.
 
-  Some provisioning methods are not supported, like DPS-TPM provisioning, so the migration will fail in this case.
+  Some provisioning methods are not yet supported, like DPS-TPM provisioning. The migration will fail in this case.
 
 - User-provided certificates like device ID, device CA and trust bundle, and their corresponding private key files, will be added as preloaded keys and certs in `keyd/config.toml` and `certd/config.toml`. The files themselves will not be moved, because they are managed by the user rather than belonging in our services' directories.
 
@@ -290,8 +312,19 @@ The precise details of the migration are still being worked out. A high-level vi
 
 - Certs like workload CA and module server certs that are created dynamically by `iotedged`, and can be regenerated trivially without any problems, will not be copied or imported into the new services.
 
-The process of migration is intentionally designed to be run manually by the user, rather than being done automatically by the new services, because it is both fallible and could potentially offline the device. Therefore we expect that users will manually run the tool to update the device. Of course, if the user has tested on M devices and is confident that it will succeed on their remaining N devices, they can use some custom deployment tooling to automatically perform the migration at scale across all their devices.
-
-For the files that are copied to new locations, it is important to note that they are not deleted from their previous locations. Therefore the user can still downgrade from the new package to the old one by uninstalling the `iotedge-aziot` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
+### Open Issues
 
 It is not yet certain whether Edge Agent, Edge Hub and other modules will be able to decrypt any data when running against the new services that they previously encrypted using the workload API with the old service.
+
+## Installation procedure for non-IoT Edge (`aziot-identity-service` only)
+
+The IS+KS+CS components can still be installed as a standalone package on devices where IoT Edge will **not** be used. They enable an application to provision a device, manage module identities, and manage cryptographic keys and certificates.
+
+```sh
+apt install aziot-identity-service
+
+aziot init
+```
+
+After installing the package, run `aziot init` to interactively set up the configuration with minimal information like the device provisioning method.
+

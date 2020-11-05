@@ -146,10 +146,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "aziot-cloud-client-async-common"
+version = "0.1.0"
+dependencies = [
+ "aziot-cert-client-async",
+ "aziot-key-client-async",
+ "aziot-key-common",
+ "base64",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "http",
+ "http-common",
+ "hyper",
+ "hyper-openssl",
+ "log",
+ "openssl",
+ "openssl2",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "aziot-dps-client-async"
 version = "0.1.0"
 dependencies = [
  "aziot-cert-client-async",
+ "aziot-cloud-client-async-common",
  "aziot-key-client",
  "aziot-key-client-async",
  "aziot-key-common",
@@ -157,6 +183,7 @@ dependencies = [
  "base64",
  "bytes",
  "chrono",
+ "futures-util",
  "http",
  "http-common",
  "hyper",
@@ -177,6 +204,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-cert-client-async",
  "aziot-cert-common-http",
+ "aziot-cloud-client-async-common",
  "aziot-identity-common",
  "aziot-key-client",
  "aziot-key-client-async",
