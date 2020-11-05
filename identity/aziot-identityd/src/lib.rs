@@ -372,6 +372,49 @@ impl Api {
         Ok(())
     }
 
+    async fn dps_get_registered_device(
+        &mut self,
+        credential: aziot_identity_common::Credentials,
+        registration_id: &str,
+        operation_id: &str,
+        dps_client: aziot_dps_client_async::Client,
+        dps_auth_kind: &aziot_dps_client_async::DpsAuthKind,
+    ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+        let mut retry_count =
+            (DPS_ASSIGNMENT_TIMEOUT_SECS / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS) + 1;
+        loop {
+            if retry_count == 0 {
+                return Err(Error::DeviceNotFound);
+            }
+            retry_count -= 1;
+
+            let credential_clone = credential.clone();
+            let reg_status = dps_client
+                .get_operation_status(registration_id, operation_id, dps_auth_kind)
+                .await
+                .map_err(Error::DPSClient)?;
+
+            let status = reg_status.status.ok_or(Error::DeviceNotFound)?;
+            if !status.eq_ignore_ascii_case("assigning") {
+                let mut state = reg_status.registration_state.ok_or(Error::DeviceNotFound)?;
+                let iothub_hostname = state.assigned_hub.get_or_insert("".into());
+                let device_id = state.device_id.get_or_insert("".into());
+                let device = aziot_identity_common::IoTHubDevice {
+                    iothub_hostname: iothub_hostname.clone(),
+                    device_id: device_id.clone(),
+                    credentials: credential_clone,
+                };
+
+                break Ok(device);
+            }
+
+            tokio::time::delay_for(tokio::time::Duration::from_secs(
+                DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
+            ))
+            .await;
+        }
+    }
+
     pub async fn provision_device(
         &mut self,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
@@ -414,99 +457,42 @@ impl Api {
                 scope_id,
                 attestation,
             } => {
+                let dps_client = aziot_dps_client_async::Client::new(
+                    &global_endpoint,
+                    &scope_id,
+                    self.key_client.clone(),
+                    self.key_engine.clone(),
+                    self.cert_client.clone(),
+                );
+
                 let device = match attestation {
                     settings::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,
                     } => {
-                        let result = {
-                            let mut key_engine = self.key_engine.lock().await;
-                            aziot_dps_client_async::register(
-                                global_endpoint.as_str(),
-                                &scope_id,
-                                &registration_id,
-                                Some(symmetric_key.clone()),
-                                None,
-                                None,
-                                &self.key_client,
-                                &mut *key_engine,
-                                &self.cert_client,
-                            )
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
+                            sas_key: symmetric_key.clone(),
+                        };
+
+                        let credential = aziot_identity_common::Credentials::SharedPrivateKey(
+                            symmetric_key.clone(),
+                        );
+
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
                             .await
-                        };
-                        let device = match result {
-                            Ok(operation) => {
-                                let mut retry_count = (DPS_ASSIGNMENT_TIMEOUT_SECS
-                                    / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS)
-                                    + 1;
-                                let credential =
-                                    aziot_identity_common::Credentials::SharedPrivateKey(
-                                        symmetric_key.clone(),
-                                    );
-                                loop {
-                                    if retry_count == 0 {
-                                        return Err(Error::DeviceNotFound);
-                                    }
-                                    let credential_clone = credential.clone();
-                                    let result = {
-                                        let mut key_engine = self.key_engine.lock().await;
-                                        aziot_dps_client_async::get_operation_status(
-                                            global_endpoint.as_str(),
-                                            &scope_id,
-                                            &registration_id,
-                                            &operation.operation_id,
-                                            Some(symmetric_key.clone()),
-                                            None,
-                                            None,
-                                            &self.key_client,
-                                            &mut *key_engine,
-                                            &self.cert_client,
-                                        )
-                                        .await
-                                    };
+                            .map_err(Error::DPSClient)?;
 
-                                    match result {
-                                        Ok(reg_status) => {
-                                            match reg_status.status {
-                                                Some(status) => {
-                                                    if !status.eq_ignore_ascii_case("assigning") {
-                                                        let mut state = reg_status
-                                                            .registration_state
-                                                            .ok_or(Error::DeviceNotFound)?;
-                                                        let iothub_hostname = state
-                                                            .assigned_hub
-                                                            .get_or_insert("".into());
-                                                        let device_id = state
-                                                            .device_id
-                                                            .get_or_insert("".into());
-                                                        let device =
-                                                            aziot_identity_common::IoTHubDevice {
-                                                                iothub_hostname: iothub_hostname
-                                                                    .clone(),
-                                                                device_id: device_id.clone(),
-                                                                credentials: credential_clone,
-                                                            };
-
-                                                        break device;
-                                                    }
-                                                }
-                                                None => return Err(Error::DeviceNotFound),
-                                            };
-                                        }
-                                        Err(err) => return Err(Error::DPSClient(err)),
-                                    }
-                                    retry_count -= 1;
-                                    tokio::time::delay_for(tokio::time::Duration::from_secs(
-                                        DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
-                                    ))
-                                    .await;
-                                }
-                            }
-                            Err(err) => return Err(Error::DPSClient(err)),
-                        };
-
-                        self.id_manager.set_device(&device);
-                        aziot_identity_common::ProvisioningStatus::Provisioned(device)
+                        let device = self
+                            .dps_get_registered_device(
+                                credential,
+                                &registration_id,
+                                &operation.operation_id,
+                                dps_client,
+                                &dps_auth_kind,
+                            )
+                            .await?;
+                        device
                     }
                     settings::DpsAttestationMethod::X509 {
                         registration_id,
@@ -520,98 +506,35 @@ impl Api {
                         )
                         .await?;
 
-                        let result = {
-                            let mut key_engine = self.key_engine.lock().await;
-                            aziot_dps_client_async::register(
-                                global_endpoint.as_str(),
-                                &scope_id,
-                                &registration_id,
-                                None,
-                                Some(identity_cert.clone()),
-                                Some(identity_pk.clone()),
-                                &self.key_client,
-                                &mut *key_engine,
-                                &self.cert_client,
-                            )
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
+                            identity_cert: identity_cert.clone(),
+                            identity_pk: identity_pk.clone(),
+                        };
+
+                        let credential = aziot_identity_common::Credentials::X509 {
+                            identity_cert: identity_cert.clone(),
+                            identity_pk: identity_pk.clone(),
+                        };
+
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
                             .await
-                        };
+                            .map_err(Error::DPSClient)?;
 
-                        let device = match result {
-                            Ok(operation) => {
-                                let mut retry_count = (DPS_ASSIGNMENT_TIMEOUT_SECS
-                                    / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS)
-                                    + 1;
-                                let credential = aziot_identity_common::Credentials::X509 {
-                                    identity_cert: identity_cert.clone(),
-                                    identity_pk: identity_pk.clone(),
-                                };
-                                loop {
-                                    if retry_count == 0 {
-                                        return Err(Error::DeviceNotFound);
-                                    }
-                                    let credential_clone = credential.clone();
-                                    let result = {
-                                        let mut key_engine = self.key_engine.lock().await;
-                                        aziot_dps_client_async::get_operation_status(
-                                            global_endpoint.as_str(),
-                                            &scope_id,
-                                            &registration_id,
-                                            &operation.operation_id,
-                                            None,
-                                            Some(identity_cert.clone()),
-                                            Some(identity_pk.clone()),
-                                            &self.key_client,
-                                            &mut *key_engine,
-                                            &self.cert_client,
-                                        )
-                                        .await
-                                    };
-
-                                    match result {
-                                        Ok(reg_status) => {
-                                            match reg_status.status {
-                                                Some(status) => {
-                                                    if !status.eq_ignore_ascii_case("assigning") {
-                                                        let mut state = reg_status
-                                                            .registration_state
-                                                            .ok_or(Error::DeviceNotFound)?;
-                                                        let iothub_hostname = state
-                                                            .assigned_hub
-                                                            .get_or_insert("".into());
-                                                        let device_id = state
-                                                            .device_id
-                                                            .get_or_insert("".into());
-                                                        let device =
-                                                            aziot_identity_common::IoTHubDevice {
-                                                                iothub_hostname: iothub_hostname
-                                                                    .clone(),
-                                                                device_id: device_id.clone(),
-                                                                credentials: credential_clone,
-                                                            };
-
-                                                        break device;
-                                                    }
-                                                }
-                                                None => return Err(Error::DeviceNotFound),
-                                            };
-                                        }
-                                        Err(_) => return Err(Error::DeviceNotFound),
-                                    }
-                                    retry_count -= 1;
-                                    tokio::time::delay_for(tokio::time::Duration::from_secs(
-                                        DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
-                                    ))
-                                    .await;
-                                }
-                            }
-                            Err(_) => return Err(Error::DeviceNotFound),
-                        };
-
-                        self.id_manager.set_device(&device);
-                        aziot_identity_common::ProvisioningStatus::Provisioned(device)
+                        let device = self
+                            .dps_get_registered_device(
+                                credential,
+                                &registration_id,
+                                &operation.operation_id,
+                                dps_client,
+                                &dps_auth_kind,
+                            )
+                            .await?;
+                        device
                     }
                 };
-                device
+                self.id_manager.set_device(&device);
+                aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             settings::ProvisioningType::None => {
                 log::info!("Skipping provisioning with IoT Hub.");

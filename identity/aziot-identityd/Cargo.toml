@@ -28,8 +28,8 @@ tokio = { version = "0.2", features = ["time"] }
 toml = "0.5"
 url = { version = "2.0", features = ["serde"] }
 
-aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
+aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-dps-client-async = { path = "../aziot-dps-client-async" }
 aziot-hub-client-async = { path = "../aziot-hub-client-async" }
 aziot-identity-common = { path = "../aziot-identity-common" }

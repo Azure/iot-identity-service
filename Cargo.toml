@@ -11,6 +11,7 @@ members = [
 
 	"http-common",
 
+	"identity/aziot-cloud-client-async-common",
 	"identity/aziot-dps-client-async",
 	"identity/aziot-hub-client-async",
 	"identity/aziot-identity-common",

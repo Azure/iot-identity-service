@@ -1,7 +1,7 @@
 [package]
-name = "aziot-dps-client-async"
+name = "aziot-cloud-client-async-common"
 version = "0.1.0"
-authors = ["Rajeev Massand <massand@gmail.com>"]
+authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 publish = false
 
@@ -22,10 +22,7 @@ futures-util = "0.3"
 url = "2"
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
-aziot-cloud-client-async-common = { path = "../aziot-cloud-client-async-common" }
-aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
-aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
