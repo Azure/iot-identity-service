@@ -335,7 +335,7 @@ where
 			content-length: {body_len}\r\n\
 			content-type: application/json\r\n\
 			\r\n\
-			{body}
+			{body}\
 			",
             body_len = body_len,
             body = body,
@@ -343,12 +343,6 @@ where
     } else {
         stream.write_all(b"\r\n")?;
     }
-
-    // While `connection: close` with a `stream.read_to_end(&mut buf)` ought to be sufficient, hyper sometimes fails to close the connection
-    // and causes read_to_end to block indefinitely. Verified through strace that hyper sometimes completes a writev() to write to the socket but
-    // never close()s it.
-    //
-    // So parse more robustly by only reading up to the length expected.
 
     let mut buf = vec![0_u8; 512];
     let mut read_so_far = 0;
