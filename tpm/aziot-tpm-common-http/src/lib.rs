@@ -26,7 +26,7 @@ impl std::str::FromStr for ApiVersion {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "2020-10-15" => Ok(ApiVersion::V2020_09_01),
+            "2020-09-01" => Ok(ApiVersion::V2020_09_01),
             _ => Err(()),
         }
     }
