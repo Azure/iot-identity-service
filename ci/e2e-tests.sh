@@ -140,6 +140,9 @@ get_package() {
 }
 
 
+# Test required variables
+: "$AZURE_TENANT_ID" "$AZURE_USERNAME" "$AZURE_PASSWORD"
+
 test_name="$1"
 
 
@@ -581,7 +584,7 @@ echo 'Configured package' >&2
 
 
 echo 'Running test...' >&2
-scp -i "$PWD/vm-ssh-key" "$GITHUB_WORKSPACE/ci/module-get-twin.sh" "aziot@$vm_public_ip:/home/aziot/"
+scp -i "$PWD/vm-ssh-key" "$GITHUB_WORKSPACE/ci/iothub-get-twin.sh" "aziot@$vm_public_ip:/home/aziot/"
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     set -euxo pipefail
 
@@ -602,26 +605,49 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     ) |
         grep -q .
 
-    identity=\"\$(
-        curl --unix-socket /run/aziot/identityd.sock 'http://foo/identities/modules/testmodule?api-version=2020-09-01'
+    # Get device identity and use it to get device twin
+    device_identity=\"\$(
+        curl --unix-socket '/run/aziot/identityd.sock' \\
+            -X POST -H 'content-type: application/json' --data-binary '{ \"type\": \"\" }' \\
+            'http://foo/identities/device?api-version=2020-09-01'
     )\"
-    printf '%s\n' \"\$identity\" >&2
+    printf 'Device identity: %s\n' \"\$device_identity\" >&2
 
-    if [ \"\$(<<< \"\$identity\" jq -r '.type')\" != 'aziot' ]; then
-        echo 'Expected identity.type to be aziot' >&2
+    if [ \"\$(<<< \"\$device_identity\" jq -r '.type')\" != 'aziot' ]; then
+        echo 'Expected .type to be aziot' >&2
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$identity\" jq -r '.spec.hubName')\" != '$common_resource_name.azure-devices.net' ]; then
-        echo 'Expected identity.spec.hubName to be $common_resource_name.azure-devices.net' >&2
+    if [ \"\$(<<< \"\$device_identity\" jq -r '.spec.hubName')\" != '$common_resource_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $common_resource_name.azure-devices.net' >&2
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$identity\" jq -r '.spec.moduleId')\" != 'testmodule' ]; then
-        echo 'Expected identity.spec.moduleId to be testmodule' >&2
+    device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\" >&2)\"
+    printf 'Device twin: %s\n' \"\$device_twin\" >&2
+
+    module_identity=\"\$(
+        curl --unix-socket '/run/aziot/identityd.sock' \\
+            'http://foo/identities/modules/testmodule?api-version=2020-09-01'
+    )\"
+    printf '%s\n' \"\$module_identity\" >&2
+
+    if [ \"\$(<<< \"\$module_identity\" jq -r '.type')\" != 'aziot' ]; then
+        echo 'Expected .type to be aziot' >&2
         exit 1
     fi
 
-    ~/module-get-twin.sh \"\$identity\" >&2
+    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.hubName')\" != '$common_resource_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $common_resource_name.azure-devices.net' >&2
+        exit 1
+    fi
+
+    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.moduleId')\" != 'testmodule' ]; then
+        echo 'Expected .spec.moduleId to be testmodule' >&2
+        exit 1
+    fi
+
+    module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\" >&2)\"
+    printf 'Device twin: %s\n' \"\$module_twin\" >&2
 "
 echo 'Test passed.' >&2
