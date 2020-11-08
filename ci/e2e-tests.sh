@@ -146,10 +146,12 @@ test_name="$1"
 run_id="$OS:$GITHUB_RUN_ID:$GITHUB_RUN_NUMBER:$test_name"
 echo "Run ID: $run_id" >&2
 
+GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
+
 
 # Temp directory used as scratch space to store the downloaded package from GitHub
 # and the config files for the package that are scp'd to the test VM.
-working_directory="iot-identity-service-e2e-tests-${run_id//:/-}"
+working_directory="/tmp/iot-identity-service-e2e-tests-${run_id//:/-}"
 echo "Working directory: $working_directory" >&2
 mkdir -p "$working_directory"
 cd "$working_directory"
@@ -248,7 +250,10 @@ echo 'Generated ssh key' >&2
 
 common_resource_name="${run_id//:/-}"
 common_resource_name="${common_resource_name//./-}"
+echo "common_resource_name: $common_resource_name" >&2
+
 resource_tag="run_id=$run_id"
+echo "resource_tag: $resource_tag" >&2
 
 
 # `az resource list` has `--tag` to filter, but it cannot be combined with `--resource-group`,
@@ -497,7 +502,7 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
-            sudo yum install -y curl jq
+            sudo yum install -y bc curl jq
             sudo yum -y install /home/aziot/aziot-identity-service.rpm
 
             sudo systemctl start aziot-{key,cert,identity}d.socket
@@ -511,7 +516,7 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
-            sudo apt-get install -y curl jq
+            sudo apt-get install -y bc curl jq
             sudo apt-get install -y /home/aziot/aziot-identity-service.deb
         '
         ;;
@@ -576,6 +581,7 @@ echo 'Configured package' >&2
 
 
 echo 'Running test...' >&2
+scp -i "$PWD/vm-ssh-key" "$GITHUB_WORKSPACE/ci/module-get-twin.sh" "aziot@$vm_public_ip:/home/aziot/"
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     set -euxo pipefail
 
@@ -615,5 +621,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         echo 'Expected identity.spec.moduleId to be testmodule' >&2
         exit 1
     fi
+
+    ~/module-get-twin.sh \"\$identity\" >&2
 "
 echo 'Test passed.' >&2
