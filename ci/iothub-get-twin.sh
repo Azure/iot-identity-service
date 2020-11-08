@@ -252,7 +252,6 @@ case "$auth_type" in
         expiry="$(bc <<< "$(date +%s) + 60 * 60 * 24")"
         signature_data="$(printf '%s\n%s' "$resource_uri" "$expiry" | base64 -w 0)"
         signature="$(
-            set -x;
             curl --unix-socket '/run/aziot/keyd.sock' \
                 -X POST -H 'content-type: application/json' --data-binary "$(
                     jq -cn --arg 'keyHandle' "$key_handle" --arg 'message' "$signature_data" '{

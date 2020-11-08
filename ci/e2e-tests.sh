@@ -623,7 +623,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\" >&2)\"
+    device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
     printf 'Device twin: %s\n' \"\$device_twin\" >&2
 
     module_identity=\"\$(
@@ -647,7 +647,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\" >&2)\"
+    module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
     printf 'Device twin: %s\n' \"\$module_twin\" >&2
 "
 echo 'Test passed.' >&2
