@@ -63,7 +63,10 @@ impl http_common::server::Route for Route {
         };
 
         //TODO: get uid from UDS
-        match api.delete_identity(auth_id, "aziot", &self.module_id).await {
+        match api
+            .delete_identity(auth_id, self.id_type, &self.module_id)
+            .await
+        {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
         }
@@ -118,7 +121,10 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        let identity = match api.update_identity(auth_id, "aziot", &self.module_id).await {
+        let identity = match api
+            .update_identity(auth_id, self.id_type, &self.module_id)
+            .await
+        {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
