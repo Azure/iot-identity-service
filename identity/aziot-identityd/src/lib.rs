@@ -37,7 +37,7 @@ const ID_TYPE_LOCAL: &str = "local";
 macro_rules! match_id_type {
     ($id_type:ident, $(($type:ident, $action:expr)),+) => {
         if let Some(id_type) = $id_type {
-            match id_type.as_str() {
+            match id_type {
                 $(
                     $type => $action,
                 )+
@@ -224,7 +224,7 @@ impl Api {
     pub async fn get_identity(
         &self,
         auth_id: auth::AuthId,
-        id_type: Option<String>,
+        id_type: Option<&str>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -247,7 +247,7 @@ impl Api {
     pub async fn get_identities(
         &self,
         auth_id: auth::AuthId,
-        id_type: Option<String>,
+        id_type: Option<&str>,
     ) -> Result<Vec<aziot_identity_common::Identity>, Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -280,7 +280,7 @@ impl Api {
     pub async fn create_identity(
         &self,
         auth_id: auth::AuthId,
-        id_type: Option<String>,
+        id_type: Option<&str>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -302,7 +302,7 @@ impl Api {
     pub async fn update_identity(
         &self,
         auth_id: auth::AuthId,
-        id_type: Option<String>,
+        id_type: Option<&str>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -324,7 +324,7 @@ impl Api {
     pub async fn delete_identity(
         &self,
         auth_id: auth::AuthId,
-        id_type: Option<String>,
+        id_type: Option<&str>,
         module_id: &str,
     ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {

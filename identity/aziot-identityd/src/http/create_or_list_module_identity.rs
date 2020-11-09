@@ -23,7 +23,7 @@ impl http_common::server::Route for Route {
         }
 
         let id_type: Option<String> = query.iter().find_map(|q| {
-            if q.0.to_lowercase() == "type" {
+            if q.0 == "type" {
                 Some(q.1.to_string())
             } else {
                 None
@@ -51,7 +51,7 @@ impl http_common::server::Route for Route {
         };
 
         //TODO: get uid from UDS
-        let identities = match api.get_identities(auth_id, self.id_type).await {
+        let identities = match api.get_identities(auth_id, self.id_type.as_deref()).await {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
@@ -81,7 +81,7 @@ impl http_common::server::Route for Route {
 
         //TODO: get uid from UDS
         let identity = match api
-            .create_identity(auth_id, Some(body.id_type), &body.module_id)
+            .create_identity(auth_id, Some(&body.id_type), &body.module_id)
             .await
         {
             Ok(id) => id,
