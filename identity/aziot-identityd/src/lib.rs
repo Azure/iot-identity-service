@@ -41,10 +41,10 @@ macro_rules! match_id_type {
                 $(
                     $type => $action,
                 )+
-                _ => Err(Error::invalid_parameter("id_type", "invalid id_type")),
+                _ => Err(Error::invalid_parameter("type", format!("invalid type {}", id_type))),
             }
         } else {
-            Err(Error::invalid_parameter("id_type", "missing id_type"))
+            Err(Error::invalid_parameter("type", "missing parameter"))
         }
     };
 }
@@ -247,7 +247,7 @@ impl Api {
     pub async fn get_identities(
         &self,
         auth_id: auth::AuthId,
-        id_type: &str,
+        id_type: Option<String>,
     ) -> Result<Vec<aziot_identity_common::Identity>, Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -256,11 +256,10 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        if id_type.eq("aziot") {
-            self.id_manager.get_module_identities().await
-        } else {
-            Err(Error::invalid_parameter("id_type", "invalid id_type"))
-        }
+        match_id_type!(
+            id_type,
+            (ID_TYPE_AZIOT, self.id_manager.get_module_identities().await)
+        )
     }
 
     pub async fn get_device_identity(
@@ -281,7 +280,7 @@ impl Api {
     pub async fn create_identity(
         &self,
         auth_id: auth::AuthId,
-        _idtype: &str,
+        id_type: Option<String>,
         module_id: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -291,8 +290,13 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        //TODO: match identity type based on uid configuration and create and get identity from appropriate identity manager (Hub or local)
-        self.id_manager.create_module_identity(module_id).await
+        match_id_type!(
+            id_type,
+            (
+                ID_TYPE_AZIOT,
+                self.id_manager.create_module_identity(module_id).await
+            )
+        )
     }
 
     pub async fn update_identity(

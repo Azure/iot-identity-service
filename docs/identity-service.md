@@ -131,7 +131,10 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ---
 
 ### List IoT Module Identities
-`GET /identities/modules?api-version=2020-09-01`
+`GET /identities/modules?api-version=2020-09-01&type={type}`
+
+The `type` query parameter specifies the identity type to return. Accepted values are:
+- `aziot`: Module identity.
 
 #### Response (SAS case)
 ```json
