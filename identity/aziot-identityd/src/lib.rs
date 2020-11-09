@@ -41,7 +41,7 @@ macro_rules! match_id_type {
                 $(
                     $type => $action,
                 )+
-                _ => Err(Error::invalid_parameter("type", format!("invalid type {}", id_type))),
+                _ => Err(Error::invalid_parameter("type", format!("invalid type: {}", id_type))),
             }
         } else {
             Err(Error::invalid_parameter("type", "missing parameter"))
