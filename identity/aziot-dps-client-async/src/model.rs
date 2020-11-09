@@ -4,10 +4,15 @@
 pub struct DeviceRegistration {
     #[serde(rename = "registrationId", skip_serializing_if = "Option::is_none")]
     pub registration_id: Option<String>,
+    #[serde(rename = "tpm", skip_serializing_if = "Option::is_none")]
+    pub tpm: Option<TpmAttestation>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct DeviceRegistrationResult {
+    /// Registration result returned when using TPM attestation
+    #[serde(rename = "tpm", skip_serializing_if = "Option::is_none")]
+    pub tpm: Option<TpmRegistrationResult>,
     /// Registration result returned when using X509 attestation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x509: Option<X509RegistrationResult>,
@@ -57,6 +62,20 @@ pub struct DeviceRegistrationResult {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TpmAttestation {
+    #[serde(rename = "endorsementKey")]
+    pub endorsement_key: String,
+    #[serde(rename = "storageRootKey", skip_serializing_if = "Option::is_none")]
+    pub storage_root_key: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TpmRegistrationResult {
+    #[serde(rename = "authenticationKey")]
+    pub authentication_key: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct SymmetricKeyRegistrationResult {
     #[serde(rename = "enrollmentGroupId")]
     pub enrollment_group_id: Option<String>,
@@ -101,8 +120,8 @@ pub struct RegistrationOperationStatus {
     #[serde(rename = "operationId")]
     pub operation_id: String,
     /// Device enrollment status.
-    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
+    #[serde(rename = "status")]
+    pub status: String,
     /// Device registration status.
     #[serde(rename = "registrationState", skip_serializing_if = "Option::is_none")]
     pub registration_state: Option<DeviceRegistrationResult>,

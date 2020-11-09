@@ -8,15 +8,16 @@ use std::io;
 
 pub const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
+/// `key_client` must be either an `aziot_key_client_async::Client` or an `aziot_tpm_client_async::Client`.
 pub async fn get_sas_connector(
     audience: &str,
-    key_handle: &str,
-    key_client: &aziot_key_client_async::Client,
+    key_handle: impl AsRef<[u8]>,
+    key_client: &impl KeyClient,
 ) -> io::Result<(
     hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
     String,
 )> {
-    let key_handle = key_client.load_key(key_handle).await?;
+    let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
 
     let token = {
         let expiry = chrono::Utc::now()
@@ -30,11 +31,7 @@ pub async fn get_sas_connector(
         let sig_data = format!("{}\n{}", &resource_uri, expiry);
 
         let signature = key_client
-            .sign(
-                &key_handle,
-                aziot_key_common::SignMechanism::HmacSha256,
-                sig_data.as_bytes(),
-            )
+            .sign_with_key(&key_handle, sig_data.as_bytes())
             .await?;
 
         let signature = base64::encode(&signature);
@@ -42,6 +39,7 @@ pub async fn get_sas_connector(
         let token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
             .append_pair("sig", &signature)
             .append_pair("se", &expiry)
+            .append_pair("skn", "registration")
             .finish();
         token
     };
@@ -94,4 +92,65 @@ pub async fn get_x509_connector(
         tls_connector
     };
     Ok(connector)
+}
+
+mod private {
+    pub trait Sealed {}
+    impl<T> Sealed for T where T: super::KeyClient {}
+}
+
+/// An abstraction over aziot_key_client_async::Client and aziot_tpm_client_async::Client.
+///
+/// This trait is sealed, and cannot be implemented by consumers of this crate.
+#[async_trait::async_trait]
+pub trait KeyClient: private::Sealed {
+    type KeyHandle;
+
+    async fn insert_key(&self, key_handle: &[u8]) -> io::Result<Self::KeyHandle>;
+    async fn sign_with_key(&self, key_handle: &Self::KeyHandle, data: &[u8])
+        -> io::Result<Vec<u8>>;
+}
+
+#[async_trait::async_trait]
+impl KeyClient for aziot_key_client_async::Client {
+    type KeyHandle = aziot_key_common::KeyHandle;
+
+    async fn insert_key(&self, key: &[u8]) -> io::Result<Self::KeyHandle> {
+        // HACK: the key server expects key handles to be strings, while the TPM
+        // server does not. The lowest common denominator between the two is
+        // `&[u8]`, so that's what the generic interface uses.
+        //
+        // as such, we expect this conversion to never fail.
+        self.load_key(
+            std::str::from_utf8(key)
+                .expect("aziot_key_client_async::Client::load_key expects UTF-8 keys"),
+        )
+        .await
+    }
+
+    async fn sign_with_key(
+        &self,
+        key_handle: &aziot_key_common::KeyHandle,
+        data: &[u8],
+    ) -> io::Result<Vec<u8>> {
+        self.sign(
+            key_handle,
+            aziot_key_common::SignMechanism::HmacSha256,
+            data,
+        )
+        .await
+    }
+}
+
+#[async_trait::async_trait]
+impl KeyClient for aziot_tpm_client_async::Client {
+    type KeyHandle = ();
+
+    async fn insert_key(&self, key: &[u8]) -> io::Result<Self::KeyHandle> {
+        self.import_auth_key(key).await
+    }
+
+    async fn sign_with_key(&self, _key_handle: &(), data: &[u8]) -> io::Result<Vec<u8>> {
+        self.sign_with_auth_key(data).await
+    }
 }

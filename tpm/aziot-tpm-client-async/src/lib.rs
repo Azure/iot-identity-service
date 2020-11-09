@@ -41,9 +41,9 @@ impl Client {
         })
     }
 
-    pub async fn import_auth_key(&self, key: Vec<u8>) -> std::io::Result<()> {
+    pub async fn import_auth_key(&self, key: impl AsRef<[u8]>) -> std::io::Result<()> {
         let body = aziot_tpm_common_http::import_auth_key::Request {
-            key: http_common::ByteString(key),
+            key: http_common::ByteString(key.as_ref().to_vec()),
         };
 
         let _res: aziot_tpm_common_http::import_auth_key::Response = request(
@@ -60,9 +60,9 @@ impl Client {
     }
 
     /// Returns the `data` digest
-    pub async fn sign_with_auth_key(&self, data: Vec<u8>) -> std::io::Result<Vec<u8>> {
+    pub async fn sign_with_auth_key(&self, data: impl AsRef<[u8]>) -> std::io::Result<Vec<u8>> {
         let body = aziot_tpm_common_http::sign_with_auth_key::Request {
-            data: http_common::ByteString(data),
+            data: http_common::ByteString(data.as_ref().to_vec()),
         };
 
         let res: aziot_tpm_common_http::sign_with_auth_key::Response = request(

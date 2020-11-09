@@ -175,6 +175,9 @@ pub enum DpsAttestationMethod {
         identity_cert: String,
         identity_pk: String,
     },
+    Tpm {
+        registration_id: String,
+    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -220,6 +223,7 @@ pub struct Endpoints {
     pub aziot_certd: http_common::Connector,
     pub aziot_identityd: http_common::Connector,
     pub aziot_keyd: http_common::Connector,
+    pub aziot_tpmd: http_common::Connector,
 }
 
 impl Default for Endpoints {
@@ -233,6 +237,9 @@ impl Default for Endpoints {
             },
             aziot_keyd: http_common::Connector::Unix {
                 socket_path: std::path::Path::new("/run/aziot/keyd.sock").into(),
+            },
+            aziot_tpmd: http_common::Connector::Unix {
+                socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into(),
             },
         }
     }

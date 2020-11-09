@@ -19,9 +19,16 @@ use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
 
 pub mod model;
 
+/// This is the interval at which to poll DPS for registration assignment status
+const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
+
+/// This is the number of seconds to wait for DPS to complete assignment to a hub
+const DPS_ASSIGNMENT_TIMEOUT_SECS: u64 = 120;
+
 pub const DPS_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
+#[derive(Clone)]
 pub enum DpsAuthKind {
     SymmetricKey {
         sas_key: String,
@@ -29,6 +36,13 @@ pub enum DpsAuthKind {
     X509 {
         identity_cert: String,
         identity_pk: String,
+    },
+    Tpm,
+    /// Used as part of a recursive call within `request`
+    #[doc(hidden)]
+    TpmWithAuth {
+        // base64 encoded
+        auth_key: String,
     },
 }
 
@@ -39,6 +53,7 @@ pub struct Client {
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
+    tpm_client: Arc<aziot_tpm_client_async::Client>,
 }
 
 impl Client {
@@ -49,6 +64,7 @@ impl Client {
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
+        tpm_client: Arc<aziot_tpm_client_async::Client>,
     ) -> Self {
         Client {
             global_endpoint: global_endpoint.to_owned(),
@@ -57,6 +73,7 @@ impl Client {
             key_client,
             key_engine,
             cert_client,
+            tpm_client,
         }
     }
 
@@ -70,68 +87,130 @@ impl Client {
             self.scope_id, registration_id
         );
 
-        let body = model::DeviceRegistration {
-            registration_id: Some(registration_id.into()),
+        let body = match auth_kind {
+            DpsAuthKind::Tpm => {
+                let aziot_tpm_common::TpmKeys {
+                    endorsement_key,
+                    storage_root_key,
+                } = self.tpm_client.get_tpm_keys().await?;
+
+                model::DeviceRegistration {
+                    registration_id: Some(registration_id.into()),
+                    tpm: Some(model::TpmAttestation {
+                        endorsement_key: base64::encode(&endorsement_key),
+                        storage_root_key: Some(base64::encode(&storage_root_key)),
+                    }),
+                }
+            }
+            _ => model::DeviceRegistration {
+                registration_id: Some(registration_id.into()),
+                tpm: None,
+            },
         };
 
+        let mut auth_kind = auth_kind.clone();
+
+        // kick off the registration
         let res: model::RegistrationOperationStatus = self
             .request(
                 registration_id,
                 http::Method::PUT,
                 &resource_uri,
-                auth_kind,
+                &mut auth_kind,
                 Some(&body),
             )
             .await?;
 
-        Ok(res)
-    }
-
-    pub async fn get_operation_status(
-        &self,
-        registration_id: &str,
-        operation_id: &str,
-        auth_kind: &DpsAuthKind,
-    ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
+        // spin until the registration has completed successfully
         let resource_uri = format!(
             "/{}/registrations/{}/operations/{}?api-version=2018-11-01",
-            self.scope_id, registration_id, operation_id
+            self.scope_id, registration_id, res.operation_id
         );
 
-        let res: model::RegistrationOperationStatus = self
-            .request::<(), _>(
-                registration_id,
-                http::Method::GET,
-                &resource_uri,
-                auth_kind,
-                None,
-            )
-            .await?;
+        let mut retry_count =
+            (DPS_ASSIGNMENT_TIMEOUT_SECS / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS) + 1;
+        let res = loop {
+            if retry_count == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "exceeded DPS assignment timeout threshold",
+                ));
+            }
+            retry_count -= 1;
+
+            let res: model::RegistrationOperationStatus = self
+                .request::<(), _>(
+                    registration_id,
+                    http::Method::GET,
+                    &resource_uri,
+                    &mut auth_kind,
+                    None,
+                )
+                .await?;
+
+            if !res.status.eq_ignore_ascii_case("assigning") {
+                break res;
+            }
+
+            tokio::time::delay_for(tokio::time::Duration::from_secs(
+                DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
+            ))
+            .await;
+        };
+
+        if matches!(auth_kind, DpsAuthKind::TpmWithAuth {..}) {
+            // import the returned authentication key into the TPM
+            let auth_key = res
+                .registration_state
+                .as_ref()
+                .ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::Other, "malformed DPS server response")
+                })?
+                .tpm
+                .as_ref()
+                .ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::Other, "malformed DPS server response")
+                })?
+                .authentication_key
+                .clone();
+
+            self.tpm_client
+                .import_auth_key(
+                    base64::decode(auth_key)
+                        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                )
+                .await?;
+        }
 
         Ok(res)
     }
 
+    // TPM provisioning has special 2-step challenge/response flow which is
+    // basically identical to the symmetric key flow, except that the TPM client
+    // is used instead of the key client. To keep things DRY, a recursive call
+    // is used, passing `DpsAuthKind::TpmSecondStage` as the auth kind.
+    #[async_recursion::async_recursion]
     async fn request<TRequest, TResponse>(
         &self,
         registration_id: &str,
         method: http::Method,
         resource_uri: &str,
-        auth_kind: &DpsAuthKind,
-        body: Option<&TRequest>,
+        auth_kind: &mut DpsAuthKind,
+        orig_body: Option<TRequest>,
     ) -> std::io::Result<TResponse>
     where
-        TRequest: serde::Serialize,
+        TRequest: serde::Serialize + Send,
         TResponse: serde::de::DeserializeOwned,
     {
         let uri = format!("{}{}", self.global_endpoint, resource_uri);
 
-        let req = hyper::Request::builder().method(method).uri(uri);
+        let req = hyper::Request::builder().method(&method).uri(&uri);
         // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
         //
         // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
         #[allow(clippy::option_if_let_else)]
-        let req = if let Some(body) = body {
-            let body = serde_json::to_vec(body)
+        let req = if let Some(ref body) = orig_body {
+            let body = serde_json::to_vec(&body)
                 .expect("serializing request body to JSON cannot fail")
                 .into();
             req.header(hyper::header::CONTENT_TYPE, "application/json")
@@ -143,10 +222,21 @@ impl Client {
         let mut req = req.expect("cannot fail to create hyper request");
 
         let connector = match auth_kind {
-            DpsAuthKind::SymmetricKey { sas_key } => {
+            DpsAuthKind::Tpm { .. } => hyper_openssl::HttpsConnector::new()?,
+            DpsAuthKind::SymmetricKey { sas_key: ref key }
+            | DpsAuthKind::TpmWithAuth { auth_key: ref key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-                let (connector, token) =
-                    get_sas_connector(&audience, &sas_key, &self.key_client).await?;
+                let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey {..}) {
+                    get_sas_connector(&audience, &key, &*self.key_client).await?
+                } else {
+                    get_sas_connector(
+                        &audience,
+                        &base64::decode(key)
+                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                        &*self.tpm_client,
+                    )
+                    .await?
+                };
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -155,8 +245,8 @@ impl Client {
                 connector
             }
             DpsAuthKind::X509 {
-                identity_cert,
-                identity_pk,
+                ref identity_cert,
+                ref identity_pk,
             } => {
                 get_x509_connector(
                     &identity_cert,
@@ -179,13 +269,11 @@ impl Client {
 
         let (
             http::response::Parts {
-                status: res_status_code,
-                headers,
-                ..
+                status, headers, ..
             },
             body,
         ) = res.into_parts();
-        log::debug!("DPS response status {:?}", res_status_code);
+        log::debug!("DPS response status {:?}", status);
         log::debug!("DPS response headers{:?}", headers);
 
         let mut is_json = false;
@@ -205,7 +293,7 @@ impl Client {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         log::debug!("DPS response body {:?}", body);
 
-        let res: TResponse = match res_status_code {
+        let res: TResponse = match status {
             hyper::StatusCode::OK | hyper::StatusCode::ACCEPTED => {
                 if !is_json {
                     return Err(std::io::Error::new(
@@ -218,9 +306,27 @@ impl Client {
                 res
             }
 
-            res_status_code
-                if res_status_code.is_client_error() || res_status_code.is_server_error() =>
-            {
+            status if status.is_client_error() && matches!(auth_kind, DpsAuthKind::Tpm) => {
+                if !is_json {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "malformed HTTP response",
+                    ));
+                }
+                let reg_result: model::TpmRegistrationResult = serde_json::from_slice(&body)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+
+                // update auth method
+                *auth_kind = DpsAuthKind::TpmWithAuth {
+                    auth_key: reg_result.authentication_key,
+                };
+
+                return self
+                    .request(registration_id, method, resource_uri, auth_kind, orig_body)
+                    .await;
+            }
+
+            status if status.is_client_error() || status.is_server_error() => {
                 #[derive(Debug, serde::Deserialize, serde::Serialize)]
                 pub struct Error {
                     #[serde(alias = "Message")]

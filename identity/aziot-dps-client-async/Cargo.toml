@@ -1,11 +1,12 @@
 [package]
 name = "aziot-dps-client-async"
 version = "0.1.0"
-authors = ["Rajeev Massand <massand@gmail.com>"]
+authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 publish = false
 
 [dependencies]
+async-recursion = "0.3.1"
 bytes = "0.5.6"
 base64 = "0.12"
 chrono = "0.4"
@@ -27,5 +28,7 @@ aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
+aziot-tpm-common = { path = "../../tpm/aziot-tpm-common" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
