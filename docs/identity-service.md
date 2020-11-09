@@ -21,10 +21,10 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
     "auth": {
         "type": "sas",
         "keyHandle": "string"
@@ -38,10 +38,10 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec" : 
+  "spec" :
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
     "auth": {
         "type": "x509",
         "keyHandle": "string",
@@ -55,12 +55,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "sas",
         "keyHandle": "string"
@@ -73,12 +73,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "x509",
         "keyHandle": "string",
@@ -98,10 +98,10 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
     "auth": {
         "type": "sas",
         "keyHandle": "string"
@@ -115,10 +115,10 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec" : 
+  "spec" :
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
     "auth": {
         "type": "x509",
         "keyHandle": "string",
@@ -139,12 +139,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "identities": [
     {
       "type": "aziot",
-      "spec": 
+      "spec":
       {
-        "hubname": "myhub.net",
-        "deviceid": "device01",
-        "moduleid": "module01",
-        "genid": "12345",
+        "hubName": "myhub.net",
+        "deviceId": "device01",
+        "moduleId": "module01",
+        "genId": "12345",
         "auth": {
             "type": "sas",
             "keyHandle": "string"
@@ -162,12 +162,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "identities": [
     {
       "type": "aziot",
-      "spec": 
+      "spec":
       {
-        "hubname": "myhub.net",
-        "deviceid": "device01",
-        "moduleid": "module01",
-        "genid": "12345",
+        "hubName": "myhub.net",
+        "deviceId": "device01",
+        "moduleId": "module01",
+        "genId": "12345",
         "auth": {
             "type": "x509",
             "keyHandle": "string",
@@ -190,7 +190,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 {
   "type": "aziot",
   "name": "module01",
-  "deviceid": "device01",
+  "deviceId": "device01",
   "managedBy": "edgeruntime"
 }
 ```
@@ -200,12 +200,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "sas",
         "keyHandle": "string"
@@ -219,12 +219,12 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "x509",
         "keyHandle": "string",
@@ -238,18 +238,22 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 ### Get IoT module identity information
 
-`GET /identities/modules/{module-id}?api-version=2020-09-01`
+`GET /identities/modules/{module-id}?api-version=2020-09-01[&type={type}]`
+
+The optional `type` query parameter specifies the identity type to return. Accepted values are:
+- `aziot`: Module identity. This is the default if type is not specified.
+- `local`: Local identity.
 
 #### Response (SAS case)
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "sas",
         "keyHandle": "string"
@@ -263,16 +267,33 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ```json
 {
   "type": "aziot",
-  "spec": 
+  "spec":
   {
-    "hubname": "myhub.net",
-    "deviceid": "device01",
-    "moduleid": "module01",
-    "genid": "12345",
+    "hubName": "myhub.net",
+    "deviceId": "device01",
+    "moduleId": "module01",
+    "genId": "12345",
     "auth": {
         "type": "x509",
         "keyHandle": "string",
         "certId": "string"
+    }
+  }
+}
+```
+
+#### Response (Local identity)
+
+```json
+{
+  "type": "local",
+  "spec":
+  {
+    "moduleId": "myhub.net",
+    "auth": {
+        "privateKey": "private key bytes",
+        "certificate": "certificate bytes",
+        "expiration": "yyyy-mm-ddThh:mm:ss+00:00"
     }
   }
 }
@@ -316,7 +337,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 ### Module Provisioning / Re-provisioning
 
-IoT Hub module identities will get generated by Identity service (IS) for containerized and host process workloads. Once the device identity is provisioned by IS, the IS can begin generating module identities associated with that device identity. There are two steps to configure IS to start generating module identities - 
+IoT Hub module identities will get generated by Identity service (IS) for containerized and host process workloads. Once the device identity is provisioned by IS, the IS can begin generating module identities associated with that device identity. There are two steps to configure IS to start generating module identities -
 
 1. IS configuration
 
@@ -328,24 +349,24 @@ IoT Hub module identities will get generated by Identity service (IS) for contai
     [[principal]]
     uid = 1002
     name = "hostprocess1"
-    idtype = "device"
+    idtype = ["device"]
 
     [[principal]]
     uid = 1003
     name = "hostprocess2"
-    idtype = "module"
+    idtype = ["module", "local"]
     ```
 
-    The table of principal accounts in IS configuration represents all the host process callers of IS APIs (known as `principal`s) and their corresponding OS userid. 
+    The table of principal accounts in IS configuration represents all the host process callers of IS APIs (known as `principal`s) and their corresponding OS userid.
 
-    `uid` is the OS userid that will be included in the UDS calls to IS REST APIs. This value must be unique per principal. 
+    `uid` is the OS userid that will be included in the UDS calls to IS REST APIs.
 
-    `name` is the host process caller name. If the caller is `idtype = module`, then the module identity is provisioned by IS in Azure IoT Hub with that `name`. 
-    
-     > Note:  `idtype = device` is only used in special cases, but this support could be removed prior to GA.
-    
-    `idtype` is an optional identity type returned to that host process associated with the IoT Hub identity type being returned to that host process - it is either `device` identity or `module` identity. Note that if `idtype` is not specified, the caller will be authorized to access all APIs (not just the host process APIs). It is also used by IS to provision identities with a specific `name` (when the caller has `idtype = module`).  
-    
+    `name` is the host process caller name. This value must be unique per principal. If the caller is `idtype = module`, then the module identity is provisioned by IS in Azure IoT Hub with that `name`.
+
+    `idtype` is an optional identity type returned to that host process associated with the IoT Hub identity type being returned to that host process - it is an array containing any combination of `device`, `module`, or `local`. Note that if `idtype` is not specified, the caller will be authorized to access all APIs (not just the host process APIs). It is also used by IS to provision identities with a specific `name` (when the caller's `idtype` contains `module`).
+
+    > Note:  `idtype = device` is only used in special cases, but this support could be removed prior to GA.
+
 2. OS configuration
 
     The host process package (using elevated admin privileges) needs to add OS userid, used by the host process to call IS APIs, in the `aziotid` group. See [Packaging](packaging.md) for more details on `aziot` package.
@@ -353,7 +374,6 @@ IoT Hub module identities will get generated by Identity service (IS) for contai
 
 ### Host process package configuration responsibilities
 
-Generally, for host process modules, IS needs to be configured with a list of host process userid and module names. Based on its module list in `config.toml`, IS will reconcile module identities with IoT Hub on startup. The creation process is shown in the [Provisioning Flow diagram](img/est-ca-provisioning-simple.svg). Note that a device reprovision could also trigger re-creation of module identities. 
+Generally, for host process modules, IS needs to be configured with a list of host process userid and module names. Based on its module list in `config.toml`, IS will reconcile module identities with IoT Hub on startup. The creation process is shown in the [Provisioning Flow diagram](img/est-ca-provisioning-simple.svg). Note that a device reprovision could also trigger re-creation of module identities.
 
-For installation, the device administrator will initiate a host process package install (typically an elevated admin operation), which will install IS as a dependency. First, the IS package will install a `config.toml` configuration file with a default configuration file with no configured host processes. Then, the host process package install process (using elevated privileges) will add it's respective host process userid into the `aziotid` group. Finally, the host process package install will configure it's host process userid and name in the IS `config.toml` (as shown in IS configuration above). 
-
+For installation, the device administrator will initiate a host process package install (typically an elevated admin operation), which will install IS as a dependency. First, the IS package will install a `config.toml` configuration file with a default configuration file with no configured host processes. Then, the host process package install process (using elevated privileges) will add it's respective host process userid into the `aziotid` group. Finally, the host process package install will configure it's host process userid and name by placing its own `<package>.toml` (with a `[[principal]]` table entry as shown in IS configuration above) in the IS `/etc/aziot/identityd/config.d` override directory.
