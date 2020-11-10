@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms, warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
 //Skip ARM(cross-compile) until I figure out how to run ctest on this.
 #![cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
 
