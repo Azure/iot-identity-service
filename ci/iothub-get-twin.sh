@@ -20,7 +20,7 @@ uri_encode() {
 }
 
 
-# This is a tiny Azure IoT MQTT implementation that just authenticates as a module and fetches its twin.
+# This is a tiny Azure IoT MQTT implementation that just authenticates as a device or module and fetches its twin.
 #
 # It would be nice to use mosquitto_rr instead of this, but https://github.com/eclipse/mosquitto/issues/1881
 # Also, Debian 9's moquitto-clients package is old enough that it doesn't have mosquitto_rr anyway.
