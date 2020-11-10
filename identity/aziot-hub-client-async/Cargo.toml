@@ -28,5 +28,7 @@ aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
+aziot-tpm-common = { path = "../../tpm/aziot-tpm-common" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }

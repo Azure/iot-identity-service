@@ -13,6 +13,8 @@
     clippy::type_complexity
 )]
 
+use std::sync::Arc;
+
 use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
 
 pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
@@ -20,24 +22,27 @@ pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
 
 pub struct Client {
     device: aziot_identity_common::IoTHubDevice,
-    key_client: std::sync::Arc<aziot_key_client_async::Client>,
-    key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
-    cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+    key_client: Arc<aziot_key_client_async::Client>,
+    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    cert_client: Arc<aziot_cert_client_async::Client>,
+    tpm_client: Arc<aziot_tpm_client_async::Client>,
 }
 
 impl Client {
     #[must_use]
     pub fn new(
         device: aziot_identity_common::IoTHubDevice,
-        key_client: std::sync::Arc<aziot_key_client_async::Client>,
-        key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
-        cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+        key_client: Arc<aziot_key_client_async::Client>,
+        key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+        cert_client: Arc<aziot_cert_client_async::Client>,
+        tpm_client: Arc<aziot_tpm_client_async::Client>,
     ) -> Self {
         Client {
             device,
             key_client,
             key_engine,
             cert_client,
+            tpm_client,
         }
     }
 }
@@ -74,6 +79,7 @@ impl Client {
             &self.key_client,
             &mut *key_engine,
             &self.cert_client,
+            &self.tpm_client,
         )
         .await?;
 
@@ -111,6 +117,7 @@ impl Client {
             &self.key_client,
             &mut *key_engine,
             &self.cert_client,
+            &self.tpm_client,
         )
         .await?;
         Ok(res)
@@ -137,6 +144,7 @@ impl Client {
             &self.key_client,
             &mut *key_engine,
             &self.cert_client,
+            &self.tpm_client,
         )
         .await?;
         Ok(res)
@@ -161,6 +169,7 @@ impl Client {
             &self.key_client,
             &mut *key_engine,
             &self.cert_client,
+            &self.tpm_client,
         )
         .await?;
         Ok(res)
@@ -183,6 +192,7 @@ impl Client {
             &self.key_client,
             &mut *key_engine,
             &self.cert_client,
+            &self.tpm_client,
         )
         .await?;
         Ok(())
@@ -204,6 +214,7 @@ async fn request<TRequest, TResponse>(
     key_client: &aziot_key_client_async::Client,
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
+    tpm_client: &aziot_tpm_client_async::Client,
 ) -> std::io::Result<TResponse>
 where
     TRequest: serde::Serialize,
@@ -242,6 +253,19 @@ where
                 hub_device.iothub_hostname, hub_device.device_id
             );
             let (connector, token) = get_sas_connector(&audience, &key, key_client).await?;
+
+            let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            req.headers_mut()
+                .append(hyper::header::AUTHORIZATION, authorization_header_value);
+            connector
+        }
+        aziot_identity_common::Credentials::Tpm => {
+            let audience = format!(
+                "{}/devices/{}",
+                hub_device.iothub_hostname, hub_device.device_id
+            );
+            let (connector, token) = get_sas_connector(&audience, "", tpm_client).await?;
 
             let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -339,6 +363,7 @@ async fn request_no_content<TRequest>(
     key_client: &aziot_key_client_async::Client,
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
+    tpm_client: &aziot_tpm_client_async::Client,
 ) -> std::io::Result<()>
 where
     TRequest: serde::Serialize,
@@ -373,6 +398,19 @@ where
                 hub_device.iothub_hostname, hub_device.device_id
             );
             let (connector, token) = get_sas_connector(&audience, &key, key_client).await?;
+
+            let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            req.headers_mut()
+                .append(hyper::header::AUTHORIZATION, authorization_header_value);
+            connector
+        }
+        aziot_identity_common::Credentials::Tpm => {
+            let audience = format!(
+                "{}/devices/{}",
+                hub_device.iothub_hostname, hub_device.device_id
+            );
+            let (connector, token) = get_sas_connector(&audience, "", tpm_client).await?;
 
             let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;

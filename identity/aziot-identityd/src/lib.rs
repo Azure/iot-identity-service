@@ -177,6 +177,7 @@ impl Api {
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
+            tpm_client.clone(),
             None,
         );
 
@@ -454,8 +455,7 @@ impl Api {
                     settings::DpsAttestationMethod::Tpm { registration_id } => {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
 
-                        let credential =
-                            aziot_identity_common::Credentials::SharedPrivateKey("HACK".into());
+                        let credential = aziot_identity_common::Credentials::Tpm;
 
                         let operation = dps_client
                             .register(&registration_id, &dps_auth_kind)
