@@ -1,7 +1,5 @@
 # Used to run the E2E tests against a branch of your choice from the github.com UI.
 #
-# Note that the workflow file is always used from main, even when running against a different branch.
-#
 # DEVNOTE: Keep in sync with e2e-tests-scheduled.yaml
 
 name: 'e2e-tests-manual'

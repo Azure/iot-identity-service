@@ -73,6 +73,8 @@ Lastly, in order to download packages for the branch you want to test, you will 
 Set some more env vars for the parameters of the tests, then run the script.
 
 ```sh
+cd ~/src/iot-identity-service
+
 # The `tenant` property from the `az ad sp create-for-rbac` output.
 export AZURE_TENANT_ID='...'
 
@@ -122,7 +124,7 @@ export OS='ubuntu:18.04'
 
 # The parameter to the script is the name of the test to run.
 # The names can be found in the doc comment at the top of the script.
-~/src/iot-identity-service/ci/e2e-tests.sh 'manual_symmetric_key'
+./ci/e2e-tests.sh 'manual-symmetric-key'
 ```
 
 Note: The script deletes the resources on exit. If you want to keep the resources around for debugging, comment out the `trap ... EXIT` command in the script.
