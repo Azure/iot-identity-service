@@ -2,6 +2,7 @@
 
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    id_type: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -15,14 +16,23 @@ impl http_common::server::Route for Route {
     fn from_uri(
         service: &Self::Service,
         path: &str,
-        _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
     ) -> Option<Self> {
         if path != "/identities/modules" {
             return None;
         }
 
+        let id_type: Option<String> = query.iter().find_map(|q| {
+            if q.0 == "type" {
+                Some(q.1.to_string())
+            } else {
+                None
+            }
+        });
+
         Some(Route {
             api: service.api.clone(),
+            id_type,
         })
     }
 
@@ -41,7 +51,7 @@ impl http_common::server::Route for Route {
         };
 
         //TODO: get uid from UDS
-        let identities = match api.get_identities(auth_id, "aziot").await {
+        let identities = match api.get_identities(auth_id, self.id_type.as_deref()).await {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
@@ -71,7 +81,7 @@ impl http_common::server::Route for Route {
 
         //TODO: get uid from UDS
         let identity = match api
-            .create_identity(auth_id, &body.id_type, &body.module_id)
+            .create_identity(auth_id, Some(&body.id_type), &body.module_id)
             .await
         {
             Ok(id) => id,

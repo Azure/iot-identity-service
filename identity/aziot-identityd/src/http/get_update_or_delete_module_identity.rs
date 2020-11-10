@@ -33,7 +33,7 @@ impl http_common::server::Route for Route {
             .ok()?;
 
         let id_type: Option<String> = query.iter().find_map(|q| {
-            if q.0.to_lowercase() == "type" {
+            if q.0 == "type" {
                 Some(q.1.to_string())
             } else {
                 None
@@ -63,7 +63,10 @@ impl http_common::server::Route for Route {
         };
 
         //TODO: get uid from UDS
-        match api.delete_identity(auth_id, "aziot", &self.module_id).await {
+        match api
+            .delete_identity(auth_id, self.id_type.as_deref(), &self.module_id)
+            .await
+        {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
         }
@@ -84,7 +87,7 @@ impl http_common::server::Route for Route {
 
         //TODO: get uid from UDS
         let identity = match api
-            .get_identity(auth_id, self.id_type, &self.module_id)
+            .get_identity(auth_id, self.id_type.as_deref(), &self.module_id)
             .await
         {
             Ok(v) => v,
@@ -118,7 +121,10 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        let identity = match api.update_identity(auth_id, "aziot", &self.module_id).await {
+        let identity = match api
+            .update_identity(auth_id, self.id_type.as_deref(), &self.module_id)
+            .await
+        {
             Ok(v) => v,
             Err(err) => return Err(super::to_http_error(&err)),
         };
