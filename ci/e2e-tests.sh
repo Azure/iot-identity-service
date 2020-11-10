@@ -628,7 +628,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
 
     module_identity=\"\$(
         curl --unix-socket '/run/aziot/identityd.sock' \\
-            'http://foo/identities/modules/testmodule?api-version=2020-09-01'
+            'http://foo/identities/modules/testmodule?api-version=2020-09-01&type=aziot'
     )\"
     printf '%s\n' \"\$module_identity\" >&2
 
