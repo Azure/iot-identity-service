@@ -6,8 +6,8 @@ PartOf=aziot-tpmd.service
 ListenStream=/run/aziot/tpmd.sock
 SocketMode=0660
 DirectoryMode=0755
-SocketUser=aziotks
-SocketGroup=aziotks
+SocketUser=aziottpm
+SocketGroup=aziottpm
 
 [Install]
 WantedBy=sockets.target

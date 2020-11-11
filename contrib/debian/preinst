@@ -27,6 +27,14 @@ case "$1" in
 		fi
 		mkdir -p /var/lib/aziot/keyd
 
+		if ! /usr/bin/getent group aziottpm >/dev/null; then
+			/usr/sbin/groupadd -r aziottpm
+		fi
+		if ! /usr/bin/getent passwd aziottpm >/dev/null; then
+			/usr/sbin/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
+		fi
+		mkdir -p /var/lib/aziot/tpmd
+
 		if ! /usr/bin/getent group aziotcs >/dev/null; then
 			/usr/sbin/groupadd -r aziotcs
 		fi
@@ -43,6 +51,7 @@ case "$1" in
 			/usr/sbin/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
 			/usr/sbin/usermod -aG aziotcs aziotid
 			/usr/sbin/usermod -aG aziotks aziotid
+			/usr/sbin/usermod -aG aziottpm aziotid
 		fi
 		mkdir -p /var/lib/aziot/identityd
 		;;

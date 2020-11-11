@@ -312,6 +312,7 @@ install-common:
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
+	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-tpmd
 
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot $(DESTDIR)$(bindir)/aziot
 
@@ -328,10 +329,14 @@ install-common:
 	$(INSTALL_DATA) -D key/aziot-keyd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/keyd/config.toml.default
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/keyd/config.d
 
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.toml.default
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.d
+
 	# Home directories
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/certd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/identityd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/keyd
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/tpmd
 
 	# Systemd services and sockets
 	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.service $(DESTDIR)$(unitdir)/aziot-certd.service
@@ -343,13 +348,14 @@ install-common:
 	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.service $(DESTDIR)$(unitdir)/aziot-keyd.service
 	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.socket $(DESTDIR)$(unitdir)/aziot-keyd.socket
 
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.service $(DESTDIR)$(unitdir)/aziot-tpmd.service
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.socket $(DESTDIR)$(unitdir)/aziot-tpmd.socket
+
 install-deb: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
-
-	# Sockets
 
 	# README.md and LICENSE
 	$(INSTALL_DATA) -D README.md $(DESTDIR)$(docdir)/README.md

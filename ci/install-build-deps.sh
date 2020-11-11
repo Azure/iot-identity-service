@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf jq make pkg-config cmake \
+            ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf jq make pkg-config cmake \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -55,7 +55,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-aarch64-linux-gnu jq make pkg-config cmake \
+            ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu jq make pkg-config cmake \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
@@ -80,7 +80,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf jq make pkg-config cmake \
+            build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf jq make pkg-config cmake \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -105,7 +105,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu jq make pkg-config cmake \
+            build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu jq make pkg-config cmake \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 

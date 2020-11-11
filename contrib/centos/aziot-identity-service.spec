@@ -12,6 +12,7 @@ Source: aziot-identity-service-%{version}-%{release}.tar.gz
 
 BuildRequires: clang
 BuildRequires: gcc
+BuildRequires: gcc-c++
 BuildRequires: llvm-devel
 BuildRequires: make
 BuildRequires: openssl-devel
@@ -84,6 +85,13 @@ if ! %{_bindir}/getent passwd aziotks >/dev/null; then
     %{_sbindir}/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
 fi
 
+if ! %{_bindir}/getent group aziottpm >/dev/null; then
+    %{_sbindir}/groupadd -r aziottpm
+fi
+if ! %{_bindir}/getent passwd aziottpm >/dev/null; then
+    %{_sbindir}/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
+fi
+
 if ! %{_bindir}/getent group aziotcs >/dev/null; then
     %{_sbindir}/groupadd -r aziotcs
 fi
@@ -99,6 +107,7 @@ if ! %{_bindir}/getent passwd aziotid >/dev/null; then
     %{_sbindir}/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
     %{_sbindir}/usermod -aG aziotcs aziotid
     %{_sbindir}/usermod -aG aziotks aziotid
+    %{_sbindir}/usermod -aG aziottpm aziotid
 fi
 
 
@@ -106,18 +115,21 @@ fi
 %systemd_post aziot-certd.socket
 %systemd_post aziot-identityd.socket
 %systemd_post aziot-keyd.socket
+%systemd_post aziot-tpmd.socket
 
 
 %preun
 %systemd_preun aziot-certd.socket
 %systemd_preun aziot-identityd.socket
 %systemd_preun aziot-keyd.socket
+%systemd_preun aziot-tpmd.socket
 
 
 %postun
 %systemd_postun_with_restart aziot-certd.service
 %systemd_postun_with_restart aziot-identityd.service
 %systemd_postun_with_restart aziot-keyd.service
+%systemd_postun_with_restart aziot-tpmd.service
 
 
 %files
@@ -127,6 +139,7 @@ fi
 %{_libexecdir}/%{name}/aziot-certd
 %{_libexecdir}/%{name}/aziot-identityd
 %{_libexecdir}/%{name}/aziot-keyd
+%{_libexecdir}/%{name}/aziot-tpmd
 
 %{_bindir}/aziot
 
@@ -146,10 +159,14 @@ fi
 %attr(400, aziotks, aziotks) %{_sysconfdir}/aziot/keyd/config.toml.default
 %attr(700, aziotks, aziotks) %dir %{_sysconfdir}/aziot/keyd/config.d
 
+%attr(400, aziottpm, aziottpm) %{_sysconfdir}/aziot/tpmd/config.toml.default
+%attr(700, aziottpm, aziottpm) %dir %{_sysconfdir}/aziot/tpmd/config.d
+
 # Home directories
 %attr(-, aziotcs, aziotcs) %dir /var/lib/aziot/certd
 %attr(-, aziotid, aziotid) %dir /var/lib/aziot/identityd
 %attr(-, aziotks, aziotks) %dir /var/lib/aziot/keyd
+%attr(-, aziottpm, aziottpm) %dir /var/lib/aziot/tpmd
 
 # Systemd services and sockets
 %{_unitdir}/aziot-certd.service
@@ -158,6 +175,8 @@ fi
 %{_unitdir}/aziot-identityd.socket
 %{_unitdir}/aziot-keyd.service
 %{_unitdir}/aziot-keyd.socket
+%{_unitdir}/aziot-tpmd.service
+%{_unitdir}/aziot-tpmd.socket
 
 %doc README.md
 %doc THIRD-PARTY-NOTICES

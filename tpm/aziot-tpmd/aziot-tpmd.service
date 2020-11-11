@@ -1,5 +1,5 @@
 [Unit]
-Description=Azure IoT Keys Service
+Description=Azure IoT TPM Service
 Requires=aziot-tpmd.socket
 After=aziot-tpmd.socket
 
@@ -8,7 +8,7 @@ ExecStart=/usr/libexec/aziot-identity-service/aziot-tpmd
 KillMode=process
 Restart=on-failure
 RestartSec=5s
-User=aziotks
+User=aziottpm
 
 [Install]
 WantedBy=multi-user.target
