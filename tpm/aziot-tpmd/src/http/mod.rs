@@ -27,7 +27,7 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
         log::log!(
             match err {
                 crate::Error::Internal(_) => log::Level::Error,
-                _ => log::Level::Info,
+                // _ => log::Level::Info,
             },
             "!!! {}",
             line,
@@ -40,11 +40,6 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
         crate::Error::Internal(_) => http_common::server::Error {
             status_code: hyper::StatusCode::INTERNAL_SERVER_ERROR,
             message: err.to_string().into(),
-        },
-
-        crate::Error::InvalidParameter(_) => http_common::server::Error {
-            status_code: hyper::StatusCode::BAD_REQUEST,
-            message: error_message.into(),
         },
     }
 }

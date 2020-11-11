@@ -470,18 +470,6 @@ impl Api {
                 );
 
                 let device = match attestation {
-                    settings::DpsAttestationMethod::Tpm { registration_id } => {
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
-
-                        let credential = aziot_identity_common::Credentials::Tpm;
-
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
-
-                        operation_to_iot_hub_device(credential, operation).await?
-                    }
                     settings::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,
@@ -489,7 +477,6 @@ impl Api {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
                             sas_key: symmetric_key.clone(),
                         };
-
                         let credential = aziot_identity_common::Credentials::SharedPrivateKey(
                             symmetric_key.clone(),
                         );
@@ -517,11 +504,21 @@ impl Api {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
-
                         let credential = aziot_identity_common::Credentials::X509 {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
+
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
+                            .await
+                            .map_err(Error::DPSClient)?;
+
+                        operation_to_iot_hub_device(credential, operation).await?
+                    }
+                    settings::DpsAttestationMethod::Tpm { registration_id } => {
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
+                        let credential = aziot_identity_common::Credentials::Tpm;
 
                         let operation = dps_client
                             .register(&registration_id, &dps_auth_kind)

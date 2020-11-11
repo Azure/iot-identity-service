@@ -188,7 +188,7 @@ impl Client {
     // TPM provisioning has special 2-step challenge/response flow which is
     // basically identical to the symmetric key flow, except that the TPM client
     // is used instead of the key client. To keep things DRY, a recursive call
-    // is used, passing `DpsAuthKind::TpmSecondStage` as the auth kind.
+    // is used, passing `DpsAuthKind::TpmWithAuth` as the auth kind.
     #[async_recursion::async_recursion]
     async fn request<TRequest, TResponse>(
         &self,
@@ -221,10 +221,10 @@ impl Client {
 
         let mut req = req.expect("cannot fail to create hyper request");
 
-        let connector = match auth_kind {
-            DpsAuthKind::Tpm { .. } => hyper_openssl::HttpsConnector::new()?,
-            DpsAuthKind::SymmetricKey { sas_key: ref key }
-            | DpsAuthKind::TpmWithAuth { auth_key: ref key } => {
+        let connector = match &auth_kind {
+            DpsAuthKind::Tpm => hyper_openssl::HttpsConnector::new()?,
+            DpsAuthKind::SymmetricKey { sas_key: key }
+            | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey {..}) {
                     get_sas_connector(&audience, &key, &*self.key_client).await?
@@ -245,8 +245,8 @@ impl Client {
                 connector
             }
             DpsAuthKind::X509 {
-                ref identity_cert,
-                ref identity_pk,
+                identity_cert,
+                identity_pk,
             } => {
                 get_x509_connector(
                     &identity_cert,

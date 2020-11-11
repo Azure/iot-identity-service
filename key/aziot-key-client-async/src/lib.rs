@@ -127,7 +127,10 @@ impl Client {
             http::Method::GET,
             &format!(
                 "http://foo/key/{}?api-version={}",
-                percent_encoding::percent_encode(id.as_ref(), http_common::PATH_SEGMENT_ENCODE_SET),
+                percent_encoding::percent_encode(
+                    id.as_bytes(),
+                    http_common::PATH_SEGMENT_ENCODE_SET
+                ),
                 self.api_version,
             ),
             None,
