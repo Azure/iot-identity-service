@@ -16,8 +16,6 @@ pub async fn get_sas_connector(
     hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
     String,
 )> {
-    let key_handle = key_client.load_key(key_handle).await?;
-
     let token = {
         let expiry = chrono::Utc::now()
             + chrono::Duration::from_std(std::time::Duration::from_secs(30))
@@ -31,7 +29,7 @@ pub async fn get_sas_connector(
 
         let signature = key_client
             .sign(
-                &key_handle,
+                &aziot_key_common::KeyHandle(key_handle.to_string()),
                 aziot_key_common::SignMechanism::HmacSha256,
                 sig_data.as_bytes(),
             )
@@ -54,8 +52,7 @@ pub async fn get_sas_connector(
 
 pub async fn get_x509_connector(
     identity_cert: &str,
-    identity_pk: &str,
-    key_client: &aziot_key_client_async::Client,
+    identity_pk_handle: &str,
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
 ) -> io::Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
@@ -64,8 +61,7 @@ pub async fn get_x509_connector(
             openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
         let device_id_private_key = {
-            let device_id_key_handle = key_client.load_key_pair(&identity_pk).await?;
-            let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)?;
+            let device_id_key_handle = std::ffi::CString::new(identity_pk_handle)?;
             let device_id_private_key = key_engine
                 .load_private_key(&device_id_key_handle)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;

@@ -444,7 +444,13 @@ impl Api {
             } => {
                 let credentials = match authentication {
                     settings::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
-                        aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
+                        let device_id_key_handle = self
+                            .key_client
+                            .load_key(device_id_pk.as_str())
+                            .await
+                            .map_err(Error::KeyClient)?;
+
+                        aziot_identity_common::Credentials::SharedPrivateKey(device_id_key_handle.0)
                     }
                     settings::ManualAuthMethod::X509 {
                         identity_cert,
@@ -456,9 +462,16 @@ impl Api {
                             &device_id,
                         )
                         .await?;
+
+                        let device_id_keypair_handle = self
+                            .key_client
+                            .load_key_pair(identity_pk.as_str())
+                            .await
+                            .map_err(Error::KeyClient)?;
+
                         aziot_identity_common::Credentials::X509 {
                             identity_cert,
-                            identity_pk,
+                            identity_pk: device_id_keypair_handle.0,
                         }
                     }
                 };
@@ -488,12 +501,18 @@ impl Api {
                         registration_id,
                         symmetric_key,
                     } => {
+                        let symmetric_key_handle = self
+                            .key_client
+                            .load_key(symmetric_key.as_str())
+                            .await
+                            .map_err(Error::KeyClient)?;
+
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
-                            sas_key: symmetric_key.clone(),
+                            sas_key_handle: symmetric_key_handle.0.clone(),
                         };
 
                         let credential = aziot_identity_common::Credentials::SharedPrivateKey(
-                            symmetric_key.clone(),
+                            symmetric_key_handle.0,
                         );
 
                         let operation = dps_client
@@ -526,12 +545,18 @@ impl Api {
 
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
                             identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
+                            identity_pk_handle: identity_pk.clone(),
                         };
+
+                        let identity_pk_keypair_handle = self
+                            .key_client
+                            .load_key_pair(identity_pk.as_str())
+                            .await
+                            .map_err(Error::KeyClient)?;
 
                         let credential = aziot_identity_common::Credentials::X509 {
                             identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
+                            identity_pk: identity_pk_keypair_handle.0,
                         };
 
                         let operation = dps_client

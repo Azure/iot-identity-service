@@ -24,11 +24,11 @@ pub const DPS_ENCODE_SET: &percent_encoding::AsciiSet =
 
 pub enum DpsAuthKind {
     SymmetricKey {
-        sas_key: String,
+        sas_key_handle: String,
     },
     X509 {
         identity_cert: String,
-        identity_pk: String,
+        identity_pk_handle: String,
     },
 }
 
@@ -143,7 +143,9 @@ impl Client {
         let mut req = req.expect("cannot fail to create hyper request");
 
         let connector = match auth_kind {
-            DpsAuthKind::SymmetricKey { sas_key } => {
+            DpsAuthKind::SymmetricKey {
+                sas_key_handle: sas_key,
+            } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) =
                     get_sas_connector(&audience, &sas_key, &self.key_client).await?;
@@ -156,12 +158,11 @@ impl Client {
             }
             DpsAuthKind::X509 {
                 identity_cert,
-                identity_pk,
+                identity_pk_handle: identity_pk,
             } => {
                 get_x509_connector(
                     &identity_cert,
                     &identity_pk,
-                    &self.key_client,
                     &mut *self.key_engine.lock().await,
                     &self.cert_client,
                 )

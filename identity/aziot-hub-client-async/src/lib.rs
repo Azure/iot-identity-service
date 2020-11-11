@@ -252,16 +252,7 @@ where
         aziot_identity_common::Credentials::X509 {
             identity_cert,
             identity_pk,
-        } => {
-            get_x509_connector(
-                &identity_cert,
-                &identity_pk,
-                key_client,
-                key_engine,
-                cert_client,
-            )
-            .await?
-        }
+        } => get_x509_connector(&identity_cert, &identity_pk, key_engine, cert_client).await?,
     };
 
     let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
@@ -383,16 +374,7 @@ where
         aziot_identity_common::Credentials::X509 {
             identity_cert,
             identity_pk,
-        } => {
-            get_x509_connector(
-                &identity_cert,
-                &identity_pk,
-                key_client,
-                key_engine,
-                cert_client,
-            )
-            .await?
-        }
+        } => get_x509_connector(&identity_cert, &identity_pk, key_engine, cert_client).await?,
     };
 
     let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
