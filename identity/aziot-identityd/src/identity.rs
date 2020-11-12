@@ -174,9 +174,7 @@ impl IdentityManager {
                     device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
                     module_id: None,
                     gen_id: None,
-                    auth: Some(aziot_identity_common::AuthenticationInfo::from(
-                        device.credentials.clone(),
-                    )),
+                    auth: Some(self.get_device_identity_key().await?),
                 },
             )),
             None => Err(Error::DeviceNotFound),
@@ -289,6 +287,43 @@ impl IdentityManager {
                     .await
                     .map_err(Error::HubClient)
             }
+            None => Err(Error::DeviceNotFound),
+        }
+    }
+
+    async fn get_device_identity_key(
+        &self,
+    ) -> Result<aziot_identity_common::AuthenticationInfo, Error> {
+        match &self.iot_hub_device {
+            Some(device) => match &device.credentials {
+                aziot_identity_common::Credentials::SharedPrivateKey(key) => {
+                    let key_handle = self
+                        .key_client
+                        .load_key(key.as_str())
+                        .await
+                        .map_err(Error::KeyClient)?;
+                    Ok(aziot_identity_common::AuthenticationInfo {
+                        auth_type: aziot_identity_common::AuthenticationType::Sas,
+                        key_handle: aziot_key_common::KeyHandle(key_handle.0),
+                        cert_id: None,
+                    })
+                }
+                aziot_identity_common::Credentials::X509 {
+                    identity_cert,
+                    identity_pk,
+                } => {
+                    let identity_pk_key_handle = self
+                        .key_client
+                        .load_key_pair(identity_pk.as_str())
+                        .await
+                        .map_err(Error::KeyClient)?;
+                    Ok(aziot_identity_common::AuthenticationInfo {
+                        auth_type: aziot_identity_common::AuthenticationType::X509,
+                        key_handle: aziot_key_common::KeyHandle(identity_pk_key_handle.0),
+                        cert_id: Some(identity_cert.clone()),
+                    })
+                }
+            },
             None => Err(Error::DeviceNotFound),
         }
     }
