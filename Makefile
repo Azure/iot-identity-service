@@ -189,7 +189,7 @@ test:
 		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
-			if [ "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]; then \
+			if [[ -s "$$f" && "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]]; then \
 				echo "missing newline at end of $$f" >&2; \
 				exit 1; \
 			fi; \

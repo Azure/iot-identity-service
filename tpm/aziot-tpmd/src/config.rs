@@ -1,17 +1,19 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     /// Map of service names to endpoint URIs.
     ///
     /// Only configurable in debug builds for the sake of tests.
-    #[serde(default)]
-    #[cfg_attr(not(debug_assertions), serde(skip))]
+    #[serde(default, skip_serializing)]
+    #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Endpoints {
     /// The endpoint that the tpmd service binds to.
     pub aziot_tpmd: http_common::Connector,

@@ -19,6 +19,7 @@ aziot-certd = { path = "../cert/aziot-certd" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
+aziot-tpmd = { path = "../tpm/aziot-tpmd" }
 
 
 [dev-dependencies]

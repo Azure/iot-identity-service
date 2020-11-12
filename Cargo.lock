@@ -86,6 +86,7 @@ dependencies = [
  "aziot-identityd",
  "aziot-keyd",
  "aziot-keys-common",
+ "aziot-tpmd",
  "backtrace",
  "base64",
  "bytes",
