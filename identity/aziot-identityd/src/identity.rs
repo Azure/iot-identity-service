@@ -304,7 +304,7 @@ impl IdentityManager {
                         .map_err(Error::KeyClient)?;
                     Ok(aziot_identity_common::AuthenticationInfo {
                         auth_type: aziot_identity_common::AuthenticationType::Sas,
-                        key_handle: aziot_key_common::KeyHandle(key_handle.0),
+                        key_handle: Some(aziot_key_common::KeyHandle(key_handle.0)),
                         cert_id: None,
                     })
                 }
@@ -319,8 +319,15 @@ impl IdentityManager {
                         .map_err(Error::KeyClient)?;
                     Ok(aziot_identity_common::AuthenticationInfo {
                         auth_type: aziot_identity_common::AuthenticationType::X509,
-                        key_handle: aziot_key_common::KeyHandle(identity_pk_key_handle.0),
+                        key_handle: Some(aziot_key_common::KeyHandle(identity_pk_key_handle.0)),
                         cert_id: Some(identity_cert.clone()),
+                    })
+                }
+                aziot_identity_common::Credentials::Tpm => {
+                    Ok(aziot_identity_common::AuthenticationInfo {
+                        auth_type: aziot_identity_common::AuthenticationType::Tpm,
+                        key_handle: None,
+                        cert_id: None,
                     })
                 }
             },
