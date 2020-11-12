@@ -70,8 +70,3 @@ endif()
 set_target_properties(aziottpm PROPERTIES
         VERSION ${aziottpm_VERSION_MAJOR}.${aziottpm_VERSION_MINOR}.${aziottpm_VERSION_PATCH}
         SOVERSION 1)
-
-install(TARGETS aziottpm
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-

@@ -108,27 +108,25 @@ fn main() {
     // defined in the CMakefile.txt)
 
     println!("cargo:rerun-if-env-changed=RUN_VALGRIND");
-    // For libraries which will just install in target directory
-    println!("cargo:rustc-link-search=native={}", aziottpm.display());
-    // For libraries (ie. C Shared) which will install in $target/lib
-    println!("cargo:rustc-link-search=native={}/lib", aziottpm.display());
-    println!(
-        "cargo:rustc-link-search=native={}/lib64",
-        aziottpm.display()
-    );
-    println!("cargo:rustc-link-lib=aziottpm");
 
-    println!("cargo:rustc-link-lib=utpm");
-    println!("cargo:rustc-link-lib=aziotsharedutil");
+    #[rustfmt::skip]
+    (||{
+        println!("cargo:rustc-link-search=native={}/build/deps/c-shared", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=aziotsharedutil");
 
-    #[cfg(target_os = "macos")]
-    {
-        println!(
-            "cargo:rustc-link-search=native={}/lib",
-            env::var("OPENSSL_ROOT_DIR").unwrap()
-        );
-    }
+        println!("cargo:rustc-link-search=native={}/build", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=aziottpm");
 
-    #[cfg(unix)]
-    println!("cargo:rustc-link-lib=crypto");
+        println!("cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/ctest", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=ctest");
+
+        println!("cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/testrunner", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=testrunnerswitcher");
+
+        println!("cargo:rustc-link-search=native={}/build/deps/c-shared/deps/umock-c", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=umock_c");
+
+        println!("cargo:rustc-link-search=native={}/build/deps/utpm", aziottpm.display());
+        println!("cargo:rustc-link-lib=static=utpm");
+    })();
 }
