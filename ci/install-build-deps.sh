@@ -15,7 +15,7 @@ case "$OS:$ARCH" in
     'centos:7:amd64')
         yum install -y epel-release
         yum install -y \
-            curl gcc jq make pkgconfig \
+            curl gcc git jq make pkgconfig \
             clang llvm-devel openssl-devel
         ;;
 
@@ -31,7 +31,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            curl gcc jq make pkg-config \
+            curl gcc git jq make pkg-config \
             libclang1 libssl-dev llvm-dev
         ;;
 
@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc gcc-arm-linux-gnueabihf jq make pkg-config \
+            ca-certificates curl gcc gcc-arm-linux-gnueabihf git jq make pkg-config \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -55,7 +55,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc gcc-aarch64-linux-gnu jq make pkg-config \
+            ca-certificates curl gcc gcc-aarch64-linux-gnu git jq make pkg-config \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
@@ -80,7 +80,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc gcc-arm-linux-gnueabihf jq make pkg-config \
+            build-essential ca-certificates curl gcc gcc-arm-linux-gnueabihf git jq make pkg-config \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -105,7 +105,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc gcc-aarch64-linux-gnu jq make pkg-config \
+            build-essential ca-certificates curl gcc gcc-aarch64-linux-gnu git jq make pkg-config \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
@@ -139,7 +139,7 @@ if [ ! -f ~/.cargo/bin/bindgen ]; then
 fi
 
 if [ ! -f ~/.cargo/bin/cbindgen ]; then
-    cargo install cbindgen --version '^0.14'
+    cargo install cbindgen --version '^0.15'
 fi
 
 export CARGO_INCREMENTAL=0
