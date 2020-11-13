@@ -33,7 +33,8 @@
 //!
 //! All calls to [`aziot_keys_get_function_list`] or any function in [`AZIOT_KEYS_FUNCTION_LIST`] are serialized, ie a function will not be called
 //! while another function is running. However, it is not guaranteed that all function calls will be made from the same operating system thread.
-//! Thus, implementations do not need to worry about locking to prevent concurrent access, but should also not store data in thread-local storage.
+//! Thus, implementations do not need to worry about locking to prevent concurrent access, but must also not store data in thread-local storage
+//! in one function invocation and expect it to be accessible in another function invocation.
 
 // DEVNOTE:
 //
@@ -158,11 +159,11 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     /// the implementation to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the implementation's choice if that also fails.
     ///
     /// If an implementation does not recognize a particular component as an algorithm, or is unable to use the algorithm to generate a key pair,
-    /// it should ignore that component and try the next one. If no components are left, the implementation should return an error.
+    /// it must ignore that component and try the next one. If no components are left, the implementation returns an error.
     /// The implementation is allowed to be unable to generate a key pair regardless of which algorithms are specified; this is true even if
     /// the wildcard algorithm is specified.
     ///
-    /// If `preferred_algorithms` is `NULL`, it should be interpreted the same as if it was `"*"`.
+    /// If `preferred_algorithms` is `NULL`, it must be interpreted the same as if it was `"*"`.
     ///
     /// # Errors
     ///
