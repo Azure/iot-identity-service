@@ -2,6 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![deny(missing_docs)]
 #![allow(
 	non_camel_case_types,
 	clippy::default_trait_access,
