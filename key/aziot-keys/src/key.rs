@@ -3,7 +3,7 @@
 pub(crate) unsafe extern "C" fn create_key_if_not_exists(
     id: *const std::os::raw::c_char,
     length: usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -37,9 +37,7 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
     })
 }
 
-pub(crate) unsafe extern "C" fn load_key(
-    id: *const std::os::raw::c_char,
-) -> crate::AZIOT_KEYS_STATUS {
+pub(crate) unsafe extern "C" fn load_key(id: *const std::os::raw::c_char) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -72,7 +70,7 @@ pub(crate) unsafe extern "C" fn import_key(
     id: *const std::os::raw::c_char,
     bytes: *const u8,
     bytes_len: usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -116,7 +114,7 @@ pub(crate) unsafe extern "C" fn derive_key(
     derivation_data_len: usize,
     derived_key: *mut std::os::raw::c_uchar,
     derived_key_len: *mut usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let base_id = {
             if base_id.is_null() {
@@ -182,7 +180,7 @@ pub(crate) unsafe fn sign(
     mechanism: crate::AZIOT_KEYS_SIGN_MECHANISM,
     parameters: *const std::ffi::c_void,
     digest: &[u8],
-) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     use hmac::{Mac, NewMac};
 
     let key = match load_inner(locations)? {
@@ -222,7 +220,7 @@ pub(crate) unsafe fn verify(
     locations: &[crate::implementation::Location],
     digest: &[u8],
     signature: &[u8],
-) -> Result<bool, crate::AZIOT_KEYS_STATUS> {
+) -> Result<bool, crate::AZIOT_KEYS_RC> {
     use hmac::{Mac, NewMac};
 
     let key = match load_inner(locations)? {
@@ -257,7 +255,7 @@ pub(crate) unsafe fn encrypt(
     mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
     parameters: *const std::ffi::c_void,
     plaintext: &[u8],
-) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let key = match load_inner(locations)? {
         Some(key) => key,
         None => {
@@ -314,7 +312,7 @@ pub(crate) unsafe fn decrypt(
     mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
     parameters: *const std::ffi::c_void,
     ciphertext: &[u8],
-) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let key = match load_inner(locations)? {
         Some(key) => key,
         None => {
@@ -379,7 +377,7 @@ pub(crate) unsafe fn decrypt(
 
 fn load_inner(
     locations: &[crate::implementation::Location],
-) -> Result<Option<Vec<u8>>, crate::AZIOT_KEYS_STATUS> {
+) -> Result<Option<Vec<u8>>, crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
@@ -401,7 +399,7 @@ fn load_inner(
 fn create_inner(
     locations: &[crate::implementation::Location],
     bytes: &[u8],
-) -> Result<(), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(), crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => {
@@ -428,7 +426,7 @@ unsafe fn derive_key_for_sign(
         crate::AZIOT_KEYS_SIGN_MECHANISM,
         *const std::ffi::c_void,
     ),
-    crate::AZIOT_KEYS_STATUS,
+    crate::AZIOT_KEYS_RC,
 > {
     if parameters.is_null() {
         return Err(crate::implementation::err_invalid_parameter(
@@ -458,7 +456,7 @@ unsafe fn derive_key_for_encrypt(
         crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
         *const std::ffi::c_void,
     ),
-    crate::AZIOT_KEYS_STATUS,
+    crate::AZIOT_KEYS_RC,
 > {
     if parameters.is_null() {
         return Err(crate::implementation::err_invalid_parameter(
@@ -483,7 +481,7 @@ unsafe fn derive_key_common(
     key: &[u8],
     derivation_data: *const std::os::raw::c_uchar,
     derivation_data_len: usize,
-) -> Result<Vec<u8>, crate::AZIOT_KEYS_STATUS> {
+) -> Result<Vec<u8>, crate::AZIOT_KEYS_RC> {
     use hmac::{Mac, NewMac};
 
     if derivation_data.is_null() {

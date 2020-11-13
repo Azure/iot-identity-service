@@ -18,13 +18,9 @@
 
     Check [`/ci/install-build-deps.sh`](../ci/install-build-deps.sh) for the exact names of the packages for your distro that contain these components.
 
-1. Install a stable toolchain of Rust. One can be easily installed via [`rustup`](https://rustup.rs). Ensure that `~/.cargo/bin` is in `$PATH`.
+1. Install [`rustup`](https://rustup.rs). Ensure that `~/.cargo/bin` is in `$PATH`. The exact toolchain used to build this repository will automatically be downloaded later if necessary.
 
-1. Install `bindgen` and `cbindgen`
-
-    ```sh
-    cargo install --force bindgen cbindgen
-    ```
+1. Install `bindgen` and `cbindgen`. Again, check [`/ci/install-build-deps.sh`](../ci/install-build-deps.sh) for the exact command and versions.
 
 1. Build the services.
 
@@ -46,8 +42,10 @@
 
     This will print something like `/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h`
 
-    Then invoke `make` with `BINDGEN_EXTRA_INCLUDE_DIR` set to the directory containing the `limits.h`:
+    Then export an env var to tell `bindgen` (and in turn, libclang) about this directory.
 
     ```sh
-    make BINDGEN_EXTRA_INCLUDE_DIR=/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/
+    export BINDGEN_EXTRA_CLANG_ARGS='-isystem /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed'
     ```
+
+    Then invoke `make` again.

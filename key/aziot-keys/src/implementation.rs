@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 pub(crate) unsafe fn get_function_list(
     version: crate::AZIOT_KEYS_VERSION,
     pfunction_list: *mut *const crate::AZIOT_KEYS_FUNCTION_LIST,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0: crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 =
             crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
@@ -55,7 +55,7 @@ pub(crate) unsafe fn get_function_list(
 pub(crate) unsafe extern "C" fn set_parameter(
     name: *const std::os::raw::c_char,
     value: *const std::os::raw::c_char,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let name = name
             .as_ref()
@@ -76,7 +76,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     .map_err(|err| err_invalid_parameter("value", err))?;
                 let value: std::path::PathBuf = value.into();
 
-                let mut guard = HOMEDIR_PATH.write().map_err(err_fatal)?;
+                let mut guard = HOMEDIR_PATH.write().expect("fatal RwLock failure");
                 *guard = Some(value);
             }
 
@@ -90,7 +90,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     .map_err(|err| err_invalid_parameter("value", err))?;
                 let value: std::path::PathBuf = value.into();
 
-                let mut guard = PKCS11_LIB_PATH.write().map_err(err_fatal)?;
+                let mut guard = PKCS11_LIB_PATH.write().expect("fatal RwLock failure");
                 *guard = Some(value);
             }
 
@@ -106,7 +106,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     .parse()
                     .map_err(|err| err_invalid_parameter("value", err))?;
 
-                let mut guard = PKCS11_BASE_SLOT.write().map_err(err_fatal)?;
+                let mut guard = PKCS11_BASE_SLOT.write().expect("fatal RwLock failure");
                 *guard = Some(value);
             }
 
@@ -127,7 +127,7 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     .parse()
                     .map_err(|err| err_invalid_parameter("value", err))?;
 
-                let mut guard = PRELOADED_KEYS.write().map_err(err_fatal)?;
+                let mut guard = PRELOADED_KEYS.write().expect("fatal RwLock failure");
                 guard.insert(key_id.to_owned(), value);
             }
 
@@ -135,8 +135,8 @@ pub(crate) unsafe extern "C" fn set_parameter(
         }
 
         {
-            let pkcs11_lib_path = PKCS11_LIB_PATH.read().map_err(err_fatal)?;
-            let pkcs11_base_slot = PKCS11_BASE_SLOT.read().map_err(err_fatal)?;
+            let pkcs11_lib_path = PKCS11_LIB_PATH.read().expect("fatal RwLock failure");
+            let pkcs11_base_slot = PKCS11_BASE_SLOT.read().expect("fatal RwLock failure");
 
             if let (Some(pkcs11_lib_path), Some(pkcs11_base_slot)) =
                 (&*pkcs11_lib_path, &*pkcs11_base_slot)
@@ -153,8 +153,9 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     .open_session(pkcs11_slot, pkcs11_base_slot.pin.clone())
                     .map_err(err_external)?;
 
-                let mut pkcs11_base_slot_session =
-                    PKCS11_BASE_SLOT_SESSION.lock().map_err(err_fatal)?;
+                let mut pkcs11_base_slot_session = PKCS11_BASE_SLOT_SESSION
+                    .lock()
+                    .expect("fatal RwLock failure");
                 let pkcs11_base_slot_session = &mut *pkcs11_base_slot_session;
                 *pkcs11_base_slot_session = Some(pkcs11_session);
             }
@@ -172,7 +173,7 @@ pub(crate) unsafe extern "C" fn sign(
     digest_len: usize,
     signature: *mut std::os::raw::c_uchar,
     signature_len: *mut usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -239,7 +240,7 @@ pub(crate) unsafe extern "C" fn verify(
     signature: *const std::os::raw::c_uchar,
     signature_len: usize,
     ok: *mut std::os::raw::c_int,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -298,7 +299,7 @@ pub(crate) unsafe extern "C" fn encrypt(
     plaintext_len: usize,
     ciphertext: *mut std::os::raw::c_uchar,
     ciphertext_len: *mut usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -365,7 +366,7 @@ pub(crate) unsafe extern "C" fn decrypt(
     ciphertext_len: usize,
     plaintext: *mut std::os::raw::c_uchar,
     plaintext_len: *mut usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -429,17 +430,17 @@ pub(crate) enum Location {
 }
 
 impl Location {
-    pub(crate) fn of(id: &str) -> Result<Vec<Self>, crate::AZIOT_KEYS_STATUS> {
-        let homedir_path_guard = HOMEDIR_PATH.read().map_err(err_fatal)?;
+    pub(crate) fn of(id: &str) -> Result<Vec<Self>, crate::AZIOT_KEYS_RC> {
+        let homedir_path_guard = HOMEDIR_PATH.read().expect("fatal RwLock failure");
         let homedir_path = homedir_path_guard.as_ref();
 
-        let pkcs11_lib_path_guard = PKCS11_LIB_PATH.read().map_err(err_fatal)?;
+        let pkcs11_lib_path_guard = PKCS11_LIB_PATH.read().expect("fatal RwLock failure");
         let pkcs11_lib_path = pkcs11_lib_path_guard.as_ref();
 
-        let pkcs11_base_slot_guard = PKCS11_BASE_SLOT.read().map_err(err_fatal)?;
+        let pkcs11_base_slot_guard = PKCS11_BASE_SLOT.read().expect("fatal RwLock failure");
         let pkcs11_base_slot = pkcs11_base_slot_guard.as_ref();
 
-        let preloaded_keys_guard = PRELOADED_KEYS.read().map_err(err_fatal)?;
+        let preloaded_keys_guard = PRELOADED_KEYS.read().expect("fatal RwLock failure");
         let preloaded_keys = &*preloaded_keys_guard;
 
         let mut locations = vec![];
@@ -508,44 +509,36 @@ impl Location {
     }
 }
 
-impl From<openssl::error::Error> for crate::AZIOT_KEYS_STATUS {
+impl From<openssl::error::Error> for crate::AZIOT_KEYS_RC {
     fn from(err: openssl::error::Error) -> Self {
         err_external(err)
     }
 }
 
-impl From<openssl::error::ErrorStack> for crate::AZIOT_KEYS_STATUS {
+impl From<openssl::error::ErrorStack> for crate::AZIOT_KEYS_RC {
     fn from(err: openssl::error::ErrorStack) -> Self {
         err_external(err)
     }
 }
 
-impl From<openssl2::Error> for crate::AZIOT_KEYS_STATUS {
+impl From<openssl2::Error> for crate::AZIOT_KEYS_RC {
     fn from(err: openssl2::Error) -> Self {
         err_external(err)
     }
 }
 
-pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_STATUS
+pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_RC
 where
     E: std::fmt::Display,
 {
     log::error!("{}", err);
-    crate::AZIOT_KEYS_ERROR_EXTERNAL
+    crate::AZIOT_KEYS_RC_ERR_EXTERNAL
 }
 
-pub(crate) fn err_fatal<E>(err: E) -> crate::AZIOT_KEYS_STATUS
-where
-    E: std::fmt::Display,
-{
-    log::error!("{}", err);
-    crate::AZIOT_KEYS_ERROR_EXTERNAL
-}
-
-pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_STATUS
+pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_RC
 where
     E: std::fmt::Display,
 {
     log::error!("invalid parameter {:?}: {}", name, err);
-    crate::AZIOT_KEYS_ERROR_INVALID_PARAMETER
+    crate::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER
 }
