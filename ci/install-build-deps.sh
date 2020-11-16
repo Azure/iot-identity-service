@@ -31,7 +31,6 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            curl gcc g++ jq make pkg-config cmake \
             curl gcc g++ git jq make pkg-config cmake \
             libclang1 libssl-dev llvm-dev
         ;;
@@ -107,6 +106,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
+            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
     *)
