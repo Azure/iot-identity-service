@@ -1,14 +1,7 @@
-# cargo install --force bindgen
-BINDGEN = bindgen
-
-# On some distros like Raspbian 10, libclang has issues parsing the default /usr/include/limits.h
-# On such distros, set this to a directory with a working limits.h,
-# such as /usr/lib/gcc/arm-linux-gnueabihf/8/include-fixed/
-BINDGEN_EXTRA_INCLUDE_DIR =
-
 CARGO = cargo
 
-# cargo install --force cbindgen
+# Installed via `cargo install`. See /ci/install-build-deps.sh for exact command and versions.
+BINDGEN = bindgen
 CBINDGEN = cbindgen
 
 # 0 => false, _ => true
@@ -20,10 +13,6 @@ RELEASE = 0
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
-
-ifneq ($(BINDGEN_EXTRA_INCLUDE_DIR), )
-	BINDGEN_EXTRA_FLAGS = -isystem $(BINDGEN_EXTRA_INCLUDE_DIR)
-endif
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -77,6 +66,7 @@ default:
 	fi
 
 	# Re-generate keys.generated.rs if necessary
+	set -euo pipefail; \
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
 			--blacklist-type '__.*' \
@@ -85,9 +75,7 @@ default:
 			--whitelist-var 'AZIOT_KEYS_.*' \
 			-o key/aziot-keyd/src/keys.generated.rs.tmp \
 			$(BINDGEN_VERBOSE) \
-			key/aziot-keys/aziot-keys.h \
-			-- \
-			$(BINDGEN_EXTRA_FLAGS); \
+			key/aziot-keys/aziot-keys.h; \
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
 
@@ -155,12 +143,16 @@ test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
 test-release: test
 	$(CARGO) fmt --all -- --check
 
+	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
+		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
+
 
 test: default iotedged pkcs11-test
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
-	$(CARGO) test --all --exclude aziot-key-openssl-engine-shared --exclude aziot-keys \
+	$(CARGO) test --all \
+		--exclude aziot-key-openssl-engine-shared \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
@@ -179,9 +171,13 @@ test:
 			fi; \
 		done
 
-	$(CARGO) clippy --all $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
-	$(CARGO) clippy --all --exclude aziot-key-openssl-engine-shared --tests $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
-	$(CARGO) clippy --all --examples $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy --all \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy --all --tests \
+		--exclude aziot-key-openssl-engine-shared \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
+	$(CARGO) clippy --all --examples \
+		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
@@ -226,7 +222,7 @@ dist:
 	printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo/config
 
 	# Generate THIRD-PARTY-NOTICES
-	set -o pipefail; \
+	set -euo pipefail; \
 	ARCH=$(ARCH) contrib/third-party-notices.sh >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/THIRD-PARTY-NOTICES
 
 	# Create dist tarball

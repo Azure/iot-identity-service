@@ -2,16 +2,15 @@
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug)]
-pub struct KeysRawError(pub(crate) sys::AZIOT_KEYS_STATUS);
+pub struct KeysRawError(pub(crate) sys::AZIOT_KEYS_RC);
 
 impl std::fmt::Display for KeysRawError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            sys::AZIOT_KEYS_ERROR_FATAL => f.write_str("AZIOT_KEYS_ERROR_FATAL"),
-            sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER => {
-                f.write_str("AZIOT_KEYS_ERROR_INVALID_PARAMETER")
+            sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER => {
+                f.write_str("AZIOT_KEYS_RC_ERR_INVALID_PARAMETER")
             }
-            sys::AZIOT_KEYS_ERROR_EXTERNAL => f.write_str("AZIOT_KEYS_ERROR_EXTERNAL"),
+            sys::AZIOT_KEYS_RC_ERR_EXTERNAL => f.write_str("AZIOT_KEYS_RC_ERR_EXTERNAL"),
             err => write!(f, "0x{:08x}", err),
         }
     }
@@ -23,35 +22,34 @@ pub(crate) enum Keys {
         set_parameter: unsafe extern "C" fn(
             name: *const std::os::raw::c_char,
             value: *const std::os::raw::c_char,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         create_key_pair_if_not_exists: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
             preferred_algorithms: *const std::os::raw::c_char,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
-        load_key_pair:
-            unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_STATUS,
+        load_key_pair: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_RC,
 
         get_key_pair_parameter: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
             r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
             value: *mut std::os::raw::c_uchar,
             value_len: *mut usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         create_key_if_not_exists: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
             length: usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
-        load_key: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_STATUS,
+        load_key: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_RC,
 
         import_key: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
             bytes: *const u8,
             bytes_len: usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         derive_key: unsafe extern "C" fn(
             base_id: *const std::os::raw::c_char,
@@ -59,7 +57,7 @@ pub(crate) enum Keys {
             derivation_data_len: usize,
             derived_key: *mut std::os::raw::c_uchar,
             derived_key_len: *mut usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         sign: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
@@ -69,7 +67,7 @@ pub(crate) enum Keys {
             digest_len: usize,
             signature: *mut std::os::raw::c_uchar,
             signature_len: *mut usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         verify: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
@@ -80,7 +78,7 @@ pub(crate) enum Keys {
             signature: *const std::os::raw::c_uchar,
             signature_len: usize,
             ok: *mut std::os::raw::c_int,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         encrypt: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
@@ -90,7 +88,7 @@ pub(crate) enum Keys {
             plaintext_len: usize,
             ciphertext: *mut std::os::raw::c_uchar,
             ciphertext_len: *mut usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
 
         decrypt: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
@@ -100,7 +98,7 @@ pub(crate) enum Keys {
             ciphertext_len: usize,
             plaintext: *mut std::os::raw::c_uchar,
             plaintext_len: *mut usize,
-        ) -> sys::AZIOT_KEYS_STATUS,
+        ) -> sys::AZIOT_KEYS_RC,
     },
 }
 
@@ -382,7 +380,7 @@ impl Keys {
                                 }
                                 _ => {
                                     return Err(GetKeyPairPublicParameterError::Api {
-                                        err: KeysRawError(sys::AZIOT_KEYS_ERROR_INVALID_PARAMETER),
+                                        err: KeysRawError(sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER),
                                     })
                                 }
                             };
@@ -877,9 +875,9 @@ impl std::fmt::Display for DecryptError {
 
 impl std::error::Error for DecryptError {}
 
-fn keys_ok(result: sys::AZIOT_KEYS_STATUS) -> Result<(), KeysRawError> {
+fn keys_ok(result: sys::AZIOT_KEYS_RC) -> Result<(), KeysRawError> {
     match result {
-        sys::AZIOT_KEYS_SUCCESS => Ok(()),
+        sys::AZIOT_KEYS_RC_OK => Ok(()),
         err => Err(KeysRawError(err)),
     }
 }
@@ -890,7 +888,7 @@ unsafe fn get_key_pair_parameter_byte_buf(
         r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
         value: *mut std::os::raw::c_uchar,
         value_len: *mut usize,
-    ) -> sys::AZIOT_KEYS_STATUS,
+    ) -> sys::AZIOT_KEYS_RC,
     id: &std::ffi::CStr,
     r#type: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
 ) -> Result<Vec<u8>, KeysRawError> {

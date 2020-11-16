@@ -3,7 +3,7 @@
 pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
     id: *const std::os::raw::c_char,
     preferred_algorithms: *const std::os::raw::c_char,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -41,7 +41,7 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 
 pub(crate) unsafe extern "C" fn load_key_pair(
     id: *const std::os::raw::c_char,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -75,7 +75,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
     r#type: crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE,
     value: *mut std::os::raw::c_uchar,
     value_len: *mut usize,
-) -> crate::AZIOT_KEYS_STATUS {
+) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
             if id.is_null() {
@@ -296,7 +296,7 @@ pub(crate) unsafe fn sign(
     mechanism: crate::AZIOT_KEYS_SIGN_MECHANISM,
     _parameters: *const std::ffi::c_void,
     digest: &[u8],
-) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let (_, private_key) = load_inner(locations)?
         .ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
@@ -337,7 +337,7 @@ pub(crate) unsafe fn encrypt(
     mechanism: crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
     _parameters: *const std::ffi::c_void,
     plaintext: &[u8],
-) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let (_, private_key) = match load_inner(locations)? {
         Some(key) => key,
         None => {
@@ -380,7 +380,7 @@ fn load_inner(
         openssl::pkey::PKey<openssl::pkey::Public>,
         openssl::pkey::PKey<openssl::pkey::Private>,
     )>,
-    crate::AZIOT_KEYS_STATUS,
+    crate::AZIOT_KEYS_RC,
 > {
     let location = locations
         .first()
@@ -441,7 +441,7 @@ fn load_inner(
 fn create_inner(
     locations: &[crate::implementation::Location],
     preferred_algorithms: &[PreferredAlgorithm],
-) -> Result<(), crate::AZIOT_KEYS_STATUS> {
+) -> Result<(), crate::AZIOT_KEYS_RC> {
     let location = locations
         .first()
         .ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;

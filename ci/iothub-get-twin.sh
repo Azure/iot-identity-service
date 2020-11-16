@@ -239,16 +239,6 @@ fi
 
 case "$auth_type" in
     'sas')
-        if [ -z "$module_id" ]; then
-            # TODO: Bug? For device ID spec, the key handle is actually the key ID.
-            key_id="$(uri_encode "$key_handle")"
-            key_handle="$(
-                curl --unix-socket '/run/aziot/keyd.sock' \
-                    "http://foo/key/$key_id?api-version=2020-09-01" |
-                    jq '.keyHandle' -er
-            )"
-        fi
-
         expiry="$(bc <<< "$(date +%s) + 60 * 60 * 24")"
         signature_data="$(printf '%s\n%s' "$resource_uri" "$expiry" | base64 -w 0)"
         signature="$(

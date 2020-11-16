@@ -7,6 +7,7 @@ pub enum Error {
     DeviceNotFound,
     DPSClient(std::io::Error),
     HubClient(std::io::Error),
+    KeyClient(std::io::Error),
     ModuleNotFound,
     Internal(InternalError),
     InvalidParameter(&'static str, Box<dyn std::error::Error + Send + Sync>),
@@ -29,6 +30,7 @@ impl std::fmt::Display for Error {
             Error::DeviceNotFound => f.write_str("device identity not found"),
             Error::DPSClient(_) => f.write_str("DPS client error"),
             Error::HubClient(_) => f.write_str("Hub client error"),
+            Error::KeyClient(_) => f.write_str("Key client error"),
             Error::ModuleNotFound => f.write_str("module identity not found"),
             Error::Internal(_) => f.write_str("internal error"),
             Error::InvalidParameter(name, _) => {
@@ -45,7 +47,7 @@ impl std::error::Error for Error {
             | Error::Authorization
             | Error::DeviceNotFound
             | Error::ModuleNotFound => None,
-            Error::DPSClient(err) | Error::HubClient(err) => Some(err),
+            Error::DPSClient(err) | Error::HubClient(err) | Error::KeyClient(err) => Some(err),
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
         }
