@@ -20,6 +20,9 @@ BuildRequires: pkgconfig
 # Required for %{_unitdir} to be defined, as described in https://fedoraproject.org/wiki/Packaging:Systemd
 BuildRequires: systemd
 
+# HACK: workaround for CMake files output as part of the `aziot-tpm-sys` build process.
+%define _unpackaged_files_terminate_build 0
+
 %description
 This package contains the Azure IoT device runtime, comprised of the following services:
 
