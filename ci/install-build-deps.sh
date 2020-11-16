@@ -15,7 +15,7 @@ case "$OS:$ARCH" in
     'centos:7:amd64')
         yum install -y epel-release
         yum install -y \
-            curl gcc gcc-c++ jq make pkgconfig cmake \
+            curl gcc gcc-c++ git jq make pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
@@ -32,6 +32,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y \
             curl gcc g++ jq make pkg-config cmake \
+            curl gcc g++ git jq make pkg-config cmake \
             libclang1 libssl-dev llvm-dev
         ;;
 
@@ -43,7 +44,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf jq make pkg-config cmake \
+            ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -55,7 +56,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu jq make pkg-config cmake \
+            ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
@@ -80,7 +81,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf jq make pkg-config cmake \
+            build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
@@ -105,8 +106,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
+            build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
         ;;
 
     *)
@@ -139,7 +139,7 @@ if [ ! -f ~/.cargo/bin/bindgen ]; then
 fi
 
 if [ ! -f ~/.cargo/bin/cbindgen ]; then
-    cargo install cbindgen --version '^0.14'
+    cargo install cbindgen --version '^0.15'
 fi
 
 export CARGO_INCREMENTAL=0

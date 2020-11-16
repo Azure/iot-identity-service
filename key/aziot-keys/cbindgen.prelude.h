@@ -6,7 +6,7 @@
  *
  * # API conventions
  *
- * All functions return an `unsigned int` to indicate success or failure. See the [`AZIOT_KEYS_STATUS`] type's docs for details about these constants.
+ * All functions return an `unsigned int` to indicate success or failure. See the [`AZIOT_KEYS_RC`] type's docs for details about these constants.
  *
  * The only function exported by this library is [`aziot_keys_get_function_list`]. Call this function to get the version of the API
  * that this library exports, as well as the function pointers to the key operations. See its docs for more details.
