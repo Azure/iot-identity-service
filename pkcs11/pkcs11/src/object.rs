@@ -33,7 +33,7 @@ impl Object<openssl::ec::EcKey<openssl::pkey::Public>> {
                 self.session.context.C_GetAttributeValue,
             )?;
             let curve = openssl2::EcCurve::from_oid_der(&curve)
-                .ok_or_else(|| GetKeyParametersError::UnrecognizedEcCurve(curve))?;
+                .ok_or(GetKeyParametersError::UnrecognizedEcCurve(curve))?;
             let curve = curve.as_nid();
             let mut group = openssl::ec::EcGroup::from_curve_name(curve)
                 .map_err(GetKeyParametersError::ConvertToOpenssl)?;

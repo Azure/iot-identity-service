@@ -144,11 +144,9 @@ impl std::str::FromStr for Uri {
         let mut slot_id = None;
         let mut pin = None;
 
-        let s = if s.starts_with("pkcs11:") {
-            &s[("pkcs11:".len())..]
-        } else {
-            return Err(ParsePkcs11UriError::InvalidScheme);
-        };
+        let s = s
+            .strip_prefix("pkcs11:")
+            .ok_or(ParsePkcs11UriError::InvalidScheme)?;
 
         let mut url_parts = s.split('?');
 

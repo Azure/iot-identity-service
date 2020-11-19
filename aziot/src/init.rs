@@ -46,21 +46,21 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     let (aziotks_user, aziotcs_user, aziotid_user) = if nix::unistd::Uid::current().is_root() {
         let aziotks_user = nix::unistd::User::from_name("aziotks")
             .map_err(|err| format!("could not query aziotks user information: {}", err))?
-            .ok_or_else(|| "could not query aziotks user information")?;
+            .ok_or("could not query aziotks user information")?;
 
         let aziotcs_user = nix::unistd::User::from_name("aziotcs")
             .map_err(|err| format!("could not query aziotcs user information: {}", err))?
-            .ok_or_else(|| "could not query aziotcs user information")?;
+            .ok_or("could not query aziotcs user information")?;
 
         let aziotid_user = nix::unistd::User::from_name("aziotid")
             .map_err(|err| format!("could not query aziotid user information: {}", err))?
-            .ok_or_else(|| "could not query aziotid user information")?;
+            .ok_or("could not query aziotid user information")?;
 
         (aziotks_user, aziotcs_user, aziotid_user)
     } else if cfg!(debug_assertions) {
         let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
             .map_err(|err| format!("could not query current user information: {}", err))?
-            .ok_or_else(|| "could not query current user information")?;
+            .ok_or("could not query current user information")?;
         (current_user.clone(), current_user.clone(), current_user)
     } else {
         return Err("this command must be run as root".into());

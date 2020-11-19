@@ -29,7 +29,7 @@ impl std::fmt::Display for PreloadedKeyLocation {
             PreloadedKeyLocation::Filesystem { path } => write!(
                 f,
                 "{}",
-                url::Url::from_file_path(path).map_err(|_| std::fmt::Error)?
+                url::Url::from_file_path(path).map_err(|_e| std::fmt::Error)?
             ),
             PreloadedKeyLocation::Pkcs11 { uri } => uri.fmt(f),
         }
