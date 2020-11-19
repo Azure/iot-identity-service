@@ -65,8 +65,8 @@ pub struct DeviceRegistrationResult {
 pub struct TpmAttestation {
     #[serde(rename = "endorsementKey")]
     pub endorsement_key: String,
-    #[serde(rename = "storageRootKey", skip_serializing_if = "Option::is_none")]
-    pub storage_root_key: Option<String>,
+    #[serde(rename = "storageRootKey")]
+    pub storage_root_key: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]

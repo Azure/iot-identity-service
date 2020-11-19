@@ -98,7 +98,7 @@ impl Client {
                     registration_id: Some(registration_id.into()),
                     tpm: Some(model::TpmAttestation {
                         endorsement_key: base64::encode(&endorsement_key),
-                        storage_root_key: Some(base64::encode(&storage_root_key)),
+                        storage_root_key: base64::encode(&storage_root_key),
                     }),
                 }
             }
