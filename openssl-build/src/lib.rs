@@ -2,7 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::must_use_candidate, clippy::unusual_byte_groupings)]
+#![allow(clippy::must_use_candidate)]
 
 /// Emits `ossl110` and `ossl111` cfgs based on the version of openssl.
 pub fn define_version_number_cfg() {
