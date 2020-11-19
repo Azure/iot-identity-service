@@ -594,7 +594,10 @@ impl Api {
                     })?;
 
                 // Create local identity CSR.
-                let subject = format!("{}.{}", module_id, localid.domain);
+                let subject = format!(
+                    "{}.{}.{}",
+                    module_id, self.settings.hostname, localid.domain
+                );
                 let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
                     .map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))

@@ -478,17 +478,15 @@ fn key_handle_to_id(
     let mut sig = None;
 
     for param in params {
-        if param.starts_with("sr=") {
-            let value = &param["sr=".len()..];
+        if let Some(value) = param.strip_prefix("sr=") {
             let value = base64::decode(value.as_bytes())
-                .map_err(|_| Error::invalid_parameter("handle", "invalid handle"))?;
+                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             let value = String::from_utf8(value)
-                .map_err(|_| Error::invalid_parameter("handle", "invalid handle"))?;
+                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             sr = Some(value);
-        } else if param.starts_with("sig=") {
-            let value = &param["sig=".len()..];
+        } else if let Some(value) = param.strip_prefix("sig=") {
             let value = base64::decode(value.as_bytes())
-                .map_err(|_| Error::invalid_parameter("handle", "invalid handle"))?;
+                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             sig = Some(value);
         }
     }
@@ -513,7 +511,7 @@ fn key_handle_to_id(
     }
 
     let sr: Sr<'static> = serde_json::from_str(&sr)
-        .map_err(|_| Error::invalid_parameter("handle", "invalid handle"))?;
+        .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
 
     let id = sr.key_id;
 
