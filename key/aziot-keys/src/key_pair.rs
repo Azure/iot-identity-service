@@ -359,9 +359,9 @@ pub(crate) unsafe fn encrypt(
         }
     };
 
-    let rsa = private_key
-        .rsa()
-        .map_err(|_| crate::implementation::err_invalid_parameter("mechanism", "not an RSA key"))?;
+    let rsa = private_key.rsa().map_err(|_e| {
+        crate::implementation::err_invalid_parameter("mechanism", "not an RSA key")
+    })?;
 
     let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
         crate::implementation::err_external(format!("RSA_size returned invalid value: {}", err))

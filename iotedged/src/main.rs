@@ -850,7 +850,7 @@ impl std::fmt::Display for Displayable<'_, openssl::x509::X509Ref> {
             .entries()
             .next()
             .ok_or(())
-            .and_then(|entry| entry.data().as_utf8().map_err(|_| ()))
+            .and_then(|entry| entry.data().as_utf8().map_err(drop))
             .map(|s| s.to_string())
             .unwrap_or_default();
 
@@ -860,7 +860,7 @@ impl std::fmt::Display for Displayable<'_, openssl::x509::X509Ref> {
             .entries()
             .next()
             .ok_or(())
-            .and_then(|entry| entry.data().as_utf8().map_err(|_| ()))
+            .and_then(|entry| entry.data().as_utf8().map_err(drop))
             .map(|s| s.to_string())
             .unwrap_or_default();
 
