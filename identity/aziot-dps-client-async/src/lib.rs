@@ -227,13 +227,14 @@ impl Client {
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey {..}) {
-                    get_sas_connector(&audience, &key, &*self.key_client).await?
+                    get_sas_connector(&audience, &key, &*self.key_client, false).await?
                 } else {
                     get_sas_connector(
                         &audience,
                         &base64::decode(key)
                             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
                         &*self.tpm_client,
+                        true,
                     )
                     .await?
                 };

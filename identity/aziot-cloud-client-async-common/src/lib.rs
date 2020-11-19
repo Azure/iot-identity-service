@@ -13,6 +13,7 @@ pub async fn get_sas_connector(
     audience: &str,
     key_handle: impl AsRef<[u8]>,
     key_client: &impl KeyClient,
+    is_tpm_registration: bool,
 ) -> io::Result<(
     hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
     String,
@@ -36,12 +37,14 @@ pub async fn get_sas_connector(
 
         let signature = base64::encode(&signature);
 
-        let token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri))
-            .append_pair("sig", &signature)
-            .append_pair("se", &expiry)
-            .append_pair("skn", "registration")
-            .finish();
+        let mut token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri));
         token
+            .append_pair("sig", &signature)
+            .append_pair("se", &expiry);
+        if is_tpm_registration {
+            token.append_pair("skn", "registration");
+        }
+        token.finish()
     };
 
     let token = format!("SharedAccessSignature {}", token);
