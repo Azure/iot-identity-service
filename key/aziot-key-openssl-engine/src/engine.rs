@@ -80,7 +80,10 @@ impl Engine {
             openssl_sys2::ENGINE_FLAGS_BY_ID_COPY,
         ))?;
 
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+        if init_and_destroy.is_none() {
+            // ENGINE_add should not be called for dynamic engines because the dynamic loader does it.
+            openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+        }
 
         Ok(())
     }
