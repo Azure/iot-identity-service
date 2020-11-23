@@ -46,8 +46,9 @@ pub fn load(
 pub unsafe fn register(
     e: *mut openssl_sys::ENGINE,
     init: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
+    destroy: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
 ) -> Result<(), openssl2::Error> {
-    engine::Engine::register(e, Some(init))
+    engine::Engine::register(e, Some((init, destroy)))
 }
 
 /// Initialize an existing structural instance of the openssl engine with the given Keys Service client.
@@ -59,6 +60,14 @@ pub unsafe fn init(
     client: std::sync::Arc<aziot_key_client::Client>,
 ) -> Result<(), openssl2::Error> {
     engine::Engine::init(e, client)
+}
+
+/// Destroy an existing structural instance of the openssl engine.
+///
+/// This is intended to be used by aziot-key-engine-shared.
+#[doc(hidden)]
+pub unsafe fn destroy(e: *mut openssl_sys::ENGINE) -> Result<(), openssl2::Error> {
+    engine::Engine::destroy(e)
 }
 
 openssl_errors::openssl_errors! {
