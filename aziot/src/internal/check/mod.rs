@@ -11,6 +11,7 @@ pub use checks::all_checks;
 const DEFAULT_BIN_DIR: &str = "/usr/bin/";
 const DEFAULT_CFG_DIR: &str = "/etc/aziot/";
 
+// NOTE: this struct gets `structopt(flatten)`ed as part of the `aziot check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
     // TODO: add aziot version info to https://github.com/Azure/azure-iotedge
