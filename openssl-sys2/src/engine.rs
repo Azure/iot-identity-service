@@ -63,6 +63,10 @@ extern "C" {
         e: *mut openssl_sys::ENGINE,
         name: *const std::os::raw::c_char,
     ) -> std::os::raw::c_int;
+    pub fn ENGINE_set_destroy_function(
+        e: *mut openssl_sys::ENGINE,
+        ctrl_f: ENGINE_GEN_INT_FUNC_PTR,
+    ) -> std::os::raw::c_int;
     pub fn ENGINE_set_init_function(
         e: *mut openssl_sys::ENGINE,
         ctrl_f: ENGINE_GEN_INT_FUNC_PTR,

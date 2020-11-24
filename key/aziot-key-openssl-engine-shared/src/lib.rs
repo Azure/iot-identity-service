@@ -16,7 +16,7 @@ unsafe extern "C" fn aziot_key_openssl_engine_shared_bind(
     _id: *const std::os::raw::c_char,
 ) -> std::os::raw::c_int {
     let result = r#catch(Some(|| Error::ENGINE_BIND), || {
-        aziot_key_openssl_engine::register(e, engine_init)?;
+        aziot_key_openssl_engine::register(e, engine_init, engine_destroy)?;
         Ok(())
     });
     match result {
@@ -46,12 +46,25 @@ unsafe extern "C" fn engine_init(e: *mut openssl_sys::ENGINE) -> std::os::raw::c
     }
 }
 
+unsafe extern "C" fn engine_destroy(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int {
+    let result = r#catch(Some(|| Error::ENGINE_DESTROY), || {
+        aziot_key_openssl_engine::destroy(e)?;
+
+        Ok(())
+    });
+    match result {
+        Ok(()) => 1,
+        Err(()) => 0,
+    }
+}
+
 openssl_errors::openssl_errors! {
     #[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
     library Error("aziot_key_openssl_engine_shared") {
         functions {
             ENGINE_BIND("aziot_key_engine_shared_bind");
             ENGINE_INIT("aziot_key_engine_shared_init");
+            ENGINE_DESTROY("aziot_key_engine_shared_destroy");
         }
 
         reasons {

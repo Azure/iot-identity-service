@@ -40,7 +40,10 @@ impl Engine {
 
     pub(super) unsafe fn register(
         e: *mut openssl_sys::ENGINE,
-        init: Option<openssl_sys2::ENGINE_GEN_INT_FUNC_PTR>,
+        init_and_destroy: Option<(
+            openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
+            openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
+        )>,
     ) -> Result<(), openssl2::Error> {
         openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_id(
             e,
@@ -57,8 +60,9 @@ impl Engine {
             .as_ptr(),
         ))?;
 
-        if let Some(init) = init {
+        if let Some((init, destroy)) = init_and_destroy {
             openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_init_function(e, init))?;
+            openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_destroy_function(e, destroy))?;
         }
 
         openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_privkey_function(
@@ -76,7 +80,10 @@ impl Engine {
             openssl_sys2::ENGINE_FLAGS_BY_ID_COPY,
         ))?;
 
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+        if init_and_destroy.is_none() {
+            // ENGINE_add should not be called for dynamic engines because the dynamic loader does it.
+            openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+        }
 
         Ok(())
     }
@@ -89,10 +96,25 @@ impl Engine {
         crate::ex_data::set(e, engine)?;
         Ok(())
     }
+
+    pub(super) unsafe fn destroy(e: *mut openssl_sys::ENGINE) -> Result<(), openssl2::Error> {
+        let ex_index = <openssl_sys::ENGINE as crate::ex_data::HasExData<Engine>>::index().as_raw();
+
+        let ex_data: *const Engine = openssl2::openssl_returns_nonnull(
+            (<openssl_sys::ENGINE as openssl2::ExDataAccessors>::GET_FN)(e, ex_index),
+        )? as _;
+        if !ex_data.is_null() {
+            // Restore the Arc and then drop it.
+            let ex_data = std::sync::Arc::from_raw(ex_data);
+            drop(ex_data);
+        }
+
+        Ok(())
+    }
 }
 
-impl crate::ex_data::HasExData<crate::engine::Engine> for openssl_sys::ENGINE {
-    unsafe fn index() -> openssl::ex_data::Index<Self, crate::engine::Engine> {
+impl crate::ex_data::HasExData<Engine> for openssl_sys::ENGINE {
+    unsafe fn index() -> openssl::ex_data::Index<Self, Engine> {
         crate::ex_data::ex_indices().engine
     }
 }
@@ -107,21 +129,8 @@ unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) -> std::os::raw::c_int {
-    crate::ex_data::dup::<openssl_sys::ENGINE, crate::engine::Engine>(from_d, idx);
+    crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
     1
-}
-
-#[no_mangle]
-#[allow(clippy::similar_names)]
-unsafe extern "C" fn aziot_key_freef_engine_ex_data(
-    _parent: *mut std::ffi::c_void,
-    ptr: *mut std::ffi::c_void,
-    _ad: *mut openssl_sys::CRYPTO_EX_DATA,
-    idx: std::os::raw::c_int,
-    _argl: std::os::raw::c_long,
-    _argp: *mut std::ffi::c_void,
-) {
-    crate::ex_data::free::<openssl_sys::ENGINE, crate::engine::Engine>(ptr, idx);
 }
 
 unsafe extern "C" fn engine_load_privkey(
