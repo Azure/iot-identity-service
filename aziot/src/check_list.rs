@@ -1,7 +1,7 @@
 pub fn check_list() -> Result<(), crate::Error> {
     // All our text is ASCII, so we can measure text width in bytes rather than
     // using unicode-segmentation to count graphemes.
-    let checks = super::checks::all_checks();
+    let checks = crate::internal::check::all_checks();
     let widest_section_name_len = checks
         .iter()
         .map(|(section_name, _)| section_name.len())

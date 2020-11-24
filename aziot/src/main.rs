@@ -13,7 +13,10 @@
 
 use structopt::StructOpt;
 
+mod internal;
+
 mod check;
+mod check_list;
 mod error;
 mod init;
 
@@ -25,7 +28,7 @@ async fn main() -> Result<(), Error> {
     match options {
         Options::Init => init::run()?,
         Options::Check(cfg) => check::check(cfg).await?,
-        Options::CheckList => check::check_list()?,
+        Options::CheckList => check_list::check_list()?,
     }
 
     Ok(())

@@ -1,22 +1,12 @@
 use std::collections::BTreeMap;
 use std::io::prelude::*;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use colored::Colorize;
 use serde::Serialize;
 use structopt::StructOpt;
 
-mod additional_info;
-mod check_list_cli;
-mod checks;
-
-pub use check_list_cli::check_list;
-
-use additional_info::AdditionalInfo;
-
-const DEFAULT_CONFIG_DIR: &str = "/etc/aziot/";
-const DEFAULT_BIN_DIR: &str = "/usr/bin/";
+use crate::internal::check::{AdditionalInfo, CheckResult, CheckerCache, CheckerCfg};
 
 #[derive(StructOpt)]
 #[structopt(about = "Check for common config and deployment issues")]
@@ -31,27 +21,6 @@ pub struct CheckCfg {
     )]
     dont_run: Vec<String>,
 
-    // TODO: add aziot version info to https://github.com/Azure/azure-iotedge
-    // /// Sets the expected version of the iotedged binary. Defaults to the value
-    // /// contained in <http://aka.ms/latest-iotedge-stable>
-    // expected_iotedged_version: String,
-    /// Sets the path to the aziotd daemon binaries.
-    #[structopt(
-        long,
-        value_name = "PATH_TO_IOTEDGED",
-        default_value = DEFAULT_BIN_DIR
-    )]
-    bin_path: PathBuf,
-
-    /// Sets the hostname of the Azure IoT Hub that this device would connect to.
-    /// If using manual provisioning, this does not need to be specified.
-    #[structopt(long, value_name = "IOTHUB_HOSTNAME")]
-    iothub_hostname: Option<PathBuf>,
-
-    /// Sets the NTP server to use when checking host local time.
-    #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
-    ntp_server: String,
-
     /// Output format. Note that JSON output contains some additional information
     /// like OS name, OS version, disk space, etc.
     #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
@@ -65,6 +34,9 @@ pub struct CheckCfg {
     /// code if it encounters warnings.
     #[structopt(long)]
     warnings_as_errors: bool,
+
+    #[structopt(flatten)]
+    checker_cfg: CheckerCfg,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -87,52 +59,9 @@ impl FromStr for OutputFormat {
     }
 }
 
-/// The various ways a check can resolve.
-///
-/// Check functions return `Result<CheckResult, failure::Error>` where `Err` represents the check failed.
-#[derive(Debug)]
-pub enum CheckResult {
-    /// Check succeeded.
-    Ok,
-
-    /// Check failed with a warning.
-    Warning(crate::Error),
-
-    /// Check is not applicable and was ignored. Should be treated as success.
-    Ignored,
-
-    /// Check was skipped because of errors from some previous checks. Should be treated as an error.
-    Skipped,
-
-    /// Check failed, and further checks should be performed.
-    Failed(crate::Error),
-
-    /// Check failed, and further checks should not be performed.
-    Fatal(crate::Error),
-}
-
-pub struct CheckerMeta {
-    /// Unique human-readable identifier for the check.
-    pub id: &'static str,
-    /// A brief description of what this check does.
-    pub description: &'static str,
-}
-
-/// Container for any cached data shared between different checks.
-struct CheckerCache {}
-
-#[async_trait::async_trait]
-trait Checker: erased_serde::Serialize {
-    fn meta(&self) -> CheckerMeta;
-
-    async fn execute(&mut self, cfg: &CheckCfg, cache: &mut CheckerCache) -> CheckResult;
-}
-
-erased_serde::serialize_trait_object!(Checker);
-
 pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
     let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
-    let mut check_data = checks::all_checks();
+    let mut check_data = crate::internal::check::all_checks();
     let mut shared = CheckerCache {};
 
     let mut num_successful = 0_usize;
@@ -179,29 +108,29 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
         };
     }
 
-    for (section_name, section_checks) in &mut check_data {
-        if num_fatal > 0 {
-            break;
-        }
+    let top_level_additional_info = AdditionalInfo::new();
 
+    if matches!(cfg.output, OutputFormat::JsonStream) {
+        serde_json::to_writer(
+            std::io::stdout(),
+            &CheckResultsSerializableStreaming::AdditionalInfo(&top_level_additional_info),
+        )?;
+        std::io::stdout().flush()?;
+    }
+
+    'all_checks: for (section_name, section_checks) in &mut check_data {
         outputln!(normal, "{}", section_name);
         outputln!(normal, "{}", "-".repeat(section_name.len()));
 
         for check in section_checks {
-            let check_name = check.meta().description;
-
-            if num_fatal > 0 {
-                break;
-            }
-
             let check_result = if cfg.dont_run.iter().any(|s| s == check.meta().id) {
                 CheckResult::Ignored
             } else {
-                check.execute(&cfg, &mut shared).await
+                check.execute(&cfg.checker_cfg, &mut shared).await
             };
-            let additional_info =
-                serde_json::to_value(&check).expect("serializing a check should never fail");
+            let additional_info = serde_json::to_value(&check)?;
 
+            let check_name = check.meta().description;
             let check_result_serializable = match check_result {
                 CheckResult::Ok => {
                     num_successful += 1;
@@ -278,13 +207,31 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                 }
             };
 
-            checks.insert(
-                check.meta().id,
-                CheckOutputSerializable {
-                    result: check_result_serializable,
-                    additional_info,
-                },
-            );
+            let output_serializable = CheckOutputSerializable {
+                result: check_result_serializable,
+                additional_info,
+            };
+
+            match cfg.output {
+                OutputFormat::Text => {}
+                OutputFormat::Json => {
+                    checks.insert(check.meta().id, output_serializable);
+                }
+                OutputFormat::JsonStream => {
+                    serde_json::to_writer(
+                        std::io::stdout(),
+                        &CheckResultsSerializableStreaming::Check {
+                            id: check.meta().id,
+                            output: output_serializable,
+                        },
+                    )?;
+                    std::io::stdout().flush()?;
+                }
+            }
+
+            if num_fatal > 0 {
+                break 'all_checks;
+            }
         }
 
         outputln!();
@@ -323,15 +270,9 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
         }
     }
 
-    let result = if num_fatal + num_errors > 0 {
-        Err("".into())
-    } else {
-        Ok(())
-    };
-
     if matches!(cfg.output, OutputFormat::Json) {
         let check_results = CheckResultsSerializable {
-            additional_info: &AdditionalInfo::new(),
+            additional_info: &top_level_additional_info,
             checks,
         };
 
@@ -343,7 +284,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
         println!();
     }
 
-    result
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -368,4 +309,16 @@ enum CheckResultSerializable {
 struct CheckOutputSerializable {
     result: CheckResultSerializable,
     additional_info: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind")]
+#[serde(rename_all = "snake_case")]
+enum CheckResultsSerializableStreaming<'a> {
+    AdditionalInfo(&'a AdditionalInfo),
+    Check {
+        id: &'static str,
+        #[serde(flatten)]
+        output: CheckOutputSerializable,
+    },
 }
