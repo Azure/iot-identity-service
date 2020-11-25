@@ -158,6 +158,7 @@ test:
 
 	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
 		while read -r f; do \
@@ -181,9 +182,10 @@ test:
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
-			if [ "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]; then \
+			if [[ -s "$$f" && "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]]; then \
 				echo "missing newline at end of $$f" >&2; \
 				exit 1; \
 			fi; \
@@ -191,6 +193,7 @@ test:
 
 	find . -name '*.c' -or -name '*.rs' | \
 		grep -v '^\./target/' | \
+		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if ! (head -n1 "$$f" | grep -q 'Copyright (c) Microsoft. All rights reserved.'); then \
@@ -212,7 +215,7 @@ dist:
 
 	# Copy source files
 	cp -R \
-		./aziot ./aziotd ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 \
+		./aziot ./aziotd ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
@@ -305,6 +308,7 @@ install-common:
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
+	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-tpmd
 
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot $(DESTDIR)$(bindir)/aziot
 
@@ -321,10 +325,14 @@ install-common:
 	$(INSTALL_DATA) -D key/aziot-keyd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/keyd/config.toml.default
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/keyd/config.d
 
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.toml.default
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.d
+
 	# Home directories
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/certd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/identityd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/keyd
+	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/tpmd
 
 	# Systemd services and sockets
 	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.service $(DESTDIR)$(unitdir)/aziot-certd.service
@@ -336,13 +344,14 @@ install-common:
 	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.service $(DESTDIR)$(unitdir)/aziot-keyd.service
 	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.socket $(DESTDIR)$(unitdir)/aziot-keyd.socket
 
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.service $(DESTDIR)$(unitdir)/aziot-tpmd.service
+	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.socket $(DESTDIR)$(unitdir)/aziot-tpmd.socket
+
 install-deb: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
-
-	# Sockets
 
 	# README.md and LICENSE
 	$(INSTALL_DATA) -D README.md $(DESTDIR)$(docdir)/README.md

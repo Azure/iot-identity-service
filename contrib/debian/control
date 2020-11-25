@@ -18,6 +18,7 @@ Description: Azure IoT Identity Service and related services
  - aziot-identityd - The Azure IoT Identity Service
  - aziot-certd - The Azure IoT Certificates Service
  - aziot-keyd - The Azure IoT Keys Service
+ - aziot-tpmd - The Azure IoT TPM Service
  .
  This package also contains the following libraries:
  .

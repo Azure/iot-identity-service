@@ -51,8 +51,8 @@ override_dh_auto_install:
 
 	# Default behavior of dh_systemd_enable and dh_systemd_start is to enable and start all installed units, ie both sockets and services.
 	# But we don't want to enable or start the services, since the sockets will start them automatically anyway.
-	dh_systemd_enable aziot-certd.socket aziot-identityd.socket aziot-keyd.socket
-	dh_systemd_start aziot-certd.socket aziot-identityd.socket aziot-keyd.socket
+	dh_systemd_enable aziot-certd.socket aziot-identityd.socket aziot-keyd.socket aziot-tpmd.socket
+	dh_systemd_start aziot-certd.socket aziot-identityd.socket aziot-keyd.socket aziot-tpmd.socket
 
 override_dh_auto_test:
 	# Default behavior is `make test`, which we don't need, and won't work for cross-compiled packages anyway.

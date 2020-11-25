@@ -51,8 +51,8 @@ pub struct LocalAuthenticationInfo {
 pub struct AuthenticationInfo {
     #[serde(rename = "type")]
     pub auth_type: AuthenticationType,
-    #[serde(rename = "keyHandle")]
-    pub key_handle: aziot_key_common::KeyHandle,
+    #[serde(rename = "keyHandle", skip_serializing_if = "Option::is_none")]
+    pub key_handle: Option<aziot_key_common::KeyHandle>,
     #[serde(rename = "certId", skip_serializing_if = "Option::is_none")]
     pub cert_id: Option<String>,
 }
@@ -62,6 +62,7 @@ pub struct AuthenticationInfo {
 pub enum AuthenticationType {
     Sas,
     X509,
+    Tpm,
 }
 
 impl std::fmt::Display for AuthenticationType {
@@ -69,6 +70,7 @@ impl std::fmt::Display for AuthenticationType {
         let s = match *self {
             AuthenticationType::Sas => "sas",
             AuthenticationType::X509 => "x509",
+            AuthenticationType::Tpm => "tpm",
         };
         write!(f, "{}", s)
     }
@@ -138,6 +140,8 @@ pub enum Credentials {
         identity_cert: String,
         identity_pk: String,
     },
+
+    Tpm,
 }
 
 impl From<Credentials> for AuthenticationInfo {
@@ -145,7 +149,7 @@ impl From<Credentials> for AuthenticationInfo {
         match c {
             Credentials::SharedPrivateKey(k) => AuthenticationInfo {
                 auth_type: AuthenticationType::Sas,
-                key_handle: aziot_key_common::KeyHandle(k),
+                key_handle: Some(aziot_key_common::KeyHandle(k)),
                 cert_id: None,
             },
             Credentials::X509 {
@@ -153,8 +157,13 @@ impl From<Credentials> for AuthenticationInfo {
                 identity_pk,
             } => AuthenticationInfo {
                 auth_type: AuthenticationType::X509,
-                key_handle: aziot_key_common::KeyHandle(identity_pk),
+                key_handle: Some(aziot_key_common::KeyHandle(identity_pk)),
                 cert_id: Some(identity_cert),
+            },
+            Credentials::Tpm => AuthenticationInfo {
+                auth_type: AuthenticationType::Tpm,
+                key_handle: None,
+                cert_id: None,
             },
         }
     }

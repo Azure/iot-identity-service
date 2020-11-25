@@ -43,33 +43,44 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     // So when running as root, get the three users appropriately.
     // Otherwise, if this is a debug build, fall back to using the current user.
     // Otherwise, tell the user to re-run as root.
-    let (aziotks_user, aziotcs_user, aziotid_user) = if nix::unistd::Uid::current().is_root() {
-        let aziotks_user = nix::unistd::User::from_name("aziotks")
-            .map_err(|err| format!("could not query aziotks user information: {}", err))?
-            .ok_or("could not query aziotks user information")?;
+    let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
+        if nix::unistd::Uid::current().is_root() {
+            let aziotks_user = nix::unistd::User::from_name("aziotks")
+                .map_err(|err| format!("could not query aziotks user information: {}", err))?
+                .ok_or("could not query aziotks user information")?;
 
-        let aziotcs_user = nix::unistd::User::from_name("aziotcs")
-            .map_err(|err| format!("could not query aziotcs user information: {}", err))?
-            .ok_or("could not query aziotcs user information")?;
+            let aziotcs_user = nix::unistd::User::from_name("aziotcs")
+                .map_err(|err| format!("could not query aziotcs user information: {}", err))?
+                .ok_or("could not query aziotcs user information")?;
 
-        let aziotid_user = nix::unistd::User::from_name("aziotid")
-            .map_err(|err| format!("could not query aziotid user information: {}", err))?
-            .ok_or("could not query aziotid user information")?;
+            let aziotid_user = nix::unistd::User::from_name("aziotid")
+                .map_err(|err| format!("could not query aziotid user information: {}", err))?
+                .ok_or("could not query aziotid user information")?;
 
-        (aziotks_user, aziotcs_user, aziotid_user)
-    } else if cfg!(debug_assertions) {
-        let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
-            .map_err(|err| format!("could not query current user information: {}", err))?
-            .ok_or("could not query current user information")?;
-        (current_user.clone(), current_user.clone(), current_user)
-    } else {
-        return Err("this command must be run as root".into());
-    };
+            let aziottpm_user = nix::unistd::User::from_name("aziottpm")
+                .map_err(|err| format!("could not query aziottpm user information: {}", err))?
+                .ok_or("could not query aziottpm user information")?;
+
+            (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user)
+        } else if cfg!(debug_assertions) {
+            let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
+                .map_err(|err| format!("could not query current user information: {}", err))?
+                .ok_or("could not query current user information")?;
+            (
+                current_user.clone(),
+                current_user.clone(),
+                current_user.clone(),
+                current_user,
+            )
+        } else {
+            return Err("this command must be run as root".into());
+        };
 
     for &f in &[
         "/etc/aziot/certd/config.toml",
         "/etc/aziot/identityd/config.toml",
         "/etc/aziot/keyd/config.toml",
+        "/etc/aziot/tpmd/config.toml",
     ] {
         // Don't overwrite any of the configs if they already exist.
         //
@@ -98,6 +109,7 @@ pub(crate) fn run() -> Result<(), crate::Error> {
         keyd_config,
         certd_config,
         identityd_config,
+        tpmd_config,
         preloaded_device_id_pk_bytes,
     } = run_inner(&mut stdin)?;
 
@@ -134,6 +146,13 @@ pub(crate) fn run() -> Result<(), crate::Error> {
         0o0600,
     )?;
 
+    write_file(
+        "/etc/aziot/tpmd/config.toml",
+        &tpmd_config,
+        &aziottpm_user,
+        0o0600,
+    )?;
+
     println!("aziot-identity-service has been configured successfully!");
     println!("You can find the configured files at /etc/aziot/{{key,cert,identity}}d/config.toml");
 
@@ -159,6 +178,7 @@ struct RunOutput {
     certd_config: Vec<u8>,
     identityd_config: Vec<u8>,
     keyd_config: Vec<u8>,
+    tpmd_config: Vec<u8>,
     preloaded_device_id_pk_bytes: Option<Vec<u8>>,
 }
 
@@ -272,6 +292,22 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                         registration_id,
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),
+                    },
+                },
+                None,
+            )
+        },
+
+        ProvisioningMethod::Tpm => {
+            let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
+            let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
+
+            (
+                aziot_identityd::settings::ProvisioningType::Dps {
+                    global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
+                    scope_id,
+                    attestation: aziot_identityd::settings::DpsAttestationMethod::Tpm {
+                        registration_id,
                     },
                 },
                 None,
@@ -592,6 +628,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         certd_config
     };
 
+    let tpmd_config = aziot_tpmd::Config {
+        endpoints: Default::default(),
+    };
+
     let keyd_config = toml::to_vec(&keyd_config)
         .map_err(|err| format!("could not serialize aziot-keyd config: {}", err))?;
     let certd_config = toml::to_vec(&certd_config)
@@ -613,10 +653,14 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
     let identityd_config = toml::to_vec(&identityd_config)
         .map_err(|err| format!("could not serialize aziot-identityd config: {}", err))?;
 
+    let tpmd_config = toml::to_vec(&tpmd_config)
+        .map_err(|err| format!("could not serialize aziot-certd config: {}", err))?;
+
     Ok(RunOutput {
         keyd_config,
         certd_config,
         identityd_config,
+        tpmd_config,
         preloaded_device_id_pk_bytes,
     })
 }
@@ -650,6 +694,9 @@ enum ProvisioningMethod {
         fmt = "DPS provisioning with device identity certificate (self-signed or CA-signed)"
     )]
     DpsX509,
+
+    #[display(fmt = "DPS provisioning with TPM")]
+    Tpm,
 }
 
 #[derive(Clone, Copy, Debug, derive_more::Display)]
@@ -1105,6 +1152,7 @@ mod tests {
             let expected_certd_config = std::fs::read(case_directory.join("certd.toml")).unwrap();
             let expected_identityd_config =
                 std::fs::read(case_directory.join("identityd.toml")).unwrap();
+            let expected_tpmd_config = std::fs::read(case_directory.join("tpmd.toml")).unwrap();
 
             let expected_preloaded_device_id_pk_bytes =
                 match std::fs::read(case_directory.join("device-id")) {
@@ -1117,6 +1165,7 @@ mod tests {
                 keyd_config: actual_keyd_config,
                 certd_config: actual_certd_config,
                 identityd_config: actual_identityd_config,
+                tpmd_config: actual_tpmd_config,
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
             } = super::run_inner(&mut input).unwrap();
 
@@ -1136,6 +1185,11 @@ mod tests {
                 bytes::Bytes::from(expected_identityd_config),
                 bytes::Bytes::from(actual_identityd_config),
                 "identityd config does not match"
+            );
+            assert_eq!(
+                bytes::Bytes::from(expected_tpmd_config),
+                bytes::Bytes::from(actual_tpmd_config),
+                "tpmd config does not match"
             );
             assert_eq!(
                 expected_preloaded_device_id_pk_bytes, actual_preloaded_device_id_pk_bytes,

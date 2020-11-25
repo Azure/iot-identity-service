@@ -14,6 +14,8 @@
 )]
 #![allow(dead_code)]
 
+use std::sync::Arc;
+
 pub mod auth;
 pub mod error;
 mod http;
@@ -21,12 +23,6 @@ pub mod identity;
 pub mod settings;
 
 pub use error::{Error, InternalError};
-
-/// This is the interval at which to poll DPS for registration assignment status
-const DPS_ASSIGNMENT_RETRY_INTERVAL_SECS: u64 = 10;
-
-/// This is the number of seconds to wait for DPS to complete assignment to a hub
-const DPS_ASSIGNMENT_TIMEOUT_SECS: u64 = 120;
 
 /// URI query parameter that identifies module identity type.
 const ID_TYPE_AZIOT: &str = "aziot";
@@ -79,7 +75,7 @@ pub async fn main(
     let authorizer = Box::new(|_| Ok(true));
 
     let api = Api::new(settings, local_mmap, authenticator, authorizer)?;
-    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+    let api = Arc::new(futures_util::lock::Mutex::new(api));
 
     {
         let mut api_ = api.lock().await;
@@ -139,9 +135,10 @@ pub struct Api {
     pub local_identities:
         std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
 
-    key_client: std::sync::Arc<aziot_key_client_async::Client>,
-    key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
-    cert_client: std::sync::Arc<aziot_cert_client_async::Client>,
+    key_client: Arc<aziot_key_client_async::Client>,
+    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    cert_client: Arc<aziot_cert_client_async::Client>,
+    tpm_client: Arc<aziot_tpm_client_async::Client>,
 }
 
 impl Api {
@@ -161,7 +158,7 @@ impl Api {
                 aziot_key_common_http::ApiVersion::V2020_09_01,
                 key_service_connector.clone(),
             );
-            let key_client = std::sync::Arc::new(key_client);
+            let key_client = Arc::new(key_client);
             key_client
         };
 
@@ -170,10 +167,10 @@ impl Api {
                 aziot_key_common_http::ApiVersion::V2020_09_01,
                 key_service_connector,
             );
-            let key_client = std::sync::Arc::new(key_client);
+            let key_client = Arc::new(key_client);
             let key_engine = aziot_key_openssl_engine::load(key_client)
                 .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
-            let key_engine = std::sync::Arc::new(futures_util::lock::Mutex::new(key_engine));
+            let key_engine = Arc::new(futures_util::lock::Mutex::new(key_engine));
             key_engine
         };
 
@@ -183,14 +180,25 @@ impl Api {
                 aziot_cert_common_http::ApiVersion::V2020_09_01,
                 cert_service_connector,
             );
-            let cert_client = std::sync::Arc::new(cert_client);
+            let cert_client = Arc::new(cert_client);
             cert_client
+        };
+
+        let tpm_client = {
+            let tpm_service_connector = settings.endpoints.aziot_tpmd.clone();
+            let tpm_client = aziot_tpm_client_async::Client::new(
+                aziot_tpm_common_http::ApiVersion::V2020_09_01,
+                tpm_service_connector,
+            );
+            let tpm_client = Arc::new(tpm_client);
+            tpm_client
         };
 
         let id_manager = identity::IdentityManager::new(
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
+            tpm_client.clone(),
             None,
         );
 
@@ -204,6 +212,7 @@ impl Api {
             key_client,
             key_engine,
             cert_client,
+            tpm_client,
         })
     }
 
@@ -390,49 +399,6 @@ impl Api {
         Ok(())
     }
 
-    async fn dps_get_registered_device(
-        &mut self,
-        credential: aziot_identity_common::Credentials,
-        registration_id: &str,
-        operation_id: &str,
-        dps_client: aziot_dps_client_async::Client,
-        dps_auth_kind: &aziot_dps_client_async::DpsAuthKind,
-    ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-        let mut retry_count =
-            (DPS_ASSIGNMENT_TIMEOUT_SECS / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS) + 1;
-        loop {
-            if retry_count == 0 {
-                return Err(Error::DeviceNotFound);
-            }
-            retry_count -= 1;
-
-            let credential_clone = credential.clone();
-            let reg_status = dps_client
-                .get_operation_status(registration_id, operation_id, dps_auth_kind)
-                .await
-                .map_err(Error::DPSClient)?;
-
-            let status = reg_status.status.ok_or(Error::DeviceNotFound)?;
-            if !status.eq_ignore_ascii_case("assigning") {
-                let mut state = reg_status.registration_state.ok_or(Error::DeviceNotFound)?;
-                let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-                let device_id = state.device_id.get_or_insert("".into());
-                let device = aziot_identity_common::IoTHubDevice {
-                    iothub_hostname: iothub_hostname.clone(),
-                    device_id: device_id.clone(),
-                    credentials: credential_clone,
-                };
-
-                break Ok(device);
-            }
-
-            tokio::time::delay_for(tokio::time::Duration::from_secs(
-                DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
-            ))
-            .await;
-        }
-    }
-
     pub async fn provision_device(
         &mut self,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
@@ -475,12 +441,32 @@ impl Api {
                 scope_id,
                 attestation,
             } => {
+                async fn operation_to_iot_hub_device(
+                    credentials: aziot_identity_common::Credentials,
+                    operation: aziot_dps_client_async::model::RegistrationOperationStatus,
+                ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+                    let status = operation.status;
+                    assert!(!status.eq_ignore_ascii_case("assigning"));
+
+                    let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+                    let iothub_hostname = state.assigned_hub.get_or_insert("".into());
+                    let device_id = state.device_id.get_or_insert("".into());
+                    let device = aziot_identity_common::IoTHubDevice {
+                        iothub_hostname: iothub_hostname.clone(),
+                        device_id: device_id.clone(),
+                        credentials,
+                    };
+
+                    Ok(device)
+                }
+
                 let dps_client = aziot_dps_client_async::Client::new(
                     &global_endpoint,
                     &scope_id,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
+                    self.tpm_client.clone(),
                 );
 
                 let device = match attestation {
@@ -491,7 +477,6 @@ impl Api {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
                             sas_key: symmetric_key.clone(),
                         };
-
                         let credential = aziot_identity_common::Credentials::SharedPrivateKey(
                             symmetric_key.clone(),
                         );
@@ -501,16 +486,7 @@ impl Api {
                             .await
                             .map_err(Error::DPSClient)?;
 
-                        let device = self
-                            .dps_get_registered_device(
-                                credential,
-                                &registration_id,
-                                &operation.operation_id,
-                                dps_client,
-                                &dps_auth_kind,
-                            )
-                            .await?;
-                        device
+                        operation_to_iot_hub_device(credential, operation).await?
                     }
                     settings::DpsAttestationMethod::X509 {
                         registration_id,
@@ -528,7 +504,6 @@ impl Api {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
-
                         let credential = aziot_identity_common::Credentials::X509 {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
@@ -539,16 +514,18 @@ impl Api {
                             .await
                             .map_err(Error::DPSClient)?;
 
-                        let device = self
-                            .dps_get_registered_device(
-                                credential,
-                                &registration_id,
-                                &operation.operation_id,
-                                dps_client,
-                                &dps_auth_kind,
-                            )
-                            .await?;
-                        device
+                        operation_to_iot_hub_device(credential, operation).await?
+                    }
+                    settings::DpsAttestationMethod::Tpm { registration_id } => {
+                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
+                        let credential = aziot_identity_common::Credentials::Tpm;
+
+                        let operation = dps_client
+                            .register(&registration_id, &dps_auth_kind)
+                            .await
+                            .map_err(Error::DPSClient)?;
+
+                        operation_to_iot_hub_device(credential, operation).await?
                     }
                 };
                 self.id_manager.set_device(&device);
@@ -945,6 +922,10 @@ mod tests {
                     port: 0,
                 },
                 aziot_keyd: Connector::Tcp {
+                    host: "localhost".into(),
+                    port: 0,
+                },
+                aziot_tpmd: Connector::Tcp {
                     host: "localhost".into(),
                     port: 0,
                 },
