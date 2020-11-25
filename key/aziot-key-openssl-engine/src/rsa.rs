@@ -37,17 +37,10 @@ unsafe extern "C" fn aziot_key_freef_rsa_ex_data(
 pub(super) unsafe fn get_evp_rsa_method(
 ) -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
     // The default RSA method is good enough.
-
     let openssl_method = openssl2::openssl_returns_nonnull_const(
         openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_RSA),
     )?;
-    let result = openssl2::openssl_returns_nonnull(openssl_sys2::EVP_PKEY_meth_new(
-        openssl_sys::EVP_PKEY_RSA,
-        openssl_sys2::EVP_PKEY_FLAG_AUTOARGLEN,
-    ))?;
-    openssl_sys2::EVP_PKEY_meth_copy(result, openssl_method);
-
-    Ok(result)
+    Ok(openssl_method)
 }
 
 pub(super) unsafe fn aziot_key_rsa_method() -> *const openssl_sys::RSA_METHOD {
