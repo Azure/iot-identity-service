@@ -1,0 +1,18 @@
+#Copyright (c) Microsoft. All rights reserved.
+#Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+include(../deps/c-shared/configs/azure_iot_build_rules.cmake)
+usePermissiveRulesForSamplesAndTests()
+
+set(save_ut ${run_unittests})
+set(run_unittests OFF CACHE BOOL "unittests" FORCE)
+add_subdirectory(../deps/c-shared/testtools/ctest c-shared/testtools/ctest)
+add_subdirectory(../deps/c-shared/testtools/testrunner c-shared/testtools/testrunner)
+add_subdirectory(../deps/c-shared/deps/umock-c c-shared/deps/umock-c)
+if (save_ut)
+    set(run_unittests ${save_ut} CACHE BOOL "unittests" FORCE)
+endif(save_ut)
+
+set(SHARED_UTIL_REAL_TEST_FOLDER ${SHARED_UTIL_SRC_FOLDER}/../tests/real_test_files CACHE INTERNAL "this is what needs to be included when doing test sources" FORCE)
+
+add_subdirectory(hsm_client_tpm_ut)

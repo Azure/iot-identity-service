@@ -1,0 +1,13 @@
+[Unit]
+Description=Azure IoT TPM Service API socket
+PartOf=aziot-tpmd.service
+
+[Socket]
+ListenStream=/run/aziot/tpmd.sock
+SocketMode=0660
+DirectoryMode=0755
+SocketUser=aziottpm
+SocketGroup=aziottpm
+
+[Install]
+WantedBy=sockets.target
