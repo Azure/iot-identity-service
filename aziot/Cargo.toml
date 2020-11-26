@@ -6,12 +6,22 @@ edition = "2018"
 
 
 [dependencies]
+async-trait = "0.1.42"
 backtrace = "0.3"
 base64 = "0.12"
+byte-unit = "4.0.9"
+chrono = { version = "0.4", features = ["serde"] }
+colored = "2.0.0"
 derive_more = "0.99.11"
+erased-serde = "0.3.12"
+futures = "0.3"
 nix = "0.18"
 rustyline = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.59"
 structopt = "0.3"
+sysinfo = "0.15.3"
+tokio = { version = "0.2", features = ["macros"] }
 toml = "0.5"
 url = "2"
 

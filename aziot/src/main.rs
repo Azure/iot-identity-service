@@ -7,48 +7,36 @@
     clippy::let_unit_value,
     clippy::similar_names,
     clippy::too_many_lines,
-    clippy::type_complexity
+    clippy::type_complexity,
+    clippy::clippy::module_name_repetitions
 )]
 
+use structopt::StructOpt;
+
+mod check;
+mod error;
 mod init;
 
-fn main() -> Result<(), Error> {
-    let options = structopt::StructOpt::from_args();
+pub use error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let options = StructOpt::from_args();
     match options {
         Options::Init => init::run()?,
+        Options::Check(cfg) => check::check(cfg).await?,
+        Options::CheckList => check::check_list()?,
     }
 
     Ok(())
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(StructOpt)]
 enum Options {
+    /// Interactive wizard to get 'aziot' up and running.
     Init,
-}
-
-struct Error(Box<dyn std::error::Error>, backtrace::Backtrace);
-
-impl std::fmt::Debug for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.0)?;
-
-        let mut source = self.0.source();
-        while let Some(err) = source {
-            writeln!(f, "caused by: {}", err)?;
-            source = err.source();
-        }
-
-        writeln!(f, "{:?}", self.1)?;
-
-        Ok(())
-    }
-}
-
-impl<E> From<E> for Error
-where
-    E: Into<Box<dyn std::error::Error>>,
-{
-    fn from(err: E) -> Self {
-        Error(err.into(), Default::default())
-    }
+    /// Check for common config and deployment issues.
+    Check(check::CheckCfg),
+    /// List the checks that are run for 'aziot check'
+    CheckList,
 }
