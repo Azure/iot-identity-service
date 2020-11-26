@@ -11,19 +11,16 @@
     clippy::clippy::module_name_repetitions
 )]
 
+use anyhow::Result;
 use structopt::StructOpt;
 
 mod internal;
 
 mod check;
 mod check_list;
-mod error;
 mod init;
 
-pub use error::Error;
-
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn try_main() -> Result<()> {
     let options = StructOpt::from_args();
     match options {
         Options::Init => init::run()?,
@@ -32,6 +29,13 @@ async fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+#[tokio::main]
+async fn main() {
+    if let Err(err) = try_main().await {
+        eprintln!("{:?}", err);
+    }
 }
 
 #[derive(StructOpt)]

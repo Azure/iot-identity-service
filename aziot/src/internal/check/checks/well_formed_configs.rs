@@ -19,6 +19,9 @@ impl Checker for WellFormedConfigs {
     }
 
     async fn execute(&mut self, _cfg: &CheckerCfg, _shared: &mut CheckerCache) -> CheckResult {
-        CheckResult::Warning("unimplemented".into())
+        CheckResult::Warning(match std::fs::read("bruhhh") {
+            Ok(_) => unimplemented!(),
+            Err(e) => Error::new(e).context("foo").context("bar"),
+        })
     }
 }

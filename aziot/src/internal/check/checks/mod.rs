@@ -1,8 +1,10 @@
 use super::Checker;
 
 mod prelude {
-    pub use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerCfg, CheckerMeta};
+    pub use anyhow::{Context, Error, Result};
     pub use serde::Serialize;
+
+    pub use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerCfg, CheckerMeta};
 }
 
 mod well_formed_configs;

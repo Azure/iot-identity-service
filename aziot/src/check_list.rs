@@ -1,4 +1,6 @@
-pub fn check_list() -> Result<(), crate::Error> {
+use anyhow::Result;
+
+pub fn check_list() -> Result<()> {
     // All our text is ASCII, so we can measure text width in bytes rather than
     // using unicode-segmentation to count graphemes.
     let checks = crate::internal::check::all_checks();

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io::prelude::*;
 use std::str::FromStr;
 
+use anyhow::Result;
 use colored::Colorize;
 use serde::Serialize;
 use structopt::StructOpt;
@@ -59,7 +60,7 @@ impl FromStr for OutputFormat {
     }
 }
 
-pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
+pub async fn check(cfg: CheckCfg) -> Result<()> {
     let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
     let mut check_data = crate::internal::check::all_checks();
     let mut shared = CheckerCache {};
@@ -143,7 +144,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     outputln!(yellow, "\u{203c} {} - Warning", check_name);
                     outputlns!(yellow, "    ", "    ", warning.to_string().lines());
                     if cfg.verbose {
-                        for cause in warning.iter_causes() {
+                        for cause in warning.chain() {
                             outputlns!(
                                 yellow,
                                 "        caused by: ",
@@ -154,7 +155,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     }
 
                     CheckResultSerializable::Warning {
-                        details: warning.iter_chain().map(ToString::to_string).collect(),
+                        details: warning.chain().map(ToString::to_string).collect(),
                     }
                 }
                 CheckResult::Ignored => CheckResultSerializable::Ignored,
@@ -172,7 +173,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
                     if cfg.verbose {
-                        for cause in err.iter_causes() {
+                        for cause in err.chain() {
                             outputlns!(
                                 red,
                                 "        caused by: ",
@@ -183,7 +184,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     }
 
                     CheckResultSerializable::Fatal {
-                        details: err.iter_chain().map(ToString::to_string).collect(),
+                        details: err.chain().map(ToString::to_string).collect(),
                     }
                 }
                 CheckResult::Failed(err) | CheckResult::Warning(err) => {
@@ -191,7 +192,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
                     if cfg.verbose {
-                        for cause in err.iter_causes() {
+                        for cause in err.chain() {
                             outputlns!(
                                 red,
                                 "        caused by: ",
@@ -202,7 +203,7 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
                     }
 
                     CheckResultSerializable::Error {
-                        details: err.iter_chain().map(ToString::to_string).collect(),
+                        details: err.chain().map(ToString::to_string).collect(),
                     }
                 }
             };
@@ -278,7 +279,6 @@ pub async fn check(cfg: CheckCfg) -> Result<(), crate::Error> {
 
         if let Err(err) = serde_json::to_writer(std::io::stdout(), &check_results) {
             eprintln!("Could not write JSON output: {}", err,);
-            return Err("".into());
         }
 
         println!();

@@ -40,6 +40,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34fde25430d87a9388dadbe6e34d7f72a462c8b43ac8d309b42b0a8505d7e2a5"
 
 [[package]]
+name = "anyhow"
+version = "1.0.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf8dcb5b4bbaa28653b647d8c77bd4ed40183b48882e130c1f1ffb73de069fd7"
+
+[[package]]
 name = "async-recursion"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -82,6 +88,7 @@ checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 name = "aziot"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "aziot-certd",
  "aziot-identityd",

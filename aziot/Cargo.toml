@@ -6,6 +6,7 @@ edition = "2018"
 
 
 [dependencies]
+anyhow = "1.0.34"
 async-trait = "0.1.42"
 backtrace = "0.3"
 base64 = "0.12"
