@@ -278,6 +278,14 @@ echo "resource_tag: $resource_tag" >&2
 #
 # Also, sometimes deleting resources fails because `az resource delete` doesn't respect inter-resource dependencies.
 # So keep trying it in a loop as long as there are still resources that match.
+#
+# ShellCheck warns the variables will be expanded when this string is parsed rather than when it executes,
+# but that is the intention to begin with.
+# shellcheck disable=SC2064
+#
+# ShellCheck thinks `ids` is referenced before being defined, which is not true.
+# It's probably not taking the escaping into account.
+# shellcheck disable=SC2154
 trap "
     set +eo pipefail
 
@@ -495,6 +503,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" 'sudo reboot' || :
 echo 'Rebooted VM' >&2
 
 echo 'Waiting for VM to respond to ssh...' >&2
+# ShellCheck warns that `retry` is unused, but that's okay.
+# shellcheck disable=SC2034
 for retry in {0..60}; do
     sleep 10
     if timeout 5 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" echo 'VM is up' >&2; then
@@ -548,13 +558,15 @@ echo 'Installed package' >&2
 
 
 echo 'Waiting for IoT Hub to finish being created...' >&2
+# ShellCheck warns the `jobs` invocation is not quoted, but that's intentional so that it's word-split.
+# shellcheck disable=SC2046
 wait $(jobs -pr)
 echo 'Created IoT Hub' >&2
 
 
 echo 'Configuring package...' >&2
 
-scp -i "$PWD/vm-ssh-key" *.toml "aziot@$vm_public_ip:/home/aziot/"
+scp -i "$PWD/vm-ssh-key" ./*.toml "aziot@$vm_public_ip:/home/aziot/"
 
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     set -euxo pipefail

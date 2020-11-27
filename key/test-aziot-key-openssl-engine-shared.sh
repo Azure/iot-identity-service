@@ -55,16 +55,16 @@ mkdir -p /run/aziot
 touch /run/aziot/keyd.sock
 rm -f /run/aziot/keyd.sock
 
->./keyd.toml printf "
+>./keyd.toml printf "\
 [aziot_keys]
-homedir_path = \"$PWD\"
-"
+homedir_path = \"%s\"
+" "$PWD"
 
 if [ -n "${PKCS11_LIB_PATH:-}" ]; then
->>./keyd.toml printf "
-pkcs11_lib_path = \"$PKCS11_LIB_PATH\"
-pkcs11_base_slot = \"$PKCS11_BASE_SLOT\"
-"
+>>./keyd.toml printf "\
+pkcs11_lib_path = \"%s\"
+pkcs11_base_slot = \"%s\"
+" "$PKCS11_LIB_PATH" "$PKCS11_BASE_SLOT"
 fi
 
 rm -rf keys

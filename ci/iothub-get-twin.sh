@@ -70,6 +70,8 @@ mqtt_client_get_twin() {
                 ;;
         esac
 
+        # ShellCheck warnings that `$variable` doesn't expand in single quotes, but this is a Perl script, not shell.
+        # shellcheck disable=SC2016
         <&"${CONNECTION[0]}" timeout 10 perl -e '
             use strict;
             use warnings;
