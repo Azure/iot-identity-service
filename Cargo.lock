@@ -386,6 +386,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aziot-key-openssl-engine-shared-test"
+version = "0.1.0"
+dependencies = [
+ "backtrace",
+ "futures-core",
+ "futures-util",
+ "hyper",
+ "openssl",
+ "openssl-sys2",
+ "openssl2",
+ "structopt",
+ "tokio",
+ "tokio-openssl",
+]
+
+[[package]]
 name = "aziot-keyd"
 version = "0.1.0"
 dependencies = [
@@ -426,7 +442,6 @@ dependencies = [
  "openssl-sys2",
  "openssl2",
  "pkcs11",
- "pkcs11-openssl-engine",
  "pkcs11-sys",
  "sha2",
  "url",
@@ -1442,46 +1457,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "pkcs11-openssl-engine"
-version = "0.1.0"
-dependencies = [
- "foreign-types-shared",
- "log",
- "openssl",
- "openssl-build",
- "openssl-errors",
- "openssl-sys",
- "openssl-sys2",
- "openssl2",
- "pkcs11",
- "pkcs11-sys",
-]
-
-[[package]]
 name = "pkcs11-sys"
 version = "0.1.0"
-
-[[package]]
-name = "pkcs11-test"
-version = "0.1.0"
-dependencies = [
- "backtrace",
- "bytes",
- "futures-core",
- "futures-util",
- "hyper",
- "openssl",
- "openssl-build",
- "openssl-sys",
- "openssl-sys2",
- "openssl2",
- "pkcs11",
- "pkcs11-openssl-engine",
- "pkcs11-sys",
- "structopt",
- "tokio",
- "tokio-openssl",
-]
 
 [[package]]
 name = "pkg-config"

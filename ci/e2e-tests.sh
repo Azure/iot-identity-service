@@ -79,6 +79,7 @@ get_package() {
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
+            ;;
     esac
     artifact_name="packages_${artifact_name}_amd64"
 
@@ -135,13 +136,25 @@ get_package() {
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
+            ;;
     esac
     echo 'Extracted package' >&2
 }
 
 
-# Test required variables
-: "$AZURE_TENANT_ID" "$AZURE_USERNAME" "$AZURE_PASSWORD"
+# Test required variables early to avoid downloading the artifact unnecessarily.
+if [ -z "${AZURE_TENANT_ID:-}" ]; then
+    echo 'AZURE_TENANT_ID not set' >&2
+    exit 1
+fi
+if [ -z "${AZURE_USERNAME:-}" ]; then
+    echo 'AZURE_USERNAME not set' >&2
+    exit 1
+fi
+if [ -z "${AZURE_PASSWORD:-}" ]; then
+    echo 'AZURE_PASSWORD not set' >&2
+    exit 1
+fi
 
 test_name="$1"
 
@@ -242,6 +255,7 @@ case "$OS" in
     *)
         echo "Unsupported OS $OS" >&2
         exit 1
+        ;;
 esac
 
 
@@ -367,6 +381,7 @@ EOF
         *)
             echo "Unsupported test $1" >&2
             exit 1
+            ;;
     esac
 
     >testmodule.toml cat <<-EOF

@@ -284,4 +284,5 @@ case "$auth_type" in
     *)
         echo "Unexpected auth type $auth_type" >&2
         exit 1
+        ;;
 esac

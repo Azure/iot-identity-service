@@ -282,74 +282,38 @@ impl ExDataAccessors for openssl_sys::RSA {
 }
 
 /// The kinds of EC curves supported for key generation.
-#[cfg_attr(not(ossl111), allow(clippy::pub_enum_variant_names))] // "All variants start with Nist"
 #[derive(Clone, Copy, Debug)]
 pub enum EcCurve {
-    /// ed25519
-    ///
-    /// Note: Requires openssl >= 1.1.1
-    ///
-    /// Note: This has not been tested since softhsm does not support it, which in turn is because openssl (as of v1.1.1c) does not support it
-    /// for key generation.
-    #[cfg(ossl111)]
-    Ed25519,
-
     /// secp256r1, known to openssl as prime256v1
     NistP256,
-
-    /// secp384r1
-    NistP384,
-
-    /// secp521r1
-    NistP521,
 }
 
 impl EcCurve {
-    #[cfg(ossl111)]
-    const ED25519_OID_DER: &'static [u8] = &[0x06, 0x03, 0x2b, 0x65, 0x70];
     const SECP256R1_OID_DER: &'static [u8] =
         &[0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07];
-    const SECP384R1_OID_DER: &'static [u8] = &[0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22];
-    const SECP521R1_OID_DER: &'static [u8] = &[0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x23];
 
     pub fn as_nid(self) -> openssl::nid::Nid {
         match self {
-            #[cfg(ossl111)]
-            EcCurve::Ed25519 => openssl::nid::Nid::from_raw(openssl_sys::NID_ED25519), // Not wrapped by openssl as of v0.10.25
             EcCurve::NistP256 => openssl::nid::Nid::X9_62_PRIME256V1,
-            EcCurve::NistP384 => openssl::nid::Nid::SECP384R1,
-            EcCurve::NistP521 => openssl::nid::Nid::SECP521R1,
         }
     }
 
     pub fn as_oid_der(self) -> &'static [u8] {
         match self {
-            #[cfg(ossl111)]
-            EcCurve::Ed25519 => EcCurve::ED25519_OID_DER,
             EcCurve::NistP256 => EcCurve::SECP256R1_OID_DER,
-            EcCurve::NistP384 => EcCurve::SECP384R1_OID_DER,
-            EcCurve::NistP521 => EcCurve::SECP521R1_OID_DER,
         }
     }
 
     pub fn from_nid(nid: openssl::nid::Nid) -> Option<Self> {
         match nid {
-            #[cfg(ossl111)]
-            nid if nid.as_raw() == openssl_sys::NID_ED25519 => Some(EcCurve::Ed25519),
             openssl::nid::Nid::X9_62_PRIME256V1 => Some(EcCurve::NistP256),
-            openssl::nid::Nid::SECP384R1 => Some(EcCurve::NistP384),
-            openssl::nid::Nid::SECP521R1 => Some(EcCurve::NistP521),
             _ => None,
         }
     }
 
     pub fn from_oid_der(oid: &[u8]) -> Option<Self> {
         match oid {
-            #[cfg(ossl111)]
-            EcCurve::ED25519_OID_DER => Some(EcCurve::Ed25519),
             EcCurve::SECP256R1_OID_DER => Some(EcCurve::NistP256),
-            EcCurve::SECP384R1_OID_DER => Some(EcCurve::NistP384),
-            EcCurve::SECP521R1_OID_DER => Some(EcCurve::NistP521),
             _ => None,
         }
     }

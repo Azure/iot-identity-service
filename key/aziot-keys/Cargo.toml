@@ -24,5 +24,4 @@ aziot-keys-common = { path = "../aziot-keys-common" }
 openssl2 = { path = "../../openssl2" }
 openssl-sys2 = { path = "../../openssl-sys2" }
 pkcs11 = { path = "../../pkcs11/pkcs11" }
-pkcs11-openssl-engine = { path = "../../pkcs11/pkcs11-openssl-engine" }
 pkcs11-sys = { path = "../../pkcs11/pkcs11-sys" }

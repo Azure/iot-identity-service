@@ -64,6 +64,7 @@ case "$OS" in
             *)
                 echo 'unreachable' >&2
                 exit 1
+                ;;
         esac
 
         case "$ARCH" in
@@ -94,4 +95,5 @@ case "$OS" in
     *)
         echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
+        ;;
 esac

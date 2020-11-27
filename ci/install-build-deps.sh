@@ -112,6 +112,7 @@ case "$OS:$ARCH" in
     *)
         echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
+        ;;
 esac
 
 
