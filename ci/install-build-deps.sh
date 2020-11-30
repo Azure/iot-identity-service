@@ -122,14 +122,15 @@ mkdir -p ~/.cargo/bin
 # shellcheck disable=SC2155
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
-if [ -f ~/.cargo/bin/rustup ]; then
-    rustup self update
-else
+if ! [ -f ~/.cargo/bin/rustup ]; then
     curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
     chmod +x ~/.cargo/bin/rustup
     hash -r
-    rustup self update # Create the hardlinks for cargo, rustc, etc
 fi
+
+# If rustup was already installed, make sure it's up-to-date.
+# If it was just installed above, create the hardlinks for cargo, rustc, etc.
+rustup self update
 
 # The toolchain specified by rust-toolchain will be automatically installed if it doesn't already exist,
 # when `cargo` is run below. We'd like rustup to use the minimal profile to do that so that it doesn't
