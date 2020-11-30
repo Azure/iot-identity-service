@@ -1,4 +1,6 @@
-# API
+# TPM Service
+
+## API
 
 The HTTP API mirrors the underlying `aziot-tpm-sys` API:
 
@@ -15,13 +17,13 @@ int aziot_tpm_sign_with_auth_key(
     unsigned char** digest, size_t* digest_size);
 ```
 
-## Get Endorsement Key and Storage Root Key
+### Get Endorsement Key and Storage Root Key
 
-### Request
+#### Request
 
 `GET /get_tpm_keys`
 
-### Response
+#### Response
 
 ```json
 {
@@ -30,11 +32,11 @@ int aziot_tpm_sign_with_auth_key(
 }
 ```
 
-## Activate Auth Key
+### Activate Auth Key
 
 Imports key that has been previously encrypted with the endorsement key and storage root key into the TPM key storage.
 
-### Request
+#### Request
 
 `POST /import_auth_key`
 
@@ -44,13 +46,13 @@ Imports key that has been previously encrypted with the endorsement key and stor
 }
 ```
 
-### Response
+#### Response
 
-## Sign With Auth Key
+### Sign With Auth Key
 
 Hashes the data using the stored auth key (imported via `POST /import_auth_key`).
 
-### Request
+#### Request
 
 `POST /sign_with_auth_key`
 
@@ -60,7 +62,7 @@ Hashes the data using the stored auth key (imported via `POST /import_auth_key`)
 }
 ```
 
-### Response
+#### Response
 
 ```json
 {
@@ -68,7 +70,7 @@ Hashes the data using the stored auth key (imported via `POST /import_auth_key`)
 }
 ```
 
-# Code organization
+## Code organization
 
 The TPMS is made up of the following crates:
 
