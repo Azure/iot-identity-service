@@ -36,7 +36,7 @@ impl Checker for WellFormedKeydConfig {
                 Err(e) => return CheckResult::Fatal(e),
             };
 
-        cache.cfg.keyd = Some(daemon_cfg);
+        cache.cfg.unwrap_loading().keyd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -60,7 +60,7 @@ impl Checker for WellFormedCertdConfig {
                 Err(e) => return CheckResult::Fatal(e),
             };
 
-        cache.cfg.certd = Some(daemon_cfg);
+        cache.cfg.unwrap_loading().certd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -84,7 +84,7 @@ impl Checker for WellFormedTpmdConfig {
                 Err(e) => return CheckResult::Fatal(e),
             };
 
-        cache.cfg.tpmd = Some(daemon_cfg);
+        cache.cfg.unwrap_loading().tpmd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -119,7 +119,7 @@ impl Checker for WellFormedIdentitydConfig {
             Err(e) => return CheckResult::Fatal(e.into()),
         };
 
-        cache.cfg.identityd = Some(daemon_cfg);
+        cache.cfg.unwrap_loading().identityd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }

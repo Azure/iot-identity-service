@@ -71,32 +71,85 @@ pub struct CheckerMeta {
     pub description: &'static str,
 }
 
+#[async_trait::async_trait]
+pub trait Checker: erased_serde::Serialize {
+    fn meta(&self) -> CheckerMeta;
+
+    async fn execute(&mut self, checker_cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult;
+}
+
+erased_serde::serialize_trait_object!(Checker);
+
 /// Container for any cached data shared between different checks.
 pub struct CheckerCache {
-    cfg: DaemonConfigs,
+    cfg: DaemonConfigsWrapper,
 }
 
 impl CheckerCache {
     pub fn new() -> CheckerCache {
         CheckerCache {
-            cfg: DaemonConfigs::default(),
+            cfg: DaemonConfigsWrapper::Loading(Default::default()),
         }
     }
 }
 
-#[derive(Default)]
+pub enum DaemonConfigsWrapper {
+    Loading(DaemonConfigsLoading),
+    Loaded(DaemonConfigs),
+}
+
 pub struct DaemonConfigs {
+    certd: aziot_certd::Config,
+    keyd: aziot_keyd::Config,
+    tpmd: aziot_tpmd::Config,
+    identityd: aziot_identityd::settings::Settings,
+}
+
+#[derive(Default)]
+pub struct DaemonConfigsLoading {
     certd: Option<aziot_certd::Config>,
     keyd: Option<aziot_keyd::Config>,
     tpmd: Option<aziot_tpmd::Config>,
     identityd: Option<aziot_identityd::settings::Settings>,
 }
 
-#[async_trait::async_trait]
-pub trait Checker: erased_serde::Serialize {
-    fn meta(&self) -> CheckerMeta;
-
-    async fn execute(&mut self, cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult;
+impl DaemonConfigsLoading {
+    fn try_into_loaded(&mut self) -> Option<DaemonConfigs> {
+        match (
+            self.certd.as_ref(),
+            self.keyd.as_ref(),
+            self.tpmd.as_ref(),
+            self.identityd.as_ref(),
+        ) {
+            (Some(_), Some(_), Some(_), Some(_)) => Some(DaemonConfigs {
+                certd: self.certd.take().unwrap(),
+                keyd: self.keyd.take().unwrap(),
+                tpmd: self.tpmd.take().unwrap(),
+                identityd: self.identityd.take().unwrap(),
+            }),
+            _ => None,
+        }
+    }
 }
 
-erased_serde::serialize_trait_object!(Checker);
+impl DaemonConfigsWrapper {
+    pub fn unwrap_loading(&mut self) -> &mut DaemonConfigsLoading {
+        match self {
+            DaemonConfigsWrapper::Loading(ref mut incomplete) => incomplete,
+            _ => panic!("daemon configs have already been loaded!"),
+        }
+    }
+
+    pub fn unwrap(&mut self) -> &mut DaemonConfigs {
+        match self {
+            DaemonConfigsWrapper::Loaded(ref mut loaded) => loaded,
+            DaemonConfigsWrapper::Loading(loading) => match loading.try_into_loaded() {
+                Some(loaded) => {
+                    *self = DaemonConfigsWrapper::Loaded(loaded);
+                    self.unwrap()
+                }
+                None => panic!("daemon configs haven't been loaded yet!"),
+            },
+        }
+    }
+}

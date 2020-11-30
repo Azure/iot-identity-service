@@ -7,6 +7,7 @@ mod prelude {
     pub use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerCfg, CheckerMeta};
 }
 
+mod hostname;
 mod well_formed_configs;
 
 pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
@@ -15,6 +16,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         ("Configuration checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(well_formed_configs::well_formed_configs());
+            v.push(Box::new(hostname::Hostname::default()));
             v
         }),
         ("Connectivity checks", vec![]),
