@@ -90,10 +90,10 @@ pub(crate) fn run() -> Result<()> {
         // all of the questions and it would be a waste to give up.
         if std::path::Path::new(f).exists() {
             return Err(anyhow!(
-                "\
-                Cannot run because file {} already exists. \
-                Delete this file (after taking a backup if necessary) before running this command.\
-            ",
+                    "\
+                    Cannot run because file {} already exists. \
+                    Delete this file (after taking a backup if necessary) before running this command.\
+                ",
                 f
             ));
         }
@@ -190,7 +190,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
     println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
     println!();
 
-    let hostname = get_hostname()?;
+    let hostname = crate::internal::common::get_hostname()?;
 
     let (provisioning_type, preloaded_device_id_pk_bytes) = choose! {
         stdin,
@@ -1030,20 +1030,6 @@ fn parse_cert_location(value: &str) -> Option<url::Url> {
             );
             None
         }
-    }
-}
-
-fn get_hostname() -> Result<String> {
-    if cfg!(test) {
-        Ok("my-device".to_owned())
-    } else {
-        let mut hostname = vec![0_u8; 256];
-        let hostname =
-            nix::unistd::gethostname(&mut hostname).context("could not get machine hostname")?;
-        let hostname = hostname
-            .to_str()
-            .context("could not get machine hostname")?;
-        Ok(hostname.to_owned())
     }
 }
 
