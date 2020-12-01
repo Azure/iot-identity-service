@@ -179,7 +179,7 @@ case "$OS" in
     'centos:7'|'debian:9')
         # CentOS 7's curl doesn't support openssl engines.
         #
-        # Debian 9 has openssl 1.1, so that is what the openssl engine compiles gainst.
+        # Debian 9 has openssl 1.1, so that is what the openssl engine compiles against.
         # But its curl links to openssl 1.0.2, so it can't use the engine.
         #
         # For these distros, skip the curl check.
