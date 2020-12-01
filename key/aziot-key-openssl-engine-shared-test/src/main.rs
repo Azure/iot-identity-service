@@ -56,6 +56,79 @@ async fn main() -> Result<(), Error> {
             },
         )?,
 
+        Command::WebClient {
+            cert,
+            key_handle,
+            port,
+        } => {
+            let mut http_connector = hyper::client::HttpConnector::new();
+            http_connector.enforce_http(false);
+
+            let mut engine = load_engine()?;
+
+            let key = load_private_key(&mut engine, key_handle)?;
+
+            let mut tls_connector =
+                openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls_client())?;
+            tls_connector.set_private_key(&key)?;
+            tls_connector.set_certificate_chain_file(&cert)?;
+
+            // The root of the client cert is the CA, and we expect the server cert to be signed by this same CA.
+            // So add it to the cert store.
+            let ca_cert = {
+                let cert_chain_file = std::fs::read(cert)?;
+                let mut cert_chain = openssl::x509::X509::stack_from_pem(&cert_chain_file)?;
+                cert_chain.pop().unwrap()
+            };
+            tls_connector.cert_store_mut().add_cert(ca_cert)?;
+
+            // Log the server cert chain. Does not change the verification result from what openssl already concluded.
+            tls_connector.set_verify_callback(
+                openssl::ssl::SslVerifyMode::PEER,
+                |openssl_verification_result, context| {
+                    println!("Server cert:");
+                    let chain = context.chain().unwrap();
+                    for (i, cert) in chain.into_iter().enumerate() {
+                        println!(
+                            "    #{}: {}",
+                            i + 1,
+                            cert.subject_name()
+                                .entries()
+                                .next()
+                                .unwrap()
+                                .data()
+                                .as_utf8()
+                                .unwrap()
+                        );
+                    }
+                    println!(
+                        "openssl verification result: {}",
+                        openssl_verification_result
+                    );
+                    openssl_verification_result
+                },
+            );
+
+            let tls_connector =
+                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
+
+            let client: hyper::Client<_, hyper::Body> =
+                hyper::Client::builder().build(tls_connector);
+
+            let response = client
+                .get(format!("https://127.0.0.1:{}/", port).parse()?)
+                .await?;
+
+            let (http::response::Parts { status, .. }, response_body) = response.into_parts();
+            let response_body = hyper::body::to_bytes(response_body).await?;
+
+            println!("server returned {} {:?}", status, response_body);
+
+            if status != http::StatusCode::OK || &*response_body != b"Hello, world!\n" {
+                return Err("server did not return expected response".into());
+            }
+        }
+
         Command::WebServer {
             cert,
             key_handle,
@@ -321,6 +394,21 @@ enum Command {
         /// The subject CN of the new cert.
         #[structopt(long)]
         subject: String,
+    },
+
+    /// Start a web client that uses the specified private key and cert file for TLS.
+    WebClient {
+        /// Path of the client cert file.
+        #[structopt(long)]
+        cert: std::path::PathBuf,
+
+        /// A key handle to the client cert's key pair.
+        #[structopt(long)]
+        key_handle: String,
+
+        /// The port to listen on.
+        #[structopt(long, default_value = "8443")]
+        port: u16,
     },
 
     /// Start a web server that uses the specified private key and cert file for TLS.

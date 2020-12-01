@@ -166,6 +166,13 @@ sleep 1
     -showcerts
 
 
+# Connect with `aziot-key-openssl-engine-shared-test web-client`
+./aziot-key-openssl-engine-shared-test web-client \
+    --cert "$PWD/client.pem" \
+    --key-handle "$client_key_handle" \
+    --port "${PORT:-8443}"
+
+
 # Connect with `curl` and print the response.
 OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
 case "$OS" in
