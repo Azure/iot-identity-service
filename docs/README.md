@@ -2,7 +2,7 @@
 
 The IoT Identity Service package provides provisioning and cryptographic services for Azure IoT devices. This includes both regular Azure IoT devices and Azure IoT Edge devices.
 
-The package is made up of three services:
+The package is made up of these services:
 
 - [Identity Service](identity-service.md)
 
