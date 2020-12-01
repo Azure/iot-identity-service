@@ -8,8 +8,8 @@
 pub struct UI_METHOD([u8; 0]);
 
 extern "C" {
-    pub fn ENGINE_new() -> *mut openssl_sys::ENGINE;
     pub fn ENGINE_by_id(id: *const std::os::raw::c_char) -> *mut openssl_sys::ENGINE;
+    pub fn ENGINE_load_builtin_engines();
     pub fn ENGINE_finish(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int;
     pub fn ENGINE_free(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int;
     pub fn ENGINE_get_name(e: *const openssl_sys::ENGINE) -> *const std::os::raw::c_char;
@@ -50,6 +50,7 @@ pub type ENGINE_PKEY_METHS_PTR = unsafe extern "C" fn(
 pub const ENGINE_FLAGS_BY_ID_COPY: std::os::raw::c_int = 0x0004;
 
 extern "C" {
+    pub fn ENGINE_new() -> *mut openssl_sys::ENGINE;
     pub fn ENGINE_add(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int;
     pub fn ENGINE_set_flags(
         e: *mut openssl_sys::ENGINE,

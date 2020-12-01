@@ -5,48 +5,37 @@ skinparam maxMessageSize 150
 
 participant Client
 participant "openssl client" as openssl
-participant "openssl-engine-ks"
+participant "aziot_keys openssl engine" as ksengine
 
 box KS
 participant KS
 participant "libaziot-keys"
-participant "openssl-engine-pkcs11"
 participant "PKCS#11 library" as pkcs11
 end box
 
-box CS
 participant CS
-participant "libiothsm-certgen"
-end box
 
 autonumber
 
 group Get key corresponding to key ID from KS
-	Client -> KS ++: load_key_pair("key_id")
+	Client -> KS ++: get_key_handle("key_id")
 	KS -> KS: Evaluate policies
 	KS -> "libaziot-keys" ++: load_key_pair("key_id")
 	"libaziot-keys" -> "libaziot-keys": Convert key ID to key URI
-	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_public_key("key_uri")
-	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
+	"libaziot-keys" -> pkcs11 ++: C_FindObjects("key_label")
 	return OBJECT_HANDLE
 	return OK
-	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
-	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
-	return OBJECT_HANDLE
-	return OK
-	return OK
-	KS -> KS: Synthesize key handle (JWT, etc)
+	KS -> KS: Synthesize key handle
 	return OK("key handle")
-	Client -> "openssl-engine-ks" ++: load_private_key("key handle")
+
+	Client -> ksengine ++: load_private_key("key handle")
+	ksengine -> ksengine: Create new EVP_PKEY and attach key handle to its ex data.
 	return openssl::EVP_PKEY
 end
 
 group Get cert corresponding to cert ID from CS
-	Client -> CS ++: create_or_load_cert("key_id")
+	Client -> CS ++: load_cert("cert_id")
 	CS -> CS: Evaluate policies
-	CS -> "libiothsm-certgen" ++: create_or_load_cert("key_id")
-	return OK(openssl::X509)
-	CS -> CS: Convert openssl::X509 to PEM
 	return OK(PEM)
 
 	Client -> Client: Create openssl::X509 from PEM
@@ -54,27 +43,24 @@ end
 
 group Create TLS connection
 	Client -> openssl **: Create openssl client using openssl::EVP_PKEY + openssl::X509
-	Client -> openssl ++: connect to example.org:443
+	Client -> openssl ++: connect to contoso.azure-devices.net:443
 
 	openssl -> openssl ++: Handshake
-	openssl -> "openssl-engine-ks" ++: openssl_EVP_PKEY_sign(openssl::EVP_PKEY, ...)
-	"openssl-engine-ks" -> KS ++: sign("key handle", ...)
+	openssl -> ksengine ++: custom_EVP_PKEY_sign(openssl::ENGINE, openssl::EVP_PKEY, ...)
+	ksengine -> ksengine: Extract key handle from EVP_PKEY's ex data
+	ksengine -> KS ++: sign("key handle", ...)
 	KS -> KS: Evaluate policies
 	KS -> KS: Convert key handle to key ID
 	KS -> "libaziot-keys" ++: sign("key ID", ...)
 	"libaziot-keys" -> "libaziot-keys": Convert key ID to key URI
-	"libaziot-keys" -> "openssl-engine-pkcs11" ++: load_private_key("key_uri")
-	"openssl-engine-pkcs11" -> pkcs11 ++: C_FindObjects("key_uri")
+	"libaziot-keys" -> pkcs11 ++: C_FindObjects("key_uri")
 	return OBJECT_HANDLE
-	return OK
-	"libaziot-keys" -> "openssl-engine-pkcs11" ++: openssl::sign(openssl::EVP_PKEY, ...)
-	"openssl-engine-pkcs11" -> pkcs11 ++: C_Sign(pkcs11::OBJECT_HANDLE, ...)
+	"libaziot-keys" -> pkcs11 ++: C_Sign(pkcs11::OBJECT_HANDLE, ...)
 	return OK(signature)
 	return OK(signature)
 	return OK(signature)
 	return OK(signature)
-	return OK(signature)
-	deactivate openssl
+	return Handshake complete
 	return Connected
 end
 
