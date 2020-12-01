@@ -112,6 +112,7 @@ case "$OS:$ARCH" in
     *)
         echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
+        ;;
 esac
 
 
@@ -119,6 +120,8 @@ esac
 
 mkdir -p ~/.cargo/bin
 
+# ShellCheck warns the exit code of `realpath` will be lost, but there'll be bigger problems if it fails
+# on a directory that was just created anyway.
 # shellcheck disable=SC2155
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 

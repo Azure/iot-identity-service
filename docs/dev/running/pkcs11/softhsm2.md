@@ -10,7 +10,7 @@ While it is useful to use `softhsm2` when you don't have any hardware, it is wor
     sudo apt install -y softhsm2
     ```
 
-1. The `softhsm2` configuration and filesystem directory is ACLed to the `softhsm` group. Add the user you'll be running `pkcs11-test` / `aziot-keyd` as to this group.
+1. The `softhsm2` configuration and filesystem directory is ACLed to the `softhsm` group. Add the user you'll be running `aziot-keyd` as to this group.
 
     ```sh
     sudo usermod -aG softhsm "$(id -un)"

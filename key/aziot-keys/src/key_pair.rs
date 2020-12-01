@@ -97,7 +97,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        let (public_key, _) = load_inner(&locations)?
+        let key_pair = load_inner(&locations)?
             .ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
         match r#type {
@@ -118,16 +118,29 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
                     let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
 
-                    let value = if public_key.ec_key().is_ok() {
-                        crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC
-                    } else if public_key.rsa().is_ok() {
-                        crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA
-                    } else {
-                        return Err(crate::implementation::err_invalid_parameter(
-                            "id",
-                            "key is neither RSA nor EC",
-                        ));
+                    let value = match key_pair {
+                        KeyPair::FileSystem(public_key, _) => {
+                            if public_key.ec_key().is_ok() {
+                                crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC
+                            } else if public_key.rsa().is_ok() {
+                                crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA
+                            } else {
+                                return Err(crate::implementation::err_invalid_parameter(
+                                    "id",
+                                    "key is neither RSA nor EC",
+                                ));
+                            }
+                        }
+
+                        KeyPair::Pkcs11(pkcs11::KeyPair::Ec(_, _)) => {
+                            crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC
+                        }
+
+                        KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(_, _)) => {
+                            crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA
+                        }
                     };
+
                     let value = value.inner.to_ne_bytes();
                     value_out[..expected_value_len].copy_from_slice(&value[..]);
                 }
@@ -136,14 +149,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
             }
 
             crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID => {
-                let ec_key = if let Ok(ec_key) = public_key.ec_key() {
-                    ec_key
-                } else {
-                    return Err(crate::implementation::err_invalid_parameter(
-                        "type",
-                        "not an EC key",
-                    ));
-                };
+                let ec_key = key_pair.ec_key()?;
 
                 let curve_nid = ec_key.group().curve_name().ok_or_else(|| {
                     crate::implementation::err_invalid_parameter(
@@ -178,14 +184,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
             }
 
             crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT => {
-                let ec_key = if let Ok(ec_key) = public_key.ec_key() {
-                    ec_key
-                } else {
-                    return Err(crate::implementation::err_invalid_parameter(
-                        "type",
-                        "not an EC key",
-                    ));
-                };
+                let ec_key = key_pair.ec_key()?;
 
                 let curve = ec_key.group();
                 let point = ec_key.public_key();
@@ -218,14 +217,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
             }
 
             crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS => {
-                let rsa = if let Ok(rsa) = public_key.rsa() {
-                    rsa
-                } else {
-                    return Err(crate::implementation::err_invalid_parameter(
-                        "type",
-                        "not an RSA key",
-                    ));
-                };
+                let rsa = key_pair.rsa()?;
 
                 let modulus = rsa.n().to_vec();
 
@@ -251,14 +243,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
             }
 
             crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT => {
-                let rsa = if let Ok(rsa) = public_key.rsa() {
-                    rsa
-                } else {
-                    return Err(crate::implementation::err_invalid_parameter(
-                        "type",
-                        "not an RSA key",
-                    ));
-                };
+                let rsa = key_pair.rsa()?;
 
                 let exponent = rsa.e().to_vec();
 
@@ -297,39 +282,93 @@ pub(crate) unsafe fn sign(
     _parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let (_, private_key) = load_inner(locations)?
+    let key_pair = load_inner(locations)?
         .ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
-    let (signature_len, signature) = match (mechanism, private_key.ec_key(), private_key.rsa()) {
-        (crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
-            let signature_len = {
-                let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
-                let signature_len = openssl_sys2::ECDSA_size(ec_key);
-                let signature_len =
-                    std::convert::TryInto::try_into(signature_len).map_err(|err| {
+    let result = match key_pair {
+        KeyPair::FileSystem(_, private_key) => {
+            match (mechanism, private_key.ec_key(), private_key.rsa()) {
+                (crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
+                    let signature_len = {
+                        let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
+                        let signature_len = openssl_sys2::ECDSA_size(ec_key);
+                        let signature_len = std::convert::TryInto::try_into(signature_len)
+                            .map_err(|err| {
+                                crate::implementation::err_external(format!(
+                                    "ECDSA_size returned invalid value: {}",
+                                    err
+                                ))
+                            })?;
+                        signature_len
+                    };
+
+                    let signature = openssl::ecdsa::EcdsaSig::sign(digest, &ec_key)?;
+                    let signature = signature.to_der()?;
+
+                    Some((signature_len, signature))
+                }
+
+                _ => None,
+            }
+        }
+
+        KeyPair::Pkcs11(key_pair) => match (mechanism, key_pair) {
+            (
+                crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA,
+                pkcs11::KeyPair::Ec(public_key, private_key),
+            ) => {
+                let signature_len = {
+                    let ec_key = public_key.parameters().map_err(|err| {
                         crate::implementation::err_external(format!(
-                            "ECDSA_size returned invalid value: {}",
+                            "could not get key pair parameters: {}",
                             err
                         ))
                     })?;
-                signature_len
-            };
+                    let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
 
-            let signature = openssl::ecdsa::EcdsaSig::sign(digest, &ec_key)?;
-            let signature = signature.to_der()?;
+                    let signature_len = openssl_sys2::ECDSA_size(ec_key);
+                    let signature_len =
+                        std::convert::TryInto::try_into(signature_len).map_err(|err| {
+                            crate::implementation::err_external(format!(
+                                "ECDSA_size returned invalid value: {}",
+                                err
+                            ))
+                        })?;
+                    signature_len
+                };
 
-            (signature_len, signature)
-        }
+                let signature = {
+                    let mut signature = vec![
+                        0_u8;
+                        std::convert::TryInto::try_into(signature_len)
+                            .expect("c_int -> usize")
+                    ];
+                    let signature_len =
+                        private_key.sign(digest, &mut signature).map_err(|err| {
+                            crate::implementation::err_external(format!("could not sign: {}", err))
+                        })?;
+                    let signature_len: usize =
+                        std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+                    let r = openssl::bn::BigNum::from_slice(&signature[..(signature_len / 2)])?;
+                    let s = openssl::bn::BigNum::from_slice(
+                        &signature[(signature_len / 2)..signature_len],
+                    )?;
+                    let signature = openssl::ecdsa::EcdsaSig::from_private_components(r, s)?;
+                    let signature = signature.to_der()?;
+                    signature
+                };
 
-        _ => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "mechanism",
-                "unrecognized value",
-            ))
-        }
+                Some((signature_len, signature))
+            }
+
+            _ => None,
+        },
     };
+    let result = result.ok_or_else(|| {
+        crate::implementation::err_invalid_parameter("mechanism", "unrecognized value")
+    })?;
 
-    Ok((signature_len, signature))
+    Ok(result)
 }
 
 pub(crate) unsafe fn encrypt(
@@ -338,8 +377,8 @@ pub(crate) unsafe fn encrypt(
     _parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let (_, private_key) = match load_inner(locations)? {
-        Some(key) => key,
+    let key_pair = match load_inner(locations)? {
+        Some(key_pair) => key_pair,
         None => {
             return Err(crate::implementation::err_invalid_parameter(
                 "id",
@@ -348,40 +387,151 @@ pub(crate) unsafe fn encrypt(
         }
     };
 
-    let padding = match mechanism {
-        crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 => openssl::rsa::Padding::PKCS1,
-        crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => openssl::rsa::Padding::NONE,
-        _ => {
+    let (result_len, result) = match key_pair {
+        KeyPair::FileSystem(_, private_key) => {
+            let padding = match mechanism {
+                crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 => openssl::rsa::Padding::PKCS1,
+                crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => openssl::rsa::Padding::NONE,
+                _ => {
+                    return Err(crate::implementation::err_invalid_parameter(
+                        "mechanism",
+                        "unrecognized value",
+                    ))
+                }
+            };
+
+            let rsa = private_key.rsa().map_err(|_e| {
+                crate::implementation::err_invalid_parameter("mechanism", "not an RSA key")
+            })?;
+
+            let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
+                crate::implementation::err_external(format!(
+                    "RSA_size returned invalid value: {}",
+                    err
+                ))
+            })?;
+            let mut result = vec![0_u8; result_len];
+
+            let result_len = rsa.private_encrypt(plaintext, &mut result, padding)?;
+
+            (result_len, result)
+        }
+
+        KeyPair::Pkcs11(pkcs11::KeyPair::Ec(_, _)) => {
             return Err(crate::implementation::err_invalid_parameter(
                 "mechanism",
                 "unrecognized value",
             ))
         }
+
+        KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(public_key, private_key)) => {
+            let mechanism = match mechanism {
+                crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1 => pkcs11::RsaSignMechanism::Pkcs1,
+                crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => {
+                    pkcs11::RsaSignMechanism::X509
+                }
+                _ => {
+                    return Err(crate::implementation::err_invalid_parameter(
+                        "mechanism",
+                        "unrecognized value",
+                    ))
+                }
+            };
+
+            let result_len = {
+                let rsa = public_key.parameters().map_err(|err| {
+                    crate::implementation::err_external(format!(
+                        "could not get key pair parameters: {}",
+                        err
+                    ))
+                })?;
+
+                let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
+                    crate::implementation::err_external(format!(
+                        "RSA_size returned invalid value: {}",
+                        err
+                    ))
+                })?;
+                result_len
+            };
+
+            let result = {
+                let mut signature = vec![0_u8; result_len];
+                let signature_len = private_key
+                    .sign(&mechanism, plaintext, &mut signature)
+                    .map_err(|err| {
+                        crate::implementation::err_external(format!("could not encrypt: {}", err))
+                    })?;
+                let signature_len =
+                    std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+                signature.truncate(signature_len);
+                signature
+            };
+
+            (result_len, result)
+        }
     };
-
-    let rsa = private_key.rsa().map_err(|_e| {
-        crate::implementation::err_invalid_parameter("mechanism", "not an RSA key")
-    })?;
-
-    let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
-        crate::implementation::err_external(format!("RSA_size returned invalid value: {}", err))
-    })?;
-    let mut result = vec![0_u8; result_len];
-
-    let result_len = rsa.private_encrypt(plaintext, &mut result, padding)?;
 
     Ok((result_len, result))
 }
 
-fn load_inner(
-    locations: &[crate::implementation::Location],
-) -> Result<
-    Option<(
+enum KeyPair {
+    FileSystem(
         openssl::pkey::PKey<openssl::pkey::Public>,
         openssl::pkey::PKey<openssl::pkey::Private>,
-    )>,
-    crate::AZIOT_KEYS_RC,
-> {
+    ),
+    Pkcs11(pkcs11::KeyPair),
+}
+
+impl KeyPair {
+    fn ec_key(&self) -> Result<openssl::ec::EcKey<openssl::pkey::Public>, crate::AZIOT_KEYS_RC> {
+        let ec_key = match self {
+            KeyPair::FileSystem(public_key, _) => public_key.ec_key().ok(),
+
+            KeyPair::Pkcs11(pkcs11::KeyPair::Ec(public_key, _)) => {
+                let ec_key = public_key.parameters().map_err(|err| {
+                    crate::implementation::err_external(format!(
+                        "could not get key pair parameters: {}",
+                        err
+                    ))
+                })?;
+                Some(ec_key)
+            }
+
+            KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(_, _)) => None,
+        };
+        let ec_key = ec_key.ok_or_else(|| {
+            crate::implementation::err_invalid_parameter("type", "not an EC key pair")
+        })?;
+        Ok(ec_key)
+    }
+
+    fn rsa(&self) -> Result<openssl::rsa::Rsa<openssl::pkey::Public>, crate::AZIOT_KEYS_RC> {
+        let rsa = match self {
+            KeyPair::FileSystem(public_key, _) => public_key.rsa().ok(),
+
+            KeyPair::Pkcs11(pkcs11::KeyPair::Ec(_, _)) => None,
+
+            KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(public_key, _)) => {
+                let rsa = public_key.parameters().map_err(|err| {
+                    crate::implementation::err_external(format!(
+                        "could not get key pair public parameters: {}",
+                        err
+                    ))
+                })?;
+                Some(rsa)
+            }
+        };
+        let rsa = rsa.ok_or_else(|| {
+            crate::implementation::err_invalid_parameter("type", "not an RSA key pair")
+        })?;
+        Ok(rsa)
+    }
+}
+
+fn load_inner(
+    locations: &[crate::implementation::Location],
+) -> Result<Option<KeyPair>, crate::AZIOT_KEYS_RC> {
     let location = locations
         .first()
         .ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
@@ -394,7 +544,7 @@ fn load_inner(
                 let public_key_der = private_key.public_key_to_der()?;
                 let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der)?;
 
-                Ok(Some((public_key, private_key)))
+                Ok(Some(KeyPair::FileSystem(public_key, private_key)))
             }
 
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -409,31 +559,16 @@ fn load_inner(
                 .find_slot(&uri.slot_identifier)
                 .map_err(crate::implementation::err_external)?;
             let pkcs11_session = pkcs11_context
-                .clone()
                 .open_session(pkcs11_slot, uri.pin.clone())
                 .map_err(crate::implementation::err_external)?;
 
-            // Use PKCS#11 directly instead of the openssl engine, because PKCS#11 allows us to know the key doesn't exist,
-            // whereas openssl just returns `NULL` for all errors.
             match pkcs11_session.get_key_pair(uri.object_label.as_ref().map(AsRef::as_ref)) {
-                Ok(_) => (),
+                Ok(key_pair) => Ok(Some(KeyPair::Pkcs11(key_pair))),
 
-                Err(pkcs11::GetKeyError::KeyDoesNotExist) => return Ok(None),
+                Err(pkcs11::GetKeyError::KeyDoesNotExist) => Ok(None),
 
-                Err(err) => return Err(crate::implementation::err_external(err)),
+                Err(err) => Err(crate::implementation::err_external(err)),
             }
-
-            // PKCS#11 found the key pair, so now use the openssl engine
-            let key_id = uri.to_string();
-            let key_id = std::ffi::CString::new(key_id)
-                .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
-
-            let mut engine = pkcs11_openssl_engine::load(pkcs11_context)?;
-
-            let public_key = engine.load_public_key(&key_id)?;
-            let private_key = engine.load_private_key(&key_id)?;
-
-            Ok(Some((public_key, private_key)))
         }
     }
 }
