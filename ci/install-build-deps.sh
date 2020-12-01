@@ -122,25 +122,26 @@ mkdir -p ~/.cargo/bin
 # shellcheck disable=SC2155
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
-if [ -f ~/.cargo/bin/rustup ]; then
-    rustup self update
-else
+if ! [ -f ~/.cargo/bin/rustup ]; then
     curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
     chmod +x ~/.cargo/bin/rustup
     hash -r
 fi
 
-RUST_TOOLCHAIN="$(cat /src/rust-toolchain)"
-rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt
-rustup default "$RUST_TOOLCHAIN"
+# If rustup was already installed, make sure it's up-to-date.
+# If it was just installed above, create the hardlinks for cargo, rustc, etc.
+rustup self update
 
-if [ ! -f ~/.cargo/bin/bindgen ]; then
-    cargo install bindgen --version '^0.54'
-fi
+# The toolchain specified by rust-toolchain will be automatically installed if it doesn't already exist,
+# when `cargo` is run below. We'd like rustup to use the minimal profile to do that so that it doesn't
+# use the default profile and download rust-docs, etc.
+#
+# Ref: https://github.com/rust-lang/rustup/issues/2579
+rustup set profile minimal
 
-if [ ! -f ~/.cargo/bin/cbindgen ]; then
-    cargo install cbindgen --version '^0.15'
-fi
+cargo install bindgen --version '^0.54'
+
+cargo install cbindgen --version '^0.15'
 
 export CARGO_INCREMENTAL=0
 
