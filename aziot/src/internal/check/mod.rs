@@ -40,6 +40,25 @@ pub struct CheckerCfg {
     pub verbose: bool,
 }
 
+pub struct CheckerShared {
+    cfg: CheckerCfg,
+    cert_client: aziot_cert_client_async::Client,
+}
+
+impl CheckerShared {
+    pub fn new(cfg: CheckerCfg) -> CheckerShared {
+        let endpoints = aziot_identityd::settings::Endpoints::default();
+
+        CheckerShared {
+            cfg,
+            cert_client: aziot_cert_client_async::Client::new(
+                aziot_cert_common_http::ApiVersion::V2020_09_01,
+                endpoints.aziot_certd,
+            ),
+        }
+    }
+}
+
 /// The various ways a check can resolve.
 ///
 /// Check functions return `Result<CheckResult, failure::Error>` where `Err` represents the check failed.
@@ -75,7 +94,7 @@ pub struct CheckerMeta {
 pub trait Checker: erased_serde::Serialize {
     fn meta(&self) -> CheckerMeta;
 
-    async fn execute(&mut self, checker_cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult;
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult;
 }
 
 erased_serde::serialize_trait_object!(Checker);

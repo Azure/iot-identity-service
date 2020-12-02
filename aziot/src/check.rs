@@ -7,7 +7,9 @@ use colored::Colorize;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::internal::check::{AdditionalInfo, CheckResult, CheckerCache, CheckerCfg};
+use crate::internal::check::{
+    AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerShared,
+};
 
 #[derive(StructOpt)]
 #[structopt(about = "Check for common config and deployment issues")]
@@ -63,7 +65,9 @@ impl FromStr for OutputFormat {
 pub async fn check(mut cfg: CheckCfg) -> Result<()> {
     // manually pass verbosity down to the checker-specific configuration
     cfg.checker_cfg.verbose = cfg.verbose;
-    let cfg = cfg; // set cfg as immutable
+    let cfg = cfg; // freeze cfg
+
+    let checker_shared = CheckerShared::new(cfg.checker_cfg);
 
     let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
     let mut check_data = crate::internal::check::all_checks();
@@ -131,7 +135,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
             let check_result = if cfg.dont_run.iter().any(|s| s == check.meta().id) {
                 CheckResult::Ignored
             } else {
-                check.execute(&cfg.checker_cfg, &mut shared).await
+                check.execute(&checker_shared, &mut shared).await
             };
             let additional_info = serde_json::to_value(&check)?;
 

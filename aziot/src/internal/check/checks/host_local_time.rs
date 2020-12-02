@@ -14,8 +14,8 @@ impl Checker for HostLocalTime {
         }
     }
 
-    async fn execute(&mut self, checker_cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
-        self.execute_inner(checker_cfg, cache)
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
+        self.execute_inner(shared, cache)
             .await
             .unwrap_or_else(CheckResult::Failed)
     }
@@ -24,7 +24,7 @@ impl Checker for HostLocalTime {
 impl HostLocalTime {
     async fn execute_inner(
         &mut self,
-        checker_cfg: &CheckerCfg,
+        shared: &CheckerShared,
         _cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
         // TODO: check against parent time in nested edge scenarios
@@ -43,7 +43,7 @@ impl HostLocalTime {
 
         let mini_sntp::SntpTimeQueryResult {
             local_clock_offset, ..
-        } = match mini_sntp::query(&checker_cfg.ntp_server) {
+        } = match mini_sntp::query(&shared.cfg.ntp_server) {
             Ok(result) => result,
             Err(err) => {
                 if is_server_unreachable_error(&err) {

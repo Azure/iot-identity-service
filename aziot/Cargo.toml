@@ -17,6 +17,7 @@ derive_more = "0.99.11"
 erased-serde = "0.3.12"
 futures = "0.3"
 nix = "0.18"
+openssl = "0.10"
 rustyline = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.59"
@@ -27,10 +28,16 @@ toml = "0.5"
 url = "2"
 
 aziot-certd = { path = "../cert/aziot-certd" }
+aziot-cert-client-async = { path = "../cert/aziot-cert-client-async" }
+aziot-cert-common = { path = "../cert/aziot-cert-common" }
+aziot-cert-common-http = { path = "../cert/aziot-cert-common-http" }
+
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
+
+http-common = { path = "../http-common" }
 mini-sntp = { path = "../mini-sntp" }
 
 [dev-dependencies]

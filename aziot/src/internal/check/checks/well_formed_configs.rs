@@ -4,7 +4,6 @@ use std::path::Path;
 
 use tokio::fs;
 use tokio::io;
-use tokio::prelude::*;
 
 pub fn well_formed_configs() -> impl Iterator<Item = Box<dyn Checker>> {
     let mut v: Vec<Box<dyn Checker>> = Vec::new();
@@ -29,9 +28,9 @@ impl Checker for WellFormedKeydConfig {
         }
     }
 
-    async fn execute(&mut self, cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg =
-            match load_daemon_cfg("keyd", Path::new("/etc/aziot/keyd/config.toml"), cfg).await {
+            match load_daemon_cfg("keyd", Path::new("/etc/aziot/keyd/config.toml"), shared).await {
                 Ok(daemon_cfg) => daemon_cfg,
                 Err(e) => return CheckResult::Fatal(e),
             };
@@ -53,9 +52,10 @@ impl Checker for WellFormedCertdConfig {
         }
     }
 
-    async fn execute(&mut self, cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg =
-            match load_daemon_cfg("certd", Path::new("/etc/aziot/certd/config.toml"), cfg).await {
+            match load_daemon_cfg("certd", Path::new("/etc/aziot/certd/config.toml"), shared).await
+            {
                 Ok(daemon_cfg) => daemon_cfg,
                 Err(e) => return CheckResult::Fatal(e),
             };
@@ -77,9 +77,9 @@ impl Checker for WellFormedTpmdConfig {
         }
     }
 
-    async fn execute(&mut self, cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg =
-            match load_daemon_cfg("tpmd", Path::new("/etc/aziot/tpmd/config.toml"), cfg).await {
+            match load_daemon_cfg("tpmd", Path::new("/etc/aziot/tpmd/config.toml"), shared).await {
                 Ok(daemon_cfg) => daemon_cfg,
                 Err(e) => return CheckResult::Fatal(e),
             };
@@ -102,11 +102,11 @@ impl Checker for WellFormedIdentitydConfig {
         }
     }
 
-    async fn execute(&mut self, cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg: aziot_identityd::settings::Settings = match load_daemon_cfg(
             "identityd",
             Path::new("/etc/aziot/identityd/config.toml"),
-            cfg,
+            shared,
         )
         .await
         {
@@ -127,7 +127,7 @@ impl Checker for WellFormedIdentitydConfig {
 async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     daemon: &str,
     path: &Path,
-    cfg: &CheckerCfg,
+    shared: &CheckerShared,
 ) -> Result<T> {
     let file_ctx = format!("error in file {}", path.display());
 
@@ -149,7 +149,7 @@ async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     let daemon_cfg = match toml::from_slice(&data) {
         Ok(daemon_cfg) => daemon_cfg,
         Err(e) => {
-            let message = if cfg.verbose {
+            let message = if shared.cfg.verbose {
                 format!(
                     "{}'s configuration file is not well-formed.\n\
                      Note: In case of syntax errors, the error may not be exactly at the reported line number and position.",

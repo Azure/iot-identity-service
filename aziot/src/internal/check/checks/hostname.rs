@@ -15,8 +15,8 @@ impl Checker for Hostname {
         }
     }
 
-    async fn execute(&mut self, checker_cfg: &CheckerCfg, cache: &mut CheckerCache) -> CheckResult {
-        self.execute_inner(checker_cfg, cache)
+    async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
+        self.execute_inner(shared, cache)
             .await
             .unwrap_or_else(CheckResult::Failed)
     }
@@ -25,7 +25,7 @@ impl Checker for Hostname {
 impl Hostname {
     async fn execute_inner(
         &mut self,
-        _checker_cfg: &CheckerCfg,
+        _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
         let config_hostname = &cache.cfg.unwrap().identityd.hostname;
