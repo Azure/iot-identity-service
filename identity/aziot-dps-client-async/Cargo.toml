@@ -13,6 +13,7 @@ chrono = "0.4"
 http = "0.2"
 hyper = { version = "0.13", features = ["stream"] }
 hyper-openssl = "0.8"
+hyper-proxy = "0.8"
 log = "0.4"
 openssl = "0.10"
 percent-encoding = "2"

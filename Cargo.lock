@@ -88,7 +88,7 @@ dependencies = [
  "aziot-keys-common",
  "aziot-tpmd",
  "backtrace",
- "base64",
+ "base64 0.12.3",
  "bytes",
  "derive_more",
  "nix",
@@ -134,7 +134,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
- "base64",
+ "base64 0.12.3",
  "foreign-types-shared",
  "futures-util",
  "hex",
@@ -166,7 +166,7 @@ dependencies = [
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-tpm-client-async",
- "base64",
+ "base64 0.12.3",
  "bytes",
  "chrono",
  "futures-util",
@@ -174,6 +174,7 @@ dependencies = [
  "http-common",
  "hyper",
  "hyper-openssl",
+ "hyper-proxy",
  "log",
  "openssl",
  "openssl2",
@@ -181,6 +182,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "typed-headers",
  "url",
 ]
 
@@ -197,7 +199,7 @@ dependencies = [
  "aziot-key-openssl-engine",
  "aziot-tpm-client-async",
  "aziot-tpm-common",
- "base64",
+ "base64 0.12.3",
  "bytes",
  "chrono",
  "futures-util",
@@ -205,6 +207,7 @@ dependencies = [
  "http-common",
  "hyper",
  "hyper-openssl",
+ "hyper-proxy",
  "log",
  "openssl",
  "openssl2",
@@ -229,7 +232,7 @@ dependencies = [
  "aziot-key-openssl-engine",
  "aziot-tpm-client-async",
  "aziot-tpm-common",
- "base64",
+ "base64 0.12.3",
  "chrono",
  "futures-util",
  "http",
@@ -288,7 +291,7 @@ dependencies = [
  "aziot-tpm-client-async",
  "aziot-tpm-common",
  "aziot-tpm-common-http",
- "base64",
+ "base64 0.12.3",
  "chrono",
  "futures-util",
  "http",
@@ -359,7 +362,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-client",
  "aziot-key-common",
- "base64",
+ "base64 0.12.3",
  "foreign-types-shared",
  "log",
  "openssl",
@@ -411,7 +414,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-keys-common",
- "base64",
+ "base64 0.12.3",
  "futures-util",
  "http",
  "http-common",
@@ -508,7 +511,7 @@ dependencies = [
  "aziot-tpm-common",
  "aziot-tpm-common-http",
  "backtrace",
- "base64",
+ "base64 0.12.3",
  "futures-util",
  "http",
  "http-common",
@@ -555,6 +558,12 @@ dependencies = [
  "object",
  "rustc-demangle",
 ]
+
+[[package]]
+name = "base64"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
 
 [[package]]
 name = "base64"
@@ -787,12 +796,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
+name = "futures"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e05b85ec287aac0dc34db7d4a569323df697f9c55b99b15d6b4ef8cde49f613"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f366ad74c28cca6ba456d95e6422883cfb4b252a83bed929c83abfdbbf2967d5"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -800,6 +825,23 @@ name = "futures-core"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59f5fff90fd5d971f936ad674802482ba441b6f09ba5e15fd8b39145582ca399"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10d6bb888be1153d3abeb9006b11b02cf5e9b209fda28693c31ae1e4e012e314"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "611834ce18aaa1bd13c4b374f5d653e1027cf99b6b502584ff8c9a64413b30bb"
 
 [[package]]
 name = "futures-macro"
@@ -834,9 +876,13 @@ version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8764574ff08b701a084482c3c7031349104b07ac897393010494beaa18ce32c6"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
  "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project",
  "pin-utils",
  "proc-macro-hack",
@@ -950,7 +996,7 @@ name = "http-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "base64",
+ "base64 0.12.3",
  "futures-util",
  "http",
  "hyper",
@@ -1019,6 +1065,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-proxy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93ec5be69758dfc06b9b29efa9d6e9306e387c85eb362c603912eead2ad98c7"
+dependencies = [
+ "bytes",
+ "futures",
+ "http",
+ "hyper",
+ "hyper-tls",
+ "native-tls",
+ "tokio",
+ "tokio-tls",
+ "tower-service",
+ "typed-headers",
+]
+
+[[package]]
 name = "hyper-tls"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1062,7 +1126,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
- "base64",
+ "base64 0.12.3",
  "chrono",
  "foreign-types-shared",
  "http-common",
@@ -1620,7 +1684,7 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12427a5577082c24419c9c417db35cfeb65962efc7675bb6b0d5f1f9d315bfe6"
 dependencies = [
- "base64",
+ "base64 0.12.3",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -1923,9 +1987,9 @@ checksum = "53953d2d3a5ad81d9f844a32f14ebb121f50b650cd59d0ee2a07cf13c617efed"
 
 [[package]]
 name = "tokio"
-version = "0.2.21"
+version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d099fa27b9702bed751524694adbe393e18b36b204da91eb1cbbbbb4a5ee2d58"
+checksum = "a6d7ad61edd59bfcc7e80dababf0f4aed2e6d5e0ba1659356ae889752dfc12ff"
 dependencies = [
  "bytes",
  "fnv",
@@ -1943,9 +2007,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3acc6aa564495a0f2e1d59fab677cd7f81a19994cfc7f3ad0e64301560389"
+checksum = "e44da00bfc73a25f814cd8d7e57a68a5c31b74b3152a0a1d1f590c97ed06265a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2006,6 +2070,19 @@ name = "try-lock"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
+
+[[package]]
+name = "typed-headers"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3179a61e9eccceead5f1574fd173cf2e162ac42638b9bf214c6ad0baf7efa24a"
+dependencies = [
+ "base64 0.11.0",
+ "bytes",
+ "chrono",
+ "http",
+ "mime",
+]
 
 [[package]]
 name = "typenum"

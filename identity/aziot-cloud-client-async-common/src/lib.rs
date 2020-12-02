@@ -157,3 +157,66 @@ impl KeyClient for aziot_tpm_client_async::Client {
         self.sign_with_auth_key(data).await
     }
 }
+
+pub enum MaybeProxyClient {
+    NoProxy(hyper::Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>),
+    Proxy(
+        hyper::Client<
+            hyper_proxy::ProxyConnector<
+                hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
+            >,
+        >,
+    ),
+}
+
+impl MaybeProxyClient {
+    pub fn build(
+        proxy_uri: Option<hyper::Uri>,
+        connector: hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
+    ) -> io::Result<Self> {
+        if let Some(proxy_uri) = proxy_uri {
+            let proxy = uri_to_proxy(proxy_uri)?;
+            let proxy_connector =
+                hyper_proxy::ProxyConnector::from_proxy(connector.clone(), proxy)?;
+            let client = hyper::Client::builder().build(proxy_connector);
+            Ok(MaybeProxyClient::Proxy(client))
+        } else {
+            let client = hyper::Client::builder().build(connector);
+            Ok(MaybeProxyClient::NoProxy(client))
+        }
+    }
+
+    pub fn request(&self, req: hyper::Request<hyper::Body>) -> hyper::client::ResponseFuture {
+        match *self {
+            MaybeProxyClient::NoProxy(ref client) => client.request(req),
+            MaybeProxyClient::Proxy(ref client) => client.request(req),
+        }
+    }
+}
+
+pub fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
+    let proxy_url =
+        url::Url::parse(&uri.to_string()).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let mut proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, uri);
+
+    if !proxy_url.username().is_empty() {
+        let username = percent_encoding::percent_decode_str(proxy_url.username())
+            .decode_utf8()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let credentials = match proxy_url.password() {
+            Some(password) => {
+                let password = percent_encoding::percent_decode_str(password)
+                    .decode_utf8()
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+                typed_headers::Credentials::basic(&username, &password)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+            }
+            None => typed_headers::Credentials::basic(&username, "")
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+        };
+        proxy.set_authorization(credentials);
+    }
+
+    Ok(proxy)
+}

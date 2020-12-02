@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
+use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector, MaybeProxyClient};
 
 pub mod model;
 
@@ -54,6 +54,7 @@ pub struct Client {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Client {
@@ -65,6 +66,7 @@ impl Client {
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
+        proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         Client {
             global_endpoint: global_endpoint.to_owned(),
@@ -74,6 +76,7 @@ impl Client {
             key_engine,
             cert_client,
             tpm_client,
+            proxy_uri,
         }
     }
 
@@ -260,7 +263,8 @@ impl Client {
             }
         };
 
-        let client = hyper::Client::builder().build(connector);
+        let client = MaybeProxyClient::build(self.proxy_uri.clone(), connector)?;
+
         log::debug!("DPS request {:?}", req);
 
         let res = client

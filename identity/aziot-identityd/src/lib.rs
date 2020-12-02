@@ -14,6 +14,7 @@
 )]
 #![allow(dead_code)]
 
+use std::env;
 use std::sync::Arc;
 
 pub mod auth;
@@ -139,6 +140,7 @@ pub struct Api {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -194,12 +196,15 @@ impl Api {
             tpm_client
         };
 
+        let proxy_uri = get_proxy_uri(None)?;
+
         let id_manager = identity::IdentityManager::new(
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
             tpm_client.clone(),
             None,
+            proxy_uri.clone(),
         );
 
         Ok(Api {
@@ -213,6 +218,7 @@ impl Api {
             key_engine,
             cert_client,
             tpm_client,
+            proxy_uri,
         })
     }
 
@@ -467,6 +473,7 @@ impl Api {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
 
                 let device = match attestation {
@@ -878,6 +885,36 @@ fn convert_to_map(
     (pmap, module_mset, local_mmap)
 }
 
+pub fn get_proxy_uri(https_proxy: Option<String>) -> Result<Option<hyper::Uri>, Error> {
+    let proxy_uri = https_proxy
+        .or_else(|| env::var("HTTPS_PROXY").ok())
+        .or_else(|| env::var("https_proxy").ok());
+    let proxy_uri = match proxy_uri {
+        None => None,
+        Some(s) => {
+            let proxy = s
+                .parse::<hyper::Uri>()
+                .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
+            // Mask the password in the proxy URI before logging it
+            let mut sanitized_proxy = url::Url::parse(&proxy.to_string())
+                .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
+            if sanitized_proxy.password().is_some() {
+                sanitized_proxy.set_password(Some("******")).map_err(|()| {
+                    Error::Internal(InternalError::InvalidProxyUri(
+                        "set proxy password failed".into(),
+                    ))
+                })?;
+            }
+            log::info!("Detected HTTPS proxy server {}", sanitized_proxy);
+
+            Some(proxy)
+        }
+    };
+    Ok(proxy_uri)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -894,7 +931,7 @@ mod tests {
     };
     use crate::SettingsAuthorizer;
 
-    use super::{convert_to_map, Api};
+    use super::{convert_to_map, get_proxy_uri, Api};
 
     fn make_empty_settings() -> Settings {
         Settings {
@@ -1081,5 +1118,43 @@ mod tests {
             Ok(false) => (),
             _ => panic!("incorrect authorization returned"),
         }
+    }
+
+    #[test]
+    fn get_proxy_uri_recognizes_https_proxy() {
+        let proxy_val = "https://example.com"
+            .to_string()
+            .parse::<hyper::Uri>()
+            .unwrap()
+            .to_string();
+
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
+    }
+
+    #[test]
+    fn get_proxy_uri_allows_credentials_in_authority() {
+        let proxy_val = "https://username:password@example.com/".to_string();
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
+
+        let proxy_val = "https://username%2f:password%2f@example.com/".to_string();
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
     }
 }
