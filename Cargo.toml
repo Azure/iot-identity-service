@@ -31,6 +31,8 @@ members = [
 	"key/aziot-keys",
 	"key/aziot-keys-common",
 
+	"mini-sntp",
+
 	"openssl2",
 	"openssl-build",
 	"openssl-sys2",
