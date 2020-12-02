@@ -31,7 +31,7 @@ aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
-
+mini-sntp = { path = "../mini-sntp" }
 
 [dev-dependencies]
 bytes = "0.5"

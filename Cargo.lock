@@ -104,6 +104,7 @@ dependencies = [
  "derive_more",
  "erased-serde",
  "futures",
+ "mini-sntp",
  "nix",
  "rustyline",
  "serde",
@@ -1345,6 +1346,13 @@ checksum = "2684d4c2e97d99848d30b324b00c8fcc7e5c897b7cbb5819b09e7c90e8baf212"
 dependencies = [
  "mime",
  "unicase",
+]
+
+[[package]]
+name = "mini-sntp"
+version = "0.1.0"
+dependencies = [
+ "chrono",
 ]
 
 [[package]]
