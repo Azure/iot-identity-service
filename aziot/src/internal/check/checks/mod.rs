@@ -8,8 +8,44 @@ mod prelude {
     pub use crate::internal::check::{
         CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared,
     };
+
+    pub trait CertificateValidityExt {
+        fn to_check_result(&self) -> Result<CheckResult>;
+    }
+
+    impl CertificateValidityExt for crate::internal::common::CertificateValidity {
+        fn to_check_result(&self) -> Result<CheckResult> {
+            let now = chrono::Utc::now();
+            if self.not_before > now {
+                Err(anyhow!(
+                    "{} '{}' has not-before time {} which is in the future",
+                    self.cert_name,
+                    self.cert_id,
+                    self.not_before,
+                ))
+            } else if self.not_after < now {
+                Err(anyhow!(
+                    "{} '{}' expired at {}",
+                    self.cert_name,
+                    self.cert_id,
+                    self.not_after,
+                ))
+            } else if self.not_after < now + chrono::Duration::days(7) {
+                Ok(CheckResult::Warning(anyhow!(
+                    "{} '{}' will expire soon ({}, in {} days)",
+                    self.cert_name,
+                    self.cert_id,
+                    self.not_after,
+                    (self.not_after - now).num_days(),
+                )))
+            } else {
+                Ok(CheckResult::Ok)
+            }
+        }
+    }
 }
 
+mod certs_preloaded;
 mod host_local_time;
 mod hostname;
 mod identity_certificate_expiry;
@@ -28,6 +64,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.push(Box::new(
                 identity_certificate_expiry::IdentityCertificateExpiry::default(),
             ));
+            v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
             v
         }),
         ("Connectivity checks", vec![]),

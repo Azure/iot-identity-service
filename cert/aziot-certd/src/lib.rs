@@ -121,7 +121,9 @@ impl Api {
     }
 }
 
-fn get_path(
+/// DEVNOTE: used in `aziot check` to validate certs without requiring certd to be running
+#[doc(hidden)]
+pub fn get_path(
     homedir_path: &std::path::Path,
     preloaded_certs: &std::collections::BTreeMap<String, config::PreloadedCert>,
     cert_id: &str,

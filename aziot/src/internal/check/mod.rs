@@ -110,6 +110,16 @@ impl CheckerCache {
             cfg: DaemonConfigsWrapper::Loading(Default::default()),
         }
     }
+
+    /// Utility method to call `aziot_certd::get_path()` with the loaded certd config
+    fn cert_path(&mut self, cert_id: &str) -> anyhow::Result<PathBuf> {
+        let certd_cfg = &self.cfg.unwrap().certd;
+        Ok(aziot_certd::get_path(
+            &certd_cfg.homedir_path,
+            &certd_cfg.preloaded_certs,
+            cert_id,
+        )?)
+    }
 }
 
 pub enum DaemonConfigsWrapper {
@@ -154,14 +164,14 @@ impl DaemonConfigsLoading {
 impl DaemonConfigsWrapper {
     pub fn unwrap_loading(&mut self) -> &mut DaemonConfigsLoading {
         match self {
-            DaemonConfigsWrapper::Loading(ref mut incomplete) => incomplete,
+            DaemonConfigsWrapper::Loading(incomplete) => incomplete,
             _ => panic!("daemon configs have already been loaded!"),
         }
     }
 
-    pub fn unwrap(&mut self) -> &mut DaemonConfigs {
+    pub fn unwrap(&mut self) -> &DaemonConfigs {
         match self {
-            DaemonConfigsWrapper::Loaded(ref mut loaded) => loaded,
+            DaemonConfigsWrapper::Loaded(loaded) => loaded,
             DaemonConfigsWrapper::Loading(loading) => match loading.try_into_loaded() {
                 Some(loaded) => {
                     *self = DaemonConfigsWrapper::Loaded(loaded);

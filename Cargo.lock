@@ -108,6 +108,8 @@ dependencies = [
  "erased-serde",
  "futures",
  "http-common",
+ "hyper",
+ "hyper-openssl",
  "mini-sntp",
  "nix",
  "openssl",
