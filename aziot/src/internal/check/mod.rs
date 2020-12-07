@@ -101,84 +101,33 @@ erased_serde::serialize_trait_object!(Checker);
 
 /// Container for any cached data shared between different checks.
 pub struct CheckerCache {
-    cfg: DaemonConfigsWrapper,
+    cfg: DaemonConfigs,
 }
 
 impl CheckerCache {
     pub fn new() -> CheckerCache {
         CheckerCache {
-            cfg: DaemonConfigsWrapper::Loading(Default::default()),
+            cfg: DaemonConfigs::default(),
         }
     }
 
-    /// Utility method to call `aziot_certd::get_path()` with the loaded certd config
-    fn cert_path(&mut self, cert_id: &str) -> anyhow::Result<PathBuf> {
-        let certd_cfg = &self.cfg.unwrap().certd;
-        Ok(aziot_certd::get_path(
-            &certd_cfg.homedir_path,
-            &certd_cfg.preloaded_certs,
-            cert_id,
-        )?)
+    /// Utility method to call `aziot_certd::get_path()` with the loaded certd config.
+    ///
+    /// Returns None if the certd config hasn't been loaded.
+    fn cert_path(&mut self, cert_id: &str) -> Option<anyhow::Result<PathBuf>> {
+        let certd_cfg = self.cfg.certd.as_ref()?;
+        Some(
+            aziot_certd::get_path(&certd_cfg.homedir_path, &certd_cfg.preloaded_certs, cert_id)
+                .map_err(Into::into),
+        )
     }
 }
 
-pub enum DaemonConfigsWrapper {
-    Loading(DaemonConfigsLoading),
-    Loaded(DaemonConfigs),
-}
-
-pub struct DaemonConfigs {
-    certd: aziot_certd::Config,
-    keyd: aziot_keyd::Config,
-    tpmd: aziot_tpmd::Config,
-    identityd: aziot_identityd::settings::Settings,
-}
-
+// populated during the `well_formed_configs` checks
 #[derive(Default)]
-pub struct DaemonConfigsLoading {
-    certd: Option<aziot_certd::Config>,
-    keyd: Option<aziot_keyd::Config>,
-    tpmd: Option<aziot_tpmd::Config>,
-    identityd: Option<aziot_identityd::settings::Settings>,
-}
-
-impl DaemonConfigsLoading {
-    fn try_into_loaded(&mut self) -> Option<DaemonConfigs> {
-        match (
-            self.certd.as_ref(),
-            self.keyd.as_ref(),
-            self.tpmd.as_ref(),
-            self.identityd.as_ref(),
-        ) {
-            (Some(_), Some(_), Some(_), Some(_)) => Some(DaemonConfigs {
-                certd: self.certd.take().unwrap(),
-                keyd: self.keyd.take().unwrap(),
-                tpmd: self.tpmd.take().unwrap(),
-                identityd: self.identityd.take().unwrap(),
-            }),
-            _ => None,
-        }
-    }
-}
-
-impl DaemonConfigsWrapper {
-    pub fn unwrap_loading(&mut self) -> &mut DaemonConfigsLoading {
-        match self {
-            DaemonConfigsWrapper::Loading(incomplete) => incomplete,
-            _ => panic!("daemon configs have already been loaded!"),
-        }
-    }
-
-    pub fn unwrap(&mut self) -> &DaemonConfigs {
-        match self {
-            DaemonConfigsWrapper::Loaded(loaded) => loaded,
-            DaemonConfigsWrapper::Loading(loading) => match loading.try_into_loaded() {
-                Some(loaded) => {
-                    *self = DaemonConfigsWrapper::Loaded(loaded);
-                    self.unwrap()
-                }
-                None => panic!("daemon configs haven't been loaded yet!"),
-            },
-        }
-    }
+pub struct DaemonConfigs {
+    pub certd: Option<aziot_certd::Config>,
+    pub keyd: Option<aziot_keyd::Config>,
+    pub tpmd: Option<aziot_tpmd::Config>,
+    pub identityd: Option<aziot_identityd::settings::Settings>,
 }

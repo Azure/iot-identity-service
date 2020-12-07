@@ -32,10 +32,7 @@ impl IdentityCertificateExpiry {
     ) -> Result<CheckResult> {
         use aziot_identityd::settings::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType};
 
-        let provisioning = &cache
-            .cfg
-            .unwrap()
-            .identityd
+        let provisioning = &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning
             .provisioning
             .clone();
@@ -47,7 +44,7 @@ impl IdentityCertificateExpiry {
             } => {
                 self.provisioning_mode = Some("dps-x509");
                 let cert_info = CertificateValidity::new(
-                    cache.cert_path(identity_cert)?,
+                    unwrap_or_skip!(cache.cert_path(identity_cert))?,
                     "DPS identity certificate",
                     identity_cert,
                 )
@@ -61,7 +58,7 @@ impl IdentityCertificateExpiry {
             } => {
                 self.provisioning_mode = Some("manual-x509");
                 let cert_info = CertificateValidity::new(
-                    cache.cert_path(identity_cert)?,
+                    unwrap_or_skip!(cache.cert_path(identity_cert))?,
                     "Manual authentication identity certificate",
                     identity_cert,
                 )

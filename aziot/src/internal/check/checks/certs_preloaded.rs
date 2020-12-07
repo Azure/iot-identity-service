@@ -29,7 +29,7 @@ impl CertsPreloaded {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        let preloaded_certs = &cache.cfg.unwrap().certd.preloaded_certs;
+        let preloaded_certs = &unwrap_or_skip!(&cache.cfg.certd).preloaded_certs;
 
         // TODO?: support returning multiple check results from a single check
         // this will require some non-trivial changes to the checker framework, as currently

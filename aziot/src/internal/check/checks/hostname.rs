@@ -28,7 +28,7 @@ impl Hostname {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        let config_hostname = &cache.cfg.unwrap().identityd.hostname;
+        let config_hostname = &unwrap_or_skip!(&cache.cfg.identityd).hostname;
         self.config_hostname = Some(config_hostname.clone());
 
         if config_hostname.parse::<std::net::IpAddr>().is_ok() {

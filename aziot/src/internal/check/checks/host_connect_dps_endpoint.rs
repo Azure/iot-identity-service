@@ -31,7 +31,10 @@ impl HostConnectDpsEndpoint {
     ) -> Result<CheckResult> {
         use aziot_identityd::settings::ProvisioningType;
 
-        let dps_endpoint = match &cache.cfg.unwrap().identityd.provisioning.provisioning {
+        let dps_endpoint = match &unwrap_or_skip!(&cache.cfg.identityd)
+            .provisioning
+            .provisioning
+        {
             ProvisioningType::Dps {
                 global_endpoint, ..
             } => global_endpoint,

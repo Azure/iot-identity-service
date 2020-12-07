@@ -31,11 +31,12 @@ impl Checker for WellFormedKeydConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg =
             match load_daemon_cfg("keyd", Path::new("/etc/aziot/keyd/config.toml"), shared).await {
-                Ok(daemon_cfg) => daemon_cfg,
-                Err(e) => return CheckResult::Fatal(e),
+                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+                Err(e) => return CheckResult::Failed(e),
             };
 
-        cache.cfg.unwrap_loading().keyd = Some(daemon_cfg);
+        cache.cfg.keyd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -56,11 +57,12 @@ impl Checker for WellFormedCertdConfig {
         let daemon_cfg =
             match load_daemon_cfg("certd", Path::new("/etc/aziot/certd/config.toml"), shared).await
             {
-                Ok(daemon_cfg) => daemon_cfg,
-                Err(e) => return CheckResult::Fatal(e),
+                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+                Err(e) => return CheckResult::Failed(e),
             };
 
-        cache.cfg.unwrap_loading().certd = Some(daemon_cfg);
+        cache.cfg.certd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -80,11 +82,12 @@ impl Checker for WellFormedTpmdConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg =
             match load_daemon_cfg("tpmd", Path::new("/etc/aziot/tpmd/config.toml"), shared).await {
-                Ok(daemon_cfg) => daemon_cfg,
-                Err(e) => return CheckResult::Fatal(e),
+                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+                Err(e) => return CheckResult::Failed(e),
             };
 
-        cache.cfg.unwrap_loading().tpmd = Some(daemon_cfg);
+        cache.cfg.tpmd = Some(daemon_cfg);
         CheckResult::Ok
     }
 }
@@ -110,33 +113,41 @@ impl Checker for WellFormedIdentitydConfig {
         )
         .await
         {
-            Ok(daemon_cfg) => daemon_cfg,
-            Err(e) => return CheckResult::Fatal(e),
+            Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Err(e) => return CheckResult::Failed(e),
         };
 
         let daemon_cfg = match daemon_cfg.check() {
             Ok(daemon_cfg) => daemon_cfg,
-            Err(e) => return CheckResult::Fatal(e.into()),
+            Err(e) => return CheckResult::Failed(e.into()),
         };
 
-        cache.cfg.unwrap_loading().identityd = Some(daemon_cfg);
+        cache.cfg.identityd = Some(daemon_cfg);
         CheckResult::Ok
     }
+}
+
+enum DaemonCfg<T> {
+    Cfg(T),
+    PermissionDenied(Error),
 }
 
 async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     daemon: &str,
     path: &Path,
     shared: &CheckerShared,
-) -> Result<T> {
+) -> Result<DaemonCfg<T>> {
     let file_ctx = format!("error in file {}", path.display());
 
     let mut file = match fs::File::open(path).await {
         Ok(f) => f,
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            return Err(e)
-                .context(file_ctx)
-                .context("Could not open file. You might need to run this command as root.");
+            return Ok(DaemonCfg::PermissionDenied(
+                Error::from(e)
+                    .context(file_ctx)
+                    .context("Could not open file. You might need to run this command as root."),
+            ));
         }
         Err(e) => return Err(e).context(file_ctx).context("Could not open file."),
     };
@@ -162,5 +173,5 @@ async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
         }
     };
 
-    Ok(daemon_cfg)
+    Ok(DaemonCfg::Cfg(daemon_cfg))
 }

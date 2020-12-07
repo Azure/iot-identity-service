@@ -45,6 +45,19 @@ mod prelude {
     }
 }
 
+/// Tries to unwrap an option, early-returning with
+/// `return Ok(CheckResult::Skipped)` if the option is None.
+macro_rules! unwrap_or_skip {
+    ($opt:expr) => {{
+        use crate::internal::check::CheckResult;
+
+        match $opt {
+            Some(val) => val,
+            None => return Ok(CheckResult::Skipped),
+        }
+    }};
+}
+
 mod certs_preloaded;
 mod host_connect_dps_endpoint;
 mod host_local_time;
