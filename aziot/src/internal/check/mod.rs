@@ -101,7 +101,7 @@ erased_serde::serialize_trait_object!(Checker);
 
 /// Container for any cached data shared between different checks.
 pub struct CheckerCache {
-    cfg: DaemonConfigs,
+    pub cfg: DaemonConfigs,
 }
 
 impl CheckerCache {

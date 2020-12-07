@@ -71,7 +71,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
 
     let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
     let mut check_data = crate::internal::check::all_checks();
-    let mut shared = CheckerCache::new();
+    let mut check_cache = CheckerCache::new();
 
     let mut num_successful = 0_usize;
     let mut num_warnings = 0_usize;
@@ -117,16 +117,6 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         };
     }
 
-    let top_level_additional_info = AdditionalInfo::new();
-
-    if matches!(cfg.output, OutputFormat::JsonStream) {
-        serde_json::to_writer(
-            std::io::stdout(),
-            &CheckResultsSerializableStreaming::AdditionalInfo(&top_level_additional_info),
-        )?;
-        std::io::stdout().flush()?;
-    }
-
     'all_checks: for (section_name, section_checks) in &mut check_data {
         outputln!(normal, "{}", section_name);
         outputln!(normal, "{}", "-".repeat(section_name.len()));
@@ -135,7 +125,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
             let check_result = if cfg.dont_run.iter().any(|s| s == check.meta().id) {
                 CheckResult::Ignored
             } else {
-                check.execute(&checker_shared, &mut shared).await
+                check.execute(&checker_shared, &mut check_cache).await
             };
             let additional_info = serde_json::to_value(&check)?;
 
@@ -277,6 +267,28 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         } else {
             outputln!(yellow, " Re-run with --verbose for more details.");
         }
+    }
+
+    let top_level_additional_info = {
+        let iothub_hostname = check_cache.cfg.identityd.and_then(|s| {
+            use aziot_identityd::settings::ProvisioningType;
+            match s.provisioning.provisioning {
+                ProvisioningType::Manual {
+                    iothub_hostname, ..
+                } => Some(iothub_hostname),
+                _ => None,
+            }
+        });
+
+        AdditionalInfo::new(iothub_hostname)
+    };
+
+    if matches!(cfg.output, OutputFormat::JsonStream) {
+        serde_json::to_writer(
+            std::io::stdout(),
+            &CheckResultsSerializableStreaming::AdditionalInfo(&top_level_additional_info),
+        )?;
+        std::io::stdout().flush()?;
     }
 
     if matches!(cfg.output, OutputFormat::Json) {

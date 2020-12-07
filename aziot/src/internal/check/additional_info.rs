@@ -12,14 +12,19 @@ pub struct AdditionalInfo {
     now: chrono::DateTime<chrono::Utc>,
     os: OsInfo,
     system_info: SystemInfo,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    iothub_hostname: Option<String>,
 }
 
 impl AdditionalInfo {
-    pub fn new() -> Self {
+    pub fn new(iothub_hostname: Option<String>) -> Self {
         AdditionalInfo {
             now: chrono::Utc::now(),
             os: OsInfo::new(),
             system_info: SystemInfo::new(),
+
+            iothub_hostname,
         }
     }
 }
