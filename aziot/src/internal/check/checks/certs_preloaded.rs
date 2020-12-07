@@ -31,30 +31,39 @@ impl CertsPreloaded {
     ) -> Result<CheckResult> {
         let preloaded_certs = &cache.cfg.unwrap().certd.preloaded_certs;
 
+        // TODO?: support returning multiple check results from a single check
+        // this will require some non-trivial changes to the checker framework, as currently
+        // there isn't any way to return a _dynamic_ number of results from a single check.
         for (id, cert) in preloaded_certs {
-            let cert_path = match cert {
-                // IDs point to other preloaded certs, so there's no need to double-validate
-                PreloadedCert::Ids(_) => continue,
+            match cert {
+                PreloadedCert::Ids(ids) => {
+                    // validate that the ids correspond to other preloaded certs
+                    for inner_id in ids {
+                        if preloaded_certs.get(inner_id).is_none() {
+                            return Err(anyhow!(
+                                "id '{}' in '{}' does not point to a valid cert",
+                                inner_id,
+                                id
+                            ));
+                        };
+                    }
+                }
                 PreloadedCert::Uri(uri) => {
                     if uri.scheme() != "file" {
                         return Err(anyhow!(
                             "only file:// schemes are supported for preloaded certs."
                         ));
                     }
-                    uri.path()
+
+                    match CertificateValidity::new(uri.path(), "", &id)
+                        .await?
+                        .to_check_result()?
+                    {
+                        CheckResult::Ok => {}
+                        res => return Ok(res),
+                    }
                 }
             };
-
-            // TODO?: support returning multiple check results from a single check
-            // this will require some non-trivial changes to the checker framework, as currently
-            // there isn't any way to return a _dynamic_ number of results from a single check.
-            match CertificateValidity::new(cert_path, "", &id)
-                .await?
-                .to_check_result()?
-            {
-                CheckResult::Ok => {}
-                res => return Ok(res),
-            }
         }
 
         Ok(CheckResult::Ok)
