@@ -46,6 +46,7 @@ mod prelude {
 }
 
 mod certs_preloaded;
+mod host_connect_dps_endpoint;
 mod host_local_time;
 mod hostname;
 mod identity_certificate_expiry;
@@ -67,6 +68,12 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
             v
         }),
-        ("Connectivity checks", vec![]),
+        ("Connectivity checks", {
+            let mut v: Vec<Box<dyn Checker>> = Vec::new();
+            v.push(Box::new(
+                host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
+            ));
+            v
+        }),
     ]
 }
