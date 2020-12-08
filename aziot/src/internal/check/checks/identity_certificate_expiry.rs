@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use super::prelude::*;
 
 use crate::internal::common::CertificateValidity;

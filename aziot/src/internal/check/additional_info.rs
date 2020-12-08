@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::env::consts::ARCH;
 use std::str;
 

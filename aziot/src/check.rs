@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::collections::BTreeMap;
 use std::io::prelude::*;
 use std::str::FromStr;

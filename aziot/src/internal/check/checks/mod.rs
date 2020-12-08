@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use super::Checker;
 
 mod prelude {

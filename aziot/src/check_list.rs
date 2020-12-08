@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use anyhow::Result;
 
 pub fn check_list() -> Result<()> {

@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use super::prelude::*;
 
 pub fn daemons_running() -> impl Iterator<Item = Box<dyn Checker>> {

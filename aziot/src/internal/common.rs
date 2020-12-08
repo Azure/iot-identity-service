@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
