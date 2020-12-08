@@ -654,8 +654,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     printf 'Device twin: %s\n' \"\$device_twin\" >&2
 
     module_identity=\"\$(
-        sudo curl --unix-socket '/run/aziot/identityd.sock' \\
-            'http://foo/identities/modules/testmodule?api-version=2020-09-01&type=aziot'
+        curl --unix-socket '/run/aziot/identityd.sock' \\
+            'http://foo/identities/identity?api-version=2020-09-01'
     )\"
     printf '%s\n' \"\$module_identity\" >&2
 
