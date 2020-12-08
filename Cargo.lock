@@ -90,9 +90,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "aziot-cert-client-async",
- "aziot-cert-common",
- "aziot-cert-common-http",
  "aziot-certd",
  "aziot-identityd",
  "aziot-keyd",

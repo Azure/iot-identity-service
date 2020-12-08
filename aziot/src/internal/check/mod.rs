@@ -42,20 +42,11 @@ pub struct CheckerCfg {
 
 pub struct CheckerShared {
     cfg: CheckerCfg,
-    cert_client: aziot_cert_client_async::Client,
 }
 
 impl CheckerShared {
     pub fn new(cfg: CheckerCfg) -> CheckerShared {
-        let endpoints = aziot_identityd::settings::Endpoints::default();
-
-        CheckerShared {
-            cfg,
-            cert_client: aziot_cert_client_async::Client::new(
-                aziot_cert_common_http::ApiVersion::V2020_09_01,
-                endpoints.aziot_certd,
-            ),
-        }
+        CheckerShared { cfg }
     }
 }
 

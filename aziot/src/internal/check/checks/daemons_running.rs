@@ -1,0 +1,124 @@
+use super::prelude::*;
+
+pub fn daemons_running() -> impl Iterator<Item = Box<dyn Checker>> {
+    let mut v: Vec<Box<dyn Checker>> = Vec::new();
+
+    v.push(Box::new(DaemonRunningKeyd {}));
+    v.push(Box::new(DaemonRunningCertd {}));
+    v.push(Box::new(DaemonRunningTpmd {}));
+    v.push(Box::new(DaemonRunningIdentityd {}));
+
+    v.into_iter()
+}
+
+#[derive(Serialize)]
+struct DaemonRunningKeyd {}
+
+#[async_trait::async_trait]
+impl Checker for DaemonRunningKeyd {
+    fn meta(&self) -> CheckerMeta {
+        CheckerMeta {
+            id: "keyd-running",
+            description: "keyd is running",
+        }
+    }
+
+    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+        use hyper::service::Service;
+
+        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_keyd;
+        let res = connector
+            .call("foo".parse().unwrap())
+            .await
+            .with_context(|| anyhow!("Could not connect to keyd on {}", connector));
+
+        match res {
+            Ok(_) => CheckResult::Ok,
+            Err(e) => CheckResult::Failed(e),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct DaemonRunningCertd {}
+
+#[async_trait::async_trait]
+impl Checker for DaemonRunningCertd {
+    fn meta(&self) -> CheckerMeta {
+        CheckerMeta {
+            id: "certd-running",
+            description: "certd is running",
+        }
+    }
+
+    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+        use hyper::service::Service;
+
+        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_certd;
+        let res = connector
+            .call("foo".parse().unwrap())
+            .await
+            .with_context(|| anyhow!("Could not connect to certd on {}", connector));
+
+        match res {
+            Ok(_) => CheckResult::Ok,
+            Err(e) => CheckResult::Failed(e),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct DaemonRunningTpmd {}
+
+#[async_trait::async_trait]
+impl Checker for DaemonRunningTpmd {
+    fn meta(&self) -> CheckerMeta {
+        CheckerMeta {
+            id: "tpmd-running",
+            description: "tpmd is running",
+        }
+    }
+
+    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+        use hyper::service::Service;
+
+        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_tpmd;
+        let res = connector
+            .call("foo".parse().unwrap())
+            .await
+            .with_context(|| anyhow!("Could not connect to tpmd on {}", connector));
+
+        match res {
+            Ok(_) => CheckResult::Ok,
+            Err(e) => CheckResult::Failed(e),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct DaemonRunningIdentityd {}
+
+#[async_trait::async_trait]
+impl Checker for DaemonRunningIdentityd {
+    fn meta(&self) -> CheckerMeta {
+        CheckerMeta {
+            id: "identityd-running",
+            description: "identityd is running",
+        }
+    }
+
+    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+        use hyper::service::Service;
+
+        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_identityd;
+        let res = connector
+            .call("foo".parse().unwrap())
+            .await
+            .with_context(|| anyhow!("Could not connect to identityd on {}", connector));
+
+        match res {
+            Ok(_) => CheckResult::Ok,
+            Err(e) => CheckResult::Failed(e),
+        }
+    }
+}

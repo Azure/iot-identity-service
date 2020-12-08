@@ -59,6 +59,7 @@ macro_rules! unwrap_or_skip {
 }
 
 mod certs_preloaded;
+mod daemons_running;
 mod host_connect_dps_endpoint;
 mod host_local_time;
 mod hostname;
@@ -83,6 +84,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         }),
         ("Connectivity checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
+            v.extend(daemons_running::daemons_running());
             v.push(Box::new(
                 host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
             ));
