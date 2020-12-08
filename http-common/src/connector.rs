@@ -54,7 +54,7 @@ impl Incoming {
                         .serve_connection(tcp_stream, server)
                         .await
                     {
-                        eprintln!("Error while serving HTTP connection: {}", http_err);
+                        log::info!("Error while serving HTTP connection: {}", http_err);
                     }
                 });
             },
@@ -69,7 +69,7 @@ impl Incoming {
                         .serve_connection(unix_stream, server)
                         .await
                     {
-                        eprintln!("Error while serving HTTP connection: {}", http_err);
+                        log::info!("Error while serving HTTP connection: {}", http_err);
                     }
                 });
             },
