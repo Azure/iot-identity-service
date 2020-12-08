@@ -31,6 +31,52 @@ pub enum Incoming {
     Unix(tokio::net::UnixListener),
 }
 
+impl Incoming {
+    pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
+    where
+        H: hyper::service::Service<
+                hyper::Request<hyper::Body>,
+                Response = hyper::Response<hyper::Body>,
+                Error = std::convert::Infallible,
+            > + Clone
+            + Send
+            + 'static,
+        <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+    {
+        match self {
+            Incoming::Tcp(listener) => loop {
+                let (tcp_stream, _) = listener.accept().await?;
+
+                // TCP is available in test builds only (not production). Assume current user is root.
+                let server = crate::uid::UidService::new(0, server.clone());
+                tokio::task::spawn(async move {
+                    if let Err(http_err) = hyper::server::conn::Http::new()
+                        .serve_connection(tcp_stream, server)
+                        .await
+                    {
+                        eprintln!("Error while serving HTTP connection: {}", http_err);
+                    }
+                });
+            },
+
+            Incoming::Unix(listener) => loop {
+                let (unix_stream, _) = listener.accept().await?;
+                let ucred = unix_stream.peer_cred()?;
+
+                let server = crate::uid::UidService::new(ucred.uid, server.clone());
+                tokio::task::spawn(async move {
+                    if let Err(http_err) = hyper::server::conn::Http::new()
+                        .serve_connection(unix_stream, server)
+                        .await
+                    {
+                        eprintln!("Error while serving HTTP connection: {}", http_err);
+                    }
+                });
+            },
+        }
+    }
+}
+
 impl Connector {
     pub fn new(uri: &url::Url) -> Result<Self, ConnectorError> {
         match uri.scheme() {

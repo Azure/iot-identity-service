@@ -156,11 +156,9 @@ where
             hyper::Request<hyper::Body>,
             Response = hyper::Response<hyper::Body>,
             Error = std::convert::Infallible,
-        >
-        + Clone
+        > + Clone
         + Send
-        + 'static
-        + Sync,
+        + 'static,
     <TServer as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
 {
     log::info!("Starting service...");
@@ -232,46 +230,13 @@ where
         .incoming()
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
+    let () = incoming
+        .serve(server)
+        .await
+        .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
-    match &mut incoming {
-        http_common::connector::Incoming::Tcp(listener) => loop {
-            let (tcp_stream, _) = listener
-                .accept()
-                .await
-                .map_err(|err| ErrorKind::Service(Box::new(err)))?;
-            
-            // TCP is available in test builds only (not production). Assume current user is root.
-            let server = http_common::uid::UidService::new(0, server.clone());
-            tokio::task::spawn(async move {
-                if let Err(http_err) = hyper::server::conn::Http::new()
-                    .serve_connection(tcp_stream, server)
-                    .await
-                {
-                    eprintln!("Error while serving HTTP connection: {}", http_err);
-                }
-            });
-        },
-
-        http_common::connector::Incoming::Unix(listener) => loop {
-            let (unix_stream, _) = listener
-                .accept()
-                .await
-                .map_err(|err| ErrorKind::Service(Box::new(err)))?;
-            let ucred = unix_stream
-                .peer_cred()
-                .map_err(|err| ErrorKind::Service(Box::new(err)))?;
-
-            let server = http_common::uid::UidService::new(ucred.uid, server.clone());
-            tokio::task::spawn(async move {
-                if let Err(http_err) = hyper::server::conn::Http::new()
-                    .serve_connection(unix_stream, server)
-                    .await
-                {
-                    eprintln!("Error while serving HTTP connection: {}", http_err);
-                }
-            });
-        },
-    }
+    log::info!("Stopped server.");
+    Ok(())
 }
 
 fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
