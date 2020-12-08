@@ -6,11 +6,13 @@ pub mod authentication;
 pub mod authorization;
 
 /// Authenticated user types
-#[derive(Clone)]
+#[derive(Clone, PartialOrd, PartialEq)]
 pub enum AuthId {
     Unknown,
 
     LocalPrincipal(Credentials),
+
+    LocalRoot,
 }
 
 /// Operation types to be authorized
@@ -35,6 +37,6 @@ pub struct Operation {
 #[derive(
     Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize,
 )]
-pub struct Uid(pub i32);
+pub struct Uid(pub libc::uid_t);
 
 pub type Credentials = Uid;

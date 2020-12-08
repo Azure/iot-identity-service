@@ -10,6 +10,7 @@ pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     module_id: String,
     id_type: Option<String>,
+    user: crate::auth::Credentials,
 }
 
 #[async_trait::async_trait]
@@ -24,6 +25,7 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        extensions: &http::Extensions,
     ) -> Option<Self> {
         let captures = URI_REGEX.captures(path)?;
 
@@ -40,10 +42,13 @@ impl http_common::server::Route for Route {
             }
         });
 
+        let uid = extensions.get::<libc::uid_t>().cloned()?;
+
         Some(Route {
             api: service.api.clone(),
             module_id: module_id.into_owned(),
             id_type,
+            user: crate::auth::Uid(uid),
         })
     }
 
@@ -56,13 +61,11 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let user = crate::auth::Uid(0);
-        let auth_id = match api.authenticator.authenticate(user) {
+        let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        //TODO: get uid from UDS
         match api
             .delete_identity(auth_id, self.id_type.as_deref(), &self.module_id)
             .await
@@ -79,13 +82,11 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let user = crate::auth::Uid(0);
-        let auth_id = match api.authenticator.authenticate(user) {
+        let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        //TODO: get uid from UDS
         let identity = match api
             .get_identity(auth_id, self.id_type.as_deref(), &self.module_id)
             .await
@@ -115,8 +116,7 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let user = crate::auth::Uid(0);
-        let auth_id = match api.authenticator.authenticate(user) {
+        let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };

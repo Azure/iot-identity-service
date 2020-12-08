@@ -16,6 +16,7 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        _extensions: &http::Extensions,
     ) -> Option<Self> {
         if path != "/encrypt" {
             return None;

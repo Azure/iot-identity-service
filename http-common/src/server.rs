@@ -25,7 +25,7 @@ macro_rules! make_service {
                     this: &mut $service_ty,
                     req: hyper::Request<hyper::Body>,
                 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>> + Send>> {
-                    let (http::request::Parts { method, uri, headers, .. }, body) = req.into_parts();
+                    let (http::request::Parts { method, uri, headers, extensions, .. }, body) = req.into_parts();
 
                     let path = uri.path();
 
@@ -65,7 +65,7 @@ macro_rules! make_service {
                     $(
                         let route_api_version_matches = <$route as http_common::server::Route>::api_version().contains(&api_version);
                         if route_api_version_matches {
-                        let route: Option<$route> = http_common::server::Route::from_uri(&*this, path, &query_params);
+                        let route: Option<$route> = http_common::server::Route::from_uri(&*this, path, &query_params, &extensions);
                             if let Some(route) = route {
                                 return Box::pin(async move {
                                     let response = match method {
@@ -222,6 +222,7 @@ pub trait Route: Sized {
         service: &Self::Service,
         path: &str,
         query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        _extensions: &http::Extensions,
     ) -> Option<Self>;
 
     type DeleteBody: serde::de::DeserializeOwned + Send;
@@ -380,6 +381,7 @@ mod test_server {
                 _service: &Self::Service,
                 _path: &str,
                 _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+                _extensions: &http::Extensions,
             ) -> Option<Self> {
                 Some(Route)
             }

@@ -186,54 +186,6 @@ impl std::str::FromStr for Connector {
 }
 
 #[cfg(feature = "tokio02")]
-impl hyper::server::accept::Accept for Incoming {
-    type Conn = AsyncStream;
-    type Error = std::io::Error;
-
-    fn poll_accept(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        loop {
-            let stream = match &mut *self {
-                Incoming::Tcp(listener) => match listener.poll_accept(cx) {
-                    std::task::Poll::Ready(Ok((stream, _))) => Ok(AsyncStream::Tcp(stream)),
-                    std::task::Poll::Ready(Err(err)) => Err(err),
-                    std::task::Poll::Pending => return std::task::Poll::Pending,
-                },
-
-                Incoming::Unix(listener) => {
-                    // tokio::net::UnixListener does not have pub poll_accept.
-                    //
-                    // However the tokio::net::unix::Incoming returned from its .incoming() does.
-                    // Keeping an Incoming across polls is hard because it borrows a &mut of the UnixListener.
-                    // But it's fine to throw it away when it's Pending and make a new one for every poll, because it doesn't contain any state
-                    // nor has side effects from being dropped.
-                    let mut incoming = listener.incoming();
-                    match std::pin::Pin::new(&mut incoming).poll_accept(cx) {
-                        std::task::Poll::Ready(Ok(stream)) => Ok(AsyncStream::Unix(stream)),
-                        std::task::Poll::Ready(Err(err)) => Err(err),
-                        std::task::Poll::Pending => return std::task::Poll::Pending,
-                    }
-                }
-            };
-
-            match stream {
-                Ok(stream) => return std::task::Poll::Ready(Some(Ok(stream))),
-                Err(err) => match err.kind() {
-                    // Client errors
-                    std::io::ErrorKind::ConnectionAborted
-                    | std::io::ErrorKind::ConnectionRefused
-                    | std::io::ErrorKind::ConnectionReset => (),
-
-                    _ => return std::task::Poll::Ready(Some(Err(err))),
-                },
-            }
-        }
-    }
-}
-
-#[cfg(feature = "tokio02")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
