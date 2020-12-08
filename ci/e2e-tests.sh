@@ -634,7 +634,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
 
     # Get device identity and use it to get device twin
     device_identity=\"\$(
-        curl --unix-socket '/run/aziot/identityd.sock' \\
+        sudo curl --unix-socket '/run/aziot/identityd.sock' \\
             -X POST -H 'content-type: application/json' --data-binary '{ \"type\": \"\" }' \\
             'http://foo/identities/device?api-version=2020-09-01'
     )\"
@@ -654,7 +654,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     printf 'Device twin: %s\n' \"\$device_twin\" >&2
 
     module_identity=\"\$(
-        curl --unix-socket '/run/aziot/identityd.sock' \\
+        sudo curl --unix-socket '/run/aziot/identityd.sock' \\
             'http://foo/identities/modules/testmodule?api-version=2020-09-01&type=aziot'
     )\"
     printf '%s\n' \"\$module_identity\" >&2
