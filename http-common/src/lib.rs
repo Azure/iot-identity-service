@@ -22,6 +22,7 @@ pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
 pub mod server;
+mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
 pub const PATH_SEGMENT_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS

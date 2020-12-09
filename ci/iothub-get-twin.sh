@@ -5,7 +5,7 @@
 #
 # Usage:
 #
-#     iothub-get-twin.sh "$(curl --unix-socket /run/aziot/identityd.sock 'http://foo/identities/modules/testmodule?api-version=2020-09-01')"
+#     iothub-get-twin.sh "$(curl --unix-socket /run/aziot/identityd.sock 'http://foo/identities/identity?api-version=2020-09-01')"
 
 
 set -euo pipefail

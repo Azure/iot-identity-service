@@ -33,7 +33,7 @@ impl Settings {
         settings.check()
     }
 
-    fn check(self) -> Result<Self, InternalError> {
+    pub fn check(self) -> Result<Self, InternalError> {
         let mut existing_names: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
             std::collections::BTreeSet::default();
 
