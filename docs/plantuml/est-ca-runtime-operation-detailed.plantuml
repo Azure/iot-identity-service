@@ -45,16 +45,19 @@ group Host-level modules provisioning
 end
 
 group Host-level modules process operations
-	loop for getting and renewing SAS token for identifying with IoT Hub
-		hlm -> is ++: Get SAS token for Edge Agent to identify with IoT Hub
-		is -> ks ++: Get master encryption key
+	loop for host-level module M to create SAS token for authenticating with IoT Hub
+		hlm -> is ++: Get identity for host module M to identify with IoT Hub
+		is -> ks ++: Get master identity key handle
 		return Key handle
-		is -> ks ++: Sign Edge Agent's name + generation ID using the master encryption key to derive Edge Agent SAS keys
+		is -> ks ++: Create module derived key object for module M (based on master identity key handle)
 		return
-		is -> is: Create SAS token from SAS key
-		return SAS token
+		return Module identity with derived key handle
+		hlm -> hlm: Generate SAS token
+		hlm -> ks++: Sign SAS token using derived key handle
+		return Signed SAS token
+		hlm -> hlm: Generate SharedAccessSignature for authenticating with IoT Hub
 		hlm -> hlm: Create IoT Hub client with SAS token
-		hlm -> hub ++: Connect to IoT Hub
+		hlm -> hub++: Connect to IoT Hub
 		hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
 		return OK
 	end
