@@ -58,33 +58,8 @@ impl HostConnectDpsEndpoint {
         self.dps_hostname = Some(dps_hostname.clone());
 
         // TODO: add proxy support once is supported in identityd
-        resolve_and_tls_handshake(dps_endpoint, &dps_hostname).await?;
+        crate::internal::common::resolve_and_tls_handshake(dps_endpoint, &dps_hostname).await?;
 
         Ok(CheckResult::Ok)
     }
-}
-
-pub async fn resolve_and_tls_handshake(endpoint: hyper::Uri, hostname_display: &str) -> Result<()> {
-    use hyper::service::Service;
-
-    // we don't actually care about the stream that gets returned. All we care about
-    // is whether or not the TLS handshake was successful
-    let _ = hyper_openssl::HttpsConnector::new()
-        .with_context(|| {
-            anyhow!(
-                "Could not connect to {} : could not create TLS connector",
-                hostname_display,
-            )
-        })?
-        .call(endpoint)
-        .await
-        .map_err(|e| anyhow!("{}", e))
-        .with_context(|| {
-            anyhow!(
-                "Could not connect to {} : could not complete TLS handshake",
-                hostname_display,
-            )
-        })?;
-
-    Ok(())
 }

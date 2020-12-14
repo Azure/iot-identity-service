@@ -76,6 +76,7 @@ pub enum CheckResult {
     Fatal(anyhow::Error),
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct CheckerMeta {
     /// Unique human-readable identifier for the check.
     pub id: &'static str,

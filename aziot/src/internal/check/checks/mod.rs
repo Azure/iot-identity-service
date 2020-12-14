@@ -63,6 +63,7 @@ macro_rules! unwrap_or_skip {
 mod certs_preloaded;
 mod daemons_running;
 mod host_connect_dps_endpoint;
+mod host_connect_iothub;
 mod host_local_time;
 mod hostname;
 mod identity_certificate_expiry;
@@ -90,6 +91,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.push(Box::new(
                 host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
             ));
+            v.extend(host_connect_iothub::host_connect_iothub_checks());
             v
         }),
     ]

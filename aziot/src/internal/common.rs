@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
+//! A grab-bag of misc. utilities shared across the various sub-commands.
 
 use std::path::Path;
 
@@ -82,4 +83,29 @@ impl CertificateValidity {
             not_before,
         })
     }
+}
+
+pub async fn resolve_and_tls_handshake(endpoint: hyper::Uri, hostname_display: &str) -> Result<()> {
+    use hyper::service::Service;
+
+    // we don't actually care about the stream that gets returned. All we care about
+    // is whether or not the TLS handshake was successful
+    let _ = hyper_openssl::HttpsConnector::new()
+        .with_context(|| {
+            anyhow!(
+                "Could not connect to {} : could not create TLS connector",
+                hostname_display,
+            )
+        })?
+        .call(endpoint)
+        .await
+        .map_err(|e| anyhow!("{}", e))
+        .with_context(|| {
+            anyhow!(
+                "Could not connect to {} : could not complete TLS handshake",
+                hostname_display,
+            )
+        })?;
+
+    Ok(())
 }
