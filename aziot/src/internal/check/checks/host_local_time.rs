@@ -29,8 +29,6 @@ impl HostLocalTime {
         shared: &CheckerShared,
         _cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        // TODO: check against parent time in nested edge scenarios
-
         fn is_server_unreachable_error(err: &mini_sntp::Error) -> bool {
             match err {
                 mini_sntp::Error::ResolveNtpPoolHostname(_) => true,

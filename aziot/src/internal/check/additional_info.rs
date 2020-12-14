@@ -42,7 +42,6 @@ impl AdditionalInfo {
 ///  Debian 9            | debian              | 9
 ///  openSUSE Tumbleweed | opensuse-tumbleweed | 20190325
 ///  Ubuntu 18.04        | ubuntu              | 18.04
-///  Windows 10          | windows             | 10.0.17763
 /// ```
 ///
 /// Ref: <https://www.freedesktop.org/software/systemd/man/os-release.html>
