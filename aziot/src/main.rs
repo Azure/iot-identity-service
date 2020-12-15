@@ -25,7 +25,7 @@ async fn try_main() -> Result<()> {
     match options {
         Options::Init => init::run()?,
         Options::Check(cfg) => check::check(cfg).await?,
-        Options::CheckList => check_list::check_list()?,
+        Options::CheckList(cfg) => check_list::check_list(cfg)?,
     }
 
     Ok(())
@@ -45,5 +45,5 @@ enum Options {
     /// Check for common config and deployment issues.
     Check(check::CheckCfg),
     /// List the checks that are run for 'aziot check'
-    CheckList,
+    CheckList(check_list::CheckListCfg),
 }

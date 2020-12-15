@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use serde::Serialize;
 use structopt::StructOpt;
 
 mod additional_info;
@@ -76,7 +77,7 @@ pub enum CheckResult {
     Fatal(anyhow::Error),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub struct CheckerMeta {
     /// Unique human-readable identifier for the check.
     pub id: &'static str,
