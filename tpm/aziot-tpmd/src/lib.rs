@@ -8,16 +8,15 @@
     clippy::missing_errors_doc
 )]
 
-mod config;
 mod error;
 
 mod http;
 
-pub use config::{Config, Endpoints};
-pub use error::{Error, InternalError};
-
 use aziot_tpm::Tpm;
 use aziot_tpm_common::TpmKeys;
+use aziot_tpmd_config::{Config, Endpoints};
+
+use error::{Error, InternalError};
 
 pub async fn main(
     config: Config,

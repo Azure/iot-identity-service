@@ -31,6 +31,7 @@ pub enum Incoming {
     Unix(tokio::net::UnixListener),
 }
 
+#[cfg(feature = "tokio02")]
 impl Incoming {
     pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
     where
@@ -430,6 +431,7 @@ impl std::error::Error for ConnectorError {
 /// Finds the systemd socket if one has been used to socket-activate this process.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the very first fd.
+#[cfg(feature = "tokio02")]
 fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //

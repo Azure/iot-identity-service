@@ -1,0 +1,21 @@
+[package]
+name = "aziot-identityd-config"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+publish = false
+description = """
+The code used for Identity Service.
+"""
+edition = "2018"
+
+
+[dependencies]
+http-common = { path = "../../http-common" }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+
+aziot-identity-common = { path = "../aziot-identity-common" }
+
+
+[dev-dependencies]
+toml = "0.5"

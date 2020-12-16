@@ -1,0 +1,14 @@
+[package]
+name = "aziot-keyd-config"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+edition = "2018"
+
+
+[dependencies]
+http-common = { path = "../../http-common" }
+serde = { version = "1", features = ["derive"] }
+
+
+[dev-dependencies]
+toml = "0.5"

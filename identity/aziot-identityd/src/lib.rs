@@ -16,11 +16,13 @@
 
 use std::sync::Arc;
 
+use aziot_identityd_config as config;
+
 pub mod auth;
+mod configext;
 pub mod error;
 mod http;
 pub mod identity;
-pub mod settings;
 
 pub use error::{Error, InternalError};
 
@@ -46,10 +48,10 @@ macro_rules! match_id_type {
 }
 
 pub async fn main(
-    settings: settings::Settings,
+    settings: config::Settings,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     // Written to prev_settings_path if provisioning is successful.
-    let settings = settings.check()?;
+    let settings = configext::check(settings)?;
     let settings_serialized = toml::to_vec(&settings).expect("serializing settings cannot fail");
 
     let homedir_path = &settings.homedir;
@@ -75,7 +77,7 @@ pub async fn main(
     let authenticator = Box::new(move |uid| {
         if allowed_users_copy.contains_key(&uid) {
             Ok(auth::AuthId::LocalPrincipal(uid))
-        } else if uid.eq(&crate::auth::Uid(0)) {
+        } else if uid.eq(&config::Uid(0)) {
             Ok(auth::AuthId::LocalRoot)
         } else {
             Ok(auth::AuthId::Unknown)
@@ -106,7 +108,7 @@ pub async fn main(
         let device_status = if let aziot_identity_common::ProvisioningStatus::Provisioned(device) =
             provisioning
         {
-            let curr_hub_device_info = settings::HubDeviceInfo {
+            let curr_hub_device_info = configext::HubDeviceInfo {
                 hub_name: device.iothub_hostname,
                 device_id: device.device_id,
             };
@@ -115,10 +117,10 @@ pub async fn main(
             // Only consider the previous Hub modules if the current and previous Hub devices match.
             let prev_hub_modules = if prev_settings_path.exists() && prev_device_info_path.exists()
             {
-                let prev_hub_device_info = settings::HubDeviceInfo::new(&prev_device_info_path)?;
+                let prev_hub_device_info = configext::HubDeviceInfo::new(&prev_device_info_path)?;
 
                 if prev_hub_device_info == Some(curr_hub_device_info) {
-                    let prev_settings = settings::Settings::new(&prev_settings_path)?;
+                    let prev_settings = configext::load_file(&prev_settings_path)?;
                     let (_, prev_hub_modules, _) =
                         prepare_authorized_principals(&prev_settings.principal);
                     prev_hub_modules
@@ -136,7 +138,7 @@ pub async fn main(
 
             device_status
         } else {
-            settings::HubDeviceInfo::unprovisioned()
+            configext::HubDeviceInfo::unprovisioned()
         };
 
         std::fs::write(prev_device_info_path, device_status)
@@ -151,13 +153,13 @@ pub async fn main(
 }
 
 pub struct Api {
-    pub settings: settings::Settings,
+    pub settings: config::Settings,
     pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
     pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
     pub id_manager: identity::IdentityManager,
     pub local_identities:
-        std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
-    pub caller_identities: std::collections::BTreeMap<crate::auth::Uid, crate::settings::Principal>,
+        std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<config::LocalIdOpts>>,
+    pub caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
 
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -167,14 +169,14 @@ pub struct Api {
 
 impl Api {
     pub fn new(
-        settings: settings::Settings,
+        settings: config::Settings,
         local_identities: std::collections::BTreeMap<
             aziot_identity_common::ModuleId,
-            Option<settings::LocalIdOpts>,
+            Option<config::LocalIdOpts>,
         >,
         authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
         authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
-        caller_identities: std::collections::BTreeMap<crate::auth::Uid, crate::settings::Principal>,
+        caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
     ) -> Result<Self, Error> {
         let key_service_connector = settings.endpoints.aziot_keyd.clone();
 
@@ -441,16 +443,16 @@ impl Api {
         &mut self,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
         let device = match self.settings.clone().provisioning.provisioning {
-            settings::ProvisioningType::Manual {
+            config::ProvisioningType::Manual {
                 iothub_hostname,
                 device_id,
                 authentication,
             } => {
                 let credentials = match authentication {
-                    settings::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
+                    config::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
                         aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
                     }
-                    settings::ManualAuthMethod::X509 {
+                    config::ManualAuthMethod::X509 {
                         identity_cert,
                         identity_pk,
                     } => {
@@ -474,7 +476,7 @@ impl Api {
                 self.id_manager.set_device(&device);
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
-            settings::ProvisioningType::Dps {
+            config::ProvisioningType::Dps {
                 global_endpoint,
                 scope_id,
                 attestation,
@@ -508,7 +510,7 @@ impl Api {
                 );
 
                 let device = match attestation {
-                    settings::DpsAttestationMethod::SymmetricKey {
+                    config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,
                     } => {
@@ -526,7 +528,7 @@ impl Api {
 
                         operation_to_iot_hub_device(credential, operation).await?
                     }
-                    settings::DpsAttestationMethod::X509 {
+                    config::DpsAttestationMethod::X509 {
                         registration_id,
                         identity_cert,
                         identity_pk,
@@ -554,7 +556,7 @@ impl Api {
 
                         operation_to_iot_hub_device(credential, operation).await?
                     }
-                    settings::DpsAttestationMethod::Tpm { registration_id } => {
+                    config::DpsAttestationMethod::Tpm { registration_id } => {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
                         let credential = aziot_identity_common::Credentials::Tpm;
 
@@ -569,7 +571,7 @@ impl Api {
                 self.id_manager.set_device(&device);
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
-            settings::ProvisioningType::None => {
+            config::ProvisioningType::None => {
                 log::info!("Skipping provisioning with IoT Hub.");
 
                 aziot_identity_common::ProvisioningStatus::Unprovisioned
@@ -605,7 +607,7 @@ impl Api {
                         .map_or(
                             aziot_identity_common::LocalIdAttr::default(),
                             |opts| match opts {
-                                settings::LocalIdOpts::X509 { attributes } => *attributes,
+                                config::LocalIdOpts::X509 { attributes } => *attributes,
                             },
                         );
 
@@ -809,7 +811,7 @@ fn create_csr(
 }
 
 pub struct SettingsAuthorizer {
-    pub allowed_users: std::collections::BTreeMap<crate::auth::Uid, crate::settings::Principal>,
+    pub allowed_users: std::collections::BTreeMap<config::Uid, config::Principal>,
     pub modules: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 }
 
@@ -820,7 +822,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
         match o.op_type {
             crate::auth::OperationType::GetModule(m) => {
                 if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&crate::auth::Uid(creds.0)) {
+                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
                         return Ok(
                             if self
                                 .modules
@@ -836,7 +838,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             }
             crate::auth::OperationType::GetDevice => {
                 if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&crate::auth::Uid(creds.0)) {
+                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
                         let allow_id_type = p
                             .id_type
                             .clone()
@@ -850,7 +852,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             | crate::auth::OperationType::UpdateModule(m)
             | crate::auth::OperationType::DeleteModule(m) => {
                 if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&crate::auth::Uid(creds.0)) {
+                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
                         return Ok(p.id_type == None
                             && !self.modules.contains(&aziot_identity_common::ModuleId(m)));
                     }
@@ -860,7 +862,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             crate::auth::OperationType::GetAllHubModules
             | crate::auth::OperationType::ReprovisionDevice => {
                 if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&crate::auth::Uid(creds.0)) {
+                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
                         return Ok(p.id_type == None);
                     }
                 }
@@ -887,19 +889,19 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 }
 
 fn prepare_authorized_principals(
-    principal: &[settings::Principal],
+    principal: &[config::Principal],
 ) -> (
-    std::collections::BTreeMap<auth::Uid, settings::Principal>,
+    std::collections::BTreeMap<config::Uid, config::Principal>,
     std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<settings::LocalIdOpts>>,
+    std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<config::LocalIdOpts>>,
 ) {
     let mut local_module_map: std::collections::BTreeMap<
         aziot_identity_common::ModuleId,
-        Option<settings::LocalIdOpts>,
+        Option<config::LocalIdOpts>,
     > = std::collections::BTreeMap::new();
     let mut hub_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
         std::collections::BTreeSet::new();
-    let mut principal_map: std::collections::BTreeMap<auth::Uid, settings::Principal> =
+    let mut principal_map: std::collections::BTreeMap<config::Uid, config::Principal> =
         std::collections::BTreeMap::new();
     let mut found_daemon = false;
 
@@ -933,14 +935,14 @@ mod tests {
     use std::path::Path;
 
     use aziot_identity_common::{IdType, LocalIdAttr, ModuleId};
+    use aziot_identityd_config::{
+        Endpoints, LocalId, LocalIdOpts, ManualAuthMethod, Principal, Provisioning,
+        ProvisioningType, Settings, Uid,
+    };
     use http_common::Connector;
 
     use crate::auth::authorization::Authorizer;
-    use crate::auth::{AuthId, Operation, OperationType, Uid};
-    use crate::settings::{
-        Endpoints, LocalId, LocalIdOpts, ManualAuthMethod, Principal, Provisioning,
-        ProvisioningType, Settings,
-    };
+    use crate::auth::{AuthId, Operation, OperationType};
     use crate::SettingsAuthorizer;
 
     use super::{prepare_authorized_principals, Api};
@@ -1059,7 +1061,8 @@ mod tests {
 
     #[test]
     fn settings_test() {
-        let settings = Settings::new(Path::new("test/good_auth_settings.toml")).unwrap();
+        let settings =
+            super::configext::load_file(Path::new("test/good_auth_settings.toml")).unwrap();
 
         let localid = settings.localid.unwrap();
         assert_eq!(
@@ -1085,7 +1088,8 @@ mod tests {
 
     #[test]
     fn local_id_opts() {
-        let s = Settings::new(std::path::Path::new("test/good_local_opts.toml")).unwrap();
+        let s =
+            super::configext::load_file(std::path::Path::new("test/good_local_opts.toml")).unwrap();
 
         assert_eq!(
             &s.principal,
