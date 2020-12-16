@@ -10,7 +10,7 @@ pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     module_id: String,
     id_type: Option<String>,
-    user: crate::auth::Credentials,
+    user: aziot_identityd_config::Credentials,
 }
 
 #[async_trait::async_trait]
@@ -48,7 +48,7 @@ impl http_common::server::Route for Route {
             api: service.api.clone(),
             module_id: module_id.into_owned(),
             id_type,
-            user: crate::auth::Uid(uid),
+            user: aziot_identityd_config::Uid(uid),
         })
     }
 

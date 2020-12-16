@@ -21,12 +21,12 @@ openssl = "0.10"
 openssl-sys = "0.9"
 percent-encoding = "2"
 regex = "1"
-serde = { version = "1", features = ["derive"] }
+serde = "1"
 serde_json = "1"
-tokio = "0.2"
-url = { version = "2", features = ["serde"] }
+url = "2"
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
+aziot-certd-config = { path = "../aziot-certd-config" }
 aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
@@ -37,7 +37,3 @@ openssl2 = { path = "../../openssl2" }
 
 [build-dependencies]
 openssl-build = { path = "../../openssl-build/" }
-
-
-[dev-dependencies]
-toml = "0.5"

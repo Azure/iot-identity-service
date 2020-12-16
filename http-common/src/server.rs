@@ -325,6 +325,7 @@ pub fn json_response(
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
+#[cfg(feature = "tokio02")]
 mod test_server {
     use crate as http_common;
 

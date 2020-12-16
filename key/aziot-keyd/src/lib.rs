@@ -9,15 +9,14 @@
     clippy::missing_errors_doc
 )]
 
-mod config;
-pub use config::{Config, Endpoints};
-
 mod error;
 pub use error::{Error, InternalError};
 
 mod keys;
 
 mod http;
+
+use aziot_keyd_config::{Config, Endpoints};
 
 pub async fn main(
     config: Config,
