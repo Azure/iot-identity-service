@@ -69,7 +69,7 @@ pub async fn main(
     }
 
     // let api = Api::new(
-    //     settings,
+    //     settings.clone(),
     //     Default::default(),
     //     Box::new(auth::authentication::DefaultAuthenticator),
     //     Box::new(auth::authorization::DefaultAuthorizer),
@@ -82,30 +82,16 @@ pub async fn main(
     let (allowed_users, hub_modules, local_modules) =
         prepare_authorized_principals(&settings.principal);
 
-    let allowed_users_copy = allowed_users.clone();
-
     //todo: wrap this up in update_authenticator
     // All uids in the principals are authenticated users to this service
-    let authenticator = Box::new(move |uid| {
-        //todo: lookup principals here and map uid to one of these - HostProcess(p), Daemon(p), Root   
-        //todo: add update() method to update this mapping. 
-        //todo: Mapping is fed from reconcile trigger task, that also feeds reconcile task in id_manager.
-        if allowed_users_copy.contains_key(&uid) {
-            Ok(auth::AuthId::LocalPrincipal(uid))
-        } else if uid.eq(&config::Uid(0)) {
-            Ok(auth::AuthId::LocalRoot)
-        } else {
-            Ok(auth::AuthId::Unknown)
-        }
+    let authenticator = Box::new(SettingsAuthenticator {
+        allowed_users: allowed_users.clone(),
     });
 
     //todo: try making this state agnostic and pass into Api object above
-    let authorizer = Box::new(SettingsAuthorizer {
-        allowed_users: allowed_users.clone(),
-        modules: hub_modules.clone(),
-    });
+    let authorizer = Box::new(SettingsAuthorizer {});
 
-    //todo: replace with update authenticator, authorizer, local_modules. Remove allowed users (replace with AuthId(Principal)) 
+    //todo: replace with update authenticator, authorizer, local_modules. Remove allowed users (replace with AuthId(Principal))
     let api = Api::new(
         settings,
         local_modules,
@@ -273,18 +259,15 @@ impl Api {
             op_type: auth::OperationType::GetDevice,
         })? {
             return self.id_manager.get_device_identity().await;
-        } else if let crate::auth::AuthId::LocalPrincipal(uid) = auth_id {
-            //todo: pass in principal via authid
-            if let Some(caller_principal) = self.caller_identities.get(&uid) {
-                if self.authorizer.authorize(auth::Operation {
-                    auth_id,
-                    op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
-                })? {
-                    return self
-                        .id_manager
-                        .get_module_identity(&caller_principal.name.0)
-                        .await;
-                }
+        } else if let crate::auth::AuthId::HostProcess(ref caller_principal) = auth_id {
+            if self.authorizer.authorize(auth::Operation {
+                auth_id: auth_id.clone(),
+                op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
+            })? {
+                return self
+                    .id_manager
+                    .get_module_identity(&caller_principal.name.0)
+                    .await;
             }
         }
 
@@ -845,66 +828,56 @@ fn create_csr(
     Ok(csr)
 }
 
-pub struct SettingsAuthorizer {
+pub struct SettingsAuthenticator {
     pub allowed_users: std::collections::BTreeMap<config::Uid, config::Principal>,
-    pub modules: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 }
+
+impl auth::authentication::Authenticator for SettingsAuthenticator {
+    type Error = Error;
+
+    fn authenticate(&self, credentials: config::Uid) -> Result<auth::AuthId, Self::Error> {
+        if let Some(p) = self.allowed_users.get(&credentials) {
+            if let Some(_) = p.id_type {
+                return Ok(auth::AuthId::HostProcess(p.clone()));
+            } else {
+                return Ok(auth::AuthId::Daemon);
+            }
+        }
+
+        Ok(auth::AuthId::Unknown)
+    }
+}
+
+pub struct SettingsAuthorizer {}
 
 impl auth::authorization::Authorizer for SettingsAuthorizer {
     type Error = Error;
 
     fn authorize(&self, o: auth::Operation) -> Result<bool, Self::Error> {
-        match o.op_type {
-            crate::auth::OperationType::GetModule(m) => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(
-                            if self
-                                .modules
-                                .contains(&aziot_identity_common::ModuleId(m.clone()))
-                            {
-                                p.name.0 == m
-                            } else {
-                                p.id_type == None
-                            },
-                        );
-                    }
+        match o.auth_id {
+            crate::auth::AuthId::LocalRoot | crate::auth::AuthId::Daemon => Ok(true),
+            crate::auth::AuthId::HostProcess(p) => Ok(match o.op_type {
+                auth::OperationType::GetModule(m) => {
+                    p.name.0 == m
+                        && p.id_type.clone().map_or(false, |i| {
+                            i.contains(&aziot_identity_common::IdType::Module)
+                        })
                 }
-            }
-            crate::auth::OperationType::GetDevice => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        let allow_id_type = p
-                            .id_type
-                            .clone()
-                            .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device));
-
-                        return Ok(allow_id_type);
-                    }
-                }
-            }
-            crate::auth::OperationType::CreateModule(m)
-            | crate::auth::OperationType::UpdateModule(m)
-            | crate::auth::OperationType::DeleteModule(m) => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    //todo: skip these checks in lieu of authenticated uid which is localDaemon type
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(p.id_type == None
-                            && !self.modules.contains(&aziot_identity_common::ModuleId(m)));
-                    }
-                }
-            }
-            crate::auth::OperationType::GetTrustBundle => return Ok(true),
-            crate::auth::OperationType::GetAllHubModules
-            | crate::auth::OperationType::ReprovisionDevice => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(p.id_type == None);
-                    }
-                }
+                auth::OperationType::GetDevice => p
+                    .id_type
+                    .clone()
+                    .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device)),
+                auth::OperationType::GetAllHubModules
+                | auth::OperationType::CreateModule(_)
+                | auth::OperationType::DeleteModule(_)
+                | auth::OperationType::UpdateModule(_)
+                | auth::OperationType::ReprovisionDevice => false,
+                auth::OperationType::GetTrustBundle => true,
+            }),
+            crate::auth::AuthId::Unknown => {
+                Ok(o.op_type == crate::auth::OperationType::GetTrustBundle)
             }
         }
-        Ok(o.auth_id == crate::auth::AuthId::LocalRoot)
     }
 }
 
@@ -1161,10 +1134,7 @@ mod tests {
 
     #[test]
     fn empty_auth_settings_deny_any_action() {
-        let (pmap, mset, _) = prepare_authorized_principals(&[]);
         let auth = SettingsAuthorizer {
-            allowed_users: pmap,
-            modules: mset,
         };
         let operation = Operation {
             auth_id: AuthId::Unknown,

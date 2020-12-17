@@ -59,13 +59,13 @@ mod tests {
 
     #[test]
     fn authenticator_wrapper_around_function() {
-        let authenticator = |_| Ok(AuthId::LocalPrincipal(Uid(1001)));
-        let credentials = Uid(1001);
+        let authenticator = |_| Ok(AuthId::LocalRoot);
+        let credentials = Uid(0);
 
         let auth_id = authenticator.authenticate(credentials);
 
         match auth_id {
-            Ok(AuthId::LocalPrincipal(Uid(1001))) => (),
+            Ok(AuthId::LocalRoot) => (),
             _ => panic!("incorrect auth id selected"),
         }
     }

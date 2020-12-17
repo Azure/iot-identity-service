@@ -2,10 +2,12 @@
 
 use crate::error::{Error, ErrorKind};
 
-pub(crate) fn read_config<TConfig>(config_path: std::path::PathBuf, config_directory_path: std::path::PathBuf) -> Result<TConfig, Error> 
+pub(crate) fn read_config<TConfig>(
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
+) -> Result<TConfig, Error>
 where
     TConfig: serde::de::DeserializeOwned,
-
 {
     let config = std::fs::read(&config_path)
         .map_err(|err| ErrorKind::ReadConfig(Some(config_path.clone()), Box::new(err)))?;
@@ -55,10 +57,9 @@ where
 
     let config: TConfig = serde::Deserialize::deserialize(config)
         .map_err(|err| ErrorKind::ReadConfig(None, Box::new(err)))?;
-    
+
     Ok(config)
 }
-
 
 fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     // Similar to JSON patch, except that:
@@ -88,7 +89,6 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
 
     *base = patch;
 }
-
 
 #[cfg(test)]
 mod tests {
