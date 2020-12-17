@@ -25,7 +25,7 @@ pub struct Settings {
     pub localid: Option<LocalId>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Principal {
     pub uid: Credentials,
