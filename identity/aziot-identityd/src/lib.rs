@@ -68,13 +68,28 @@ pub async fn main(
             std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
     }
 
+    // let api = Api::new(
+    //     settings,
+    //     Default::default(),
+    //     Box::new(auth::authentication::DefaultAuthenticator),
+    //     Box::new(auth::authorization::DefaultAuthorizer),
+    //     Default::default(),
+    // )?;
+
+    //new approach: file notifier and reprovision API do 2 things - authenticator.update() and trigger provision_device (which calls reconcile)
+    //todo: Encapsulate into triggered task - triggered by file notification or provision device
+    //todo: run this on each file notifier, using snapshot (clone) of new settings.principal
     let (allowed_users, hub_modules, local_modules) =
         prepare_authorized_principals(&settings.principal);
 
     let allowed_users_copy = allowed_users.clone();
 
+    //todo: wrap this up in update_authenticator
     // All uids in the principals are authenticated users to this service
     let authenticator = Box::new(move |uid| {
+        //todo: lookup principals here and map uid to one of these - HostProcess(p), Daemon(p), Root   
+        //todo: add update() method to update this mapping. 
+        //todo: Mapping is fed from reconcile trigger task, that also feeds reconcile task in id_manager.
         if allowed_users_copy.contains_key(&uid) {
             Ok(auth::AuthId::LocalPrincipal(uid))
         } else if uid.eq(&config::Uid(0)) {
@@ -84,11 +99,13 @@ pub async fn main(
         }
     });
 
+    //todo: try making this state agnostic and pass into Api object above
     let authorizer = Box::new(SettingsAuthorizer {
         allowed_users: allowed_users.clone(),
         modules: hub_modules.clone(),
     });
 
+    //todo: replace with update authenticator, authorizer, local_modules. Remove allowed users (replace with AuthId(Principal)) 
     let api = Api::new(
         settings,
         local_modules,
@@ -96,6 +113,7 @@ pub async fn main(
         authorizer,
         allowed_users,
     )?;
+
     let api = Arc::new(futures_util::lock::Mutex::new(api));
 
     {
@@ -256,6 +274,7 @@ impl Api {
         })? {
             return self.id_manager.get_device_identity().await;
         } else if let crate::auth::AuthId::LocalPrincipal(uid) = auth_id {
+            //todo: pass in principal via authid
             if let Some(caller_principal) = self.caller_identities.get(&uid) {
                 if self.authorizer.authorize(auth::Operation {
                     auth_id,
@@ -868,6 +887,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             | crate::auth::OperationType::UpdateModule(m)
             | crate::auth::OperationType::DeleteModule(m) => {
                 if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
+                    //todo: skip these checks in lieu of authenticated uid which is localDaemon type
                     if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
                         return Ok(p.id_type == None
                             && !self.modules.contains(&aziot_identity_common::ModuleId(m)));
