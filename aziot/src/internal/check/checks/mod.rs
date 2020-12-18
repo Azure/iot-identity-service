@@ -1,7 +1,7 @@
 use super::Checker;
 
 mod prelude {
-    pub use anyhow::{Context, Error, Result};
+    pub use anyhow::{anyhow, Context, Error, Result};
     pub use serde::Serialize;
 
     pub use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerCfg, CheckerMeta};
@@ -14,7 +14,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
     vec![
         ("Configuration checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
-            v.push(Box::new(well_formed_configs::WellFormedConfigs::new()));
+            v.extend(well_formed_configs::well_formed_configs());
             v
         }),
         ("Connectivity checks", vec![]),

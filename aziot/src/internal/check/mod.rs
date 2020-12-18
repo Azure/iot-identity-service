@@ -9,7 +9,6 @@ pub use additional_info::AdditionalInfo;
 pub use checks::all_checks;
 
 const DEFAULT_BIN_DIR: &str = "/usr/bin/";
-const DEFAULT_CFG_DIR: &str = "/etc/aziot/";
 
 // NOTE: this struct gets `structopt(flatten)`ed as part of the `aziot check` subcommand.
 #[derive(StructOpt)]
@@ -19,17 +18,6 @@ pub struct CheckerCfg {
     // /// contained in <http://aka.ms/latest-iotedge-stable>
     // expected_iotedged_version: String,
     //
-    /// Sets the path to the aziotd configurations directory.
-    ///
-    /// Only available in debug mode for local testing.
-    #[cfg(debug_assertions)]
-    #[structopt(
-        long,
-        value_name = "DEFAULT_CFG_DIR",
-        default_value = DEFAULT_CFG_DIR
-    )]
-    pub cfg_path: PathBuf,
-
     /// Sets the path to the aziotd daemon binaries directory.
     #[structopt(
         long,
@@ -46,6 +34,10 @@ pub struct CheckerCfg {
     /// Sets the NTP server to use when checking host local time.
     #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
+
+    // (Manually populated to match top-level CheckCfg value)
+    #[structopt(skip)]
+    pub verbose: bool,
 }
 
 /// The various ways a check can resolve.
@@ -80,7 +72,25 @@ pub struct CheckerMeta {
 }
 
 /// Container for any cached data shared between different checks.
-pub struct CheckerCache {}
+pub struct CheckerCache {
+    cfg: DaemonConfigs,
+}
+
+impl CheckerCache {
+    pub fn new() -> CheckerCache {
+        CheckerCache {
+            cfg: DaemonConfigs::default(),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct DaemonConfigs {
+    certd: Option<aziot_certd::Config>,
+    keyd: Option<aziot_keyd::Config>,
+    tpmd: Option<aziot_tpmd::Config>,
+    identityd: Option<aziot_identityd::settings::Settings>,
+}
 
 #[async_trait::async_trait]
 pub trait Checker: erased_serde::Serialize {

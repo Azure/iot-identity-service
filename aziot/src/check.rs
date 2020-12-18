@@ -60,10 +60,14 @@ impl FromStr for OutputFormat {
     }
 }
 
-pub async fn check(cfg: CheckCfg) -> Result<()> {
+pub async fn check(mut cfg: CheckCfg) -> Result<()> {
+    // manually pass verbosity down to the checker-specific configuration
+    cfg.checker_cfg.verbose = cfg.verbose;
+    let cfg = cfg; // set cfg as immutable
+
     let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
     let mut check_data = crate::internal::check::all_checks();
-    let mut shared = CheckerCache {};
+    let mut shared = CheckerCache::new();
 
     let mut num_successful = 0_usize;
     let mut num_warnings = 0_usize;
@@ -144,7 +148,7 @@ pub async fn check(cfg: CheckCfg) -> Result<()> {
                     outputln!(yellow, "\u{203c} {} - Warning", check_name);
                     outputlns!(yellow, "    ", "    ", warning.to_string().lines());
                     if cfg.verbose {
-                        for cause in warning.chain() {
+                        for cause in warning.chain().skip(1) {
                             outputlns!(
                                 yellow,
                                 "        caused by: ",
@@ -173,7 +177,7 @@ pub async fn check(cfg: CheckCfg) -> Result<()> {
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
                     if cfg.verbose {
-                        for cause in err.chain() {
+                        for cause in err.chain().skip(1) {
                             outputlns!(
                                 red,
                                 "        caused by: ",
@@ -192,7 +196,7 @@ pub async fn check(cfg: CheckCfg) -> Result<()> {
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
                     if cfg.verbose {
-                        for cause in err.chain() {
+                        for cause in err.chain().skip(1) {
                             outputlns!(
                                 red,
                                 "        caused by: ",
