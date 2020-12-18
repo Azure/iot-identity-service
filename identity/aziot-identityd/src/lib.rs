@@ -51,7 +51,7 @@ pub async fn main(
     settings: config::Settings,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     // Written to prev_settings_path if provisioning is successful.
-    let settings = configext::check(settings)?;
+    let settings = settings.check().map_err(InternalError::BadSettings)?;
     let settings_serialized = toml::to_vec(&settings).expect("serializing settings cannot fail");
 
     let homedir_path = &settings.homedir;

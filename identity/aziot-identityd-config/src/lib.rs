@@ -2,6 +2,9 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
+mod check;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
@@ -180,13 +183,9 @@ mod tests {
 
         match s.provisioning.provisioning {
             ProvisioningType::Manual {
-                iothub_hostname: _,
-                device_id: _,
-                authentication,
-            } => match authentication {
-                ManualAuthMethod::SharedPrivateKey { device_id_pk: _ } => {}
-                _ => panic!("incorrect provisioning type selected"),
-            },
+                authentication: ManualAuthMethod::SharedPrivateKey { .. },
+                ..
+            } => {}
             _ => panic!("incorrect provisioning type selected"),
         };
     }
@@ -197,16 +196,9 @@ mod tests {
 
         match s.provisioning.provisioning {
             ProvisioningType::Dps {
-                global_endpoint: _,
-                scope_id: _,
-                attestation,
-            } => match attestation {
-                DpsAttestationMethod::SymmetricKey {
-                    registration_id: _,
-                    symmetric_key: _,
-                } => (),
-                _ => panic!("incorrect provisioning type selected"),
-            },
+                attestation: DpsAttestationMethod::SymmetricKey { .. },
+                ..
+            } => {}
             _ => panic!("incorrect provisioning type selected"),
         };
     }

@@ -30,7 +30,6 @@ toml = "0.5"
 url = "2"
 
 aziot-certd-config = { path = "../cert/aziot-certd-config" }
-aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
