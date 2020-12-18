@@ -10,7 +10,7 @@ pub mod authorization;
 pub enum AuthId {
     Unknown,
 
-    LocalPrincipal(Credentials),
+    LocalPrincipal(aziot_identityd_config::Credentials),
 
     LocalRoot,
 }
@@ -33,10 +33,3 @@ pub struct Operation {
 
     pub op_type: OperationType,
 }
-
-#[derive(
-    Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize,
-)]
-pub struct Uid(pub libc::uid_t);
-
-pub type Credentials = Uid;

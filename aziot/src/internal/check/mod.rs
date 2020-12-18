@@ -121,8 +121,8 @@ impl CheckerCache {
 // populated during the `well_formed_configs` checks
 #[derive(Default)]
 pub struct DaemonConfigs {
-    pub certd: Option<aziot_certd::Config>,
-    pub keyd: Option<aziot_keyd::Config>,
-    pub tpmd: Option<aziot_tpmd::Config>,
-    pub identityd: Option<aziot_identityd::settings::Settings>,
+    pub certd: Option<aziot_certd_config::Config>,
+    pub keyd: Option<aziot_keyd_config::Config>,
+    pub tpmd: Option<aziot_tpmd_config::Config>,
+    pub identityd: Option<aziot_identityd_config::Settings>,
 }

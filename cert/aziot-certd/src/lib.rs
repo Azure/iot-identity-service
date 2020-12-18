@@ -11,18 +11,17 @@
     clippy::too_many_lines
 )]
 
-mod config;
-pub use config::{
-    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuth,
-    EstAuthBasic, EstAuthX509, LocalCa, PreloadedCert,
-};
-
 mod error;
 use error::{Error, InternalError};
 
 mod est;
 
 mod http;
+
+use aziot_certd_config::{
+    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuthBasic,
+    EstAuthX509, LocalCa, PreloadedCert,
+};
 
 pub async fn main(
     config: Config,
@@ -69,8 +68,8 @@ pub async fn main(
 
 struct Api {
     homedir_path: std::path::PathBuf,
-    cert_issuance: crate::config::CertIssuance,
-    preloaded_certs: std::collections::BTreeMap<String, crate::config::PreloadedCert>,
+    cert_issuance: CertIssuance,
+    preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
@@ -125,7 +124,7 @@ impl Api {
 #[doc(hidden)]
 pub fn get_path(
     homedir_path: &std::path::Path,
-    preloaded_certs: &std::collections::BTreeMap<String, config::PreloadedCert>,
+    preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     cert_id: &str,
 ) -> Result<std::path::PathBuf, Error> {
     if let Some(preloaded_cert) = preloaded_certs.get(cert_id) {
@@ -155,11 +154,11 @@ pub fn get_path(
 }
 
 fn get_preloaded_cert_path(
-    preloaded_cert: &config::PreloadedCert,
+    preloaded_cert: &PreloadedCert,
     cert_id: &str,
 ) -> Result<std::path::PathBuf, Error> {
     match preloaded_cert {
-        config::PreloadedCert::Uri(uri) => {
+        PreloadedCert::Uri(uri) => {
             let scheme = uri.scheme();
             if scheme != "file" {
                 return Err(Error::Internal(InternalError::GetPath(
@@ -184,7 +183,7 @@ fn get_preloaded_cert_path(
             Ok(path)
         }
 
-        config::PreloadedCert::Ids(_) => Err(Error::Internal(InternalError::GetPath(
+        PreloadedCert::Ids(_) => Err(Error::Internal(InternalError::GetPath(
             format!(
                 "preloaded cert {:?} is a list of IDs, not a single URI",
                 cert_id,
@@ -350,13 +349,13 @@ fn create_cert<'a>(
         } else {
             // Issuer is not explicitly specified, so use the issuance options for this cert from the configuration.
 
-            let cert_options: &config::CertIssuanceOptions = cert_options.ok_or_else(|| {
+            let cert_options: &CertIssuanceOptions = cert_options.ok_or_else(|| {
                 Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
             })?;
 
             match cert_options.method {
-                config::CertIssuanceMethod::Est => {
-                    let config::Est {
+                CertIssuanceMethod::Est => {
+                    let Est {
                         auth,
                         trusted_certs,
                         urls,
@@ -383,12 +382,10 @@ fn create_cert<'a>(
                             ))
                         })?;
 
-                    let auth_basic =
-                        auth.basic
-                            .as_ref()
-                            .map(|config::EstAuthBasic { username, password }| {
-                                (&**username, &**password)
-                            });
+                    let auth_basic = auth
+                        .basic
+                        .as_ref()
+                        .map(|EstAuthBasic { username, password }| (&**username, &**password));
 
                     let mut trusted_certs_x509 = vec![];
                     for trusted_cert in trusted_certs {
@@ -409,7 +406,7 @@ fn create_cert<'a>(
                         trusted_certs_x509.extend(x509);
                     }
 
-                    if let Some(config::EstAuthX509 {
+                    if let Some(EstAuthX509 {
                         identity: (identity_cert, identity_private_key),
                         bootstrap_identity,
                     }) = &auth.x509
@@ -736,11 +733,11 @@ fn create_cert<'a>(
                     }
                 }
 
-                config::CertIssuanceMethod::LocalCa => {
+                CertIssuanceMethod::LocalCa => {
                     // Indirect reference to the local CA. Look it up.
 
                     let (issuer_cert, issuer_private_key) = match &api.cert_issuance.local_ca {
-                        Some(config::LocalCa { cert, pk }) => {
+                        Some(LocalCa { cert, pk }) => {
                             let private_key =
                                 api.key_client.load_key_pair(pk).map_err(|err| {
                                     Error::Internal(InternalError::CreateCert(Box::new(err)))
@@ -766,7 +763,7 @@ fn create_cert<'a>(
                     Ok(x509)
                 }
 
-                config::CertIssuanceMethod::SelfSigned => {
+                CertIssuanceMethod::SelfSigned => {
                     // Since the client did not give us their private key handle, we assume that the key is named the same as the cert.
                     //
                     // TODO: Is there a way to not have to assume this?
@@ -788,7 +785,7 @@ fn create_cert<'a>(
 
 fn get_cert_inner(
     homedir_path: &std::path::Path,
-    preloaded_certs: &std::collections::BTreeMap<String, crate::config::PreloadedCert>,
+    preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
     let path = get_path(homedir_path, preloaded_certs, id)?;

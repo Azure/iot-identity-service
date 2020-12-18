@@ -31,7 +31,7 @@ impl std::str::FromStr for ApiVersion {
 pub struct Pem(pub Vec<u8>);
 
 impl<'de> serde::Deserialize<'de> for Pem {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -64,7 +64,7 @@ impl<'de> serde::Deserialize<'de> for Pem {
 }
 
 impl serde::Serialize for Pem {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {

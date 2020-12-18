@@ -31,7 +31,7 @@ impl HostConnectDpsEndpoint {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        use aziot_identityd::settings::ProvisioningType;
+        use aziot_identityd_config::ProvisioningType;
 
         let dps_endpoint = match &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning

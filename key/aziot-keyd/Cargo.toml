@@ -17,16 +17,11 @@ openssl = "0.10"
 openssl-sys = "0.9"
 percent-encoding = "2"
 regex = "1"
-serde = { version = "1", features = ["derive"] }
+serde = "1"
 serde_json = "1"
-tokio = "0.2"
 url = "2"
 
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
-aziot-keys-common = { path = "../aziot-keys-common" }
+aziot-keyd-config = { path = "../aziot-keyd-config" }
 http-common = { path = "../../http-common" }
-
-
-[dev-dependencies]
-toml = "0.5"

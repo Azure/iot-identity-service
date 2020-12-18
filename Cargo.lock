@@ -91,10 +91,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "aziot-certd",
+ "aziot-certd-config",
  "aziot-identityd",
- "aziot-keyd",
+ "aziot-identityd-config",
+ "aziot-keyd-config",
  "aziot-keys-common",
- "aziot-tpmd",
+ "aziot-tpmd-config",
  "backtrace",
  "base64",
  "byte-unit",
@@ -152,6 +154,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "aziot-cert-common-http",
+ "aziot-certd-config",
  "aziot-key-client",
  "aziot-key-common",
  "aziot-key-common-http",
@@ -174,7 +177,15 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "tokio",
+ "url",
+]
+
+[[package]]
+name = "aziot-certd-config"
+version = "0.1.0"
+dependencies = [
+ "http-common",
+ "serde",
  "toml",
  "url",
 ]
@@ -302,21 +313,19 @@ dependencies = [
  "aziot-hub-client-async",
  "aziot-identity-common",
  "aziot-identity-common-http",
+ "aziot-identityd-config",
  "aziot-key-client",
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "aziot-tpm-client-async",
- "aziot-tpm-common",
  "aziot-tpm-common-http",
- "base64",
  "chrono",
  "futures-util",
  "http",
  "http-common",
  "hyper",
- "hyper-openssl",
  "lazy_static",
  "libc",
  "log",
@@ -326,10 +335,20 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "test-case",
  "tokio",
  "toml",
  "url",
+]
+
+[[package]]
+name = "aziot-identityd-config"
+version = "0.1.0"
+dependencies = [
+ "aziot-identity-common",
+ "http-common",
+ "libc",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -433,7 +452,7 @@ dependencies = [
  "async-trait",
  "aziot-key-common",
  "aziot-key-common-http",
- "aziot-keys-common",
+ "aziot-keyd-config",
  "base64",
  "futures-util",
  "http",
@@ -447,9 +466,16 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "tokio",
- "toml",
  "url",
+]
+
+[[package]]
+name = "aziot-keyd-config"
+version = "0.1.0"
+dependencies = [
+ "http-common",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -530,21 +556,24 @@ dependencies = [
  "aziot-tpm",
  "aziot-tpm-common",
  "aziot-tpm-common-http",
- "backtrace",
- "base64",
+ "aziot-tpmd-config",
  "futures-util",
  "http",
  "http-common",
  "hyper",
- "lazy_static",
  "log",
- "percent-encoding",
- "regex",
  "serde",
  "serde_json",
- "tokio",
- "toml",
  "url",
+]
+
+[[package]]
+name = "aziot-tpmd-config"
+version = "0.1.0"
+dependencies = [
+ "http-common",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -2108,18 +2137,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb6bfa289a4d7c5766392812c0a1f4c1ba45afa1ad47803c11e1f407d846d75f"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "test-case"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "199464148b42bcf3da8b2a56f6ee87ca68f47402496d1268849291ec9fb463c8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "version_check",
 ]
 
 [[package]]

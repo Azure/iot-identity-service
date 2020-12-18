@@ -1,5 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::default_trait_access, clippy::too_many_lines)]
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     /// Path of home directory.

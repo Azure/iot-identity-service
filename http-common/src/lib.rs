@@ -22,6 +22,8 @@ pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
 pub mod server;
+
+#[cfg(feature = "tokio02")]
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
@@ -40,7 +42,7 @@ pub const PATH_SEGMENT_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encodi
 pub struct ByteString(pub Vec<u8>);
 
 impl<'de> serde::Deserialize<'de> for ByteString {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -68,7 +70,7 @@ impl<'de> serde::Deserialize<'de> for ByteString {
 }
 
 impl serde::Serialize for ByteString {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {

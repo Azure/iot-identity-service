@@ -273,7 +273,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
 
     let top_level_additional_info = {
         let iothub_hostname = check_cache.cfg.identityd.and_then(|s| {
-            use aziot_identityd::settings::ProvisioningType;
+            use aziot_identityd_config::ProvisioningType;
             match s.provisioning.provisioning {
                 ProvisioningType::Manual {
                     iothub_hostname, ..

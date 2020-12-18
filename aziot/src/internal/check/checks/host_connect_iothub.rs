@@ -64,7 +64,7 @@ impl HostConnectIotHub {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        use aziot_identityd::settings::ProvisioningType;
+        use aziot_identityd_config::ProvisioningType;
 
         let iothub_hostname = match &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning

@@ -28,7 +28,7 @@ impl Checker for DaemonRunningKeyd {
     async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
-        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_keyd;
+        let mut connector = aziot_identityd_config::Endpoints::default().aziot_keyd;
         let res = connector
             .call("foo".parse().unwrap())
             .await
@@ -56,7 +56,7 @@ impl Checker for DaemonRunningCertd {
     async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
-        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_certd;
+        let mut connector = aziot_identityd_config::Endpoints::default().aziot_certd;
         let res = connector
             .call("foo".parse().unwrap())
             .await
@@ -84,7 +84,7 @@ impl Checker for DaemonRunningTpmd {
     async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
-        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_tpmd;
+        let mut connector = aziot_identityd_config::Endpoints::default().aziot_tpmd;
         let res = connector
             .call("foo".parse().unwrap())
             .await
@@ -112,7 +112,7 @@ impl Checker for DaemonRunningIdentityd {
     async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
-        let mut connector = aziot_identityd::settings::Endpoints::default().aziot_identityd;
+        let mut connector = aziot_identityd_config::Endpoints::default().aziot_identityd;
         let res = connector
             .call("foo".parse().unwrap())
             .await

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use crate::auth::{AuthId, Credentials, Uid};
+use aziot_identityd_config::{Credentials, Uid};
+
+use crate::auth::AuthId;
 use crate::error::Error;
 
 /// A trait to authenticate IS clients with given user id.
@@ -37,8 +39,10 @@ impl Authenticator for DefaultAuthenticator {
 
 #[cfg(test)]
 mod tests {
+    use aziot_identityd_config::Uid;
+
     use super::{Authenticator, DefaultAuthenticator};
-    use crate::auth::{AuthId, Uid};
+    use crate::auth::AuthId;
 
     #[test]
     fn default_auth_always_return_unknown_client_identity() {

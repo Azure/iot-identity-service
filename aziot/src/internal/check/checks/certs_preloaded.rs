@@ -2,7 +2,7 @@
 
 use super::prelude::*;
 
-use aziot_certd::PreloadedCert;
+use aziot_certd_config::PreloadedCert;
 
 use crate::internal::common::CertificateValidity;
 

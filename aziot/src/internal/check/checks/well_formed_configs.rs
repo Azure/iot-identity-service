@@ -108,7 +108,9 @@ impl Checker for WellFormedIdentitydConfig {
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        let daemon_cfg: aziot_identityd::settings::Settings = match load_daemon_cfg(
+        use aziot_identityd::configext::check;
+
+        let daemon_cfg: aziot_identityd_config::Settings = match load_daemon_cfg(
             "identityd",
             Path::new("/etc/aziot/identityd/config.toml"),
             shared,
@@ -120,7 +122,7 @@ impl Checker for WellFormedIdentitydConfig {
             Err(e) => return CheckResult::Failed(e),
         };
 
-        let daemon_cfg = match daemon_cfg.check() {
+        let daemon_cfg = match check(daemon_cfg) {
             Ok(daemon_cfg) => daemon_cfg,
             Err(e) => return CheckResult::Failed(e.into()),
         };

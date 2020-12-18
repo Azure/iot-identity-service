@@ -11,6 +11,6 @@ percent-encoding = "2"
 serde = "1"
 serde_json = "1"
 
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio02"] }
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
