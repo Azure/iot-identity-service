@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use crate::PreloadedCert;
 
 pub fn get_path(

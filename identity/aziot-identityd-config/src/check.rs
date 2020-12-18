@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use super::{ProvisioningType, Settings};
 
 impl Settings {
