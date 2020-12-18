@@ -29,7 +29,6 @@ tokio = { version = "0.2", features = ["macros", "fs", "io-util"] }
 toml = "0.5"
 url = "2"
 
-aziot-certd = { path = "../cert/aziot-certd" }
 aziot-certd-config = { path = "../cert/aziot-certd-config" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-identityd-config = { path = "../identity/aziot-identityd-config" }

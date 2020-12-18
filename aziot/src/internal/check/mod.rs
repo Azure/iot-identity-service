@@ -112,8 +112,12 @@ impl CheckerCache {
     fn cert_path(&mut self, cert_id: &str) -> Option<anyhow::Result<PathBuf>> {
         let certd_cfg = self.cfg.certd.as_ref()?;
         Some(
-            aziot_certd::get_path(&certd_cfg.homedir_path, &certd_cfg.preloaded_certs, cert_id)
-                .map_err(Into::into),
+            aziot_certd_config::util::get_path(
+                &certd_cfg.homedir_path,
+                &certd_cfg.preloaded_certs,
+                cert_id,
+            )
+            .map_err(|e| anyhow::anyhow!("{}", e)),
         )
     }
 }

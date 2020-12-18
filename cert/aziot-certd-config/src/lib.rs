@@ -2,7 +2,14 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access, clippy::too_many_lines)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::too_many_lines,
+    clippy::let_unit_value,
+    clippy::missing_errors_doc
+)]
+
+pub mod util;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {

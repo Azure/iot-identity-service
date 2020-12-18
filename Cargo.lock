@@ -90,7 +90,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "aziot-certd",
  "aziot-certd-config",
  "aziot-identityd",
  "aziot-identityd-config",
@@ -184,7 +183,9 @@ dependencies = [
 name = "aziot-certd-config"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "http-common",
+ "openssl",
  "serde",
  "toml",
  "url",

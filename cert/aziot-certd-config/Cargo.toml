@@ -9,7 +9,8 @@ edition = "2018"
 http-common = { path = "../../http-common" }
 serde = { version = "1", features = ["derive"] }
 url = { version = "2", features = ["serde"] }
-
+openssl = "0.10"
+hex = "0.4"
 
 [dev-dependencies]
 toml = "0.5"
