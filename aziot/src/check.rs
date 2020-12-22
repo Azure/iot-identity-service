@@ -10,7 +10,7 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::internal::check::{
-    AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerShared,
+    AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerMeta, CheckerShared,
 };
 
 #[derive(StructOpt)]
@@ -123,6 +123,16 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         outputln!(normal, "{}", section_name);
         outputln!(normal, "{}", "-".repeat(section_name.len()));
 
+        if matches!(cfg.output, OutputFormat::JsonStream) {
+            serde_json::to_writer(
+                std::io::stdout(),
+                &CheckResultsSerializableStreaming::Section {
+                    name: &section_name,
+                },
+            )?;
+            std::io::stdout().flush()?;
+        }
+
         for check in section_checks {
             let check_result = if cfg.dont_run.iter().any(|s| s == check.meta().id) {
                 CheckResult::Ignored
@@ -222,7 +232,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
                     serde_json::to_writer(
                         std::io::stdout(),
                         &CheckResultsSerializableStreaming::Check {
-                            id: check.meta().id,
+                            meta: check.meta(),
                             output: output_serializable,
                         },
                     )?;
@@ -338,8 +348,12 @@ struct CheckOutputSerializable {
 #[serde(rename_all = "snake_case")]
 enum CheckResultsSerializableStreaming<'a> {
     AdditionalInfo(&'a AdditionalInfo),
+    Section {
+        name: &'a str,
+    },
     Check {
-        id: &'static str,
+        #[serde(flatten)]
+        meta: CheckerMeta,
         #[serde(flatten)]
         output: CheckOutputSerializable,
     },
