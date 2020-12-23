@@ -91,6 +91,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "aziot-certd-config",
+ "aziot-check-common",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",
@@ -188,6 +189,15 @@ dependencies = [
  "serde",
  "toml",
  "url",
+]
+
+[[package]]
+name = "aziot-check-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

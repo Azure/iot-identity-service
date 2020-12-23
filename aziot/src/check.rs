@@ -6,11 +6,15 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use colored::Colorize;
-use serde::Serialize;
 use structopt::StructOpt;
 
+use aziot_check_common::{
+    CheckOuputSerializableStreaming, CheckOutputSerializable, CheckResultSerializable,
+    CheckResultsSerializable,
+};
+
 use crate::internal::check::{
-    AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerMeta, CheckerShared,
+    AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerShared,
 };
 
 #[derive(StructOpt)]
@@ -71,7 +75,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
 
     let checker_shared = CheckerShared::new(cfg.checker_cfg);
 
-    let mut checks: BTreeMap<&str, CheckOutputSerializable> = Default::default();
+    let mut checks: BTreeMap<String, CheckOutputSerializable> = Default::default();
     let mut check_data = crate::internal::check::all_checks();
     let mut check_cache = CheckerCache::new();
 
@@ -126,8 +130,8 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         if matches!(cfg.output, OutputFormat::JsonStream) {
             serde_json::to_writer(
                 std::io::stdout(),
-                &CheckResultsSerializableStreaming::Section {
-                    name: &section_name,
+                &CheckOuputSerializableStreaming::Section {
+                    name: (*section_name).into(),
                 },
             )?;
             std::io::stdout().flush()?;
@@ -226,13 +230,13 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
             match cfg.output {
                 OutputFormat::Text => {}
                 OutputFormat::Json => {
-                    checks.insert(check.meta().id, output_serializable);
+                    checks.insert(check.meta().id.into(), output_serializable);
                 }
                 OutputFormat::JsonStream => {
                     serde_json::to_writer(
                         std::io::stdout(),
-                        &CheckResultsSerializableStreaming::Check {
-                            meta: check.meta(),
+                        &CheckOuputSerializableStreaming::Check {
+                            meta: check.meta().into(),
                             output: output_serializable,
                         },
                     )?;
@@ -292,69 +296,31 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
             }
         });
 
-        AdditionalInfo::new(iothub_hostname)
+        serde_json::to_value(&AdditionalInfo::new(iothub_hostname))?
     };
 
-    if matches!(cfg.output, OutputFormat::JsonStream) {
-        serde_json::to_writer(
-            std::io::stdout(),
-            &CheckResultsSerializableStreaming::AdditionalInfo(&top_level_additional_info),
-        )?;
-        std::io::stdout().flush()?;
-    }
-
-    if matches!(cfg.output, OutputFormat::Json) {
-        let check_results = CheckResultsSerializable {
-            additional_info: &top_level_additional_info,
-            checks,
-        };
-
-        if let Err(err) = serde_json::to_writer(std::io::stdout(), &check_results) {
-            eprintln!("Could not write JSON output: {}", err,);
+    match cfg.output {
+        OutputFormat::JsonStream => {
+            serde_json::to_writer(
+                std::io::stdout(),
+                &CheckOuputSerializableStreaming::AdditionalInfo(top_level_additional_info),
+            )?;
+            std::io::stdout().flush()?;
         }
+        OutputFormat::Json => {
+            let check_results = CheckResultsSerializable {
+                additional_info: top_level_additional_info,
+                checks,
+            };
 
-        println!();
+            if let Err(err) = serde_json::to_writer(std::io::stdout(), &check_results) {
+                eprintln!("Could not write JSON output: {}", err,);
+            }
+        }
+        OutputFormat::Text => {}
     }
+
+    println!();
 
     Ok(())
-}
-
-#[derive(Debug, Serialize)]
-struct CheckResultsSerializable<'a> {
-    additional_info: &'a AdditionalInfo,
-    checks: BTreeMap<&'static str, CheckOutputSerializable>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "result")]
-#[serde(rename_all = "snake_case")]
-enum CheckResultSerializable {
-    Ok,
-    Warning { details: Vec<String> },
-    Ignored,
-    Skipped,
-    Fatal { details: Vec<String> },
-    Error { details: Vec<String> },
-}
-
-#[derive(Debug, Serialize)]
-struct CheckOutputSerializable {
-    result: CheckResultSerializable,
-    additional_info: serde_json::Value,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "kind")]
-#[serde(rename_all = "snake_case")]
-enum CheckResultsSerializableStreaming<'a> {
-    AdditionalInfo(&'a AdditionalInfo),
-    Section {
-        name: &'a str,
-    },
-    Check {
-        #[serde(flatten)]
-        meta: CheckerMeta,
-        #[serde(flatten)]
-        output: CheckOutputSerializable,
-    },
 }

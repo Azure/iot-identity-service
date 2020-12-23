@@ -11,8 +11,6 @@ mod checks;
 pub use additional_info::AdditionalInfo;
 pub use checks::all_checks;
 
-const DEFAULT_BIN_DIR: &str = "/usr/bin/";
-
 // NOTE: this struct gets `structopt(flatten)`ed as part of the `aziot check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
@@ -21,19 +19,6 @@ pub struct CheckerCfg {
     // /// contained in <http://aka.ms/latest-iotedge-stable>
     // expected_iotedged_version: String,
     //
-    /// Sets the path to the aziotd daemon binaries directory.
-    #[structopt(
-        long,
-        value_name = "PATH_TO_AZIOTD_BINS",
-        default_value = DEFAULT_BIN_DIR
-    )]
-    pub bin_path: PathBuf,
-
-    /// Sets the hostname of the Azure IoT Hub that this device would connect to.
-    /// If using manual provisioning, this does not need to be specified.
-    #[structopt(long, value_name = "IOTHUB_HOSTNAME")]
-    pub iothub_hostname: Option<PathBuf>,
-
     /// Sets the NTP server to use when checking host local time.
     #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
@@ -83,6 +68,15 @@ pub struct CheckerMeta {
     pub id: &'static str,
     /// A brief description of what this check does.
     pub description: &'static str,
+}
+
+impl From<CheckerMeta> for aziot_check_common::CheckerMetaSerializable {
+    fn from(meta: CheckerMeta) -> aziot_check_common::CheckerMetaSerializable {
+        aziot_check_common::CheckerMetaSerializable {
+            id: meta.id.into(),
+            description: meta.description.into(),
+        }
+    }
 }
 
 #[async_trait::async_trait]

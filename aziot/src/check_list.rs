@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::collections::BTreeMap;
-
 use anyhow::{Context, Result};
 use structopt::StructOpt;
+
+use aziot_check_common::CheckListOutput;
 
 #[derive(StructOpt, Copy, Clone)]
 #[structopt(about = "List the checks that are run for 'aziot check'")]
@@ -17,11 +17,14 @@ pub fn check_list(cfg: CheckListCfg) -> Result<()> {
     let checks = crate::internal::check::all_checks();
 
     if cfg.json {
-        let mut output: BTreeMap<String, Vec<_>> = BTreeMap::new();
+        let mut output = CheckListOutput::new();
         for (section_name, section_checks) in checks {
             output.insert(
                 section_name.to_string(),
-                section_checks.into_iter().map(|c| c.meta()).collect(),
+                section_checks
+                    .into_iter()
+                    .map(|c| c.meta().into())
+                    .collect(),
             );
         }
 
