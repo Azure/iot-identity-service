@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 //! This subcommand interactively asks the user to give out basic provisioning information for their device and
-//! creates the config files for the three services based on that information.
+//! creates the config files for the four services based on that information.
 //!
 //! Notes:
 //!
@@ -40,7 +40,7 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     // But it's convenient to not do this for the sake of development because the the development machine doesn't necessarily
     // have the package installed and the users created, and it's easier to have the config files owned by the current user anyway.
     //
-    // So when running as root, get the three users appropriately.
+    // So when running as root, get the four users appropriately.
     // Otherwise, if this is a debug build, fall back to using the current user.
     // Otherwise, tell the user to re-run as root.
     let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
@@ -1171,7 +1171,7 @@ mod tests {
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
             } = super::run_inner(&mut input).unwrap();
 
-            // Convert the three configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
+            // Convert the four configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
             // It doesn't matter for the device ID file since it's binary anyway.
             assert_eq!(
                 bytes::Bytes::from(expected_keyd_config),
