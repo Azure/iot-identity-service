@@ -8,7 +8,8 @@
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
     clippy::too_many_lines,
-    clippy::use_self
+    clippy::use_self,
+    clippy::unusual_byte_groupings
 )]
 
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
