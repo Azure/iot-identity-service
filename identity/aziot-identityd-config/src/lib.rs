@@ -33,7 +33,7 @@ pub struct Principal {
     pub id_type: Option<Vec<aziot_identity_common::IdType>>,
 
     /// Options for this principal's local identity.
-    pub localid: Option<LocalIdOpts>,
+    pub localid: Option<aziot_identity_common::LocalIdOpts>,
 }
 
 #[derive(
@@ -48,20 +48,6 @@ pub type Credentials = Uid;
 pub struct LocalId {
     /// Identifier for a group of local identity certificates, suffixed to the common name.
     pub domain: String,
-}
-
-/// Options for a single local identity.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type")]
-pub enum LocalIdOpts {
-    /// Options valid when local identities are X.509 credentials. Currently the only
-    /// supported credential type, but may change in the future.
-    #[serde(rename = "x509")]
-    X509 {
-        /// Whether the X.509 certificate is a TLS client or server certificate.
-        #[serde(default)]
-        attributes: aziot_identity_common::LocalIdAttr,
-    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

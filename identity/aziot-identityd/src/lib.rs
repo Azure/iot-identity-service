@@ -157,8 +157,10 @@ pub struct Api {
     pub authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
     pub authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
     pub id_manager: identity::IdentityManager,
-    pub local_identities:
-        std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<config::LocalIdOpts>>,
+    pub local_identities: std::collections::BTreeMap<
+        aziot_identity_common::ModuleId,
+        Option<aziot_identity_common::LocalIdOpts>,
+    >,
     pub caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
 
     key_client: Arc<aziot_key_client_async::Client>,
@@ -172,7 +174,7 @@ impl Api {
         settings: config::Settings,
         local_identities: std::collections::BTreeMap<
             aziot_identity_common::ModuleId,
-            Option<config::LocalIdOpts>,
+            Option<aziot_identity_common::LocalIdOpts>,
         >,
         authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
         authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
@@ -591,81 +593,81 @@ impl Api {
             )))
         })?;
 
-        let local_identity = match self
-            .local_identities
-            .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
-        {
-            None => {
-                return Err(Error::invalid_parameter(
-                    "module_id",
-                    format!("no local identity found for {}", module_id),
-                ))
-            }
-            Some(opts) => {
-                let attributes =
-                    opts.as_ref()
-                        .map_or(
-                            aziot_identity_common::LocalIdAttr::default(),
-                            |opts| match opts {
-                                config::LocalIdOpts::X509 { attributes } => *attributes,
-                            },
-                        );
+        let local_identity =
+            match self
+                .local_identities
+                .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
+            {
+                None => {
+                    return Err(Error::invalid_parameter(
+                        "module_id",
+                        format!("no local identity found for {}", module_id),
+                    ))
+                }
+                Some(opts) => {
+                    let attributes = opts.as_ref().map_or(
+                        aziot_identity_common::LocalIdAttr::default(),
+                        |opts| match opts {
+                            aziot_identity_common::LocalIdOpts::X509 { attributes } => *attributes,
+                        },
+                    );
 
-                // Generate new private key for local identity.
-                let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let private_key_pem = private_key.private_key_to_pem_pkcs8().map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let private_key_pem =
-                    std::string::String::from_utf8(private_key_pem).map_err(|err| {
+                    // Generate new private key for local identity.
+                    let rsa = openssl::rsa::Rsa::generate(2048).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
-                let public_key = private_key.public_key_to_pem().map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let public_key =
-                    openssl::pkey::PKey::public_key_from_pem(&public_key).map_err(|err| {
+                    let private_key = openssl::pkey::PKey::from_rsa(rsa).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let private_key_pem =
+                        private_key.private_key_to_pem_pkcs8().map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?;
+                    let private_key_pem =
+                        std::string::String::from_utf8(private_key_pem).map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?;
+                    let public_key = private_key.public_key_to_pem().map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+                    let public_key = openssl::pkey::PKey::public_key_from_pem(&public_key)
+                        .map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?;
+
+                    // Create local identity CSR.
+                    let subject = format!(
+                        "{}.{}.{}",
+                        module_id, self.settings.hostname, localid.domain
+                    );
+                    let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
+                        .map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?;
+                    let certificate = self
+                        .cert_client
+                        .create_cert(&module_id, &csr, None)
+                        .await
+                        .map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?;
+                    let certificate = String::from_utf8(certificate).map_err(|err| {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
 
-                // Create local identity CSR.
-                let subject = format!(
-                    "{}.{}.{}",
-                    module_id, self.settings.hostname, localid.domain
-                );
-                let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                let certificate = self
-                    .cert_client
-                    .create_cert(&module_id, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-                let certificate = String::from_utf8(certificate).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+                    // Parse certificate expiration time.
+                    let expiration = get_cert_expiration(&certificate)?;
 
-                // Parse certificate expiration time.
-                let expiration = get_cert_expiration(&certificate)?;
-
-                aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
-                    module_id: module_id.to_owned(),
-                    auth: aziot_identity_common::LocalAuthenticationInfo {
-                        private_key: private_key_pem,
-                        certificate,
-                        expiration,
-                    },
-                })
-            }
-        };
+                    aziot_identity_common::Identity::Local(aziot_identity_common::LocalIdSpec {
+                        module_id: module_id.to_owned(),
+                        auth: aziot_identity_common::LocalAuthenticationInfo {
+                            private_key: private_key_pem,
+                            certificate,
+                            expiration,
+                        },
+                    })
+                }
+            };
 
         Ok(local_identity)
     }
@@ -893,11 +895,14 @@ fn prepare_authorized_principals(
 ) -> (
     std::collections::BTreeMap<config::Uid, config::Principal>,
     std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    std::collections::BTreeMap<aziot_identity_common::ModuleId, Option<config::LocalIdOpts>>,
+    std::collections::BTreeMap<
+        aziot_identity_common::ModuleId,
+        Option<aziot_identity_common::LocalIdOpts>,
+    >,
 ) {
     let mut local_module_map: std::collections::BTreeMap<
         aziot_identity_common::ModuleId,
-        Option<config::LocalIdOpts>,
+        Option<aziot_identity_common::LocalIdOpts>,
     > = std::collections::BTreeMap::new();
     let mut hub_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
         std::collections::BTreeSet::new();
@@ -934,10 +939,10 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
 
-    use aziot_identity_common::{IdType, LocalIdAttr, ModuleId};
+    use aziot_identity_common::{IdType, LocalIdAttr, LocalIdOpts, ModuleId};
     use aziot_identityd_config::{
-        Endpoints, LocalId, LocalIdOpts, ManualAuthMethod, Principal, Provisioning,
-        ProvisioningType, Settings, Uid,
+        Endpoints, LocalId, ManualAuthMethod, Principal, Provisioning, ProvisioningType, Settings,
+        Uid,
     };
     use http_common::Connector;
 
