@@ -9,7 +9,7 @@ use colored::Colorize;
 use structopt::StructOpt;
 
 use aziot_check_common::{
-    CheckOuputSerializableStreaming, CheckOutputSerializable, CheckResultSerializable,
+    CheckOutputSerializable, CheckOutputSerializableStreaming, CheckResultSerializable,
     CheckResultsSerializable,
 };
 
@@ -130,7 +130,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         if matches!(cfg.output, OutputFormat::JsonStream) {
             serde_json::to_writer(
                 std::io::stdout(),
-                &CheckOuputSerializableStreaming::Section {
+                &CheckOutputSerializableStreaming::Section {
                     name: (*section_name).into(),
                 },
             )?;
@@ -235,7 +235,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
                 OutputFormat::JsonStream => {
                     serde_json::to_writer(
                         std::io::stdout(),
-                        &CheckOuputSerializableStreaming::Check {
+                        &CheckOutputSerializableStreaming::Check {
                             meta: check.meta().into(),
                             output: output_serializable,
                         },
@@ -303,7 +303,7 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
         OutputFormat::JsonStream => {
             serde_json::to_writer(
                 std::io::stdout(),
-                &CheckOuputSerializableStreaming::AdditionalInfo(top_level_additional_info),
+                &CheckOutputSerializableStreaming::AdditionalInfo(top_level_additional_info),
             )?;
             std::io::stdout().flush()?;
         }

@@ -34,7 +34,7 @@ pub struct CheckOutputSerializable {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "snake_case")]
-pub enum CheckOuputSerializableStreaming {
+pub enum CheckOutputSerializableStreaming {
     AdditionalInfo(serde_json::Value),
     Section {
         name: String,
