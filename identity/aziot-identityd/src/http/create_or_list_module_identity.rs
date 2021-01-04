@@ -82,7 +82,7 @@ impl http_common::server::Route for Route {
         };
 
         let identity = match api
-            .create_identity(auth_id, Some(&body.id_type), &body.module_id)
+            .create_identity(auth_id, Some(&body.id_type), &body.module_id, body.opts)
             .await
         {
             Ok(id) => id,

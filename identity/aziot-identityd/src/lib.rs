@@ -33,7 +33,7 @@ const ID_TYPE_AZIOT: &str = "aziot";
 const ID_TYPE_LOCAL: &str = "local";
 
 macro_rules! match_id_type {
-    ($id_type:ident { $( $type:ident => $action:expr ,)+ }) => {
+    ($id_type:ident { $( $type:ident => $action:block ,)+ }) => {
         if let Some(id_type) = $id_type {
             match id_type {
                 $(
@@ -286,8 +286,8 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => self.id_manager.get_module_identity(module_id).await,
-            ID_TYPE_LOCAL => self.issue_local_identity(module_id).await,
+            ID_TYPE_AZIOT => { self.id_manager.get_module_identity(module_id).await },
+            ID_TYPE_LOCAL => { self.issue_local_identity(module_id).await },
         })
     }
 
@@ -304,7 +304,7 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => self.id_manager.get_module_identities().await,
+            ID_TYPE_AZIOT => { self.id_manager.get_module_identities().await },
         })
     }
 
@@ -328,6 +328,7 @@ impl Api {
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
+        opts: Option<aziot_identity_common_http::create_module_identity::CreateModuleOpts>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -337,7 +338,7 @@ impl Api {
         }
 
         match_id_type!( id_type {
-            ID_TYPE_AZIOT => self.id_manager.create_module_identity(module_id).await,
+            ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id).await },
         })
     }
 
@@ -355,7 +356,7 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => self.id_manager.update_module_identity(module_id).await,
+            ID_TYPE_AZIOT => { self.id_manager.update_module_identity(module_id).await },
         })
     }
 
@@ -373,7 +374,7 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => self.id_manager.delete_module_identity(module_id).await,
+            ID_TYPE_AZIOT => { self.id_manager.delete_module_identity(module_id).await },
         })
     }
 
