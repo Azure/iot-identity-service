@@ -18,6 +18,7 @@ impl http_common::server::Route for Route {
         server: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        _extensions: &http::Extensions,
     ) -> Option<Self> {
         if path != "/import_auth_key" {
             return None;

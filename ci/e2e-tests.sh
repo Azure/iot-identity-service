@@ -79,6 +79,7 @@ get_package() {
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
+            ;;
     esac
     artifact_name="packages_${artifact_name}_amd64"
 
@@ -135,13 +136,25 @@ get_package() {
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
+            ;;
     esac
     echo 'Extracted package' >&2
 }
 
 
-# Test required variables
-: "$AZURE_TENANT_ID" "$AZURE_USERNAME" "$AZURE_PASSWORD"
+# Test required variables early to avoid downloading the artifact unnecessarily.
+if [ -z "${AZURE_TENANT_ID:-}" ]; then
+    echo 'AZURE_TENANT_ID not set' >&2
+    exit 1
+fi
+if [ -z "${AZURE_USERNAME:-}" ]; then
+    echo 'AZURE_USERNAME not set' >&2
+    exit 1
+fi
+if [ -z "${AZURE_PASSWORD:-}" ]; then
+    echo 'AZURE_PASSWORD not set' >&2
+    exit 1
+fi
 
 test_name="$1"
 
@@ -242,6 +255,7 @@ case "$OS" in
     *)
         echo "Unsupported OS $OS" >&2
         exit 1
+        ;;
 esac
 
 
@@ -264,6 +278,14 @@ echo "resource_tag: $resource_tag" >&2
 #
 # Also, sometimes deleting resources fails because `az resource delete` doesn't respect inter-resource dependencies.
 # So keep trying it in a loop as long as there are still resources that match.
+#
+# ShellCheck warns the variables will be expanded when this string is parsed rather than when it executes,
+# but that is the intention to begin with.
+# shellcheck disable=SC2064
+#
+# ShellCheck thinks `ids` is referenced before being defined, which is not true.
+# It's probably not taking the escaping into account.
+# shellcheck disable=SC2154
 trap "
     set +eo pipefail
 
@@ -367,6 +389,7 @@ EOF
         *)
             echo "Unsupported test $1" >&2
             exit 1
+            ;;
     esac
 
     >testmodule.toml cat <<-EOF
@@ -480,6 +503,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" 'sudo reboot' || :
 echo 'Rebooted VM' >&2
 
 echo 'Waiting for VM to respond to ssh...' >&2
+# ShellCheck warns that `retry` is unused, but that's okay.
+# shellcheck disable=SC2034
 for retry in {0..60}; do
     sleep 10
     if timeout 5 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" echo 'VM is up' >&2; then
@@ -533,13 +558,15 @@ echo 'Installed package' >&2
 
 
 echo 'Waiting for IoT Hub to finish being created...' >&2
+# ShellCheck warns the `jobs` invocation is not quoted, but that's intentional so that it's word-split.
+# shellcheck disable=SC2046
 wait $(jobs -pr)
 echo 'Created IoT Hub' >&2
 
 
 echo 'Configuring package...' >&2
 
-scp -i "$PWD/vm-ssh-key" *.toml "aziot@$vm_public_ip:/home/aziot/"
+scp -i "$PWD/vm-ssh-key" ./*.toml "aziot@$vm_public_ip:/home/aziot/"
 
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     set -euxo pipefail
@@ -607,7 +634,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
 
     # Get device identity and use it to get device twin
     device_identity=\"\$(
-        curl --unix-socket '/run/aziot/identityd.sock' \\
+        sudo curl --unix-socket '/run/aziot/identityd.sock' \\
             -X POST -H 'content-type: application/json' --data-binary '{ \"type\": \"\" }' \\
             'http://foo/identities/device?api-version=2020-09-01'
     )\"
@@ -628,7 +655,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
 
     module_identity=\"\$(
         curl --unix-socket '/run/aziot/identityd.sock' \\
-            'http://foo/identities/modules/testmodule?api-version=2020-09-01&type=aziot'
+            'http://foo/identities/identity?api-version=2020-09-01'
     )\"
     printf '%s\n' \"\$module_identity\" >&2
 

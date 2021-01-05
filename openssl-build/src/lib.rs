@@ -4,20 +4,16 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::must_use_candidate)]
 
-/// Emits `ossl110` and `ossl111` cfgs based on the version of openssl.
+/// Emits `ossl110` cfg based on the version of openssl.
 pub fn define_version_number_cfg() {
     let openssl_version = std::env::var("DEP_OPENSSL_VERSION_NUMBER")
         .expect("DEP_OPENSSL_VERSION_NUMBER must have been set by openssl-sys");
     let openssl_version = u64::from_str_radix(&openssl_version, 16)
         .expect("DEP_OPENSSL_VERSION_NUMBER must have been set to a valid integer");
-    #[allow(clippy::inconsistent_digit_grouping)]
+    #[allow(clippy::unusual_byte_groupings)]
     {
         if openssl_version >= 0x01_01_00_00_0 {
             println!("cargo:rustc-cfg=ossl110");
-        }
-
-        if openssl_version >= 0x01_01_01_00_0 {
-            println!("cargo:rustc-cfg=ossl111");
         }
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "pkcs11-test"
+name = "aziot-key-openssl-engine-shared-test"
 version = "0.1.0"
 license = "MIT"
 authors = ["Azure IoT Edge Devs"]
@@ -8,22 +8,15 @@ edition = "2018"
 
 [dependencies]
 backtrace = "0.3"
-bytes = "0.5"
 futures-core = "0.3"
 futures-util = "0.3"
+http = "0.2"
 hyper = "0.13"
+hyper-openssl = "0.8"
 openssl = "0.10"
-openssl-sys = "0.9"
 structopt = "0.3.4"
-tokio = { version = "0.2", features = ["macros", "rt-core", "tcp"] }
+tokio = { version = "0.2", features = ["macros", "tcp"] }
 tokio-openssl = "0.4"
 
 openssl2 = { path = "../../openssl2/" }
 openssl-sys2 = { path = "../../openssl-sys2/" }
-pkcs11 = { path = "../pkcs11/" }
-pkcs11-openssl-engine = { path = "../pkcs11-openssl-engine/" }
-pkcs11-sys = { path = "../pkcs11-sys/" }
-
-
-[build-dependencies]
-openssl-build = { path = "../../openssl-build/" }

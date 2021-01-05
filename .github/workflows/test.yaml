@@ -20,12 +20,6 @@ jobs:
         - 'ubuntu:20.04'
         arch:
         - 'amd64'
-        - 'arm32v7'
-        - 'aarch64'
-        exclude:
-        # TODO: support running CI tests for arm32v7 and aarch64
-        - arch: 'arm32v7'
-        - arch: 'aarch64'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -45,22 +39,27 @@ jobs:
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::pkcs11-test_${container_os}_${{ matrix.arch }}"
+        echo "::set-output name=artifact-name::aziot-key-openssl-engine-shared-test_${container_os}_${{ matrix.arch }}"
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
           'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
           'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
         esac
-        echo "::set-output name=pkcs11-test-path::target/$target_dir/debug/pkcs11-test"
+        echo "::set-output name=target_dir::$target_dir"
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v1'
+      uses: 'actions/upload-artifact@v2'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
-        path: '${{ steps.generate-artifact-properties.outputs.pkcs11-test-path }}'
+        path: |
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/aziotd
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/aziot-key-openssl-engine-shared-test
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/libaziot_key_openssl_engine_shared.so
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/libaziot_keys.so
+        if-no-files-found: 'error'
 
 
-  pkcs11-softhsm:
+  aziot-key-openssl-engine-shared:
     runs-on: 'ubuntu-18.04'
 
     strategy:
@@ -73,28 +72,15 @@ jobs:
         - 'debian:10-slim'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
+        pkcs11_backend:
+        - '' # filesystem keys
+        - 'softhsm'
         key_type:
         - 'ec-p256'
-        - 'ec-p384'
-        - 'ec-p521'
         - 'rsa-2048'
         - 'rsa-4096'
         arch:
         - 'amd64'
-        - 'arm32v7'
-        - 'aarch64'
-        exclude:
-        # softhsm 2.2 and earlier do not support P-521.
-        #
-        # CentOS 7 has 2.1
-        - container_os: 'centos:7'
-          key_type: 'ec-p521'
-        # Ubuntu 18.04 has 2.2
-        - container_os: 'ubuntu:18.04'
-          key_type: 'ec-p521'
-        # TODO: support running CI tests for arm32v7 and aarch64
-        - arch: 'arm32v7'
-        - arch: 'aarch64'
 
     needs: 'basic'
 
@@ -107,30 +93,33 @@ jobs:
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::pkcs11-test_${container_os}_${{ matrix.arch }}"
+        echo "::set-output name=artifact-name::aziot-key-openssl-engine-shared-test_${container_os}_${{ matrix.arch }}"
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
           'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
           'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
         esac
-        echo "::set-output name=pkcs11-test-directory::target/$target_dir/debug"
+        echo "::set-output name=target_dir::$target_dir"
     - name: 'Download'
-      uses: 'actions/download-artifact@v1'
+      id: 'download-artifact'
+      uses: 'actions/download-artifact@v2'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
-        path: '${{ steps.generate-artifact-properties.outputs.pkcs11-test-directory }}'
+        path: 'target/${{ steps.generate-artifact-properties.outputs.aziot-key-openssl-engine-shared-test-directory }}/debug'
     - name: 'Run'
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
           -e "KEY_TYPE=$KEY_TYPE" \
+          -e "PKCS11_BACKEND=$PKCS11_BACKEND" \
           "${{ matrix.container_os }}" \
-          '/src/ci/test-pkcs11-softhsm.sh'
+          '/src/ci/test-aziot-key-openssl-engine-shared.sh'
       env:
         ARCH: "${{ matrix.arch }}"
         KEY_TYPE: "${{ matrix.key_type }}"
+        PKCS11_BACKEND: "${{ matrix.pkcs11_backend }}"
 
 
   openapi:

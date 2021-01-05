@@ -48,7 +48,7 @@ endif
 SHELL := /bin/bash
 
 
-.PHONY: clean default iotedged pkcs11-test test-release
+.PHONY: aziot-key-openssl-engine-shared-test clean default iotedged test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
 
 
@@ -104,8 +104,8 @@ iotedged:
 	$(CARGO) build -p iotedged $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
-pkcs11-test:
-	$(CARGO) build -p pkcs11-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+aziot-key-openssl-engine-shared-test:
+	$(CARGO) build -p aziot-key-openssl-engine-shared-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
 target/openapi-schema-validated: cert/aziot-certd/openapi/2020-09-01.yaml
@@ -147,7 +147,7 @@ test-release: test
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
 
-test: default iotedged pkcs11-test
+test: aziot-key-openssl-engine-shared-test default iotedged
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \

@@ -226,20 +226,16 @@ where
 
     log::info!("Starting server...");
 
-    let incoming = connector
+    let mut incoming = connector
         .incoming()
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
-    let server = hyper::Server::builder(incoming).serve(hyper::service::make_service_fn(|_| {
-        let server = server.clone();
-        async move { Ok::<_, std::convert::Infallible>(server.clone()) }
-    }));
-    let () = server
+    let () = incoming
+        .serve(server)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
     log::info!("Stopped server.");
-
     Ok(())
 }
 

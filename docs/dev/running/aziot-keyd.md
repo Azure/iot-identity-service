@@ -133,3 +133,11 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
     ```
 
     The service will remain running.
+
+
+---
+
+
+## Testing the openssl engine
+
+The package ships with an openssl engine with ID "aziot_keys" that can be used by programs that use openssl and want to use asymmetric keys backed by the Keys Service. In this repository there is a script at `key/test-aziot-key-openssl-engine-shared.sh` that can be used to run some tests involving the engine. See that script for information of how to use it.

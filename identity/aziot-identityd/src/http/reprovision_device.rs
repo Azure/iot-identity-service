@@ -2,6 +2,7 @@
 
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    user: aziot_identityd_config::Credentials,
 }
 
 #[async_trait::async_trait]
@@ -16,13 +17,17 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
+        extensions: &http::Extensions,
     ) -> Option<Self> {
         if path != "/identities/device/reprovision" {
             return None;
         }
 
+        let uid = extensions.get::<libc::uid_t>().cloned()?;
+
         Some(Route {
             api: service.api.clone(),
+            user: aziot_identityd_config::Uid(uid),
         })
     }
 
@@ -40,13 +45,11 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let user = crate::auth::Uid(0);
-        let auth_id = match api.authenticator.authenticate(user) {
+        let auth_id = match api.authenticator.authenticate(self.user) {
             Ok(auth_id) => auth_id,
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        //TODO: get uid from UDS
         match api.reprovision_device(auth_id).await {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),

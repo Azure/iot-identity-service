@@ -5,7 +5,7 @@
 #
 # Usage:
 #
-#     iothub-get-twin.sh "$(curl --unix-socket /run/aziot/identityd.sock 'http://foo/identities/modules/testmodule?api-version=2020-09-01')"
+#     iothub-get-twin.sh "$(curl --unix-socket /run/aziot/identityd.sock 'http://foo/identities/identity?api-version=2020-09-01')"
 
 
 set -euo pipefail
@@ -70,6 +70,8 @@ mqtt_client_get_twin() {
                 ;;
         esac
 
+        # ShellCheck warnings that `$variable` doesn't expand in single quotes, but this is a Perl script, not shell.
+        # shellcheck disable=SC2016
         <&"${CONNECTION[0]}" timeout 10 perl -e '
             use strict;
             use warnings;
@@ -284,4 +286,5 @@ case "$auth_type" in
     *)
         echo "Unexpected auth type $auth_type" >&2
         exit 1
+        ;;
 esac

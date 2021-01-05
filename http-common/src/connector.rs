@@ -31,6 +31,53 @@ pub enum Incoming {
     Unix(tokio::net::UnixListener),
 }
 
+#[cfg(feature = "tokio02")]
+impl Incoming {
+    pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
+    where
+        H: hyper::service::Service<
+                hyper::Request<hyper::Body>,
+                Response = hyper::Response<hyper::Body>,
+                Error = std::convert::Infallible,
+            > + Clone
+            + Send
+            + 'static,
+        <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+    {
+        match self {
+            Incoming::Tcp(listener) => loop {
+                let (tcp_stream, _) = listener.accept().await?;
+
+                // TCP is available in test builds only (not production). Assume current user is root.
+                let server = crate::uid::UidService::new(0, server.clone());
+                tokio::task::spawn(async move {
+                    if let Err(http_err) = hyper::server::conn::Http::new()
+                        .serve_connection(tcp_stream, server)
+                        .await
+                    {
+                        log::info!("Error while serving HTTP connection: {}", http_err);
+                    }
+                });
+            },
+
+            Incoming::Unix(listener) => loop {
+                let (unix_stream, _) = listener.accept().await?;
+                let ucred = unix_stream.peer_cred()?;
+
+                let server = crate::uid::UidService::new(ucred.uid, server.clone());
+                tokio::task::spawn(async move {
+                    if let Err(http_err) = hyper::server::conn::Http::new()
+                        .serve_connection(unix_stream, server)
+                        .await
+                    {
+                        log::info!("Error while serving HTTP connection: {}", http_err);
+                    }
+                });
+            },
+        }
+    }
+}
+
 impl Connector {
     pub fn new(uri: &url::Url) -> Result<Self, ConnectorError> {
         match uri.scheme() {
@@ -182,54 +229,6 @@ impl std::str::FromStr for Connector {
         let uri = s.parse::<url::Url>().map_err(|err| err.to_string())?;
         let connector = Connector::new(&uri).map_err(|err| err.to_string())?;
         Ok(connector)
-    }
-}
-
-#[cfg(feature = "tokio02")]
-impl hyper::server::accept::Accept for Incoming {
-    type Conn = AsyncStream;
-    type Error = std::io::Error;
-
-    fn poll_accept(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        loop {
-            let stream = match &mut *self {
-                Incoming::Tcp(listener) => match listener.poll_accept(cx) {
-                    std::task::Poll::Ready(Ok((stream, _))) => Ok(AsyncStream::Tcp(stream)),
-                    std::task::Poll::Ready(Err(err)) => Err(err),
-                    std::task::Poll::Pending => return std::task::Poll::Pending,
-                },
-
-                Incoming::Unix(listener) => {
-                    // tokio::net::UnixListener does not have pub poll_accept.
-                    //
-                    // However the tokio::net::unix::Incoming returned from its .incoming() does.
-                    // Keeping an Incoming across polls is hard because it borrows a &mut of the UnixListener.
-                    // But it's fine to throw it away when it's Pending and make a new one for every poll, because it doesn't contain any state
-                    // nor has side effects from being dropped.
-                    let mut incoming = listener.incoming();
-                    match std::pin::Pin::new(&mut incoming).poll_accept(cx) {
-                        std::task::Poll::Ready(Ok(stream)) => Ok(AsyncStream::Unix(stream)),
-                        std::task::Poll::Ready(Err(err)) => Err(err),
-                        std::task::Poll::Pending => return std::task::Poll::Pending,
-                    }
-                }
-            };
-
-            match stream {
-                Ok(stream) => return std::task::Poll::Ready(Some(Ok(stream))),
-                Err(err) => match err.kind() {
-                    // Client errors
-                    std::io::ErrorKind::ConnectionAborted
-                    | std::io::ErrorKind::ConnectionRefused
-                    | std::io::ErrorKind::ConnectionReset => (),
-
-                    _ => return std::task::Poll::Ready(Some(Err(err))),
-                },
-            }
-        }
     }
 }
 
@@ -432,6 +431,7 @@ impl std::error::Error for ConnectorError {
 /// Finds the systemd socket if one has been used to socket-activate this process.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the very first fd.
+#[cfg(feature = "tokio02")]
 fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //

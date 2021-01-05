@@ -161,7 +161,7 @@ wait $(jobs -pr)
 
     # The `tpm2-pkcs11` library uses a filesystem directory to store
     # wrapped keys. Ensure this directory is readable and writable by
-    # the user you'll be running `pkcs11-test` / `aziot-keyd` as,
+    # the user you'll be running `aziot-keyd` as,
     # not just root.
     sudo mkdir -p /opt/tpm2-pkcs11
     sudo chown "$(id -u):$(id -g)" /opt/tpm2-pkcs11

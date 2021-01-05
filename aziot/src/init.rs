@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 //! This subcommand interactively asks the user to give out basic provisioning information for their device and
-//! creates the config files for the three services based on that information.
+//! creates the config files for the four services based on that information.
 //!
 //! Notes:
 //!
@@ -40,7 +40,7 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     // But it's convenient to not do this for the sake of development because the the development machine doesn't necessarily
     // have the package installed and the users created, and it's easier to have the config files owned by the current user anyway.
     //
-    // So when running as root, get the three users appropriately.
+    // So when running as root, get the four users appropriately.
     // Otherwise, if this is a debug build, fall back to using the current user.
     // Otherwise, tell the user to re-run as root.
     let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
@@ -154,7 +154,9 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     )?;
 
     println!("aziot-identity-service has been configured successfully!");
-    println!("You can find the configured files at /etc/aziot/{{key,cert,identity}}d/config.toml");
+    println!(
+        "You can find the configured files at /etc/aziot/{{key,cert,identity,tpm}}d/config.toml"
+    );
 
     Ok(())
 }
@@ -205,10 +207,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             };
 
             (
-                aziot_identityd::settings::ProvisioningType::Manual {
+                aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
-                    authentication: aziot_identityd::settings::ManualAuthMethod::SharedPrivateKey {
+                    authentication: aziot_identityd_config::ManualAuthMethod::SharedPrivateKey {
                         device_id_pk: DEVICE_ID_ID.to_owned(),
                     },
                 },
@@ -228,10 +230,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             };
 
             (
-                aziot_identityd::settings::ProvisioningType::Manual {
+                aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
-                    authentication: aziot_identityd::settings::ManualAuthMethod::SharedPrivateKey {
+                    authentication: aziot_identityd_config::ManualAuthMethod::SharedPrivateKey {
                         device_id_pk: DEVICE_ID_ID.to_owned(),
                     },
                 },
@@ -244,10 +246,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             let device_id = prompt(stdin, "Enter the IoT Device ID.")?;
 
             (
-                aziot_identityd::settings::ProvisioningType::Manual {
+                aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
-                    authentication: aziot_identityd::settings::ManualAuthMethod::X509 {
+                    authentication: aziot_identityd_config::ManualAuthMethod::X509 {
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),
                     },
@@ -268,10 +270,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             };
 
             (
-                aziot_identityd::settings::ProvisioningType::Dps {
+                aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
-                    attestation: aziot_identityd::settings::DpsAttestationMethod::SymmetricKey {
+                    attestation: aziot_identityd_config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key: DEVICE_ID_ID.to_owned(),
                     },
@@ -285,10 +287,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 
             (
-                aziot_identityd::settings::ProvisioningType::Dps {
+                aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
-                    attestation: aziot_identityd::settings::DpsAttestationMethod::X509 {
+                    attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
                         registration_id,
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),
@@ -303,10 +305,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 
             (
-                aziot_identityd::settings::ProvisioningType::Dps {
+                aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
-                    attestation: aziot_identityd::settings::DpsAttestationMethod::Tpm {
+                    attestation: aziot_identityd_config::DpsAttestationMethod::Tpm {
                         registration_id,
                     },
                 },
@@ -327,7 +329,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
 
     // Might be mutated again while building certd config to insert EST ID cert's private key
     let mut keyd_config = {
-        let mut keyd_config = aziot_keyd::Config {
+        let mut keyd_config = aziot_keyd_config::Config {
             aziot_keys: Default::default(),
             preloaded_keys: Default::default(),
             endpoints: Default::default(),
@@ -358,8 +360,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                 .insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
         } else if matches!(
             provisioning_type,
-            aziot_identityd::settings::ProvisioningType::Manual { authentication: aziot_identityd::settings::ManualAuthMethod::X509 { .. }, .. } |
-            aziot_identityd::settings::ProvisioningType::Dps { attestation: aziot_identityd::settings::DpsAttestationMethod::X509 { .. }, .. }
+            aziot_identityd_config::ProvisioningType::Manual { authentication: aziot_identityd_config::ManualAuthMethod::X509 { .. }, .. } |
+            aziot_identityd_config::ProvisioningType::Dps { attestation: aziot_identityd_config::DpsAttestationMethod::X509 { .. }, .. }
         ) {
             device_id_source = Some(choose! {
                 stdin,
@@ -411,7 +413,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
     };
 
     let certd_config = {
-        let mut certd_config = aziot_certd::Config {
+        let mut certd_config = aziot_certd_config::Config {
             homedir_path: AZIOT_CERTD_HOMEDIR_PATH.into(),
             cert_issuance: Default::default(),
             preloaded_certs: Default::default(),
@@ -429,7 +431,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                         break device_id_cert_uri;
                     }
                 };
-                let device_id_cert_uri = aziot_certd::PreloadedCert::Uri(device_id_cert_uri);
+                let device_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(device_id_cert_uri);
                 certd_config
                     .preloaded_certs
                     .insert(DEVICE_ID_ID.to_owned(), device_id_cert_uri);
@@ -445,20 +447,20 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                         break local_ca_cert_uri;
                     }
                 };
-                let local_ca_cert_uri = aziot_certd::PreloadedCert::Uri(local_ca_cert_uri);
+                let local_ca_cert_uri = aziot_certd_config::PreloadedCert::Uri(local_ca_cert_uri);
                 certd_config
                     .preloaded_certs
                     .insert(LOCAL_CA.to_owned(), local_ca_cert_uri);
 
-                certd_config.cert_issuance.local_ca = Some(aziot_certd::LocalCa {
+                certd_config.cert_issuance.local_ca = Some(aziot_certd_config::LocalCa {
                     cert: LOCAL_CA.to_owned(),
                     pk: LOCAL_CA.to_owned(),
                 });
 
                 certd_config.cert_issuance.certs.insert(
                     DEVICE_ID_ID.to_owned(),
-                    aziot_certd::CertIssuanceOptions {
-                        method: aziot_certd::CertIssuanceMethod::LocalCa,
+                    aziot_certd_config::CertIssuanceOptions {
+                        method: aziot_certd_config::CertIssuanceMethod::LocalCa,
                         common_name: Some(hostname.clone()),
                         expiry_days: None,
                     },
@@ -468,8 +470,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             Some(DeviceIdSource::Est) => {
                 certd_config.cert_issuance.certs.insert(
                     DEVICE_ID_ID.to_owned(),
-                    aziot_certd::CertIssuanceOptions {
-                        method: aziot_certd::CertIssuanceMethod::Est,
+                    aziot_certd_config::CertIssuanceOptions {
+                        method: aziot_certd_config::CertIssuanceMethod::Est,
                         common_name: Some(hostname.clone()),
                         expiry_days: None,
                     },
@@ -513,7 +515,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                                 break est_trusted_cert_uri;
                             }
                         };
-                        let est_trusted_cert_uri = aziot_certd::PreloadedCert::Uri(est_trusted_cert_uri);
+                        let est_trusted_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_trusted_cert_uri);
                         certd_config.preloaded_certs.insert(EST_SERVER_CA_ID.to_owned(), est_trusted_cert_uri);
 
                         vec![EST_SERVER_CA_ID.to_owned()]
@@ -527,7 +529,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                     YesNo::Yes => {
                         let username = prompt(stdin, "Enter the username used to authenticate with your EST server.")?;
                         let password = prompt_secret(stdin, "Enter the password used to authenticate with your EST server.")?;
-                        Some(aziot_certd::EstAuthBasic {
+                        Some(aziot_certd_config::EstAuthBasic {
                             username,
                             password,
                         })
@@ -566,10 +568,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                                     break est_id_cert_uri;
                                 }
                             };
-                            let est_id_cert_uri = aziot_certd::PreloadedCert::Uri(est_id_cert_uri);
+                            let est_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_id_cert_uri);
                             certd_config.preloaded_certs.insert(EST_ID_ID.to_owned(), est_id_cert_uri);
 
-                            Some(aziot_certd::EstAuthX509 {
+                            Some(aziot_certd_config::EstAuthX509 {
                                 identity: (EST_ID_ID.to_owned(), EST_ID_ID.to_owned()),
                                 bootstrap_identity: None,
                             })
@@ -597,10 +599,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                                     break est_bootstrap_id_cert_uri;
                                 }
                             };
-                            let est_bootstrap_id_cert_uri = aziot_certd::PreloadedCert::Uri(est_bootstrap_id_cert_uri);
+                            let est_bootstrap_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_bootstrap_id_cert_uri);
                             certd_config.preloaded_certs.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_cert_uri);
 
-                            Some(aziot_certd::EstAuthX509 {
+                            Some(aziot_certd_config::EstAuthX509 {
                                 identity: (EST_ID_ID.to_owned(), EST_ID_ID.to_owned()),
                                 bootstrap_identity: Some((EST_BOOTSTRAP_ID.to_owned(), EST_BOOTSTRAP_ID.to_owned())),
                             })
@@ -610,8 +612,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                     YesNo::No => None,
                 };
 
-                certd_config.cert_issuance.est = Some(aziot_certd::Est {
-                    auth: aziot_certd::EstAuth {
+                certd_config.cert_issuance.est = Some(aziot_certd_config::Est {
+                    auth: aziot_certd_config::EstAuth {
                         basic: est_auth_basic,
                         x509: est_auth_x509,
                     },
@@ -628,7 +630,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         certd_config
     };
 
-    let tpmd_config = aziot_tpmd::Config {
+    let tpmd_config = aziot_tpmd_config::Config {
         endpoints: Default::default(),
     };
 
@@ -638,11 +640,11 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         .map_err(|err| format!("could not serialize aziot-certd config: {}", err))?;
 
     let identityd_config = {
-        aziot_identityd::settings::Settings {
+        aziot_identityd_config::Settings {
             hostname,
             homedir: AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
             principal: vec![],
-            provisioning: aziot_identityd::settings::Provisioning {
+            provisioning: aziot_identityd_config::Provisioning {
                 dynamic_reprovisioning: true,
                 provisioning: provisioning_type,
             },
@@ -1169,7 +1171,7 @@ mod tests {
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
             } = super::run_inner(&mut input).unwrap();
 
-            // Convert the three configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
+            // Convert the four configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
             // It doesn't matter for the device ID file since it's binary anyway.
             assert_eq!(
                 bytes::Bytes::from(expected_keyd_config),

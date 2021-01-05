@@ -1,5 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::default_trait_access)]
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     /// Parameters passed down to libaziot-keys. The allowed names and values are determined by the libaziot-keys implementation.
