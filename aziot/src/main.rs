@@ -5,10 +5,10 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_unit_value,
+    clippy::module_name_repetitions,
     clippy::similar_names,
     clippy::too_many_lines,
-    clippy::type_complexity,
-    clippy::module_name_repetitions
+    clippy::type_complexity
 )]
 
 use anyhow::Result;
@@ -34,7 +34,7 @@ async fn try_main() -> Result<()> {
 #[tokio::main]
 async fn main() {
     if let Err(err) = try_main().await {
-        eprintln!("{}", err);
+        eprintln!("{:?}", err);
     }
 }
 

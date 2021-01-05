@@ -2,51 +2,6 @@
 
 use super::Checker;
 
-mod prelude {
-    pub use anyhow::{anyhow, Context, Error, Result};
-    pub use serde::Serialize;
-    pub use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-
-    pub use crate::internal::check::{
-        CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared,
-    };
-
-    pub trait CertificateValidityExt {
-        fn to_check_result(&self) -> Result<CheckResult>;
-    }
-
-    impl CertificateValidityExt for crate::internal::common::CertificateValidity {
-        fn to_check_result(&self) -> Result<CheckResult> {
-            let now = chrono::Utc::now();
-            if self.not_before > now {
-                Err(anyhow!(
-                    "{} '{}' has not-before time {} which is in the future",
-                    self.cert_name,
-                    self.cert_id,
-                    self.not_before,
-                ))
-            } else if self.not_after < now {
-                Err(anyhow!(
-                    "{} '{}' expired at {}",
-                    self.cert_name,
-                    self.cert_id,
-                    self.not_after,
-                ))
-            } else if self.not_after < now + chrono::Duration::days(7) {
-                Ok(CheckResult::Warning(anyhow!(
-                    "{} '{}' will expire soon ({}, in {} days)",
-                    self.cert_name,
-                    self.cert_id,
-                    self.not_after,
-                    (self.not_after - now).num_days(),
-                )))
-            } else {
-                Ok(CheckResult::Ok)
-            }
-        }
-    }
-}
-
 /// Tries to unwrap an option, early-returning with
 /// `return Ok(CheckResult::Skipped)` if the option is None.
 macro_rules! unwrap_or_skip {

@@ -7,6 +7,7 @@ use structopt::StructOpt;
 
 mod additional_info;
 mod checks;
+mod util;
 
 pub(crate) use additional_info::AdditionalInfo;
 pub(crate) use checks::all_checks;
