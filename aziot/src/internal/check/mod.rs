@@ -8,8 +8,8 @@ use structopt::StructOpt;
 mod additional_info;
 mod checks;
 
-pub use additional_info::AdditionalInfo;
-pub use checks::all_checks;
+pub(crate) use additional_info::AdditionalInfo;
+pub(crate) use checks::all_checks;
 
 // NOTE: this struct gets `structopt(flatten)`ed as part of the `aziot check` subcommand.
 #[derive(StructOpt)]
@@ -23,7 +23,7 @@ pub struct CheckerCfg {
     #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
 
-    // (Manually populated to match top-level CheckCfg value)
+    // (Manually populated to match top-level CheckOptions value)
     #[structopt(skip)]
     pub verbose: bool,
 }
@@ -100,7 +100,7 @@ impl CheckerCache {
         }
     }
 
-    /// Utility method to call `aziot_certd::get_path()` with the loaded certd config.
+    /// Utility method to call `aziot_certd_config::util::get_path()` with the loaded certd config.
     ///
     /// Returns None if the certd config hasn't been loaded.
     fn cert_path(&mut self, cert_id: &str) -> Option<anyhow::Result<PathBuf>> {

@@ -46,12 +46,12 @@ impl HostLocalTime {
         } = match mini_sntp::query(&shared.cfg.ntp_server) {
             Ok(result) => result,
             Err(err) => {
-                if is_server_unreachable_error(&err) {
-                    return Ok(CheckResult::Warning(
+                return if is_server_unreachable_error(&err) {
+                    Ok(CheckResult::Warning(
                         Error::new(err).context("Could not query NTP server"),
-                    ));
+                    ))
                 } else {
-                    return Err(err).context("Could not query NTP server");
+                    Err(err).context("Could not query NTP server")
                 }
             }
         };

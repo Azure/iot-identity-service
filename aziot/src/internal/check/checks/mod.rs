@@ -5,7 +5,7 @@ use super::Checker;
 mod prelude {
     pub use anyhow::{anyhow, Context, Error, Result};
     pub use serde::Serialize;
-    pub use tokio::prelude::*;
+    pub use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
     pub use crate::internal::check::{
         CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared,

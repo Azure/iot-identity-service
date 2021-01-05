@@ -181,26 +181,30 @@ mod tests {
 
         assert_eq!(s.provisioning.dynamic_reprovisioning, false);
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Manual {
                 authentication: ManualAuthMethod::SharedPrivateKey { .. },
                 ..
-            } => {}
-            _ => panic!("incorrect provisioning type selected"),
-        };
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]
     fn manual_dps_provisioning_settings_succeeds() {
         let s = load_settings("test/good_dps_config.toml").unwrap();
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Dps {
                 attestation: DpsAttestationMethod::SymmetricKey { .. },
                 ..
-            } => {}
-            _ => panic!("incorrect provisioning type selected"),
-        };
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]

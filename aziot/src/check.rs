@@ -19,7 +19,7 @@ use crate::internal::check::{
 
 #[derive(StructOpt)]
 #[structopt(about = "Check for common config and deployment issues")]
-pub struct CheckCfg {
+pub struct CheckOptions {
     /// Space-separated list of check IDs. The checks listed here will not be run.
     /// See 'aziot check-list' for details of all checks.
     #[structopt(
@@ -30,8 +30,8 @@ pub struct CheckCfg {
     )]
     dont_run: Vec<String>,
 
-    /// Output format. Note that JSON output contains some additional information
-    /// like OS name, OS version, disk space, etc.
+    /// Output format. One of "text" or "json". Note that JSON output contains
+    /// some additional information like OS name, OS version, disk space, etc.
     #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
     output: OutputFormat,
 
@@ -68,7 +68,7 @@ impl FromStr for OutputFormat {
     }
 }
 
-pub async fn check(mut cfg: CheckCfg) -> Result<()> {
+pub async fn check(mut cfg: CheckOptions) -> Result<()> {
     // manually pass verbosity down to the checker-specific configuration
     cfg.checker_cfg.verbose = cfg.verbose;
     let cfg = cfg; // freeze cfg
@@ -125,7 +125,12 @@ pub async fn check(mut cfg: CheckCfg) -> Result<()> {
 
     'all_checks: for (section_name, section_checks) in &mut check_data {
         outputln!(normal, "{}", section_name);
-        outputln!(normal, "{}", "-".repeat(section_name.len()));
+        outputln!(
+            normal,
+            "{:->section_name_len$}",
+            "",
+            section_name_len = section_name.len()
+        );
 
         if matches!(cfg.output, OutputFormat::JsonStream) {
             serde_json::to_writer(

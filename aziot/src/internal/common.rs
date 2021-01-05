@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
+
 //! A grab-bag of misc. utilities shared across the various sub-commands.
 
 use std::path::Path;

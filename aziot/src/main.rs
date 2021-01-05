@@ -8,7 +8,7 @@
     clippy::similar_names,
     clippy::too_many_lines,
     clippy::type_complexity,
-    clippy::clippy::module_name_repetitions
+    clippy::module_name_repetitions
 )]
 
 use anyhow::Result;
@@ -34,7 +34,7 @@ async fn try_main() -> Result<()> {
 #[tokio::main]
 async fn main() {
     if let Err(err) = try_main().await {
-        eprintln!("{:?}", err);
+        eprintln!("{}", err);
     }
 }
 
@@ -43,7 +43,7 @@ enum Options {
     /// Interactive wizard to get 'aziot' up and running.
     Init,
     /// Check for common config and deployment issues.
-    Check(check::CheckCfg),
+    Check(check::CheckOptions),
     /// List the checks that are run for 'aziot check'
-    CheckList(check_list::CheckListCfg),
+    CheckList(check_list::CheckListOptions),
 }

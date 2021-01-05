@@ -7,13 +7,13 @@ use aziot_check_common::CheckListOutput;
 
 #[derive(StructOpt, Copy, Clone)]
 #[structopt(about = "List the checks that are run for 'aziot check'")]
-pub struct CheckListCfg {
+pub struct CheckListOptions {
     /// Output available checks as a JSON object.
     #[structopt(short, long)]
     json: bool,
 }
 
-pub fn check_list(cfg: CheckListCfg) -> Result<()> {
+pub fn check_list(cfg: CheckListOptions) -> Result<()> {
     let checks = crate::internal::check::all_checks();
 
     if cfg.json {
