@@ -76,6 +76,18 @@ impl HostConnectIotHub {
             ProvisioningType::Manual {
                 iothub_hostname, ..
             } => iothub_hostname,
+            ProvisioningType::Dps { .. } => {
+                // check if the backup config includes the iothub_hostname
+                match &unwrap_or_skip!(&cache.cfg.identityd_prev)
+                    .provisioning
+                    .provisioning
+                {
+                    ProvisioningType::Manual {
+                        iothub_hostname, ..
+                    } => iothub_hostname,
+                    _ => return Ok(CheckResult::Ignored),
+                }
+            }
             _ => return Ok(CheckResult::Ignored),
         };
 

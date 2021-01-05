@@ -99,7 +99,7 @@ impl Api {
 
     pub fn import_cert(&mut self, id: &str, pem: &[u8]) -> Result<(), Error> {
         let path =
-            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id)
+            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
         std::fs::write(path, pem)
             .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -114,7 +114,7 @@ impl Api {
 
     pub fn delete_cert(&mut self, id: &str) -> Result<(), Error> {
         let path =
-            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id)
+            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
         match std::fs::remove_file(path) {
             Ok(()) => Ok(()),
@@ -250,6 +250,7 @@ fn create_cert<'a>(
                     &api.homedir_path,
                     &api.preloaded_certs,
                     issuer_id,
+                    true,
                 )
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                 let issuer_x509_pem = load_inner(&issuer_path)
@@ -277,9 +278,13 @@ fn create_cert<'a>(
                 x509
             };
 
-            let path =
-                aziot_certd_config::util::get_path(&api.homedir_path, &api.preloaded_certs, id)
-                    .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
+            let path = aziot_certd_config::util::get_path(
+                &api.homedir_path,
+                &api.preloaded_certs,
+                id,
+                true,
+            )
+            .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
             std::fs::write(path, &x509)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -405,6 +410,7 @@ fn create_cert<'a>(
                                     &api.homedir_path,
                                     &api.preloaded_certs,
                                     id,
+                                    true,
                                 )
                                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                                 std::fs::write(path, &x509).map_err(|err| {
@@ -629,6 +635,7 @@ fn create_cert<'a>(
                                             &api.homedir_path,
                                             &api.preloaded_certs,
                                             identity_cert,
+                                            true,
                                         )
                                         .map_err(|err| {
                                             Error::Internal(InternalError::GetPath(err))
@@ -674,6 +681,7 @@ fn create_cert<'a>(
                             &api.homedir_path,
                             &api.preloaded_certs,
                             id,
+                            true,
                         )
                         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                         std::fs::write(path, &x509).map_err(|err| {
@@ -739,7 +747,7 @@ fn get_cert_inner(
     preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
-    let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id)
+    let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
     let bytes = load_inner(&path)?;
     Ok(bytes)

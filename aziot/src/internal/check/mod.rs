@@ -111,6 +111,7 @@ impl CheckerCache {
                 &certd_cfg.homedir_path,
                 &certd_cfg.preloaded_certs,
                 cert_id,
+                false,
             )
             .map_err(|e| anyhow::anyhow!("{}", e)),
         )
@@ -124,4 +125,5 @@ pub struct DaemonConfigs {
     pub keyd: Option<aziot_keyd_config::Config>,
     pub tpmd: Option<aziot_tpmd_config::Config>,
     pub identityd: Option<aziot_identityd_config::Settings>,
+    pub identityd_prev: Option<aziot_identityd_config::Settings>,
 }

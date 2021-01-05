@@ -129,6 +129,24 @@ impl Checker for WellFormedIdentitydConfig {
         };
 
         cache.cfg.identityd = Some(daemon_cfg);
+
+        // At the same time, try to load the backup identityd config.
+        // it's okay if it doesn't exist yet.
+        match load_daemon_cfg::<aziot_identityd_config::Settings>(
+            "identityd_prev",
+            Path::new("/var/lib/aziot/identityd/prev_state"),
+            shared,
+        )
+        .await
+        {
+            Ok(DaemonCfg::Cfg(daemon_cfg)) => {
+                if let Ok(daemon_cfg) = daemon_cfg.check() {
+                    cache.cfg.identityd_prev = Some(daemon_cfg);
+                }
+            }
+            Ok(DaemonCfg::PermissionDenied(_)) | Err(_) => {}
+        };
+
         CheckResult::Ok
     }
 }
