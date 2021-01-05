@@ -10,6 +10,8 @@ License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: aziot-identity-service-%{version}-%{release}.tar.gz
 
+Conflicts: iotedge
+
 BuildRequires: clang
 BuildRequires: gcc
 BuildRequires: gcc-c++
@@ -26,11 +28,14 @@ This package contains the Azure IoT device runtime, comprised of the following s
 - aziot-identityd - The Azure IoT Identity Service
 - aziot-certd - The Azure IoT Certificates Service
 - aziot-keyd - The Azure IoT Keys Service
+- aziot-tpmd - The Azure IoT TPM Service
 
 This package also contains the following libraries:
 
 - libaziot_keys.so - The library used by the Keys Service to communicate with HSMs for key operations.
 - <openssl engines directory>/openssl/engines/libaziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
+
+Lastly, this package contains the aziot binary that is used to configure and manage the services.
 
 
 %package devel
