@@ -40,7 +40,7 @@ pub struct LocalIdSpec {
 }
 
 /// Options for a single local identity.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum LocalIdOpts {
     /// Options valid when local identities are X.509 credentials. Currently the only
