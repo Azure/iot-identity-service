@@ -43,10 +43,10 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         ("Connectivity checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(host_connect_iothub::host_connect_iothub_checks());
-            // v.extend(daemons_running::daemons_running());
-            // v.push(Box::new(
-            //     host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
-            // ));
+            v.extend(daemons_running::daemons_running());
+            v.push(Box::new(
+                host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
+            ));
             v
         }),
     ]
