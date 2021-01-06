@@ -275,10 +275,10 @@ The `--force` option can be used to force the initialization sequence to select 
 iotedge init --force
 ```
 
-A non-interactive initialization that attempts to import the old configuration from `iotedge` can be done using the `--import` option.
+A non-interactive initialization that attempts to import the old configuration from `iotedge` can be done using the `import` subcommand.
 
 ```sh
-iotedge init --import
+iotedge init import
 ```
 
 ### Automating Upgrades of `iotedge` to `aziot-edge`

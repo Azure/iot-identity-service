@@ -3,7 +3,7 @@
 1. Clone this repo.
 
     ```sh
-    git clone https://github.com/Azure/iot-identity-service
+    git clone --recursive https://github.com/Azure/iot-identity-service
     cd iot-identity-service/
     ```
 
