@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::path::PathBuf;
-
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -99,22 +97,6 @@ impl CheckerCache {
         CheckerCache {
             cfg: DaemonConfigs::default(),
         }
-    }
-
-    /// Utility method to call `aziot_certd_config::util::get_path()` with the loaded certd config.
-    ///
-    /// Returns None if the certd config hasn't been loaded.
-    fn cert_path(&mut self, cert_id: &str) -> Option<anyhow::Result<PathBuf>> {
-        let certd_cfg = self.cfg.certd.as_ref()?;
-        Some(
-            aziot_certd_config::util::get_path(
-                &certd_cfg.homedir_path,
-                &certd_cfg.preloaded_certs,
-                cert_id,
-                false,
-            )
-            .map_err(|e| anyhow::anyhow!("{}", e)),
-        )
     }
 }
 

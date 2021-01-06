@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::Serialize;
 
 use crate::internal::check::util::CertificateValidityExt;
@@ -42,40 +42,55 @@ impl IdentityCertificateExpiry {
             .provisioning
             .clone();
 
+        let mut cert = None;
         match provisioning {
             ProvisioningType::Dps {
                 attestation: DpsAttestationMethod::X509 { identity_cert, .. },
                 ..
             } => {
                 self.provisioning_mode = Some("dps-x509");
-                let cert_info = CertificateValidity::new(
-                    unwrap_or_skip!(cache.cert_path(&identity_cert))?,
-                    "DPS identity certificate",
-                    &identity_cert,
-                )
-                .await?;
-                self.certificate_info = Some(cert_info.clone());
-                return cert_info.to_check_result();
+                cert = Some(identity_cert);
             }
             ProvisioningType::Manual {
                 authentication: ManualAuthMethod::X509 { identity_cert, .. },
                 ..
             } => {
                 self.provisioning_mode = Some("manual-x509");
-                let cert_info = CertificateValidity::new(
-                    unwrap_or_skip!(cache.cert_path(&identity_cert))?,
-                    "Manual authentication identity certificate",
-                    &identity_cert,
-                )
-                .await?;
-                self.certificate_info = Some(cert_info.clone());
-                return cert_info.to_check_result();
+                cert = Some(identity_cert);
             }
             ProvisioningType::Dps { .. } => self.provisioning_mode = Some("dps-other"),
             ProvisioningType::Manual { .. } => self.provisioning_mode = Some("manual-other"),
             ProvisioningType::None => self.provisioning_mode = Some("none"),
-        }
+        };
 
-        Ok(CheckResult::Ignored)
+        if let Some(identity_cert) = cert {
+            let certd_config = unwrap_or_skip!(&cache.cfg.certd);
+
+            let path = aziot_certd_config::util::get_path(
+                &certd_config.homedir_path,
+                &certd_config.preloaded_certs,
+                identity_cert,
+                false,
+            )
+            .map_err(|e| anyhow!("{}", e))?;
+
+            // check if this is a dynamically issued cert that hasn't been generated yet
+            if !path.exists() && !certd_config.preloaded_certs.contains_key(identity_cert) {
+                if !certd_config.cert_issuance.certs.contains_key(identity_cert) {
+                    return Err(anyhow!(
+                        "identity cert is not manually specified, nor is it dynamically issued"
+                    ));
+                }
+                // dynamically issued, but not generated yet.
+                return Ok(CheckResult::Ok);
+            };
+
+            let cert_info =
+                CertificateValidity::new(path, "DPS identity certificate", &identity_cert).await?;
+            self.certificate_info = Some(cert_info.clone());
+            cert_info.to_check_result()
+        } else {
+            Ok(CheckResult::Ignored)
+        }
     }
 }
