@@ -461,8 +461,14 @@ impl Api {
                         self.id_manager.delete_module_identity(&m.0).await?;
                         log::info!("Hub identity {:?} removed", &m.0);
                     } else if current_module_set.contains(&m) {
-                        current_module_set.remove(&m);
-                        log::info!("Hub identity {:?} already exists", &m.0);
+                        if !prev_module_set.contains(&m) {
+                            self.id_manager.delete_module_identity(&m.0).await?;
+                            log::info!("Hub identity {:?} will be recreated", &m.0);
+                        } 
+                        else {
+                            current_module_set.remove(&m);
+                            log::info!("Hub identity {:?} already exists", &m.0);
+                        }
                     }
                 } else {
                     log::warn!("invalid identity type returned by get_module_identities");
