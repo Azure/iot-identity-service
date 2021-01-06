@@ -69,29 +69,48 @@ impl HostConnectIotHub {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
 
-        let iothub_hostname = match &unwrap_or_skip!(&cache.cfg.identityd)
-            .provisioning
-            .provisioning
-        {
-            ProvisioningType::Manual {
-                iothub_hostname, ..
-            } => iothub_hostname,
-            ProvisioningType::Dps { .. } => {
-                // check if the backup config includes the iothub_hostname
-                match &unwrap_or_skip!(&cache.cfg.identityd_prev)
+        let iothub_hostname = match &self.iothub_hostname {
+            Some(s) => s,
+            None => {
+                let iothub_hostname = match &unwrap_or_skip!(&cache.cfg.identityd)
                     .provisioning
                     .provisioning
                 {
                     ProvisioningType::Manual {
                         iothub_hostname, ..
                     } => iothub_hostname,
-                    _ => return Ok(CheckResult::Ignored),
-                }
-            }
-            _ => return Ok(CheckResult::Ignored),
-        };
+                    ProvisioningType::Dps { .. } => {
+                        // It's fine if the prev config doesn't exist, so `unwrap_or_skip` isn't
+                        // appropriate here
+                        let backup_hostname = match &cache.cfg.identityd_prev {
+                            None => None,
+                            // check if the backup config includes the iothub_hostname
+                            Some(cfg) => match &cfg.provisioning.provisioning {
+                                ProvisioningType::Manual {
+                                    iothub_hostname, ..
+                                } => Some(iothub_hostname),
+                                _ => None,
+                            },
+                        };
 
-        self.iothub_hostname = Some(iothub_hostname.clone());
+                        if let Some(backup_hostname) = backup_hostname {
+                            backup_hostname
+                        } else {
+                            // the user never manually provisioned, nor have they passed
+                            // the `iothub-hostname` flag.
+                            let reason = "Could not retrieve iothub_hostname from provisioning file.\n\
+                            Please specify the backing IoT Hub name using --iothub-hostname switch if you have that information.\n\
+                            If no hostname is provided, all hub connectivity tests will be skipped.";
+                            return Err(anyhow::Error::msg(reason));
+                        }
+                    }
+                    _ => return Ok(CheckResult::Ignored),
+                };
+
+                self.iothub_hostname = Some(iothub_hostname.clone());
+                iothub_hostname
+            }
+        };
 
         let iothub_hostname_url = format!("https://{}:{}", iothub_hostname, self.port_number)
             .parse::<hyper::Uri>()

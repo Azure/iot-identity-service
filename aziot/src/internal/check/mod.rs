@@ -25,6 +25,11 @@ pub struct CheckerCfg {
     // (Manually populated to match top-level CheckOptions value)
     #[structopt(skip)]
     pub verbose: bool,
+
+    /// Sets the hostname of the Azure IoT Hub that this device would connect to.
+    /// If using manual provisioning, this does not need to be specified.
+    #[structopt(long, value_name = "IOTHUB_HOSTNAME")]
+    pub iothub_hostname: Option<String>,
 }
 
 pub struct CheckerShared {
