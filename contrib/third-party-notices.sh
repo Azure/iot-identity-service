@@ -147,6 +147,8 @@ cargo metadata --format-version 1 |
                     "BSD-3-Clause"
                 elif $license == "Zlib" then
                     "Zlib"
+                elif $license == "MPL-2.0" then
+                    "MPL-2.0"
                 else
                     error("crate \($name) has unknown license \($license)")
                 end
@@ -177,6 +179,10 @@ cargo metadata --format-version 1 |
 
             'Zlib')
                 license_file_suffix='ZLIB'
+                ;;
+
+            'MPL-2.0')
+                license_file_suffix='MPL2'
                 ;;
 
             *)

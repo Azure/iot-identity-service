@@ -2,6 +2,9 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
+mod check;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
@@ -164,37 +167,30 @@ mod tests {
 
         assert_eq!(s.provisioning.dynamic_reprovisioning, false);
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Manual {
-                iothub_hostname: _,
-                device_id: _,
-                authentication,
-            } => match authentication {
-                ManualAuthMethod::SharedPrivateKey { device_id_pk: _ } => {}
-                _ => panic!("incorrect provisioning type selected"),
-            },
-            _ => panic!("incorrect provisioning type selected"),
-        };
+                authentication: ManualAuthMethod::SharedPrivateKey { .. },
+                ..
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]
     fn manual_dps_provisioning_settings_succeeds() {
         let s = load_settings("test/good_dps_config.toml").unwrap();
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Dps {
-                global_endpoint: _,
-                scope_id: _,
-                attestation,
-            } => match attestation {
-                DpsAttestationMethod::SymmetricKey {
-                    registration_id: _,
-                    symmetric_key: _,
-                } => (),
-                _ => panic!("incorrect provisioning type selected"),
-            },
-            _ => panic!("incorrect provisioning type selected"),
-        };
+                attestation: DpsAttestationMethod::SymmetricKey { .. },
+                ..
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]
