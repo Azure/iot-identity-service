@@ -15,13 +15,13 @@ macro_rules! unwrap_or_skip {
     }};
 }
 
+mod cert_expiry;
 mod certs_preloaded;
 mod daemons_running;
 mod host_connect_dps_endpoint;
 mod host_connect_iothub;
 mod host_local_time;
 mod hostname;
-mod identity_certificate_expiry;
 mod well_formed_configs;
 
 pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
@@ -34,9 +34,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             // TODO: add aziot version info to https://github.com/Azure/azure-iotedge
             // v.push(Box::new(aziot_version::AziotVersion::default()));
             v.push(Box::new(host_local_time::HostLocalTime::default()));
-            v.push(Box::new(
-                identity_certificate_expiry::IdentityCertificateExpiry::default(),
-            ));
+            v.extend(cert_expiry::cert_expirations());
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
             v
         }),
