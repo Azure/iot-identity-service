@@ -418,10 +418,8 @@ impl IdentityManager {
     pub async fn provision_device(
         &mut self,
         provisioning: aziot_identityd_config::Provisioning,
+        skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
-        let mut prev_device_info_path = self.homedir_path.clone();
-        prev_device_info_path.push("device_info");
-
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
                 iothub_hostname,
@@ -501,12 +499,19 @@ impl IdentityManager {
                             symmetric_key.clone(),
                         );
 
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
+                        let backup_device =
+                            self.get_backup_provisioning_info(credential.clone())?;
 
-                        operation_to_iot_hub_device(credential, operation).await?
+                        if skip_if_backup_is_valid && backup_device.is_some() {
+                            backup_device.expect("backup device cannot be none")
+                        } else {
+                            let operation = dps_client
+                                .register(&registration_id, &dps_auth_kind)
+                                .await
+                                .map_err(Error::DPSClient)?;
+
+                            operation_to_iot_hub_device(credential, operation).await?
+                        }
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
@@ -529,23 +534,37 @@ impl IdentityManager {
                             identity_pk: identity_pk.clone(),
                         };
 
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
+                        let backup_device =
+                            self.get_backup_provisioning_info(credential.clone())?;
 
-                        operation_to_iot_hub_device(credential, operation).await?
+                        if skip_if_backup_is_valid && backup_device.is_some() {
+                            backup_device.expect("backup device cannot be none")
+                        } else {
+                            let operation = dps_client
+                                .register(&registration_id, &dps_auth_kind)
+                                .await
+                                .map_err(Error::DPSClient)?;
+
+                            operation_to_iot_hub_device(credential, operation).await?
+                        }
                     }
                     config::DpsAttestationMethod::Tpm { registration_id } => {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
                         let credential = aziot_identity_common::Credentials::Tpm;
 
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
+                        let backup_device =
+                            self.get_backup_provisioning_info(credential.clone())?;
 
-                        operation_to_iot_hub_device(credential, operation).await?
+                        if skip_if_backup_is_valid && backup_device.is_some() {
+                            backup_device.expect("backup device cannot be none")
+                        } else {
+                            let operation = dps_client
+                                .register(&registration_id, &dps_auth_kind)
+                                .await
+                                .map_err(Error::DPSClient)?;
+
+                            operation_to_iot_hub_device(credential, operation).await?
+                        }
                     }
                 };
                 self.set_device(&device);
@@ -558,6 +577,34 @@ impl IdentityManager {
             }
         };
         Ok(device)
+    }
+
+    fn get_backup_provisioning_info(
+        &self,
+        credentials: aziot_identity_common::Credentials,
+    ) -> Result<Option<aziot_identity_common::IoTHubDevice>, Error> {
+        let mut prev_device_info_path = self.homedir_path.clone();
+        prev_device_info_path.push("device_info");
+
+        if prev_device_info_path.exists() {
+            let prev_hub_device_info =
+                HubDeviceInfo::new(&prev_device_info_path).map_err(Error::Internal)?;
+
+            match prev_hub_device_info {
+                Some(device_info) => {
+                    let device = aziot_identity_common::IoTHubDevice {
+                        iothub_hostname: device_info.hub_name,
+                        device_id: device_info.device_id,
+                        credentials,
+                    };
+
+                    return Ok(Some(device));
+                }
+                None => return Ok(None),
+            }
+        }
+
+        Ok(None)
     }
 
     async fn create_identity_cert_if_not_exist_or_expired(
@@ -642,7 +689,7 @@ impl IdentityManager {
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
-        let settings = crate::configext::check(settings).map_err(|err| Error::Internal(err))?;
+        let settings = crate::configext::check(settings).map_err(Error::Internal)?;
         let settings_serialized =
             toml::to_vec(&settings).expect("serializing settings cannot fail");
 
@@ -668,12 +715,12 @@ impl IdentityManager {
                 // Only consider the previous Hub modules if the current and previous Hub devices match.
                 let prev_module_set =
                     if prev_settings_path.exists() && prev_device_info_path.exists() {
-                        let prev_hub_device_info = HubDeviceInfo::new(&prev_device_info_path)
-                            .map_err(|err| Error::Internal(err))?;
+                        let prev_hub_device_info =
+                            HubDeviceInfo::new(&prev_device_info_path).map_err(Error::Internal)?;
 
                         if prev_hub_device_info == Some(curr_hub_device_info) {
                             let prev_settings = crate::configext::load_file(&prev_settings_path)
-                                .map_err(|err| Error::Internal(err))?;
+                                .map_err(Error::Internal)?;
                             let (_, prev_hub_modules, _) =
                                 crate::configext::prepare_authorized_principals(
                                     &prev_settings.principal,
@@ -699,12 +746,12 @@ impl IdentityManager {
                                 self.delete_module_identity(&m.0).await?;
                                 log::info!("Hub identity {:?} removed", &m.0);
                             } else if current_module_set.contains(&m) {
-                                if !prev_module_set.contains(&m) {
-                                    self.delete_module_identity(&m.0).await?;
-                                    log::info!("Hub identity {:?} will be recreated", &m.0);
-                                } else {
+                                if prev_module_set.contains(&m) {
                                     current_module_set.remove(&m);
                                     log::info!("Hub identity {:?} already exists", &m.0);
+                                } else {
+                                    self.delete_module_identity(&m.0).await?;
+                                    log::info!("Hub identity {:?} will be recreated", &m.0);
                                 }
                             }
                         } else {
@@ -724,7 +771,7 @@ impl IdentityManager {
                 let () = std::fs::write(prev_settings_path, &settings_serialized)
                     .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
-            None => log::warn!("invalid identity type returned by get_module_identities"),
+            None => log::warn!("reconcilation skipped since device is not provisioned"),
         }
 
         Ok(())

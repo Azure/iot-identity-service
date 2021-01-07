@@ -9,7 +9,7 @@
 //!   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
 //!   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
 //!
-//! - `dynamic_reprovisioning` is enabled by default in IS provisioning settings.
+//! - `always_reprovisioning_on_startup` is enabled by default in IS provisioning settings.
 //!
 //! - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
 //!   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
@@ -651,7 +651,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
             homedir: AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
             principal: vec![],
             provisioning: aziot_identityd_config::Provisioning {
-                dynamic_reprovisioning: true,
+                always_reprovisioning_on_startup: true,
                 provisioning: provisioning_type,
             },
             endpoints: Default::default(),

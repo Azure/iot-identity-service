@@ -371,7 +371,7 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-dynamic_reprovisioning = true
+always_reprovisioning_on_startup = true
 source = "manual"
 iothub_hostname = "$common_resource_name.azure-devices.net"
 device_id = "$iot_device_id"
