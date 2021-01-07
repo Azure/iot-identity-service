@@ -188,15 +188,31 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 `POST /identities/modules?api-version=2020-09-01`
 
-#### Request
+#### Request (Module identity)
 ```json
 {
   "type": "aziot",
-  "name": "module01",
-  "deviceId": "device01",
-  "managedBy": "edgeruntime"
+  "moduleId": "module01"
 }
 ```
+
+#### Request (Local identity)
+```json
+{
+  "type": "local",
+  "moduleId": "module01",
+  "localIdOpts": {
+    "type": "x509",
+    "attributes": "server"
+  }
+}
+```
+
+`localIdOpts` is an optional field that can be used to specify configuration of the issued local identity. It contains the following fields:
+- `type` - Type of local identity. Currently, only `x509` is supported.
+- `attributes` - Attributes of the X.509 local identity certificate. May be either `client` or `server`.
+
+If `localIdOpts` is not specified, the default `{"type": "x509", "attributes": "client"}` will be used.
 
 #### Response (SAS case)
 
@@ -232,6 +248,23 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "type": "x509",
         "keyHandle": "string",
         "certId": "string"
+    }
+  }
+}
+```
+
+#### Response (Local identity)
+
+```json
+{
+  "type": "local",
+  "spec":
+  {
+    "moduleId": "module01",
+    "auth": {
+        "privateKey": "private key bytes",
+        "certificate": "certificate bytes",
+        "expiration": "yyyy-mm-ddThh:mm:ss+00:00"
     }
   }
 }
@@ -292,7 +325,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
   "type": "local",
   "spec":
   {
-    "moduleId": "myhub.net",
+    "moduleId": "module01",
     "auth": {
         "privateKey": "private key bytes",
         "certificate": "certificate bytes",
