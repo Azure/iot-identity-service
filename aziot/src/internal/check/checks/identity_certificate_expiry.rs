@@ -49,21 +49,21 @@ impl IdentityCertificateExpiry {
                 ..
             } => {
                 self.provisioning_mode = Some("dps-x509");
-                cert = Some(identity_cert);
+                cert = Some((identity_cert, "DPS identity certificate"));
             }
             ProvisioningType::Manual {
                 authentication: ManualAuthMethod::X509 { identity_cert, .. },
                 ..
             } => {
                 self.provisioning_mode = Some("manual-x509");
-                cert = Some(identity_cert);
+                cert = Some((identity_cert, "Manual identity certificate"));
             }
             ProvisioningType::Dps { .. } => self.provisioning_mode = Some("dps-other"),
             ProvisioningType::Manual { .. } => self.provisioning_mode = Some("manual-other"),
             ProvisioningType::None => self.provisioning_mode = Some("none"),
         };
 
-        if let Some(identity_cert) = cert {
+        if let Some((identity_cert, identity_cert_name)) = cert {
             let certd_config = unwrap_or_skip!(&cache.cfg.certd);
 
             let path = aziot_certd_config::util::get_path(
@@ -74,21 +74,20 @@ impl IdentityCertificateExpiry {
             )
             .map_err(|e| anyhow!("{}", e))?;
 
-            // check if this is a dynamically issued cert that hasn't been generated yet
-            if !path.exists() && !certd_config.preloaded_certs.contains_key(identity_cert) {
-                if !certd_config.cert_issuance.certs.contains_key(identity_cert) {
-                    return Err(anyhow!(
-                        "identity cert is not manually specified, nor is it dynamically issued"
-                    ));
-                }
-                // dynamically issued, but not generated yet.
-                return Ok(CheckResult::Ok);
-            };
-
-            let cert_info =
-                CertificateValidity::new(path, "DPS identity certificate", &identity_cert).await?;
-            self.certificate_info = Some(cert_info.clone());
-            cert_info.to_check_result()
+            if path.exists() {
+                let cert_info =
+                    CertificateValidity::new(path, identity_cert_name, &identity_cert).await?;
+                self.certificate_info = Some(cert_info.clone());
+                cert_info.to_check_result()
+            } else if !certd_config.preloaded_certs.contains_key(identity_cert)
+                && !certd_config.cert_issuance.certs.contains_key(identity_cert)
+            {
+                Err(anyhow!(
+                    "identity cert is not manually specified, nor is it dynamically issued"
+                ))
+            } else {
+                Ok(CheckResult::Ok)
+            }
         } else {
             Ok(CheckResult::Ignored)
         }
