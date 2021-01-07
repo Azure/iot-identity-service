@@ -232,7 +232,7 @@ async fn validate_cert(
         && !certd_config.cert_issuance.certs.contains_key(cert_id)
     {
         Err(anyhow!(
-            "{} certificate is not manually specified, nor is it dynamically issued",
+            "{} certificate is neither preloaded nor configured to be dynamically issued, and thus cannot be used.",
             cert_name
         ))
     } else {
