@@ -1,17 +1,19 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use aziot_identityd_config as config;
 
-use crate::error::{Error, InternalError};
 use crate::create_csr;
+use crate::error::{Error, InternalError};
 
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 pub struct IdentityManager {
     locks: std::sync::Mutex<std::collections::BTreeMap<String, Arc<std::sync::Mutex<()>>>>,
+    homedir_path: std::path::PathBuf,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
@@ -21,6 +23,7 @@ pub struct IdentityManager {
 
 impl IdentityManager {
     pub fn new(
+        homedir_path: std::path::PathBuf,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -29,6 +32,7 @@ impl IdentityManager {
     ) -> Self {
         IdentityManager {
             locks: Default::default(),
+            homedir_path,
             key_client,
             key_engine,
             cert_client,
@@ -415,6 +419,9 @@ impl IdentityManager {
         &mut self,
         provisioning: aziot_identityd_config::Provisioning,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
+        let mut prev_device_info_path = self.homedir_path.clone();
+        prev_device_info_path.push("device_info");
+
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
                 iothub_hostname,
@@ -634,44 +641,116 @@ impl IdentityManager {
         Ok(())
     }
 
-    pub async fn reconcile_hub_identities(
-        &self,
-        prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-        mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    ) -> Result<(), Error> {
-        if prev_module_set.is_empty() && current_module_set.is_empty() {
-            return Ok(());
-        }
+    pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
+        let settings = crate::configext::check(settings).map_err(|err| Error::Internal(err))?;
+        let settings_serialized =
+            toml::to_vec(&settings).expect("serializing settings cannot fail");
 
-        let hub_module_ids = self.get_module_identities().await?;
+        let (_, mut current_module_set, _) =
+            crate::configext::prepare_authorized_principals(&settings.principal);
 
-        for m in hub_module_ids {
-            if let aziot_identity_common::Identity::Aziot(m) = m {
-                if let Some(m) = m.module_id {
-                    if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-                        self.delete_module_identity(&m.0).await?;
-                        log::info!("Hub identity {:?} removed", &m.0);
-                    } else if current_module_set.contains(&m) {
-                        if !prev_module_set.contains(&m) {
-                            self.delete_module_identity(&m.0).await?;
-                            log::info!("Hub identity {:?} will be recreated", &m.0);
-                        } 
-                        else {
-                            current_module_set.remove(&m);
-                            log::info!("Hub identity {:?} already exists", &m.0);
+        match &self.iot_hub_device {
+            Some(device) => {
+                let mut prev_settings_path = self.homedir_path.clone();
+                prev_settings_path.push("prev_state");
+
+                let mut prev_device_info_path = self.homedir_path.clone();
+                prev_device_info_path.push("device_info");
+
+                let curr_hub_device_info = HubDeviceInfo {
+                    hub_name: device.iothub_hostname.clone(),
+                    device_id: device.device_id.clone(),
+                };
+
+                let device_status = toml::to_string(&curr_hub_device_info)
+                    .map_err(|err| Error::Internal(InternalError::SerializeDeviceInfo(err)))?;
+
+                // Only consider the previous Hub modules if the current and previous Hub devices match.
+                let prev_module_set =
+                    if prev_settings_path.exists() && prev_device_info_path.exists() {
+                        let prev_hub_device_info = HubDeviceInfo::new(&prev_device_info_path)
+                            .map_err(|err| Error::Internal(err))?;
+
+                        if prev_hub_device_info == Some(curr_hub_device_info) {
+                            let prev_settings = crate::configext::load_file(&prev_settings_path)
+                                .map_err(|err| Error::Internal(err))?;
+                            let (_, prev_hub_modules, _) =
+                                crate::configext::prepare_authorized_principals(
+                                    &prev_settings.principal,
+                                );
+                            prev_hub_modules
+                        } else {
+                            std::collections::BTreeSet::default()
+                        }
+                    } else {
+                        std::collections::BTreeSet::default()
+                    };
+
+                if prev_module_set.is_empty() && current_module_set.is_empty() {
+                    return Ok(());
+                }
+
+                let hub_module_ids = self.get_module_identities().await?;
+
+                for m in hub_module_ids {
+                    if let aziot_identity_common::Identity::Aziot(m) = m {
+                        if let Some(m) = m.module_id {
+                            if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+                                self.delete_module_identity(&m.0).await?;
+                                log::info!("Hub identity {:?} removed", &m.0);
+                            } else if current_module_set.contains(&m) {
+                                if !prev_module_set.contains(&m) {
+                                    self.delete_module_identity(&m.0).await?;
+                                    log::info!("Hub identity {:?} will be recreated", &m.0);
+                                } else {
+                                    current_module_set.remove(&m);
+                                    log::info!("Hub identity {:?} already exists", &m.0);
+                                }
+                            }
+                        } else {
+                            log::warn!("invalid identity type returned by get_module_identities");
                         }
                     }
-                } else {
-                    log::warn!("invalid identity type returned by get_module_identities");
                 }
-            }
-        }
 
-        for m in current_module_set {
-            self.create_module_identity(&m.0).await?;
-            log::info!("Hub identity {:?} added", &m.0);
+                for m in current_module_set {
+                    self.create_module_identity(&m.0).await?;
+                    log::info!("Hub identity {:?} added", &m.0);
+                }
+
+                let () = std::fs::write(prev_device_info_path, device_status)
+                    .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
+
+                let () = std::fs::write(prev_settings_path, &settings_serialized)
+                    .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
+            }
+            None => log::warn!("invalid identity type returned by get_module_identities"),
         }
 
         Ok(())
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
+pub struct HubDeviceInfo {
+    pub hub_name: String,
+
+    pub device_id: String,
+}
+
+impl HubDeviceInfo {
+    pub fn new(filename: &Path) -> Result<Option<Self>, InternalError> {
+        let info = std::fs::read_to_string(filename).map_err(InternalError::LoadDeviceInfo)?;
+
+        let info = match info.as_str() {
+            "unprovisioned" => None,
+            _ => Some(toml::from_str(&info).map_err(InternalError::ParseDeviceInfo)?),
+        };
+
+        Ok(info)
+    }
+
+    pub fn unprovisioned() -> String {
+        "unprovisioned".to_owned()
     }
 }
