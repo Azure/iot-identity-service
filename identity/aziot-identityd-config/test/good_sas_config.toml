@@ -5,6 +5,7 @@ hostname = "iotedge"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
+always_reprovisioning_on_startup = false
 source = "manual"
 iothub_hostname = "hubname"
 device_id = "deviceid"
@@ -12,4 +13,3 @@ device_id = "deviceid"
 [provisioning.authentication]
 method = "sas"
 device_id_pk = "sas"
-dynamic_reprovisioning = false

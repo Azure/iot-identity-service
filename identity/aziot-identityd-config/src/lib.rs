@@ -84,17 +84,17 @@ pub enum DpsAttestationMethod {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
-    // This type used to have the `provisioning` field before the `dynamic_reprovisioning` field. It doesn't matter much except that the fields are
+    // This type used to have the `provisioning` field before the `always_reprovisioning_on_startup` field. It doesn't matter much except that the fields are
     // serialized in the order of definition when generating a new config via `aziot init`, and it would've been nice to serialize
-    // the `provisioning` value before the `dynamic_reprovisioning` value.
+    // the `provisioning` value before the `always_reprovisioning_on_startup` value.
     //
-    // Unfortunately the TOML serializer needs "values" (like `dynamic_reprovisioning`) to come before "tables" (like `provisioning`),
+    // Unfortunately the TOML serializer needs "values" (like `always_reprovisioning_on_startup`) to come before "tables" (like `provisioning`),
     // otherwise it fails to serialize the value. It ought to not matter for this type because the `provisioning` value is flattened,
     // but the TOML serializer doesn't know this.
     //
-    // So we have to move the `dynamic_reprovisioning` field before the `provisioning` field.
+    // So we have to move the `always_reprovisioning_on_startup` field before the `provisioning` field.
     #[serde(default)]
-    pub dynamic_reprovisioning: bool,
+    pub always_reprovisioning_on_startup: bool,
 
     #[serde(flatten)]
     pub provisioning: ProvisioningType,
@@ -162,7 +162,7 @@ mod tests {
     fn manual_sas_provisioning_settings_succeeds() {
         let s = load_settings("test/good_sas_config.toml").unwrap();
 
-        assert_eq!(s.provisioning.dynamic_reprovisioning, false);
+        assert_eq!(s.provisioning.always_reprovisioning_on_startup, false);
 
         match s.provisioning.provisioning {
             ProvisioningType::Manual {

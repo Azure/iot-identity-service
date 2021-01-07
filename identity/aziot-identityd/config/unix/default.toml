@@ -22,6 +22,7 @@ homedir = "/var/lib/aziot/identityd"
 
 
 # [provisioning]
+# always_reprovisioning_on_startup = false
 # source = "manual"
 # iothub_hostname = "hubname"
 # device_id = "deviceid"
@@ -29,7 +30,6 @@ homedir = "/var/lib/aziot/identityd"
 # [provisioning.authentication]
 # method = "sas"
 # device_id_pk = "device-id"
-# dynamic_reprovisioning = false
 
 # [provisioning.authentication]
 # method = "x509"
@@ -37,7 +37,6 @@ homedir = "/var/lib/aziot/identityd"
 # device_id = "deviceid"
 # device_id_cert = "device-id"
 # device_id_pk = "device-id"
-# dynamic_reprovisioning = false
 
 # [provisioning]
 # "source" = "dps"

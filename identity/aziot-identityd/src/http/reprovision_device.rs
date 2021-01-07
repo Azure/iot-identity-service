@@ -50,7 +50,10 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        match api.reprovision_device(auth_id).await {
+        match api
+            .reprovision_device(auth_id, crate::ReprovisionTrigger::Api)
+            .await
+        {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
         };
