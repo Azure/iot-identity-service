@@ -64,12 +64,12 @@ impl Checker for HostConnectIotHub {
 impl HostConnectIotHub {
     async fn inner_execute(
         &mut self,
-        _shared: &CheckerShared,
+        shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
 
-        let iothub_hostname = match &self.iothub_hostname {
+        let iothub_hostname = match &shared.cfg.iothub_hostname {
             Some(s) => s,
             None => {
                 let iothub_hostname = match &unwrap_or_skip!(&cache.cfg.identityd)
