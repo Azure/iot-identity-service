@@ -66,49 +66,18 @@ pub async fn main(
             std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
     }
 
-    // let api = Api::new(
-    //     settings.clone(),
-    //     Default::default(),
-    //     Box::new(auth::authentication::DefaultAuthenticator),
-    //     Box::new(auth::authorization::DefaultAuthorizer),
-    //     Default::default(),
-    // )?;
-
-    //new approach: file notifier and reprovision API do 2 things - authenticator.update() and trigger provision_device (which calls reconcile)
-    //todo: Encapsulate into triggered task - triggered by file notification or provision device
-    //todo: run this on each file notifier, using snapshot (clone) of new settings.principal
-    let (allowed_users, _, local_modules) =
-        configext::prepare_authorized_principals(&settings.principal);
-
-    //todo: wrap this up in update_authenticator
-    // All uids in the principals are authenticated users to this service
-    let authenticator = Box::new(SettingsAuthenticator {
-        allowed_users: allowed_users.clone(),
-    });
-
-    //todo: try making this state agnostic and pass into Api object above
-    let authorizer = Box::new(SettingsAuthorizer {});
-
-    //todo: replace with update authenticator, authorizer, local_modules. Remove allowed users (replace with AuthId(Principal))
-    let api = Api::new(
-        settings,
-        local_modules,
-        authenticator,
-        authorizer,
-        allowed_users,
-    )?;
-
+    let api = Api::new(settings.clone())?;
     let api = Arc::new(futures_util::lock::Mutex::new(api));
 
-    {
-        let mut api_ = api.lock().await;
+    let api_startup = api.clone();
 
-        log::info!("Provisioning starting.");
+    tokio::task::spawn(async move {
+        let mut api_ = api_startup.lock().await;
         let _ = api_
-            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup)
-            .await?;
-        log::info!("Provisioning complete.");
-    }
+            .update_settings(settings, ReprovisionTrigger::Startup)
+            .await;
+        drop(api_);
+    });
 
     let service = http::Service { api };
 
@@ -124,7 +93,6 @@ pub struct Api {
         aziot_identity_common::ModuleId,
         Option<aziot_identity_common::LocalIdOpts>,
     >,
-    pub caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
 
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -133,16 +101,7 @@ pub struct Api {
 }
 
 impl Api {
-    pub fn new(
-        settings: config::Settings,
-        local_identities: std::collections::BTreeMap<
-            aziot_identity_common::ModuleId,
-            Option<aziot_identity_common::LocalIdOpts>,
-        >,
-        authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
-        authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
-        caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
-    ) -> Result<Self, Error> {
+    pub fn new(settings: config::Settings) -> Result<Self, Error> {
         let key_service_connector = settings.endpoints.aziot_keyd.clone();
 
         let key_client = {
@@ -197,11 +156,10 @@ impl Api {
 
         Ok(Api {
             settings,
-            authenticator,
-            authorizer,
+            authenticator: Box::new(auth::authentication::DefaultAuthenticator),
+            authorizer: Box::new(auth::authorization::DefaultAuthorizer),
             id_manager,
-            local_identities,
-            caller_identities,
+            local_identities: Default::default(),
 
             key_client,
             key_engine,
@@ -391,14 +349,34 @@ impl Api {
         })
     }
 
-    // pub fn update_settings(&mut self, settings: config::Settings) -> Result<(), Error> {
-    //     Ok(())
-    // }
+    pub async fn update_settings(
+        &mut self,
+        settings: config::Settings,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Error> {
+        let (allowed_users, _, local_modules) =
+            configext::prepare_authorized_principals(&settings.principal);
+
+        // All uids in the principals are authenticated users to this service
+        let authenticator = Box::new(SettingsAuthenticator {
+            allowed_users: allowed_users.clone(),
+        });
+        self.authenticator = authenticator;
+        self.local_identities = local_modules;
+
+        let _ = self
+            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .await?;
+
+        self.settings = settings;
+
+        Ok(())
+    }
 
     pub async fn reprovision_device(
         &mut self,
         auth_id: auth::AuthId,
-        operation: ReprovisionTrigger,
+        trigger: ReprovisionTrigger,
     ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -407,7 +385,9 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        let _ = match operation {
+        log::info!("Provisioning starting.");
+
+        let _ = match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), true)
@@ -432,6 +412,8 @@ impl Api {
             .id_manager
             .reconcile_hub_identities(self.settings.clone())
             .await?;
+
+        log::info!("Provisioning complete.");
 
         Ok(())
     }
