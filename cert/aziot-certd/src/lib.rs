@@ -98,7 +98,9 @@ impl Api {
     }
 
     pub fn import_cert(&mut self, id: &str, pem: &[u8]) -> Result<(), Error> {
-        let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
+        let path =
+            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
         std::fs::write(path, pem)
             .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
         Ok(())
@@ -111,83 +113,14 @@ impl Api {
     }
 
     pub fn delete_cert(&mut self, id: &str) -> Result<(), Error> {
-        let path = get_path(&self.homedir_path, &self.preloaded_certs, id)?;
+        let path =
+            aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
         match std::fs::remove_file(path) {
             Ok(()) => Ok(()),
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(Error::Internal(InternalError::DeleteFile(err))),
         }
-    }
-}
-
-fn get_path(
-    homedir_path: &std::path::Path,
-    preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
-    cert_id: &str,
-) -> Result<std::path::PathBuf, Error> {
-    if let Some(preloaded_cert) = preloaded_certs.get(cert_id) {
-        let path = get_preloaded_cert_path(preloaded_cert, cert_id)?;
-        return Ok(path);
-    }
-
-    let mut path = homedir_path.to_owned();
-    path.push("certs");
-
-    if !path.exists() {
-        let () = std::fs::create_dir_all(&path)
-            .map_err(|err| Error::Internal(InternalError::GetPath(Box::new(err))))?;
-    }
-
-    let id_sanitized: String = cert_id
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect();
-
-    let hash = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), cert_id.as_bytes())
-        .map_err(|err| Error::Internal(InternalError::GetPath(Box::new(err))))?;
-    let hash = hex::encode(hash);
-    path.push(format!("{}-{}.cer", id_sanitized, hash));
-
-    Ok(path)
-}
-
-fn get_preloaded_cert_path(
-    preloaded_cert: &PreloadedCert,
-    cert_id: &str,
-) -> Result<std::path::PathBuf, Error> {
-    match preloaded_cert {
-        PreloadedCert::Uri(uri) => {
-            let scheme = uri.scheme();
-            if scheme != "file" {
-                return Err(Error::Internal(InternalError::GetPath(
-                    format!(
-                        "preloaded cert {:?} does not have a valid URI: unrecognized scheme {:?}",
-                        cert_id, scheme,
-                    )
-                    .into(),
-                )));
-            }
-
-            let path = uri.to_file_path().map_err(|()| {
-                Error::Internal(InternalError::GetPath(
-                    format!(
-                        "preloaded cert {:?} does not have a valid URI: not a valid path",
-                        cert_id,
-                    )
-                    .into(),
-                ))
-            })?;
-
-            Ok(path)
-        }
-
-        PreloadedCert::Ids(_) => Err(Error::Internal(InternalError::GetPath(
-            format!(
-                "preloaded cert {:?} is a list of IDs, not a single URI",
-                cert_id,
-            )
-            .into(),
-        ))),
     }
 }
 
@@ -313,7 +246,13 @@ fn create_cert<'a>(
             } else {
                 // Load the issuer and use it to sign the CSR.
 
-                let issuer_path = get_path(&api.homedir_path, &api.preloaded_certs, issuer_id)?;
+                let issuer_path = aziot_certd_config::util::get_path(
+                    &api.homedir_path,
+                    &api.preloaded_certs,
+                    issuer_id,
+                    true,
+                )
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                 let issuer_x509_pem = load_inner(&issuer_path)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?
                     .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
@@ -339,7 +278,13 @@ fn create_cert<'a>(
                 x509
             };
 
-            let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
+            let path = aziot_certd_config::util::get_path(
+                &api.homedir_path,
+                &api.preloaded_certs,
+                id,
+                true,
+            )
+            .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
             std::fs::write(path, &x509)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -461,7 +406,13 @@ fn create_cert<'a>(
                                 )
                                 .await?;
 
-                                let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
+                                let path = aziot_certd_config::util::get_path(
+                                    &api.homedir_path,
+                                    &api.preloaded_certs,
+                                    id,
+                                    true,
+                                )
+                                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                                 std::fs::write(path, &x509).map_err(|err| {
                                     Error::Internal(InternalError::CreateCert(Box::new(err)))
                                 })?;
@@ -680,11 +631,15 @@ fn create_cert<'a>(
                                         )
                                         .await?;
 
-                                        let path = get_path(
+                                        let path = aziot_certd_config::util::get_path(
                                             &api.homedir_path,
                                             &api.preloaded_certs,
                                             identity_cert,
-                                        )?;
+                                            true,
+                                        )
+                                        .map_err(|err| {
+                                            Error::Internal(InternalError::GetPath(err))
+                                        })?;
                                         std::fs::write(path, &x509).map_err(|err| {
                                             Error::Internal(InternalError::CreateCert(Box::new(
                                                 err,
@@ -722,7 +677,13 @@ fn create_cert<'a>(
                         )
                         .await?;
 
-                        let path = get_path(&api.homedir_path, &api.preloaded_certs, id)?;
+                        let path = aziot_certd_config::util::get_path(
+                            &api.homedir_path,
+                            &api.preloaded_certs,
+                            id,
+                            true,
+                        )
+                        .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
                         std::fs::write(path, &x509).map_err(|err| {
                             Error::Internal(InternalError::CreateCert(Box::new(err)))
                         })?;
@@ -786,7 +747,8 @@ fn get_cert_inner(
     preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
-    let path = get_path(homedir_path, preloaded_certs, id)?;
+    let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
+        .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
     let bytes = load_inner(&path)?;
     Ok(bytes)
 }

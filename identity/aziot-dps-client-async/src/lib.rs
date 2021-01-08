@@ -158,7 +158,7 @@ impl Client {
             .await;
         };
 
-        if matches!(auth_kind, DpsAuthKind::TpmWithAuth {..}) {
+        if matches!(auth_kind, DpsAuthKind::TpmWithAuth { .. }) {
             // import the returned authentication key into the TPM
             let auth_key = res
                 .registration_state
@@ -226,7 +226,7 @@ impl Client {
             DpsAuthKind::SymmetricKey { sas_key: key }
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-                let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey {..}) {
+                let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey { .. }) {
                     get_sas_connector(&audience, &key, &*self.key_client, false).await?
                 } else {
                     get_sas_connector(

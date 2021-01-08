@@ -215,7 +215,7 @@ dist:
 
 	# Copy source files
 	cp -R \
-		./aziot ./aziotd ./cert ./http-common ./identity ./iotedged ./key ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
+		./aziot ./aziotd ./cert ./http-common ./identity ./iotedged ./key ./mini-sntp ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
