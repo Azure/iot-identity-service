@@ -357,6 +357,9 @@ impl Api {
         let (allowed_users, _, local_modules) =
             configext::prepare_authorized_principals(&settings.principal);
 
+        let authorizer = Box::new(SettingsAuthorizer {});
+        self.authorizer = authorizer;
+
         // All uids in the principals are authenticated users to this service
         let authenticator = Box::new(SettingsAuthenticator {
             allowed_users: allowed_users.clone(),
