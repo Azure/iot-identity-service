@@ -31,7 +31,7 @@ impl Authorizer for DefaultAuthorizer {
     type Error = Error;
 
     fn authorize(&self, _: Operation) -> Result<bool, Self::Error> {
-        Ok(true)
+        Ok(false)
     }
 }
 
