@@ -5,50 +5,45 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_unit_value,
+    clippy::module_name_repetitions,
     clippy::similar_names,
     clippy::too_many_lines,
     clippy::type_complexity
 )]
 
+use anyhow::Result;
+use structopt::StructOpt;
+
+mod internal;
+
+mod check;
+mod check_list;
 mod init;
 
-fn main() -> Result<(), Error> {
-    let options = structopt::StructOpt::from_args();
+async fn try_main() -> Result<()> {
+    let options = StructOpt::from_args();
     match options {
         Options::Init => init::run()?,
+        Options::Check(cfg) => check::check(cfg).await?,
+        Options::CheckList(cfg) => check_list::check_list(cfg)?,
     }
 
     Ok(())
 }
 
-#[derive(structopt::StructOpt)]
+#[tokio::main]
+async fn main() {
+    if let Err(err) = try_main().await {
+        eprintln!("{:?}", err);
+    }
+}
+
+#[derive(StructOpt)]
 enum Options {
+    /// Interactive wizard to get 'aziot' up and running.
     Init,
-}
-
-struct Error(Box<dyn std::error::Error>, backtrace::Backtrace);
-
-impl std::fmt::Debug for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.0)?;
-
-        let mut source = self.0.source();
-        while let Some(err) = source {
-            writeln!(f, "caused by: {}", err)?;
-            source = err.source();
-        }
-
-        writeln!(f, "{:?}", self.1)?;
-
-        Ok(())
-    }
-}
-
-impl<E> From<E> for Error
-where
-    E: Into<Box<dyn std::error::Error>>,
-{
-    fn from(err: E) -> Self {
-        Error(err.into(), Default::default())
-    }
+    /// Check for common config and deployment issues.
+    Check(check::CheckOptions),
+    /// List the checks that are run for 'aziot check'
+    CheckList(check_list::CheckListOptions),
 }

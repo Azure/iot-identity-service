@@ -51,11 +51,19 @@ pub mod get_device_identity {
 
 pub mod create_module_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub enum CreateModuleOpts {
+        LocalIdOpts(aziot_identity_common::LocalIdOpts),
+    }
+
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
         #[serde(rename = "type")]
         pub id_type: String,
         #[serde(rename = "moduleId")]
         pub module_id: String,
+        #[serde(flatten)]
+        pub opts: Option<CreateModuleOpts>,
     }
 
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

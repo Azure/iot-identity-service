@@ -2,6 +2,9 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
+mod check;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Settings {
@@ -33,7 +36,7 @@ pub struct Principal {
     pub id_type: Option<Vec<aziot_identity_common::IdType>>,
 
     /// Options for this principal's local identity.
-    pub localid: Option<LocalIdOpts>,
+    pub localid: Option<aziot_identity_common::LocalIdOpts>,
 }
 
 #[derive(
@@ -48,20 +51,6 @@ pub type Credentials = Uid;
 pub struct LocalId {
     /// Identifier for a group of local identity certificates, suffixed to the common name.
     pub domain: String,
-}
-
-/// Options for a single local identity.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type")]
-pub enum LocalIdOpts {
-    /// Options valid when local identities are X.509 credentials. Currently the only
-    /// supported credential type, but may change in the future.
-    #[serde(rename = "x509")]
-    X509 {
-        /// Whether the X.509 certificate is a TLS client or server certificate.
-        #[serde(default)]
-        attributes: aziot_identity_common::LocalIdAttr,
-    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -178,37 +167,30 @@ mod tests {
 
         assert_eq!(s.provisioning.dynamic_reprovisioning, false);
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Manual {
-                iothub_hostname: _,
-                device_id: _,
-                authentication,
-            } => match authentication {
-                ManualAuthMethod::SharedPrivateKey { device_id_pk: _ } => {}
-                _ => panic!("incorrect provisioning type selected"),
-            },
-            _ => panic!("incorrect provisioning type selected"),
-        };
+                authentication: ManualAuthMethod::SharedPrivateKey { .. },
+                ..
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]
     fn manual_dps_provisioning_settings_succeeds() {
         let s = load_settings("test/good_dps_config.toml").unwrap();
 
-        match s.provisioning.provisioning {
+        if !matches!(
+            s.provisioning.provisioning,
             ProvisioningType::Dps {
-                global_endpoint: _,
-                scope_id: _,
-                attestation,
-            } => match attestation {
-                DpsAttestationMethod::SymmetricKey {
-                    registration_id: _,
-                    symmetric_key: _,
-                } => (),
-                _ => panic!("incorrect provisioning type selected"),
-            },
-            _ => panic!("incorrect provisioning type selected"),
-        };
+                attestation: DpsAttestationMethod::SymmetricKey { .. },
+                ..
+            }
+        ) {
+            panic!("incorrect provisioning type selected");
+        }
     }
 
     #[test]

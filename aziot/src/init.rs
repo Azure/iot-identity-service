@@ -14,6 +14,8 @@
 //! - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
 //!   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
 
+use anyhow::{anyhow, Context, Result};
+
 const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";
 
 const AZIOT_KEYD_HOMEDIR_PATH: &str = "/var/lib/aziot/keyd";
@@ -35,7 +37,7 @@ const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
 /// The ID used for the CA cert that is used to validate the EST server's server cert.
 const EST_SERVER_CA_ID: &str = "est-server-ca";
 
-pub(crate) fn run() -> Result<(), crate::Error> {
+pub(crate) fn run() -> Result<()> {
     // In production, running as root is the easiest way to guarantee the tool has write access to every service's config file.
     // But it's convenient to not do this for the sake of development because the the development machine doesn't necessarily
     // have the package installed and the users created, and it's easier to have the config files owned by the current user anyway.
@@ -46,26 +48,26 @@ pub(crate) fn run() -> Result<(), crate::Error> {
     let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
         if nix::unistd::Uid::current().is_root() {
             let aziotks_user = nix::unistd::User::from_name("aziotks")
-                .map_err(|err| format!("could not query aziotks user information: {}", err))?
-                .ok_or("could not query aziotks user information")?;
+                .context("could not query aziotks user information")?
+                .ok_or_else(|| anyhow!("could not query aziotks user information"))?;
 
             let aziotcs_user = nix::unistd::User::from_name("aziotcs")
-                .map_err(|err| format!("could not query aziotcs user information: {}", err))?
-                .ok_or("could not query aziotcs user information")?;
+                .context("could not query aziotcs user information")?
+                .ok_or_else(|| anyhow!("could not query aziotcs user information"))?;
 
             let aziotid_user = nix::unistd::User::from_name("aziotid")
-                .map_err(|err| format!("could not query aziotid user information: {}", err))?
-                .ok_or("could not query aziotid user information")?;
+                .context("could not query aziotid user information")?
+                .ok_or_else(|| anyhow!("could not query aziotid user information"))?;
 
             let aziottpm_user = nix::unistd::User::from_name("aziottpm")
-                .map_err(|err| format!("could not query aziottpm user information: {}", err))?
-                .ok_or("could not query aziottpm user information")?;
+                .context("could not query aziottpm user information")?
+                .ok_or_else(|| anyhow!("could not query aziottpm user information"))?;
 
             (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user)
         } else if cfg!(debug_assertions) {
             let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
-                .map_err(|err| format!("could not query current user information: {}", err))?
-                .ok_or("could not query current user information")?;
+                .context("could not query current user information")?
+                .ok_or_else(|| anyhow!("could not query current user information"))?;
             (
                 current_user.clone(),
                 current_user.clone(),
@@ -73,7 +75,7 @@ pub(crate) fn run() -> Result<(), crate::Error> {
                 current_user,
             )
         } else {
-            return Err("this command must be run as root".into());
+            return Err(anyhow!("this command must be run as root"));
         };
 
     for &f in &[
@@ -87,14 +89,13 @@ pub(crate) fn run() -> Result<(), crate::Error> {
         // It would be less racy to test this right before we're about to overwrite the files, but by then we'll have asked the user
         // all of the questions and it would be a waste to give up.
         if std::path::Path::new(f).exists() {
-            return Err(format!(
-                "\
-                Cannot run because file {} already exists. \
-                Delete this file (after taking a backup if necessary) before running this command.\
-            ",
+            return Err(anyhow!(
+                    "\
+                    Cannot run because file {} already exists. \
+                    Delete this file (after taking a backup if necessary) before running this command.\
+                ",
                 f
-            )
-            .into());
+            ));
         }
     }
 
@@ -185,13 +186,13 @@ struct RunOutput {
 }
 
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
-fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
+fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
     println!("Welcome to the configuration tool for aziot-identity-service.");
     println!();
     println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
     println!();
 
-    let hostname = get_hostname()?;
+    let hostname = crate::internal::common::get_hostname()?;
 
     let (provisioning_type, preloaded_device_id_pk_bytes) = choose! {
         stdin,
@@ -360,8 +361,13 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
                 .insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
         } else if matches!(
             provisioning_type,
-            aziot_identityd_config::ProvisioningType::Manual { authentication: aziot_identityd_config::ManualAuthMethod::X509 { .. }, .. } |
-            aziot_identityd_config::ProvisioningType::Dps { attestation: aziot_identityd_config::DpsAttestationMethod::X509 { .. }, .. }
+            aziot_identityd_config::ProvisioningType::Manual {
+                authentication: aziot_identityd_config::ManualAuthMethod::X509 { .. },
+                ..
+            } | aziot_identityd_config::ProvisioningType::Dps {
+                attestation: aziot_identityd_config::DpsAttestationMethod::X509 { .. },
+                ..
+            }
         ) {
             device_id_source = Some(choose! {
                 stdin,
@@ -634,10 +640,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
         endpoints: Default::default(),
     };
 
-    let keyd_config = toml::to_vec(&keyd_config)
-        .map_err(|err| format!("could not serialize aziot-keyd config: {}", err))?;
-    let certd_config = toml::to_vec(&certd_config)
-        .map_err(|err| format!("could not serialize aziot-certd config: {}", err))?;
+    let keyd_config =
+        toml::to_vec(&keyd_config).context("could not serialize aziot-keyd config")?;
+    let certd_config =
+        toml::to_vec(&certd_config).context("could not serialize aziot-certd config")?;
 
     let identityd_config = {
         aziot_identityd_config::Settings {
@@ -652,11 +658,11 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput, crate::Error> {
             localid: None,
         }
     };
-    let identityd_config = toml::to_vec(&identityd_config)
-        .map_err(|err| format!("could not serialize aziot-identityd config: {}", err))?;
+    let identityd_config =
+        toml::to_vec(&identityd_config).context("could not serialize aziot-identityd config")?;
 
-    let tpmd_config = toml::to_vec(&tpmd_config)
-        .map_err(|err| format!("could not serialize aziot-certd config: {}", err))?;
+    let tpmd_config =
+        toml::to_vec(&tpmd_config).context("could not serialize aziot-certd config")?;
 
     Ok(RunOutput {
         keyd_config,
@@ -864,7 +870,7 @@ fn choose<'a, TChoice>(
     stdin: &mut impl Reader,
     question: &str,
     choices: &'a [TChoice],
-) -> Result<&'a TChoice, crate::Error>
+) -> Result<&'a TChoice>
 where
     TChoice: std::fmt::Display,
 {
@@ -905,7 +911,7 @@ where
     }
 }
 
-fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String, crate::Error> {
+fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String> {
     println!("{}", question);
 
     let mut line = String::new();
@@ -922,7 +928,7 @@ fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String, crate::Erro
     }
 }
 
-fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String, crate::Error> {
+fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String> {
     println!("{}", question);
 
     let mut line = String::new();
@@ -1034,22 +1040,8 @@ fn parse_cert_location(value: &str) -> Option<url::Url> {
     }
 }
 
-fn get_hostname() -> Result<String, crate::Error> {
-    if cfg!(test) {
-        Ok("my-device".to_owned())
-    } else {
-        let mut hostname = vec![0_u8; 256];
-        let hostname = nix::unistd::gethostname(&mut hostname)
-            .map_err(|err| format!("could not get machine hostname: {}", err))?;
-        let hostname = hostname
-            .to_str()
-            .map_err(|err| format!("could not get machine hostname: {}", err))?;
-        Ok(hostname.to_owned())
-    }
-}
-
 /// Prompts the user to enter an EST server URL, and fixes it to have a "/.well-known/est" component if it doesn't already.
-fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> Result<url::Url, crate::Error> {
+fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> Result<url::Url> {
     loop {
         let url = prompt(stdin, prompt_question)?;
         let url = if url.contains("/.well-known/est") {
@@ -1070,23 +1062,19 @@ fn create_dir_all(
     path: &(impl AsRef<std::path::Path> + ?Sized),
     user: &nix::unistd::User,
     mode: u32,
-) -> Result<(), crate::Error> {
+) -> Result<()> {
     let path = path.as_ref();
     let path_displayable = path.display();
 
     let () = std::fs::create_dir_all(path)
-        .map_err(|err| format!("could not create {} directory: {}", path_displayable, err))?;
-    let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid)).map_err(|err| {
-        format!(
-            "could not set ownership on {} directory: {}",
-            path_displayable, err
-        )
-    })?;
+        .with_context(|| format!("could not create {} directory", path_displayable))?;
+    let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid))
+        .with_context(|| format!("could not set ownership on {} directory", path_displayable))?;
     let () = std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(mode))
-        .map_err(|err| {
+        .with_context(|| {
             format!(
-                "could not set permissions on {} directory: {}",
-                path_displayable, err
+                "could not set permissions on {} directory",
+                path_displayable
             )
         })?;
     Ok(())
@@ -1097,16 +1085,16 @@ fn write_file(
     content: &[u8],
     user: &nix::unistd::User,
     mode: u32,
-) -> Result<(), crate::Error> {
+) -> Result<()> {
     let path = path.as_ref();
     let path_displayable = path.display();
 
     let () = std::fs::write(path, content)
-        .map_err(|err| format!("could not create {}: {}", path_displayable, err))?;
+        .with_context(|| format!("could not create {}", path_displayable))?;
     let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid))
-        .map_err(|err| format!("could not set ownership on {}: {}", path_displayable, err))?;
+        .with_context(|| format!("could not set ownership on {}", path_displayable))?;
     let () = std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(mode))
-        .map_err(|err| format!("could not set permissions on {}: {}", path_displayable, err))?;
+        .with_context(|| format!("could not set permissions on {}", path_displayable))?;
     Ok(())
 }
 

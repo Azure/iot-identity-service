@@ -39,6 +39,20 @@ pub struct LocalIdSpec {
     pub auth: LocalAuthenticationInfo,
 }
 
+/// Options for a single local identity.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type")]
+pub enum LocalIdOpts {
+    /// Options valid when local identities are X.509 credentials. Currently the only
+    /// supported credential type, but may change in the future.
+    #[serde(rename = "x509")]
+    X509 {
+        /// Whether the X.509 certificate is a TLS client or server certificate.
+        #[serde(default)]
+        attributes: LocalIdAttr,
+    },
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct LocalAuthenticationInfo {
     #[serde(rename = "privateKey")]
