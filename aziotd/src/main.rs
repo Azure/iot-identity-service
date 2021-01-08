@@ -9,7 +9,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
 
-mod config;
 mod error;
 mod logging;
 
@@ -148,7 +147,7 @@ async fn run<TMain, TConfig, TFuture, TServer>(
     config_directory_default: &str,
 ) -> Result<(), Error>
 where
-    TMain: FnOnce(TConfig) -> TFuture,
+    TMain: FnOnce(TConfig, std::path::PathBuf, std::path::PathBuf) -> TFuture,
     TConfig: serde::de::DeserializeOwned,
     TFuture: std::future::Future<
         Output = Result<(http_common::Connector, TServer), Box<dyn std::error::Error>>,
@@ -174,9 +173,9 @@ where
     let config_directory_path: std::path::PathBuf = std::env::var_os(config_directory_env_var)
         .map_or_else(|| config_directory_default.into(), Into::into);
 
-    let config: TConfig = crate::config::read_config(config_path, config_directory_path)?;
+    let config: TConfig = config_common::read_config(config_path.clone(), config_directory_path.clone()).map_err(|err| ErrorKind::ReadConfig(err))?;
 
-    let (connector, server) = main(config).await.map_err(ErrorKind::Service)?;
+    let (connector, server) = main(config, config_path, config_directory_path).await.map_err(ErrorKind::Service)?;
 
     log::info!("Starting server...");
 

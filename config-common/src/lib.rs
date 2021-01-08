@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+pub mod error;
+
 use crate::error::{Error, ErrorKind};
 
-pub(crate) fn read_config<TConfig>(
+pub fn read_config<TConfig>(
     config_path: std::path::PathBuf,
     config_directory_path: std::path::PathBuf,
 ) -> Result<TConfig, Error>

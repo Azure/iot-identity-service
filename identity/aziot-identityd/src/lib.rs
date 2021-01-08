@@ -25,6 +25,7 @@ mod http;
 pub mod identity;
 
 pub use error::{Error, InternalError};
+use notify::Watcher;
 
 /// URI query parameter that identifies module identity type.
 const ID_TYPE_AZIOT: &str = "aziot";
@@ -55,6 +56,8 @@ pub enum ReprovisionTrigger {
 
 pub async fn main(
     settings: config::Settings,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let settings = settings.check().map_err(InternalError::BadSettings)?;
 
@@ -71,14 +74,51 @@ pub async fn main(
 
     let api_startup = api.clone();
 
+    let settings_copy = settings.clone();
+
     tokio::task::spawn(async move {
         let mut api_ = api_startup.lock().await;
         let _ = api_
-            .update_settings(settings, ReprovisionTrigger::Startup)
+            .update_settings(settings_copy, ReprovisionTrigger::Startup)
             .await;
         drop(api_);
     });
 
+    let api_watcher = api.clone();
+
+    let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
+
+    // Start file watcher
+    tokio::task::spawn(async move {
+        // Create a channel to receive the events.
+
+        // Create a watcher object, delivering debounced events.
+        // The notification back-end is selected based on the platform.
+        let mut file_watcher = notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
+
+        // Add a path to be watched. All files and directories at that path and
+        // below will be monitored for changes.
+        file_watcher.watch(config_directory_path.clone(), notify::RecursiveMode::Recursive).unwrap();
+
+        loop {
+            let event = file_watcher_rx.recv();
+            
+            match event {
+                Ok(_) => {
+                    config_common::read_config(config_path.clone(), config_directory_path.clone())
+                    .map(|new_settings: config::Settings| async {
+                        let mut api_ = api_watcher.lock().await;
+                        let _ = api_
+                            .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
+                            .await;
+                        drop(api_);
+                    });
+                },
+                Err(e) => {},
+            }
+        }
+    });
+    
     let service = http::Service { api };
 
     Ok((connector, service))
