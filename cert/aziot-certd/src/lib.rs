@@ -25,6 +25,8 @@ use aziot_certd_config::{
 
 pub async fn main(
     config: Config,
+    _: std::path::PathBuf,
+    _: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         homedir_path,

@@ -20,6 +20,8 @@ use error::{Error, InternalError};
 
 pub async fn main(
     config: Config,
+    _: std::path::PathBuf,
+    _: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         endpoints: Endpoints {

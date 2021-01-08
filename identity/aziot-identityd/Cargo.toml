@@ -15,9 +15,11 @@ chrono = "0.4"
 futures-util = "0.3"
 http = "0.2"
 hyper = "0.13"
+futures = "0.3"
 lazy_static = "1"
 libc = "0.2"
 log = "0.4"
+notify = "4"
 openssl = "0.10"
 percent-encoding = "2"
 regex = "1"
@@ -41,6 +43,7 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
