@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 http = "0.2"
-hyper = { version = "0.13", features = ["stream"] }
+hyper = { version = "0.14", features = ["stream"] }
 percent-encoding = "2"
 serde = "1"
 serde_json = "1"

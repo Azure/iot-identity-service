@@ -152,7 +152,7 @@ impl Client {
                 break res;
             }
 
-            tokio::time::delay_for(tokio::time::Duration::from_secs(
+            tokio::time::sleep(tokio::time::Duration::from_secs(
                 DPS_ASSIGNMENT_RETRY_INTERVAL_SECS,
             ))
             .await;
