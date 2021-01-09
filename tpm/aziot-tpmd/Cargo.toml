@@ -18,4 +18,4 @@ aziot-tpm = { path = "../aziot-tpm-rs" }
 aziot-tpm-common = { path = "../aziot-tpm-common" }
 aziot-tpm-common-http = { path = "../aziot-tpm-common-http" }
 aziot-tpmd-config = { path = "../aziot-tpmd-config" }
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio02"] }

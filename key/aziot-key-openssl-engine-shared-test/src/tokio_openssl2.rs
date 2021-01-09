@@ -3,10 +3,7 @@
 type HandshakeFuture = std::pin::Pin<
     Box<
         dyn std::future::Future<
-            Output = Result<
-                tokio_openssl::SslStream<tokio::net::TcpStream>,
-                tokio_openssl::HandshakeError<tokio::net::TcpStream>,
-            >,
+            Output = Result<tokio_openssl::SslStream<tokio::net::TcpStream>, openssl::ssl::Error>,
         >,
     >,
 >;
@@ -14,16 +11,19 @@ type HandshakeFuture = std::pin::Pin<
 /// A stream of incoming TLS connections, for use with a hyper server.
 pub(crate) struct Incoming {
     listener: tokio::net::TcpListener,
-    tls_acceptor: std::sync::Arc<openssl::ssl::SslAcceptor>,
+    tls_acceptor: openssl::ssl::SslAcceptor,
     connections: futures_util::stream::FuturesUnordered<HandshakeFuture>,
 }
 
 impl Incoming {
     pub(crate) fn new(
-        listener: std::net::TcpListener,
+        addr: &str,
+        port: u16,
         cert_chain_path: &std::path::Path,
         private_key: &openssl::pkey::PKey<openssl::pkey::Private>,
     ) -> std::io::Result<Self> {
+        let listener = std::net::TcpListener::bind(&(addr, port))?;
+        listener.set_nonblocking(true)?;
         let listener = tokio::net::TcpListener::from_std(listener)?;
 
         let mut tls_acceptor =
@@ -68,7 +68,6 @@ impl Incoming {
         );
 
         let tls_acceptor = tls_acceptor.build();
-        let tls_acceptor = std::sync::Arc::new(tls_acceptor);
 
         Ok(Incoming {
             listener,
@@ -91,12 +90,21 @@ impl hyper::server::accept::Accept for Incoming {
         loop {
             match self.listener.poll_accept(cx) {
                 std::task::Poll::Ready(Ok((stream, _))) => {
-                    // The async fn needs to own the SslAcceptor even though it only uses it as a borrow,
-                    // because the future returned by `tokio_openssl::accept` holds on to the borrow
-                    // and is thus constrained by the borrow's lifetime.
-                    let tls_acceptor = self.tls_acceptor.clone();
+                    let stream = openssl::ssl::Ssl::new(self.tls_acceptor.context())
+                        .and_then(|ssl| tokio_openssl::SslStream::new(ssl, stream));
+                    let mut stream = match stream {
+                        Ok(stream) => stream,
+                        Err(err) => {
+                            eprintln!(
+                                "Dropping client that failed to complete a TLS handshake: {}",
+                                err
+                            );
+                            continue;
+                        }
+                    };
                     self.connections.push(Box::pin(async move {
-                        tokio_openssl::accept(&tls_acceptor, stream).await
+                        let () = std::pin::Pin::new(&mut stream).accept().await?;
+                        Ok(stream)
                     }));
                 }
 
