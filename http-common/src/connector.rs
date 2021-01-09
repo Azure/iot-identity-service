@@ -64,7 +64,7 @@ impl Incoming {
                 let (unix_stream, _) = listener.accept().await?;
                 let ucred = unix_stream.peer_cred()?;
 
-                let server = crate::uid::UidService::new(ucred.uid, server.clone());
+                let server = crate::uid::UidService::new(ucred.uid(), server.clone());
                 tokio::task::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(unix_stream, server)
@@ -350,18 +350,11 @@ impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
         match &mut *self {
             AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
             AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
-        }
-    }
-
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [std::mem::MaybeUninit<u8>]) -> bool {
-        match self {
-            AsyncStream::Tcp(inner) => inner.prepare_uninitialized_buffer(buf),
-            AsyncStream::Unix(inner) => inner.prepare_uninitialized_buffer(buf),
         }
     }
 }
@@ -403,8 +396,9 @@ impl tokio::io::AsyncWrite for AsyncStream {
 #[cfg(feature = "tokio02")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
+        #[allow(clippy::match_same_arms)]
         match self {
-            AsyncStream::Tcp(inner) => inner.connected(),
+            AsyncStream::Tcp(_) => hyper::client::connect::Connected::new(),
             AsyncStream::Unix(_) => hyper::client::connect::Connected::new(),
         }
     }

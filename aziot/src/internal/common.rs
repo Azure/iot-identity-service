@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 use tokio::fs;
-use tokio::prelude::*;
+use tokio::io::AsyncReadExt;
 
 pub fn get_hostname() -> Result<String> {
     if cfg!(test) {
