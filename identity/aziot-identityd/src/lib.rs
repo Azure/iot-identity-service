@@ -86,11 +86,15 @@ pub async fn main(
 
     let api_watcher = api.clone();
 
-    let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
+    let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(10);
 
+    let config_directory_path_copy = config_directory_path.clone();
+    
     // Start file watcher
-    tokio::task::spawn(async move {
+    std::thread::spawn(move || {
+        
         // Create a channel to receive the events.
+        let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
@@ -98,13 +102,22 @@ pub async fn main(
 
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
-        file_watcher.watch(config_directory_path.clone(), notify::RecursiveMode::Recursive).unwrap();
+        file_watcher.watch(config_directory_path_copy, notify::RecursiveMode::Recursive).unwrap();
 
         loop {
-            let event = file_watcher_rx.recv();
+            let _ = file_watcher_rx.recv();
+            
+            let _ = file_changed_tx.blocking_send(());
+        }
+    });
+
+    // Start file watcher
+    tokio::task::spawn(async move {
+        loop {
+            let event = file_changed_rx.recv().await;
             
             match event {
-                Ok(_) => {
+                Some(_) => {
                     config_common::read_config(config_path.clone(), config_directory_path.clone())
                     .map(|new_settings: config::Settings| async {
                         let mut api_ = api_watcher.lock().await;
@@ -114,7 +127,7 @@ pub async fn main(
                         drop(api_);
                     });
                 },
-                Err(e) => {},
+                None => {},
             }
         }
     });
