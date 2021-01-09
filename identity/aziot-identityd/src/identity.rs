@@ -689,7 +689,9 @@ impl IdentityManager {
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
-        let settings = settings.check().map_err(|err|Error::Internal(InternalError::BadSettings(err)))?;
+        let settings = settings
+            .check()
+            .map_err(|err| Error::Internal(InternalError::BadSettings(err)))?;
 
         let settings_serialized =
             toml::to_vec(&settings).expect("serializing settings cannot fail");

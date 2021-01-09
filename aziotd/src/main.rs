@@ -173,9 +173,13 @@ where
     let config_directory_path: std::path::PathBuf = std::env::var_os(config_directory_env_var)
         .map_or_else(|| config_directory_default.into(), Into::into);
 
-    let config: TConfig = config_common::read_config(config_path.clone(), config_directory_path.clone()).map_err(|err| ErrorKind::ReadConfig(err))?;
+    let config: TConfig =
+        config_common::read_config(config_path.clone(), config_directory_path.clone())
+            .map_err(ErrorKind::ReadConfig)?;
 
-    let (connector, server) = main(config, config_path, config_directory_path).await.map_err(ErrorKind::Service)?;
+    let (connector, server) = main(config, config_path, config_directory_path)
+        .await
+        .map_err(ErrorKind::Service)?;
 
     log::info!("Starting server...");
 
