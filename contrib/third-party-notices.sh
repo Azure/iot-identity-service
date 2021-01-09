@@ -191,6 +191,13 @@ cargo metadata --format-version 1 |
                 ;;
         esac
 
+        if [ "$name:$version" == 'tracing-futures:0.2.4' ]; then
+            # TODO: Crate doesn't ship with LICENSE file but it's MIT. Fixed by upstream in
+            # https://github.com/tokio-rs/tracing/commit/0de7d516896ce52726fe58591797e0e8f6bfa5da
+            # Remove this when new version with this commit is released.
+            curl -Lo "$crate_directory/LICENSE" 'https://github.com/tokio-rs/tracing/raw/fe570afaffdeeac3d7023b24e3aa05935ec55d14/tracing-futures/LICENSE'
+        fi
+
         license_file="$(find "$crate_directory" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/LICEN[CS]E-$license_file_suffix(\\.(md|txt))?" | head -n1)"
         if [ -z "$license_file" ]; then
             license_file="$(find "$crate_directory" -maxdepth 1 -type f -regextype posix-egrep -regex '.*/LICEN[CS]E(\.(md|txt))?' | head -n1)"

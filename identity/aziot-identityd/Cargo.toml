@@ -40,9 +40,9 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio02"] }
 openssl2 = { path = "../../openssl2" }
 
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["macros"] }
+tokio = { version = "1", features = ["macros", "rt"] }

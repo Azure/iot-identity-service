@@ -8,7 +8,7 @@ build = "build/main.rs"
 
 
 [dependencies]
-base64 = "0.12"
+base64 = "0.13"
 foreign-types-shared = "0.1"
 log = "0.4"
 openssl = "0.10"

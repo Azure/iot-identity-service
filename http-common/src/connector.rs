@@ -135,13 +135,17 @@ impl Connector {
             match sock_addr {
                 // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
                 nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
-                    let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    let listener: std::net::TcpListener =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    listener.set_nonblocking(true)?;
                     let listener = tokio::net::TcpListener::from_std(listener)?;
                     Ok(Incoming::Tcp(listener))
                 }
 
                 nix::sys::socket::SockAddr::Unix(_) => {
-                    let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    let listener: std::os::unix::net::UnixListener =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    listener.set_nonblocking(true)?;
                     let listener = tokio::net::UnixListener::from_std(listener)?;
                     Ok(Incoming::Unix(listener))
                 }
@@ -389,6 +393,24 @@ impl tokio::io::AsyncWrite for AsyncStream {
         match &mut *self {
             AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
             AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
+        }
+    }
+
+    fn poll_write_vectored(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match &mut *self {
+            AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_write_vectored(cx, bufs),
+            AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_write_vectored(cx, bufs),
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        match self {
+            AsyncStream::Tcp(inner) => inner.is_write_vectored(),
+            AsyncStream::Unix(inner) => inner.is_write_vectored(),
         }
     }
 }
