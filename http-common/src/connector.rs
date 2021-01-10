@@ -17,21 +17,21 @@ pub enum Stream {
     Unix(std::os::unix::net::UnixStream),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum AsyncStream {
     Tcp(tokio::net::TcpStream),
     Unix(tokio::net::UnixStream),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
     Tcp(tokio::net::TcpListener),
     Unix(tokio::net::UnixListener),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl Incoming {
     pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
     where
@@ -125,7 +125,7 @@ impl Connector {
         }
     }
 
-    #[cfg(feature = "tokio02")]
+    #[cfg(feature = "tokio1")]
     pub async fn incoming(self) -> std::io::Result<Incoming> {
         let systemd_socket = get_systemd_socket()
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -236,7 +236,7 @@ impl std::str::FromStr for Connector {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
@@ -349,7 +349,7 @@ impl std::io::Write for Stream {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
@@ -363,7 +363,7 @@ impl tokio::io::AsyncRead for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncWrite for AsyncStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -415,7 +415,7 @@ impl tokio::io::AsyncWrite for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
         #[allow(clippy::match_same_arms)]
@@ -447,7 +447,7 @@ impl std::error::Error for ConnectorError {
 /// Finds the systemd socket if one has been used to socket-activate this process.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the very first fd.
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //

@@ -18,4 +18,4 @@ aziot-certd = { path = "../cert/aziot-certd" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
-http-common = { path = "../http-common", features = ["tokio02"] }
+http-common = { path = "../http-common", features = ["tokio1"] }

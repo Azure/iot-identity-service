@@ -290,7 +290,7 @@ pub struct Error {
     pub message: std::borrow::Cow<'static, str>,
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl Error {
     pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
         let body = crate::ErrorBody {
@@ -301,7 +301,7 @@ impl Error {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 pub fn json_response(
     status_code: hyper::StatusCode,
     body: Option<&impl serde::Serialize>,
@@ -325,7 +325,7 @@ pub fn json_response(
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 mod test_server {
     use crate as http_common;
 

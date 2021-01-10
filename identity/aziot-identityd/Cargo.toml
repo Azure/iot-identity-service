@@ -40,7 +40,7 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
-http-common = { path = "../../http-common", features = ["tokio02"] }
+http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
 
 

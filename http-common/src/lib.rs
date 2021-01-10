@@ -17,13 +17,13 @@ mod dynrange;
 pub use dynrange::DynRangeBounds;
 
 mod connector;
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
 pub mod server;
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>

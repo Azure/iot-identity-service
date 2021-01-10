@@ -23,4 +23,4 @@ url = { version = "2", features = ["serde"] }
 serde_json = "1"
 
 [features]
-tokio02 = ["hyper", "tokio"]
+tokio1 = ["hyper", "tokio"]
