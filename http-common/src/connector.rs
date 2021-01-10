@@ -418,9 +418,8 @@ impl tokio::io::AsyncWrite for AsyncStream {
 #[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
-        #[allow(clippy::match_same_arms)]
         match self {
-            AsyncStream::Tcp(_) => hyper::client::connect::Connected::new(),
+            AsyncStream::Tcp(inner) => inner.connected(),
             AsyncStream::Unix(_) => hyper::client::connect::Connected::new(),
         }
     }
