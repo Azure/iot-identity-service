@@ -33,7 +33,7 @@ aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
-http-common = { path = "../http-common", features = ["tokio02"] }
+http-common = { path = "../http-common", features = ["tokio1"] }
 mini-sntp = { path = "../mini-sntp" }
 
 [dev-dependencies]
