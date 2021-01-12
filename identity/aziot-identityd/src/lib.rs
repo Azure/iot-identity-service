@@ -452,7 +452,7 @@ impl Api {
                 self.id_manager
                     .provision_device(
                         self.settings.provisioning.clone(),
-                        !self.settings.provisioning.always_reprovisioning_on_startup,
+                        !self.settings.provisioning.always_reprovision_on_startup,
                     )
                     .await?
             }
