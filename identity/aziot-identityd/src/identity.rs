@@ -417,7 +417,7 @@ impl IdentityManager {
 
     pub async fn provision_device(
         &mut self,
-        provisioning: aziot_identityd_config::Provisioning,
+        provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
         let device = match provisioning.provisioning {
@@ -774,7 +774,7 @@ impl IdentityManager {
                 let () = std::fs::write(prev_settings_path, &settings_serialized)
                     .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
-            None => log::warn!("reconcilation skipped since device is not provisioned"),
+            None => log::info!("reconcilation skipped since device is not provisioned"),
         }
 
         Ok(())

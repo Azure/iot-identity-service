@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use aziot_identityd_config as config;
@@ -17,21 +18,16 @@ pub fn load_file(filename: &Path) -> Result<config::Settings, InternalError> {
 pub fn prepare_authorized_principals(
     principal: &[config::Principal],
 ) -> (
-    std::collections::BTreeMap<config::Uid, config::Principal>,
-    std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    std::collections::BTreeMap<
-        aziot_identity_common::ModuleId,
-        Option<aziot_identity_common::LocalIdOpts>,
-    >,
+    BTreeMap<config::Uid, config::Principal>,
+    BTreeSet<aziot_identity_common::ModuleId>,
+    BTreeMap<aziot_identity_common::ModuleId, Option<aziot_identity_common::LocalIdOpts>>,
 ) {
-    let mut local_module_map: std::collections::BTreeMap<
+    let mut local_module_map: BTreeMap<
         aziot_identity_common::ModuleId,
         Option<aziot_identity_common::LocalIdOpts>,
-    > = std::collections::BTreeMap::new();
-    let mut hub_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
-        std::collections::BTreeSet::new();
-    let mut principal_map: std::collections::BTreeMap<config::Uid, config::Principal> =
-        std::collections::BTreeMap::new();
+    > = BTreeMap::new();
+    let mut hub_module_set: BTreeSet<aziot_identity_common::ModuleId> = BTreeSet::new();
+    let mut principal_map: BTreeMap<config::Uid, config::Principal> = BTreeMap::new();
     let mut found_daemon = false;
 
     for p in principal {

@@ -48,6 +48,7 @@ macro_rules! match_id_type {
     };
 }
 
+#[derive(Debug)]
 pub enum ReprovisionTrigger {
     ConfigurationFileUpdate,
     Api,
@@ -85,7 +86,11 @@ pub async fn main(
     });
 
     let api_watcher = api.clone();
-    let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(10);
+
+    // DEVNOTE: The channel created for file watcher receiver needs to address upto two messages,
+    // since the message is resent to file change receiver using a blocking send.
+    // When the numbe rof messages is set to 1, then main thread appears to block.
+    let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(2);
 
     // Start file watcher using blocking channel
     std::thread::spawn({
@@ -432,7 +437,7 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        log::info!("Provisioning starting.");
+        log::info!("Provisioning starting. Reason: {:?}", trigger);
 
         let _ = match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
@@ -455,12 +460,16 @@ impl Api {
             }
         };
 
+        log::info!("Provisioning complete.");
+
+        log::info!("Identity reconciliation started. Reason: {:?}", trigger);
+
         let _ = self
             .id_manager
             .reconcile_hub_identities(self.settings.clone())
             .await?;
 
-        log::info!("Provisioning complete.");
+        log::info!("Identity reconciliation complete.");
 
         Ok(())
     }
