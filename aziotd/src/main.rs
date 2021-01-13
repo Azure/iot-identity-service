@@ -142,25 +142,29 @@ where
 /// Executes the main function of the running service.
 ///
 /// The `main` function accepts 3 arguments:
-/// * TOML Configuration file for the running service that is created by reading 
-///   the base configuration TOML file and configuration override directory path that 
-///   contains patch TOML files (that should be merged with the base 
+///
+/// * TOML Configuration file for the running service that is created by reading
+///   the base configuration TOML file and configuration override directory path that
+///   contains patch TOML files (that should be merged with the base
 ///   configuration file).
-/// * Path to the base configuration file for the running service, if needed for 
-///   detecting configuration changes at run time.
-/// * Path to the configuration override directory for the running service, if needed for 
+///
+/// * Path to the base configuration file for the running service, if needed for
 ///   detecting configuration changes at run time.
 ///
-/// ```
-async fn run<TMain, TConfig, TFuture, TServer>(
-    main: TMain,
+/// * Path to the configuration override directory for the running service, if needed for
+///   detecting configuration changes at run time.
+async fn run<TConfig, TFuture, TServer>(
+    main: fn(
+        config: TConfig,
+        config_path: std::path::PathBuf,
+        config_directory_path: std::path::PathBuf,
+    ) -> TFuture,
     config_env_var: &str,
     config_file_default: &str,
     config_directory_env_var: &str,
     config_directory_default: &str,
 ) -> Result<(), Error>
 where
-    TMain: FnOnce(TConfig, std::path::PathBuf, std::path::PathBuf) -> TFuture,
     TConfig: serde::de::DeserializeOwned,
     TFuture: std::future::Future<
         Output = Result<(http_common::Connector, TServer), Box<dyn std::error::Error>>,
@@ -186,9 +190,8 @@ where
     let config_directory_path: std::path::PathBuf = std::env::var_os(config_directory_env_var)
         .map_or_else(|| config_directory_default.into(), Into::into);
 
-    let config: TConfig =
-        config_common::read_config(config_path.clone(), config_directory_path.clone())
-            .map_err(ErrorKind::ReadConfig)?;
+    let config: TConfig = config_common::read_config(&config_path, &config_directory_path)
+        .map_err(ErrorKind::ReadConfig)?;
 
     let (connector, server) = main(config, config_path, config_directory_path)
         .await

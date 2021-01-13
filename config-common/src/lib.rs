@@ -13,27 +13,27 @@ pub mod error;
 use crate::error::{Error, ErrorKind};
 
 pub fn read_config<TConfig>(
-    config_path: std::path::PathBuf,
-    config_directory_path: std::path::PathBuf,
+    config_path: &std::path::Path,
+    config_directory_path: &std::path::Path,
 ) -> Result<TConfig, Error>
 where
     TConfig: serde::de::DeserializeOwned,
 {
-    let config = std::fs::read(&config_path)
-        .map_err(|err| ErrorKind::ReadConfig(Some(config_path.clone()), Box::new(err)))?;
+    let config = std::fs::read(config_path)
+        .map_err(|err| ErrorKind::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?;
     let mut config: toml::Value = toml::from_slice(&config)
-        .map_err(|err| ErrorKind::ReadConfig(Some(config_path), Box::new(err)))?;
+        .map_err(|err| ErrorKind::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?;
 
-    match std::fs::read_dir(&config_directory_path) {
+    match std::fs::read_dir(config_directory_path) {
         Ok(entries) => {
             let mut patch_paths = vec![];
             for entry in entries {
                 let entry = entry.map_err(|err| {
-                    ErrorKind::ReadConfig(Some(config_directory_path.clone()), Box::new(err))
+                    ErrorKind::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
                 })?;
 
                 let entry_file_type = entry.file_type().map_err(|err| {
-                    ErrorKind::ReadConfig(Some(config_directory_path.clone()), Box::new(err))
+                    ErrorKind::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
                 })?;
                 if !entry_file_type.is_file() {
                     continue;
@@ -61,7 +61,11 @@ where
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
 
         Err(err) => {
-            return Err(ErrorKind::ReadConfig(Some(config_directory_path), Box::new(err)).into())
+            return Err(ErrorKind::ReadConfig(
+                Some(config_directory_path.to_owned()),
+                Box::new(err),
+            )
+            .into())
         }
     }
 

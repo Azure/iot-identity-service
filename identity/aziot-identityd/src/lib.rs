@@ -86,24 +86,27 @@ pub async fn main(
 
     let api_watcher = api.clone();
     let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(10);
-    let config_directory_path_copy = config_directory_path.clone();
 
     // Start file watcher using blocking channel
-    std::thread::spawn(move || {
-        let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
+    std::thread::spawn({
+        let config_directory_path = config_directory_path.clone();
 
-        // Create a watcher object, delivering debounced events
-        let mut file_watcher =
-            notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
+        move || {
+            let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
-        // Add configuration path to be watched
-        file_watcher
-            .watch(config_directory_path_copy, notify::RecursiveMode::Recursive)
-            .unwrap();
+            // Create a watcher object, delivering debounced events
+            let mut file_watcher =
+                notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
 
-        loop {
-            let _ = file_watcher_rx.recv();
-            let _ = file_changed_tx.blocking_send(());
+            // Add configuration path to be watched
+            file_watcher
+                .watch(config_directory_path, notify::RecursiveMode::Recursive)
+                .unwrap();
+
+            loop {
+                let _ = file_watcher_rx.recv();
+                let _ = file_changed_tx.blocking_send(());
+            }
         }
     });
 
@@ -112,8 +115,7 @@ pub async fn main(
         loop {
             while let Some(()) = file_changed_rx.recv().await {
                 let new_settings =
-                    config_common::read_config(config_path.clone(), config_directory_path.clone())
-                        .unwrap();
+                    config_common::read_config(&config_path, &config_directory_path).unwrap();
 
                 let mut api_ = api_watcher.lock().await;
                 let _ = api_
