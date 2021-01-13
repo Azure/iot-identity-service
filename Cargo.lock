@@ -317,7 +317,6 @@ dependencies = [
  "aziot-tpm-common-http",
  "chrono",
  "config-common",
- "futures",
  "futures-util",
  "http",
  "http-common",
@@ -589,7 +588,6 @@ dependencies = [
  "log",
  "serde",
  "tokio",
- "toml",
 ]
 
 [[package]]

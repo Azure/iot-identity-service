@@ -110,9 +110,7 @@ pub async fn main(
     // Start file change listener that asynchronously updates Identity Service
     tokio::task::spawn(async move {
         loop {
-            let event = file_changed_rx.recv().await;
-
-            if event.is_some() {
+            while let Some(()) = file_changed_rx.recv().await {
                 let new_settings =
                     config_common::read_config(config_path.clone(), config_directory_path.clone())
                         .unwrap();
@@ -121,7 +119,6 @@ pub async fn main(
                 let _ = api_
                     .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
                     .await;
-                drop(api_);
             }
         }
     });

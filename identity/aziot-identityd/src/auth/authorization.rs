@@ -23,8 +23,7 @@ where
     }
 }
 
-// Default implementation that accepts any operation for all authenticated users.
-// TODO: Remove this implementation once Unix Domain Sockets is ported over.
+// Default implementation that rejects any operation by default.
 pub struct DefaultAuthorizer;
 
 impl Authorizer for DefaultAuthorizer {
