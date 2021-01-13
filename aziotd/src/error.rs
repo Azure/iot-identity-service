@@ -6,7 +6,7 @@ pub(crate) struct Error(pub(crate) ErrorKind, pub(crate) backtrace::Backtrace);
 #[derive(Debug)]
 pub(crate) enum ErrorKind {
     GetProcessName(std::borrow::Cow<'static, str>),
-    ReadConfig(config_common::error::Error),
+    ReadConfig(Box<dyn std::error::Error>),
     Service(Box<dyn std::error::Error>),
 }
 
@@ -25,7 +25,7 @@ impl std::error::Error for ErrorKind {
         #[allow(clippy::match_same_arms)]
         match self {
             ErrorKind::GetProcessName(_) => None,
-            ErrorKind::ReadConfig(_) => None,
+            ErrorKind::ReadConfig(err) => Some(&**err),
             ErrorKind::Service(err) => Some(&**err),
         }
     }

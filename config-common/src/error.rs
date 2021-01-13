@@ -3,6 +3,18 @@
 #[derive(Debug)]
 pub struct Error(pub(crate) ErrorKind, pub(crate) backtrace::Backtrace);
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("configuration read encountered an error")
+    }
+}
+
 #[derive(Debug)]
 pub enum ErrorKind {
     ReadConfig(Option<std::path::PathBuf>, Box<dyn std::error::Error>),
