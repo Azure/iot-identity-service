@@ -77,7 +77,7 @@ pub async fn main(
 
     let settings_copy = settings.clone();
 
-    tokio::task::spawn(async move {
+    tokio::spawn(async move {
         let mut api_ = api_startup.lock().await;
         let _ = api_
             .update_settings(settings_copy, ReprovisionTrigger::Startup)
@@ -116,7 +116,7 @@ pub async fn main(
     });
 
     // Start file change listener that asynchronously updates Identity Service
-    tokio::task::spawn(async move {
+    tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
             let new_settings =
                 config_common::read_config(&config_path, &config_directory_path).unwrap();
