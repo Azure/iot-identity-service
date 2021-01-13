@@ -139,6 +139,19 @@ where
     }
 }
 
+/// Executes the main function of the running service.
+///
+/// The `main` function accepts 3 arguments:
+/// * TOML Configuration file for the running service that is created by reading 
+///   the base configuration TOML file and configuration override directory path that 
+///   contains patch TOML files (that should be merged with the base 
+///   configuration file).
+/// * Path to the base configuration file for the running service, if needed for 
+///   detecting configuration changes at run time.
+/// * Path to the configuration override directory for the running service, if needed for 
+///   detecting configuration changes at run time.
+///
+/// ```
 async fn run<TMain, TConfig, TFuture, TServer>(
     main: TMain,
     config_env_var: &str,
