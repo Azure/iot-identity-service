@@ -50,7 +50,7 @@ impl Incoming {
 
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(0, server.clone());
-                tokio::task::spawn(async move {
+                tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(tcp_stream, server)
                         .await
@@ -65,7 +65,7 @@ impl Incoming {
                 let ucred = unix_stream.peer_cred()?;
 
                 let server = crate::uid::UidService::new(ucred.uid(), server.clone());
-                tokio::task::spawn(async move {
+                tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(unix_stream, server)
                         .await

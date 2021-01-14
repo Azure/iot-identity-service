@@ -1,0 +1,11 @@
+[package]
+name = "config-common"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+edition = "2018"
+
+
+[dependencies]
+backtrace = "0.3"
+serde = "1"
+toml = "0.5"

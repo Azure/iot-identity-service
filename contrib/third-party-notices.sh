@@ -149,6 +149,10 @@ cargo metadata --format-version 1 |
                     "Zlib"
                 elif $license == "MPL-2.0" then
                     "MPL-2.0"
+                elif $license == "ISC" then
+                    "ISC"
+                elif $license == "CC0-1.0" then
+                    "CC0-1.0"
                 else
                     error("crate \($name) has unknown license \($license)")
                 end
@@ -185,6 +189,14 @@ cargo metadata --format-version 1 |
                 license_file_suffix='MPL2'
                 ;;
 
+            'ISC')
+                license_file_suffix='ISC'
+                ;;
+
+            'CC0-1.0')
+                license_file_suffix='CC0'
+                ;;
+
             *)
                 echo "$name:$version at $manifest_path has unsupported license $license" >&2
                 exit 1
@@ -196,6 +208,30 @@ cargo metadata --format-version 1 |
             # https://github.com/tokio-rs/tracing/commit/0de7d516896ce52726fe58591797e0e8f6bfa5da
             # Remove this when new version with this commit is released.
             curl -Lo "$crate_directory/LICENSE" 'https://github.com/tokio-rs/tracing/raw/fe570afaffdeeac3d7023b24e3aa05935ec55d14/tracing-futures/LICENSE'
+        fi
+        
+        if [ "$name:$version" == 'inotify:0.7.1' ]; then
+            # TODO: Crate doesn't ship with LICENSE file but it's ISC. Fixed by upstream in
+            # https://github.com/hannobraun/inotify/commit/52c18c527fe227b329f8428d73a1c732f2d56ce5
+            # but that requires inotify v0.8 and notify v4 uses inotify v0.7.
+            # notify v5.0 will depend on inotify v0.8, so remove this when that happens.
+            curl -Lo "$crate_directory/LICENSE" 'https://github.com/hannobraun/inotify/raw/52c18c527fe227b329f8428d73a1c732f2d56ce5/LICENSE'
+        fi
+
+        if [ "$name:$version" == 'inotify-sys:0.1.4' ]; then
+            # TODO: Crate doesn't ship with LICENSE file but it's ISC. Will be fixed by this PR (when merged) -
+            # https://github.com/hannobraun/inotify-sys/pull/21 
+            # notify will need to depend on newer version of inotify (> 0.8) that depends 
+            # on newer version of inotify-sys (> 0.1.4), so remove this when that happens.
+            # The ISC license content is identical in both inotify and inotify-sys repos. 
+            curl -Lo "$crate_directory/LICENSE" 'https://github.com/hannobraun/inotify/raw/52c18c527fe227b329f8428d73a1c732f2d56ce5/LICENSE'
+        fi
+
+        if [ "$name:$version" == 'notify:4.0.15' ]; then
+            # TODO: Crate doesn't ship with LICENSE file but it's CC0-1.0. Fixed by upstream in
+            # https://github.com/notify-rs/notify/commit/e0982ffc760bc0e34544d2a7c9d10cdba65183d9
+            # but that requires notify v5.0, so remove this when that happens.
+            curl -Lo "$crate_directory/LICENSE" 'https://github.com/notify-rs/notify/raw/e0982ffc760bc0e34544d2a7c9d10cdba65183d9/LICENSE'
         fi
 
         license_file="$(find "$crate_directory" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/LICEN[CS]E-$license_file_suffix(\\.(md|txt))?" | head -n1)"

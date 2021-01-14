@@ -18,12 +18,14 @@ hyper = "0.14"
 lazy_static = "1"
 libc = "0.2"
 log = "0.4"
+notify = "4"
 openssl = "0.10"
 percent-encoding = "2"
 regex = "1"
 serde = "1"
 serde_json = "1.0"
 toml = "0.5"
+tokio = { version = "1", features = ["rt"] }
 url = "2"
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
@@ -40,9 +42,9 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
 
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt"] }

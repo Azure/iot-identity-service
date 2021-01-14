@@ -40,7 +40,7 @@ pub struct LocalIdSpec {
 }
 
 /// Options for a single local identity.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum LocalIdOpts {
     /// Options valid when local identities are X.509 credentials. Currently the only
@@ -92,7 +92,7 @@ impl std::fmt::Display for AuthenticationType {
 
 pub struct Uid(u32);
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum IdType {
     Device,
@@ -101,7 +101,7 @@ pub enum IdType {
 }
 
 /// X.509 extensions given to local identity certificates.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LocalIdAttr {
     /// TLS client certificate.

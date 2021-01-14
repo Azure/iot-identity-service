@@ -12,10 +12,10 @@ hyper = "0.14"
 log = "0.4"
 serde = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-toml = "0.5"
 
 aziot-certd = { path = "../cert/aziot-certd" }
 aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
+config-common = { path = "../config-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
