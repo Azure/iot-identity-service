@@ -10,6 +10,8 @@ members = [
 	"cert/aziot-cert-common-http",
 	"cert/aziot-certd",
 
+	"config-common",
+
 	"http-common",
 
 	"identity/aziot-cloud-client-async-common",

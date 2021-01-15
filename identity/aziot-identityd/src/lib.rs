@@ -25,6 +25,7 @@ mod http;
 pub mod identity;
 
 pub use error::{Error, InternalError};
+use notify::Watcher;
 
 /// URI query parameter that identifies module identity type.
 const ID_TYPE_AZIOT: &str = "aziot";
@@ -47,105 +48,85 @@ macro_rules! match_id_type {
     };
 }
 
+#[derive(Debug)]
+pub enum ReprovisionTrigger {
+    ConfigurationFileUpdate,
+    Api,
+    Startup,
+}
+
 pub async fn main(
     settings: config::Settings,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
-    // Written to prev_settings_path if provisioning is successful.
     let settings = settings.check().map_err(InternalError::BadSettings)?;
-    let settings_serialized = toml::to_vec(&settings).expect("serializing settings cannot fail");
 
     let homedir_path = &settings.homedir;
     let connector = settings.endpoints.aziot_identityd.clone();
-
-    let mut prev_settings_path = homedir_path.clone();
-    prev_settings_path.push("prev_state");
-
-    let mut prev_device_info_path = homedir_path.clone();
-    prev_device_info_path.push("device_info");
 
     if !homedir_path.exists() {
         let () =
             std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
     }
 
-    let (allowed_users, hub_modules, local_modules) =
-        prepare_authorized_principals(&settings.principal);
+    let api = Api::new(settings.clone())?;
+    let api = Arc::new(futures_util::lock::Mutex::new(api));
 
-    let allowed_users_copy = allowed_users.clone();
+    let api_startup = api.clone();
 
-    // All uids in the principals are authenticated users to this service
-    let authenticator = Box::new(move |uid| {
-        if allowed_users_copy.contains_key(&uid) {
-            Ok(auth::AuthId::LocalPrincipal(uid))
-        } else if uid.eq(&config::Uid(0)) {
-            Ok(auth::AuthId::LocalRoot)
-        } else {
-            Ok(auth::AuthId::Unknown)
+    let settings_copy = settings.clone();
+
+    tokio::spawn(async move {
+        let mut api_ = api_startup.lock().await;
+        let _ = api_
+            .update_settings(settings_copy, ReprovisionTrigger::Startup)
+            .await;
+        drop(api_);
+    });
+
+    let api_watcher = api.clone();
+
+    // DEVNOTE: The channel created for file watcher receiver needs to address upto two messages,
+    // since the message is resent to file change receiver using a blocking send.
+    // When the numbe rof messages is set to 1, then main thread appears to block.
+    let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(2);
+
+    // Start file watcher using blocking channel
+    std::thread::spawn({
+        let config_directory_path = config_directory_path.clone();
+
+        move || {
+            let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
+
+            // Create a watcher object, delivering debounced events
+            let mut file_watcher =
+                notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
+
+            // Add configuration path to be watched
+            file_watcher
+                .watch(config_directory_path, notify::RecursiveMode::Recursive)
+                .unwrap();
+
+            loop {
+                let _ = file_watcher_rx.recv();
+                let _ = file_changed_tx.blocking_send(());
+            }
         }
     });
 
-    let authorizer = Box::new(SettingsAuthorizer {
-        allowed_users: allowed_users.clone(),
-        modules: hub_modules.clone(),
+    // Start file change listener that asynchronously updates Identity Service
+    tokio::spawn(async move {
+        while let Some(()) = file_changed_rx.recv().await {
+            let new_settings =
+                config_common::read_config(&config_path, &config_directory_path).unwrap();
+
+            let mut api_ = api_watcher.lock().await;
+            let _ = api_
+                .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
+                .await;
+        }
     });
-
-    let api = Api::new(
-        settings,
-        local_modules,
-        authenticator,
-        authorizer,
-        allowed_users,
-    )?;
-    let api = Arc::new(futures_util::lock::Mutex::new(api));
-
-    {
-        let mut api_ = api.lock().await;
-
-        log::info!("Provisioning starting.");
-        let provisioning = api_.provision_device().await?;
-        log::info!("Provisioning complete.");
-
-        let device_status = if let aziot_identity_common::ProvisioningStatus::Provisioned(device) =
-            provisioning
-        {
-            let curr_hub_device_info = configext::HubDeviceInfo {
-                hub_name: device.iothub_hostname,
-                device_id: device.device_id,
-            };
-            let device_status = toml::to_string(&curr_hub_device_info)?;
-
-            // Only consider the previous Hub modules if the current and previous Hub devices match.
-            let prev_hub_modules = if prev_settings_path.exists() && prev_device_info_path.exists()
-            {
-                let prev_hub_device_info = configext::HubDeviceInfo::new(&prev_device_info_path)?;
-
-                if prev_hub_device_info == Some(curr_hub_device_info) {
-                    let prev_settings = configext::load_file(&prev_settings_path)?;
-                    let (_, prev_hub_modules, _) =
-                        prepare_authorized_principals(&prev_settings.principal);
-                    prev_hub_modules
-                } else {
-                    std::collections::BTreeSet::default()
-                }
-            } else {
-                std::collections::BTreeSet::default()
-            };
-
-            let () = api_
-                .init_hub_identities(prev_hub_modules, hub_modules)
-                .await?;
-            log::info!("Identity reconciliation with IoT Hub complete.");
-
-            device_status
-        } else {
-            configext::HubDeviceInfo::unprovisioned()
-        };
-
-        std::fs::write(prev_device_info_path, device_status)
-            .map_err(error::InternalError::SaveDeviceInfo)?;
-        let () = std::fs::write(prev_settings_path, &settings_serialized)
-            .map_err(error::InternalError::SaveSettings)?;
-    }
 
     let service = http::Service { api };
 
@@ -161,7 +142,6 @@ pub struct Api {
         aziot_identity_common::ModuleId,
         Option<aziot_identity_common::LocalIdOpts>,
     >,
-    pub caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
 
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -170,16 +150,7 @@ pub struct Api {
 }
 
 impl Api {
-    pub fn new(
-        settings: config::Settings,
-        local_identities: std::collections::BTreeMap<
-            aziot_identity_common::ModuleId,
-            Option<aziot_identity_common::LocalIdOpts>,
-        >,
-        authenticator: Box<dyn auth::authentication::Authenticator<Error = Error> + Send + Sync>,
-        authorizer: Box<dyn auth::authorization::Authorizer<Error = Error> + Send + Sync>,
-        caller_identities: std::collections::BTreeMap<config::Uid, config::Principal>,
-    ) -> Result<Self, Error> {
+    pub fn new(settings: config::Settings) -> Result<Self, Error> {
         let key_service_connector = settings.endpoints.aziot_keyd.clone();
 
         let key_client = {
@@ -224,6 +195,7 @@ impl Api {
         };
 
         let id_manager = identity::IdentityManager::new(
+            settings.homedir.clone(),
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
@@ -233,11 +205,10 @@ impl Api {
 
         Ok(Api {
             settings,
-            authenticator,
-            authorizer,
+            authenticator: Box::new(auth::authentication::DefaultAuthenticator),
+            authorizer: Box::new(auth::authorization::DefaultAuthorizer),
             id_manager,
-            local_identities,
-            caller_identities,
+            local_identities: Default::default(),
 
             key_client,
             key_engine,
@@ -255,17 +226,15 @@ impl Api {
             op_type: auth::OperationType::GetDevice,
         })? {
             return self.id_manager.get_device_identity().await;
-        } else if let crate::auth::AuthId::LocalPrincipal(uid) = auth_id {
-            if let Some(caller_principal) = self.caller_identities.get(&uid) {
-                if self.authorizer.authorize(auth::Operation {
-                    auth_id,
-                    op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
-                })? {
-                    return self
-                        .id_manager
-                        .get_module_identity(&caller_principal.name.0)
-                        .await;
-                }
+        } else if let crate::auth::AuthId::HostProcess(ref caller_principal) = auth_id {
+            if self.authorizer.authorize(auth::Operation {
+                auth_id: auth_id.clone(),
+                op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
+            })? {
+                return self
+                    .id_manager
+                    .get_module_identity(&caller_principal.name.0)
+                    .await;
             }
         }
 
@@ -429,7 +398,38 @@ impl Api {
         })
     }
 
-    pub async fn reprovision_device(&mut self, auth_id: auth::AuthId) -> Result<(), Error> {
+    pub async fn update_settings(
+        &mut self,
+        settings: config::Settings,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Error> {
+        let (allowed_users, _, local_modules) =
+            configext::prepare_authorized_principals(&settings.principal);
+
+        let authorizer = Box::new(SettingsAuthorizer {});
+        self.authorizer = authorizer;
+
+        // All uids in the principals are authenticated users to this service
+        let authenticator = Box::new(SettingsAuthenticator {
+            allowed_users: allowed_users.clone(),
+        });
+        self.authenticator = authenticator;
+        self.local_identities = local_modules;
+
+        let _ = self
+            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .await?;
+
+        self.settings = settings;
+
+        Ok(())
+    }
+
+    pub async fn reprovision_device(
+        &mut self,
+        auth_id: auth::AuthId,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
             op_type: auth::OperationType::ReprovisionDevice,
@@ -437,184 +437,41 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        let _ = self.provision_device().await?;
-        Ok(())
-    }
+        log::info!("Provisioning starting. Reason: {:?}", trigger);
 
-    pub async fn init_hub_identities(
-        &self,
-        prev_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-        mut current_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    ) -> Result<(), Error> {
-        if prev_module_set.is_empty() && current_module_set.is_empty() {
-            return Ok(());
-        }
-
-        let hub_module_ids = self.id_manager.get_module_identities().await?;
-
-        for m in hub_module_ids {
-            if let aziot_identity_common::Identity::Aziot(m) = m {
-                if let Some(m) = m.module_id {
-                    if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
-                        self.id_manager.delete_module_identity(&m.0).await?;
-                        log::info!("Hub identity {:?} removed", &m.0);
-                    } else if current_module_set.contains(&m) {
-                        current_module_set.remove(&m);
-                        log::info!("Hub identity {:?} already exists", &m.0);
-                    }
-                } else {
-                    log::warn!("invalid identity type returned by get_module_identities");
-                }
+        let _ = match trigger {
+            ReprovisionTrigger::ConfigurationFileUpdate => {
+                self.id_manager
+                    .provision_device(self.settings.provisioning.clone(), true)
+                    .await?
             }
-        }
-
-        for m in current_module_set {
-            self.id_manager.create_module_identity(&m.0).await?;
-            log::info!("Hub identity {:?} added", &m.0);
-        }
-
-        Ok(())
-    }
-
-    pub async fn provision_device(
-        &mut self,
-    ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
-        let device = match self.settings.clone().provisioning.provisioning {
-            config::ProvisioningType::Manual {
-                iothub_hostname,
-                device_id,
-                authentication,
-            } => {
-                let credentials = match authentication {
-                    config::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
-                        aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
-                    }
-                    config::ManualAuthMethod::X509 {
-                        identity_cert,
-                        identity_pk,
-                    } => {
-                        self.create_identity_cert_if_not_exist_or_expired(
-                            &identity_pk,
-                            &identity_cert,
-                            &device_id,
-                        )
-                        .await?;
-                        aziot_identity_common::Credentials::X509 {
-                            identity_cert,
-                            identity_pk,
-                        }
-                    }
-                };
-                let device = aziot_identity_common::IoTHubDevice {
-                    iothub_hostname,
-                    device_id,
-                    credentials,
-                };
-                self.id_manager.set_device(&device);
-                aziot_identity_common::ProvisioningStatus::Provisioned(device)
+            ReprovisionTrigger::Api => {
+                self.id_manager
+                    .provision_device(self.settings.provisioning.clone(), false)
+                    .await?
             }
-            config::ProvisioningType::Dps {
-                global_endpoint,
-                scope_id,
-                attestation,
-            } => {
-                async fn operation_to_iot_hub_device(
-                    credentials: aziot_identity_common::Credentials,
-                    operation: aziot_dps_client_async::model::RegistrationOperationStatus,
-                ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-                    let status = operation.status;
-                    assert!(!status.eq_ignore_ascii_case("assigning"));
-
-                    let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-                    let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-                    let device_id = state.device_id.get_or_insert("".into());
-                    let device = aziot_identity_common::IoTHubDevice {
-                        iothub_hostname: iothub_hostname.clone(),
-                        device_id: device_id.clone(),
-                        credentials,
-                    };
-
-                    Ok(device)
-                }
-
-                let dps_client = aziot_dps_client_async::Client::new(
-                    &global_endpoint,
-                    &scope_id,
-                    self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
-                    self.tpm_client.clone(),
-                );
-
-                let device = match attestation {
-                    config::DpsAttestationMethod::SymmetricKey {
-                        registration_id,
-                        symmetric_key,
-                    } => {
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
-                            sas_key: symmetric_key.clone(),
-                        };
-                        let credential = aziot_identity_common::Credentials::SharedPrivateKey(
-                            symmetric_key.clone(),
-                        );
-
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
-
-                        operation_to_iot_hub_device(credential, operation).await?
-                    }
-                    config::DpsAttestationMethod::X509 {
-                        registration_id,
-                        identity_cert,
-                        identity_pk,
-                    } => {
-                        self.create_identity_cert_if_not_exist_or_expired(
-                            &identity_pk,
-                            &identity_cert,
-                            &registration_id,
-                        )
-                        .await?;
-
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
-                            identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
-                        };
-                        let credential = aziot_identity_common::Credentials::X509 {
-                            identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
-                        };
-
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
-
-                        operation_to_iot_hub_device(credential, operation).await?
-                    }
-                    config::DpsAttestationMethod::Tpm { registration_id } => {
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
-                        let credential = aziot_identity_common::Credentials::Tpm;
-
-                        let operation = dps_client
-                            .register(&registration_id, &dps_auth_kind)
-                            .await
-                            .map_err(Error::DPSClient)?;
-
-                        operation_to_iot_hub_device(credential, operation).await?
-                    }
-                };
-                self.id_manager.set_device(&device);
-                aziot_identity_common::ProvisioningStatus::Provisioned(device)
-            }
-            config::ProvisioningType::None => {
-                log::info!("Skipping provisioning with IoT Hub.");
-
-                aziot_identity_common::ProvisioningStatus::Unprovisioned
+            ReprovisionTrigger::Startup => {
+                self.id_manager
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        !self.settings.provisioning.always_reprovision_on_startup,
+                    )
+                    .await?
             }
         };
-        Ok(device)
+
+        log::info!("Provisioning complete.");
+
+        log::info!("Identity reconciliation started. Reason: {:?}", trigger);
+
+        let _ = self
+            .id_manager
+            .reconcile_hub_identities(self.settings.clone())
+            .await?;
+
+        log::info!("Identity reconciliation complete.");
+
+        Ok(())
     }
 
     async fn issue_local_identity(
@@ -685,90 +542,9 @@ impl Api {
 
         Ok(local_identity)
     }
-
-    async fn create_identity_cert_if_not_exist_or_expired(
-        &self,
-        identity_pk: &str,
-        identity_cert: &str,
-        subject: &str,
-    ) -> Result<(), Error> {
-        // Retrieve existing cert and check it for expiry.
-        let device_id_cert = match self.cert_client.get_cert(identity_cert).await {
-            Ok(pem) => {
-                let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let cert_expiration = cert.as_ref().not_after();
-                let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-
-                if expiration_time.days < 1 {
-                    log::info!("{} has expired. Renewing certificate", identity_cert);
-
-                    None
-                } else {
-                    Some(pem)
-                }
-            }
-            Err(_) => {
-                // TODO: Need to check if key exists.
-                // If this function fails, delete any key it creates but don't delete an existing key.
-
-                None
-            }
-        };
-
-        // Create new certificate if needed.
-        if device_id_cert.is_none() {
-            let key_handle = self
-                .key_client
-                .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let key_handle = std::ffi::CString::new(key_handle.0)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let mut key_engine = self.key_engine.lock().await;
-            let private_key = key_engine
-                .load_private_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let public_key = key_engine
-                .load_public_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let result = async {
-                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-
-                let _ = self
-                    .cert_client
-                    .create_cert(&identity_cert, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-
-                Ok::<(), Error>(())
-            }
-            .await;
-
-            if let Err(err) = result {
-                // TODO: need to delete key from keyd.
-
-                return Err(err);
-            }
-        }
-
-        Ok(())
-    }
 }
 
-fn create_csr(
+pub(crate) fn create_csr(
     subject: &str,
     public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
     private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
@@ -826,65 +602,59 @@ fn create_csr(
     Ok(csr)
 }
 
-pub struct SettingsAuthorizer {
+pub struct SettingsAuthenticator {
     pub allowed_users: std::collections::BTreeMap<config::Uid, config::Principal>,
-    pub modules: std::collections::BTreeSet<aziot_identity_common::ModuleId>,
 }
+
+impl auth::authentication::Authenticator for SettingsAuthenticator {
+    type Error = Error;
+
+    fn authenticate(&self, credentials: config::Uid) -> Result<auth::AuthId, Self::Error> {
+        //DEVNOTE: The authentication logic is ordered to lookup the principals first
+        //         so that a host process can be configured to run as root.
+        if let Some(p) = self.allowed_users.get(&credentials) {
+            if p.id_type.is_some() {
+                return Ok(auth::AuthId::HostProcess(p.clone()));
+            } else {
+                return Ok(auth::AuthId::Daemon);
+            }
+        } else if credentials == config::Uid(0) {
+            return Ok(auth::AuthId::LocalRoot);
+        }
+
+        Ok(auth::AuthId::Unknown)
+    }
+}
+
+pub struct SettingsAuthorizer {}
 
 impl auth::authorization::Authorizer for SettingsAuthorizer {
     type Error = Error;
 
     fn authorize(&self, o: auth::Operation) -> Result<bool, Self::Error> {
-        match o.op_type {
-            crate::auth::OperationType::GetModule(m) => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(
-                            if self
-                                .modules
-                                .contains(&aziot_identity_common::ModuleId(m.clone()))
-                            {
-                                p.name.0 == m
-                            } else {
-                                p.id_type == None
-                            },
-                        );
-                    }
+        match o.auth_id {
+            crate::auth::AuthId::LocalRoot | crate::auth::AuthId::Daemon => Ok(true),
+            crate::auth::AuthId::HostProcess(p) => Ok(match o.op_type {
+                auth::OperationType::GetModule(m) => {
+                    p.name.0 == m
+                        && p.id_type.map_or(false, |i| {
+                            i.contains(&aziot_identity_common::IdType::Module)
+                        })
                 }
-            }
-            crate::auth::OperationType::GetDevice => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        let allow_id_type = p
-                            .id_type
-                            .clone()
-                            .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device));
-
-                        return Ok(allow_id_type);
-                    }
-                }
-            }
-            crate::auth::OperationType::CreateModule(m)
-            | crate::auth::OperationType::UpdateModule(m)
-            | crate::auth::OperationType::DeleteModule(m) => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(p.id_type == None
-                            && !self.modules.contains(&aziot_identity_common::ModuleId(m)));
-                    }
-                }
-            }
-            crate::auth::OperationType::GetTrustBundle => return Ok(true),
-            crate::auth::OperationType::GetAllHubModules
-            | crate::auth::OperationType::ReprovisionDevice => {
-                if let crate::auth::AuthId::LocalPrincipal(creds) = o.auth_id {
-                    if let Some(p) = self.allowed_users.get(&config::Uid(creds.0)) {
-                        return Ok(p.id_type == None);
-                    }
-                }
+                auth::OperationType::GetDevice => p
+                    .id_type
+                    .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device)),
+                auth::OperationType::GetAllHubModules
+                | auth::OperationType::CreateModule(_)
+                | auth::OperationType::DeleteModule(_)
+                | auth::OperationType::UpdateModule(_)
+                | auth::OperationType::ReprovisionDevice => false,
+                auth::OperationType::GetTrustBundle => true,
+            }),
+            crate::auth::AuthId::Unknown => {
+                Ok(o.op_type == crate::auth::OperationType::GetTrustBundle)
             }
         }
-        Ok(o.auth_id == crate::auth::AuthId::LocalRoot)
     }
 }
 
@@ -904,122 +674,18 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
     Ok(expiration)
 }
 
-fn prepare_authorized_principals(
-    principal: &[config::Principal],
-) -> (
-    std::collections::BTreeMap<config::Uid, config::Principal>,
-    std::collections::BTreeSet<aziot_identity_common::ModuleId>,
-    std::collections::BTreeMap<
-        aziot_identity_common::ModuleId,
-        Option<aziot_identity_common::LocalIdOpts>,
-    >,
-) {
-    let mut local_module_map: std::collections::BTreeMap<
-        aziot_identity_common::ModuleId,
-        Option<aziot_identity_common::LocalIdOpts>,
-    > = std::collections::BTreeMap::new();
-    let mut hub_module_set: std::collections::BTreeSet<aziot_identity_common::ModuleId> =
-        std::collections::BTreeSet::new();
-    let mut principal_map: std::collections::BTreeMap<config::Uid, config::Principal> =
-        std::collections::BTreeMap::new();
-    let mut found_daemon = false;
-
-    for p in principal {
-        if let Some(id_type) = &p.id_type {
-            for i in id_type {
-                match i {
-                    aziot_identity_common::IdType::Module => hub_module_set.insert(p.name.clone()),
-                    aziot_identity_common::IdType::Local => local_module_map
-                        .insert(p.name.clone(), p.localid.clone())
-                        .is_some(),
-                    _ => true,
-                };
-            }
-        } else if found_daemon {
-            log::warn!("Principal {:?} is not authorized. Please ensure there is only one principal without a type in the config.toml", p.name);
-            continue;
-        } else {
-            found_daemon = true
-        }
-
-        principal_map.insert(p.uid, p.clone());
-    }
-
-    (principal_map, hub_module_set, local_module_map)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use std::path::Path;
 
     use aziot_identity_common::{IdType, LocalIdAttr, LocalIdOpts, ModuleId};
-    use aziot_identityd_config::{
-        Endpoints, LocalId, ManualAuthMethod, Principal, Provisioning, ProvisioningType, Settings,
-        Uid,
-    };
-    use http_common::Connector;
+    use aziot_identityd_config::{LocalId, Principal, Uid};
 
     use crate::auth::authorization::Authorizer;
     use crate::auth::{AuthId, Operation, OperationType};
     use crate::SettingsAuthorizer;
 
-    use super::{prepare_authorized_principals, Api};
-
-    fn make_empty_settings() -> Settings {
-        Settings {
-            hostname: Default::default(),
-            homedir: Default::default(),
-            principal: Default::default(),
-            provisioning: Provisioning {
-                provisioning: ProvisioningType::Manual {
-                    iothub_hostname: Default::default(),
-                    device_id: Default::default(),
-                    authentication: ManualAuthMethod::SharedPrivateKey {
-                        device_id_pk: Default::default(),
-                    },
-                },
-                dynamic_reprovisioning: Default::default(),
-            },
-            // Use unreachable endpoints for the defaults.
-            endpoints: Endpoints {
-                aziot_certd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_identityd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_keyd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-                aziot_tpmd: Connector::Tcp {
-                    host: "localhost".into(),
-                    port: 0,
-                },
-            },
-            localid: Default::default(),
-        }
-    }
-
-    #[tokio::test]
-    async fn init_identities_with_empty_args_exits_early() {
-        let api = Api::new(
-            make_empty_settings(),
-            std::collections::BTreeMap::new(),
-            Box::new(|_| Ok(AuthId::Unknown)),
-            Box::new(|_| Ok(true)),
-            std::collections::BTreeMap::new(),
-        )
-        .unwrap();
-
-        let result = api
-            .init_hub_identities(BTreeSet::new(), BTreeSet::new())
-            .await;
-        result.unwrap();
-    }
+    use crate::configext::prepare_authorized_principals;
 
     #[test]
     fn convert_to_map_creates_principal_lookup() {
@@ -1141,11 +807,7 @@ mod tests {
 
     #[test]
     fn empty_auth_settings_deny_any_action() {
-        let (pmap, mset, _) = prepare_authorized_principals(&[]);
-        let auth = SettingsAuthorizer {
-            allowed_users: pmap,
-            modules: mset,
-        };
+        let auth = SettingsAuthorizer {};
         let operation = Operation {
             auth_id: AuthId::Unknown,
             op_type: OperationType::CreateModule(String::default()),

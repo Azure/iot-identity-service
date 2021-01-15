@@ -68,6 +68,7 @@ pub enum InternalError {
     ParseDeviceInfo(toml::de::Error),
     ParseSettings(toml::de::Error),
     SaveDeviceInfo(std::io::Error),
+    SerializeDeviceInfo(toml::ser::Error),
     SaveSettings(std::io::Error),
 }
 
@@ -93,6 +94,9 @@ impl std::fmt::Display for InternalError {
             InternalError::SaveDeviceInfo(_) => {
                 f.write_str("could not save device information state")
             }
+            InternalError::SerializeDeviceInfo(_) => {
+                f.write_str("could not serialize device information state")
+            }
             InternalError::SaveSettings(_) => f.write_str("could not save settings"),
         }
     }
@@ -114,6 +118,7 @@ impl std::error::Error for InternalError {
             InternalError::ParseSettings(err) => Some(err),
             InternalError::SaveDeviceInfo(err) => Some(err),
             InternalError::SaveSettings(err) => Some(err),
+            InternalError::SerializeDeviceInfo(err) => Some(err),
         }
     }
 }

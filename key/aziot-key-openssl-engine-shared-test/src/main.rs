@@ -138,8 +138,7 @@ async fn main() -> Result<(), Error> {
 
             let key = load_private_key(&mut engine, key_handle)?;
 
-            let listener = std::net::TcpListener::bind(&("0.0.0.0", port))?;
-            let incoming = tokio_openssl2::Incoming::new(listener, &cert, &key)?;
+            let incoming = tokio_openssl2::Incoming::new("0.0.0.0", port, &cert, &key)?;
 
             let server =
                 hyper::Server::builder(incoming).serve(hyper::service::make_service_fn(|_| {

@@ -8,13 +8,13 @@ build = "build/main.rs"
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.12"
+base64 = "0.13"
 foreign-types-shared = "0.1"
 futures-util = "0.3"
 hex = "0.4"
 http = "0.2"
-hyper = "0.13"
-hyper-openssl = "0.8"
+hyper = "0.14"
+hyper-openssl = "0.9"
 lazy_static = "1"
 log = "0.4"
 openssl = "0.10"
@@ -31,7 +31,7 @@ aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
-http-common = { path = "../../http-common", features = ["tokio02"] }
+http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
 
 
