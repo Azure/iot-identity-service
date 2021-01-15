@@ -7,10 +7,10 @@ edition = "2018"
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.12"
+base64 = "0.13"
 futures-util = "0.3"
 http = "0.2"
-hyper = "0.13"
+hyper = "0.14"
 lazy_static = "1"
 log = "0.4"
 openssl = "0.10"
@@ -24,4 +24,4 @@ url = "2"
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-keyd-config = { path = "../aziot-keyd-config" }
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio1"] }

@@ -10,12 +10,15 @@ pub mod authorization;
 pub enum AuthId {
     Unknown,
 
-    LocalPrincipal(aziot_identityd_config::Credentials),
+    HostProcess(aziot_identityd_config::Principal),
+
+    Daemon,
 
     LocalRoot,
 }
 
 /// Operation types to be authorized
+#[derive(Clone, PartialOrd, PartialEq)]
 pub enum OperationType {
     GetModule(String),
     GetAllHubModules,

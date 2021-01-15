@@ -17,21 +17,21 @@ pub enum Stream {
     Unix(std::os::unix::net::UnixStream),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum AsyncStream {
     Tcp(tokio::net::TcpStream),
     Unix(tokio::net::UnixStream),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
     Tcp(tokio::net::TcpListener),
     Unix(tokio::net::UnixListener),
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl Incoming {
     pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
     where
@@ -50,7 +50,7 @@ impl Incoming {
 
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(0, server.clone());
-                tokio::task::spawn(async move {
+                tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(tcp_stream, server)
                         .await
@@ -64,8 +64,8 @@ impl Incoming {
                 let (unix_stream, _) = listener.accept().await?;
                 let ucred = unix_stream.peer_cred()?;
 
-                let server = crate::uid::UidService::new(ucred.uid, server.clone());
-                tokio::task::spawn(async move {
+                let server = crate::uid::UidService::new(ucred.uid(), server.clone());
+                tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(unix_stream, server)
                         .await
@@ -125,7 +125,7 @@ impl Connector {
         }
     }
 
-    #[cfg(feature = "tokio02")]
+    #[cfg(feature = "tokio1")]
     pub async fn incoming(self) -> std::io::Result<Incoming> {
         let systemd_socket = get_systemd_socket()
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -135,13 +135,17 @@ impl Connector {
             match sock_addr {
                 // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
                 nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
-                    let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    let listener: std::net::TcpListener =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    listener.set_nonblocking(true)?;
                     let listener = tokio::net::TcpListener::from_std(listener)?;
                     Ok(Incoming::Tcp(listener))
                 }
 
                 nix::sys::socket::SockAddr::Unix(_) => {
-                    let listener = unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    let listener: std::os::unix::net::UnixListener =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                    listener.set_nonblocking(true)?;
                     let listener = tokio::net::UnixListener::from_std(listener)?;
                     Ok(Incoming::Unix(listener))
                 }
@@ -232,7 +236,7 @@ impl std::str::FromStr for Connector {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
@@ -345,28 +349,21 @@ impl std::io::Write for Stream {
     }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
         match &mut *self {
             AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
             AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_read(cx, buf),
         }
     }
-
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [std::mem::MaybeUninit<u8>]) -> bool {
-        match self {
-            AsyncStream::Tcp(inner) => inner.prepare_uninitialized_buffer(buf),
-            AsyncStream::Unix(inner) => inner.prepare_uninitialized_buffer(buf),
-        }
-    }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncWrite for AsyncStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -398,9 +395,27 @@ impl tokio::io::AsyncWrite for AsyncStream {
             AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_shutdown(cx),
         }
     }
+
+    fn poll_write_vectored(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match &mut *self {
+            AsyncStream::Tcp(inner) => std::pin::Pin::new(inner).poll_write_vectored(cx, bufs),
+            AsyncStream::Unix(inner) => std::pin::Pin::new(inner).poll_write_vectored(cx, bufs),
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        match self {
+            AsyncStream::Tcp(inner) => inner.is_write_vectored(),
+            AsyncStream::Unix(inner) => inner.is_write_vectored(),
+        }
+    }
 }
 
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
@@ -431,7 +446,7 @@ impl std::error::Error for ConnectorError {
 /// Finds the systemd socket if one has been used to socket-activate this process.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the very first fd.
-#[cfg(feature = "tokio02")]
+#[cfg(feature = "tokio1")]
 fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //
