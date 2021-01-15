@@ -310,7 +310,7 @@ The KS is made up of the following crates:
 
     libaziot-keys is a dynamic library that implements key storage and crypto operations. The REST API exported by KS maps nearly one-to-one with the C API exposed by libaziot-keys.
 
-    It exists as a dynamic library so that users can replace it with their own alternative implementation that provides the same interface. It is similar to the existing libiothsm that is used by iotedged, except that it only concerns itself with keys (both symmetric and asymmetric), not certificates. Also, unlike libiothsm, libaziot-keys does not require keys to be exportable to memory.
+    It exists as a dynamic library so that users can replace it with their own alternative implementation that provides the same interface. It is similar to the libiothsm library that was used by iotedged in IoT Edge 1.1 and earlier, except that it only concerns itself with keys (both symmetric and asymmetric), not certificates. Also, unlike libiothsm, libaziot-keys does not require keys to be exportable to memory.
 
     The implementation of libaziot-keys shipped by Microsoft supports keys that are stored on the filesystem and manipulated in memory, and keys that are accessed via PKCS#11.
 

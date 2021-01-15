@@ -96,6 +96,7 @@ impl Client {
         &self,
         id: &str,
         value: aziot_key_common::CreateKeyValue,
+        usage: &[aziot_key_common::KeyUsage],
     ) -> std::io::Result<aziot_key_common::KeyHandle> {
         let mut stream = self.connector.connect()?;
 
@@ -105,6 +106,7 @@ impl Client {
                     id: id.to_owned(),
                     generate_key_len: Some(length),
                     import_key_bytes: None,
+                    usage: usage.to_owned(),
                 }
             }
             aziot_key_common::CreateKeyValue::Import { bytes } => {
@@ -112,6 +114,7 @@ impl Client {
                     id: id.to_owned(),
                     generate_key_len: None,
                     import_key_bytes: Some(http_common::ByteString(bytes)),
+                    usage: usage.to_owned(),
                 }
             }
         };

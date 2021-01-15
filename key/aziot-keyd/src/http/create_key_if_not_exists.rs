@@ -73,7 +73,7 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let handle = match api.create_key_if_not_exists(&body.id, create_key_value) {
+        let handle = match api.create_key_if_not_exists(&body.id, create_key_value, &body.usage) {
             Ok(handle) => handle,
             Err(err) => return Err(super::to_http_error(&err)),
         };

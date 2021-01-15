@@ -351,6 +351,10 @@ impl IdentityManager {
                 .create_key_if_not_exists(
                     "aziot_identityd_master_id",
                     aziot_key_common::CreateKeyValue::Generate { length: 32 },
+                    &[
+                        aziot_key_common::KeyUsage::Derive,
+                        aziot_key_common::KeyUsage::Sign,
+                    ],
                 )
                 .await
                 .map_err(|err| {

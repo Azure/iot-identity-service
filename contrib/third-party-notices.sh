@@ -203,13 +203,6 @@ cargo metadata --format-version 1 |
                 ;;
         esac
 
-        if [ "$name:$version" == 'tracing-futures:0.2.4' ]; then
-            # TODO: Crate doesn't ship with LICENSE file but it's MIT. Fixed by upstream in
-            # https://github.com/tokio-rs/tracing/commit/0de7d516896ce52726fe58591797e0e8f6bfa5da
-            # Remove this when new version with this commit is released.
-            curl -Lo "$crate_directory/LICENSE" 'https://github.com/tokio-rs/tracing/raw/fe570afaffdeeac3d7023b24e3aa05935ec55d14/tracing-futures/LICENSE'
-        fi
-        
         if [ "$name:$version" == 'inotify:0.7.1' ]; then
             # TODO: Crate doesn't ship with LICENSE file but it's ISC. Fixed by upstream in
             # https://github.com/hannobraun/inotify/commit/52c18c527fe227b329f8428d73a1c732f2d56ce5

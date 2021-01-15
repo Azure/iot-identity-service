@@ -3,6 +3,7 @@
 pub(crate) unsafe extern "C" fn create_key_if_not_exists(
     id: *const std::os::raw::c_char,
     length: usize,
+    usage: crate::AZIOT_KEYS_KEY_USAGE,
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
@@ -22,10 +23,7 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
         let locations = crate::implementation::Location::of(id)?;
 
         if load_inner(&locations)?.is_none() {
-            let mut bytes = vec![0_u8; length];
-            openssl::rand::rand_bytes(&mut bytes)?;
-
-            create_inner(&locations, &bytes)?;
+            create_inner(&locations, CreateMethod::Generate(length), usage)?;
             if load_inner(&locations)?.is_none() {
                 return Err(crate::implementation::err_external(
                     "key created successfully but could not be found",
@@ -70,6 +68,7 @@ pub(crate) unsafe extern "C" fn import_key(
     id: *const std::os::raw::c_char,
     bytes: *const u8,
     bytes_len: usize,
+    usage: crate::AZIOT_KEYS_KEY_USAGE,
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
@@ -97,7 +96,7 @@ pub(crate) unsafe extern "C" fn import_key(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        create_inner(&locations, bytes)?;
+        create_inner(&locations, CreateMethod::Import(bytes), usage)?;
         if load_inner(&locations)?.is_none() {
             return Err(crate::implementation::err_external(
                 "key created successfully but could not be found",
@@ -181,8 +180,6 @@ pub(crate) unsafe fn sign(
     parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    use hmac::{Mac, NewMac};
-
     let key = match load_inner(locations)? {
         Some(key) => key,
         None => {
@@ -206,14 +203,31 @@ pub(crate) unsafe fn sign(
         ));
     }
 
-    let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
-        .map_err(crate::implementation::err_external)?;
+    match key {
+        Key::FileSystem(key) => {
+            use hmac::{Mac, NewMac};
 
-    signer.update(digest);
+            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
+                .map_err(crate::implementation::err_external)?;
 
-    let signature = signer.finalize();
-    let signature = signature.into_bytes().to_vec();
-    Ok((signature.len(), signature))
+            signer.update(digest);
+
+            let signature = signer.finalize();
+            let signature = signature.into_bytes().to_vec();
+            Ok((signature.len(), signature))
+        }
+
+        Key::Pkcs11(key) => {
+            let mut signature = vec![0_u8; 32];
+            let signature_len = key
+                .sign(digest, &mut signature)
+                .map_err(crate::implementation::err_external)?;
+            let signature_len =
+                std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+            signature.truncate(signature_len);
+            Ok((signature_len, signature))
+        }
+    }
 }
 
 pub(crate) unsafe fn verify(
@@ -221,8 +235,6 @@ pub(crate) unsafe fn verify(
     digest: &[u8],
     signature: &[u8],
 ) -> Result<bool, crate::AZIOT_KEYS_RC> {
-    use hmac::{Mac, NewMac};
-
     let key = match load_inner(locations)? {
         Some(key) => key,
         None => {
@@ -233,22 +245,44 @@ pub(crate) unsafe fn verify(
         }
     };
 
-    let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
-        .map_err(crate::implementation::err_external)?;
+    match key {
+        Key::FileSystem(key) => {
+            use hmac::{Mac, NewMac};
 
-    signer.update(digest);
+            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
+                .map_err(crate::implementation::err_external)?;
 
-    // As hmac's docs say, it's important to use `verify` here instead of just running `finalize().into_bytes()` and comparing the signatures,
-    // because `verify` makes sure to be constant-time.
-    let ok = signer.verify(signature).is_ok();
-    Ok(ok)
+            signer.update(digest);
+
+            // As hmac's docs say, it's important to use `verify` here instead of just running `finalize().into_bytes()` and comparing the signatures,
+            // because `verify` makes sure to be constant-time.
+            let ok = signer.verify(signature).is_ok();
+            Ok(ok)
+        }
+
+        Key::Pkcs11(key) => {
+            let ok = key
+                .verify(digest, signature)
+                .map_err(crate::implementation::err_external)?;
+            Ok(ok)
+        }
+    }
 }
 
 // Ciphertext is formatted as:
 //
 // - Encryption scheme version (1 byte); v1 == 0x01_u8
-// - Tag (16 bytes) (16 bytes is the tag size for AES-256-GCM)
-// - Actual ciphertext
+// - Rest
+//
+// For v1 keys, the format of "Rest" is:
+//
+// - Tag
+// - Actual ciphertext (`len(plaintext)` rounded up by `len(block size)`)
+//
+// Filesystem keys use AES-256-GCM. PKCS#11 keys use AES-GCM with unspecified key length (chosen by the token).
+//
+// We choose `len(tag)` to be 16 bytes, the best value for AES-GCM.
+// For AES, `len(block size)` = 128 bits = 16 bytes.
 
 pub(crate) unsafe fn encrypt(
     locations: &[crate::implementation::Location],
@@ -297,14 +331,35 @@ pub(crate) unsafe fn encrypt(
 
     let cipher = openssl::symm::Cipher::aes_256_gcm();
 
-    let mut tag = vec![0_u8; 16];
-    let ciphertext =
-        openssl::symm::encrypt_aead(cipher, &key, Some(iv), aad, plaintext, &mut tag[..])?;
+    match key {
+        Key::FileSystem(key) => {
+            let mut tag = [0_u8; 16];
+            let mut ciphertext =
+                openssl::symm::encrypt_aead(cipher, &key, Some(iv), aad, plaintext, &mut tag)?;
 
-    let mut result = vec![0x01_u8];
-    result.extend_from_slice(&tag);
-    result.extend_from_slice(&ciphertext);
-    Ok((result.len(), result))
+            ciphertext.insert(0, 0x01);
+            ciphertext.extend_from_slice(&tag);
+            Ok((ciphertext.len(), ciphertext))
+        }
+
+        Key::Pkcs11(key) => {
+            // We can use the block size of AES-256-GCM from openssl even though the token didn't necessarily use AES-256-GCM,
+            // because all AES ciphers have the same block size by definition.
+            let mut ciphertext = vec![0_u8; 1 + plaintext.len() + cipher.block_size() + 16];
+
+            ciphertext[0] = 0x01;
+
+            let ciphertext_len = key
+                .encrypt(iv, aad, plaintext, &mut ciphertext[1..])
+                .map_err(crate::implementation::err_external)?;
+            let ciphertext_len: usize =
+                std::convert::TryInto::try_into(ciphertext_len).expect("CK_ULONG -> usize");
+            let ciphertext_len = ciphertext_len + 1;
+            ciphertext.truncate(ciphertext_len);
+
+            Ok((ciphertext_len, ciphertext))
+        }
+    }
 }
 
 pub(crate) unsafe fn decrypt(
@@ -357,58 +412,168 @@ pub(crate) unsafe fn decrypt(
     if ciphertext.len() < 1 + 16 {
         return Err(crate::implementation::err_invalid_parameter(
             "ciphertext",
-            "expected non-NULL",
+            "malformed",
         ));
     }
     if ciphertext[0] != 0x01 {
         return Err(crate::implementation::err_invalid_parameter(
             "ciphertext",
-            "expected non-NULL",
+            format!("unknown version {:?}", ciphertext[0]),
         ));
     }
 
-    let tag = &ciphertext[1..=16];
-    let ciphertext = &ciphertext[17..];
+    let ciphertext = &ciphertext[1..(ciphertext.len() - 16)];
+    let tag = &ciphertext[(ciphertext.len() - 16)..];
 
-    let plaintext = openssl::symm::decrypt_aead(cipher, &key, Some(iv), aad, ciphertext, tag)?;
+    match key {
+        Key::FileSystem(key) => {
+            let plaintext =
+                openssl::symm::decrypt_aead(cipher, &key, Some(iv), aad, ciphertext, tag)?;
+            Ok((plaintext.len(), plaintext))
+        }
 
-    Ok((plaintext.len(), plaintext))
+        Key::Pkcs11(key) => {
+            let mut plaintext = vec![0_u8; ciphertext.len() - 1 - 16];
+            let plaintext_len = key
+                .decrypt(iv, aad, ciphertext, &mut plaintext)
+                .map_err(crate::implementation::err_external)?;
+            let plaintext_len =
+                std::convert::TryInto::try_into(plaintext_len).expect("CK_ULONG -> usize");
+            plaintext.truncate(plaintext_len);
+            Ok((plaintext_len, plaintext))
+        }
+    }
+}
+
+enum Key {
+    FileSystem(Vec<u8>),
+    Pkcs11(pkcs11::Key),
 }
 
 fn load_inner(
     locations: &[crate::implementation::Location],
-) -> Result<Option<Vec<u8>>, crate::AZIOT_KEYS_RC> {
+) -> Result<Option<Key>, crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
-                Ok(key_bytes) => return Ok(Some(key_bytes)),
-                Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Ok(key_bytes) => return Ok(Some(Key::FileSystem(key_bytes))),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
                 Err(err) => return Err(crate::implementation::err_external(err)),
             },
 
-            // PKCS#11 symmetric keys are not supported
-            crate::implementation::Location::Pkcs11 { .. } => (),
+            crate::implementation::Location::Pkcs11 { lib_path, uri } => {
+                let pkcs11_context = pkcs11::Context::load(lib_path.clone())
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_slot = pkcs11_context
+                    .find_slot(&uri.slot_identifier)
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_session = pkcs11_context
+                    .open_session(pkcs11_slot, uri.pin.clone())
+                    .map_err(crate::implementation::err_external)?;
+
+                match pkcs11_session.get_key(uri.object_label.as_ref().map(AsRef::as_ref)) {
+                    Ok(key_pair) => return Ok(Some(Key::Pkcs11(key_pair))),
+
+                    Err(pkcs11::GetKeyError::KeyDoesNotExist) => (),
+
+                    Err(err) => return Err(crate::implementation::err_external(err)),
+                }
+            }
         }
     }
 
-    Err(crate::implementation::err_external(
-        "no valid location for symmetric key",
-    ))
+    Ok(None)
+}
+
+#[derive(Clone, Copy)]
+enum CreateMethod<'a> {
+    Generate(usize),
+    Import(&'a [u8]),
 }
 
 fn create_inner(
     locations: &[crate::implementation::Location],
-    bytes: &[u8],
+    create_method: CreateMethod<'_>,
+    usage: crate::AZIOT_KEYS_KEY_USAGE,
 ) -> Result<(), crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => {
-                std::fs::write(path, bytes).map_err(crate::implementation::err_external)?;
+                let result = match create_method {
+                    CreateMethod::Generate(length) => {
+                        let mut bytes = vec![0_u8; length];
+                        openssl::rand::rand_bytes(&mut bytes)?;
+                        std::fs::write(path, bytes)
+                    }
+
+                    CreateMethod::Import(bytes) => std::fs::write(path, bytes),
+                };
+                let () = result.map_err(crate::implementation::err_external)?;
                 return Ok(());
             }
 
-            // PKCS#11 symmetric keys are not supported
-            crate::implementation::Location::Pkcs11 { .. } => (),
+            crate::implementation::Location::Pkcs11 { lib_path, uri } => {
+                let usage = match usage {
+                    #[allow(unreachable_patterns)] // DERIVE and SIGN are the same constant
+                    crate::AZIOT_KEYS_KEY_USAGE_DERIVE | crate::AZIOT_KEYS_KEY_USAGE_SIGN => {
+                        pkcs11::KeyUsage::Hmac
+                    }
+                    crate::AZIOT_KEYS_KEY_USAGE_ENCRYPT => pkcs11::KeyUsage::Aes,
+                    _ => {
+                        return Err(crate::implementation::err_invalid_parameter(
+                            "usage",
+                            "unrecognized value",
+                        ))
+                    }
+                };
+
+                let pkcs11_context = pkcs11::Context::load(lib_path.clone())
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_slot = pkcs11_context
+                    .find_slot(&uri.slot_identifier)
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_session = pkcs11_context
+                    .open_session(pkcs11_slot, uri.pin.clone())
+                    .map_err(crate::implementation::err_external)?;
+
+                match create_method {
+                    CreateMethod::Generate(length) => {
+                        let result = pkcs11_session.generate_key(
+                            length,
+                            uri.object_label.as_ref().map(AsRef::as_ref),
+                            usage,
+                        );
+                        match result {
+                            Ok(_) => return Ok(()),
+
+                            // Some PKCS#11 implementations like Cryptoauthlib don't support `C_GenerateKey(CKM_GENERIC_SECRET_KEY_GEN)`
+                            Err(pkcs11::GenerateKeyError::GenerateKeyFailed(
+                                pkcs11_sys::CKR_MECHANISM_INVALID,
+                            )) => (),
+
+                            Err(err) => return Err(crate::implementation::err_external(err)),
+                        }
+                    }
+
+                    CreateMethod::Import(bytes) => {
+                        // TODO: Verify if CAL actually smashes the stack for keys that are too large,
+                        // and if not, if it returns a better error than CKR_GENERAL_ERROR
+                        let result = pkcs11_session.import_key(
+                            bytes,
+                            uri.object_label.as_ref().map(AsRef::as_ref),
+                            usage,
+                        );
+                        match result {
+                            Ok(_) => return Ok(()),
+
+                            // No better error from some PKCS#11 implementations like Cryptoauthlib than CKR_GENERAL_ERROR
+                            Err(pkcs11::ImportKeyError::CreateObjectFailed(_)) => (),
+
+                            Err(err) => return Err(crate::implementation::err_external(err)),
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -418,11 +583,11 @@ fn create_inner(
 }
 
 unsafe fn derive_key_for_sign(
-    key: &[u8],
+    key: &Key,
     parameters: *const std::ffi::c_void,
 ) -> Result<
     (
-        Vec<u8>,
+        Key,
         crate::AZIOT_KEYS_SIGN_MECHANISM,
         *const std::ffi::c_void,
     ),
@@ -444,15 +609,17 @@ unsafe fn derive_key_for_sign(
         parameters.derivation_data_len,
     )?;
 
-    Ok((signature, parameters.mechanism, parameters.parameters))
+    let derived_key = Key::FileSystem(signature);
+
+    Ok((derived_key, parameters.mechanism, parameters.parameters))
 }
 
 unsafe fn derive_key_for_encrypt(
-    key: &[u8],
+    key: &Key,
     parameters: *const std::ffi::c_void,
 ) -> Result<
     (
-        Vec<u8>,
+        Key,
         crate::AZIOT_KEYS_ENCRYPT_MECHANISM,
         *const std::ffi::c_void,
     ),
@@ -474,16 +641,16 @@ unsafe fn derive_key_for_encrypt(
         parameters.derivation_data_len,
     )?;
 
-    Ok((signature, parameters.mechanism, parameters.parameters))
+    let derived_key = Key::FileSystem(signature);
+
+    Ok((derived_key, parameters.mechanism, parameters.parameters))
 }
 
 unsafe fn derive_key_common(
-    key: &[u8],
+    key: &Key,
     derivation_data: *const std::os::raw::c_uchar,
     derivation_data_len: usize,
 ) -> Result<Vec<u8>, crate::AZIOT_KEYS_RC> {
-    use hmac::{Mac, NewMac};
-
     if derivation_data.is_null() {
         return Err(crate::implementation::err_invalid_parameter(
             "derivation_data",
@@ -493,12 +660,29 @@ unsafe fn derive_key_common(
 
     let derivation_data = std::slice::from_raw_parts(derivation_data, derivation_data_len);
 
-    let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
-        .map_err(crate::implementation::err_external)?;
+    match key {
+        Key::FileSystem(key) => {
+            use hmac::{Mac, NewMac};
 
-    signer.update(derivation_data);
+            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
+                .map_err(crate::implementation::err_external)?;
 
-    let signature = signer.finalize();
-    let signature = signature.into_bytes().to_vec();
-    Ok(signature)
+            signer.update(derivation_data);
+
+            let signature = signer.finalize();
+            let signature = signature.into_bytes().to_vec();
+            Ok(signature)
+        }
+
+        Key::Pkcs11(key) => {
+            let mut signature = vec![0_u8; 32];
+            let signature_len = key
+                .sign(derivation_data, &mut signature)
+                .map_err(crate::implementation::err_external)?;
+            let signature_len =
+                std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+            signature.truncate(signature_len);
+            Ok(signature)
+        }
+    }
 }

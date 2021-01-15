@@ -108,6 +108,8 @@ define_enum!(CK_ATTRIBUTE_TYPE {
     CKA_SENSITIVE = 0x0000_0103,
     CKA_SIGN = 0x0000_0108,
     CKA_TOKEN = 0x0000_0001,
+    CKA_VALUE = 0x0000_0011,
+    CKA_VALUE_LEN = 0x0000_0161,
     CKA_VERIFY = 0x0000_010a,
 });
 
@@ -204,15 +206,19 @@ pub struct CK_FUNCTION_LIST {
 
     pub C_Login: Option<CK_C_Login>,
 
-    _unused6: [Option<unsafe extern "C" fn()>; 3],
+    _unused6: [Option<unsafe extern "C" fn()>; 1],
 
-    pub C_DestroyObject: Option<CK_C_DestroyObject>,
+    pub C_CreateObject: Option<CK_C_CreateObject>,
 
     _unused7: [Option<unsafe extern "C" fn()>; 1],
 
-    pub C_GetAttributeValue: Option<CK_C_GetAttributeValue>,
+    pub C_DestroyObject: Option<CK_C_DestroyObject>,
 
     _unused8: [Option<unsafe extern "C" fn()>; 1],
+
+    pub C_GetAttributeValue: Option<CK_C_GetAttributeValue>,
+
+    _unused9: [Option<unsafe extern "C" fn()>; 1],
 
     pub C_FindObjectsInit: Option<CK_C_FindObjectsInit>,
     pub C_FindObjects: Option<CK_C_FindObjects>,
@@ -220,16 +226,27 @@ pub struct CK_FUNCTION_LIST {
     pub C_EncryptInit: Option<CK_C_EncryptInit>,
     pub C_Encrypt: Option<CK_C_Encrypt>,
 
-    _unused9: [Option<unsafe extern "C" fn()>; 11],
+    _unused10: [Option<unsafe extern "C" fn()>; 2],
+
+    pub C_DecryptInit: Option<CK_C_DecryptInit>,
+    pub C_Decrypt: Option<CK_C_Decrypt>,
+
+    _unused11: [Option<unsafe extern "C" fn()>; 7],
 
     pub C_SignInit: Option<CK_C_SignInit>,
     pub C_Sign: Option<CK_C_Sign>,
 
-    _unused10: [Option<unsafe extern "C" fn()>; 15],
+    _unused12: [Option<unsafe extern "C" fn()>; 4],
 
+    pub C_VerifyInit: Option<CK_C_VerifyInit>,
+    pub C_Verify: Option<CK_C_Verify>,
+
+    _unused13: [Option<unsafe extern "C" fn()>; 8],
+
+    pub C_GenerateKey: Option<CK_C_GenerateKey>,
     pub C_GenerateKeyPair: Option<CK_C_GenerateKeyPair>,
 
-    _unused11: [Option<unsafe extern "C" fn()>; 8],
+    _unused14: [Option<unsafe extern "C" fn()>; 8],
 }
 
 pub type CK_FUNCTION_LIST_PTR_CONST = *const CK_FUNCTION_LIST;
@@ -282,9 +299,28 @@ pub type CK_C_INITIALIZE_ARGS_PTR = *const CK_C_INITIALIZE_ARGS;
 // CK_KEY_TYPE
 
 define_enum!(CK_KEY_TYPE {
+    CKK_AES = 0x0000_001f,
     CKK_EC = 0x0000_0003,
+    CKK_GENERIC_SECRET = 0x0000_0010,
     CKK_RSA = 0x0000_0000,
 });
+
+// CK_GCM_PARAMS
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct CK_GCM_PARAMS {
+    pub pIv: CK_BYTE_PTR_CONST,
+    pub ulIvLen: CK_ULONG,
+
+    // This field is not defined in the spec but is present in the header.
+    // This is a spec error (fixed in PKCS#11 v3) and all PKCS#11 implementations require it.
+    pub ulIvBits: CK_ULONG,
+
+    pub pAAD: CK_BYTE_PTR_CONST,
+    pub ulAADLen: CK_ULONG,
+    pub ulTagBits: CK_ULONG,
+}
 
 // CK_MECHANISM
 
@@ -301,11 +337,15 @@ pub type CK_MECHANISM_PTR_CONST = *const CK_MECHANISM_IN;
 // CK_MECHANISM_TYPE
 
 define_enum!(CK_MECHANISM_TYPE {
+    CKM_AES_KEY_GEN = 0x0000_1080,
     CKM_EC_KEY_PAIR_GEN = 0x0000_1040,
     CKM_ECDSA = 0x0000_1041,
+    CKM_AES_GCM = 0x0000_1087,
     CKM_RSA_PKCS = 0x0000_0001,
     CKM_RSA_X509 = 0x0000_0003,
     CKM_RSA_PKCS_KEY_PAIR_GEN = 0x0000_0000,
+    CKM_GENERIC_SECRET_KEY_GEN = 0x0000_0350,
+    CKM_SHA256_HMAC = 0x0000_0251,
 });
 
 // CK_NOTIFICATION
@@ -319,6 +359,7 @@ pub struct CK_NOTIFICATION(CK_ULONG);
 define_enum!(CK_OBJECT_CLASS {
     CKO_PUBLIC_KEY = 0x0000_0002,
     CKO_PRIVATE_KEY = 0x0000_0003,
+    CKO_SECRET_KEY = 0x0000_0004,
 });
 
 // CK_OBJECT_HANDLE
@@ -398,6 +439,8 @@ define_enum!(CK_RV {
     CKR_SESSION_READ_ONLY = 0x0000_00b5,
     CKR_SESSION_READ_ONLY_EXISTS = 0x0000_00b7,
     CKR_SESSION_READ_WRITE_EXISTS = 0x0000_00b8,
+    CKR_SIGNATURE_INVALID = 0x0000_00c0,
+    CKR_SIGNATURE_LEN_RANGE = 0x0000_00c1,
     CKR_SLOT_ID_INVALID = 0x0000_0003,
 
     CKR_TEMPLATE_INCOMPLETE = 0x0000_00d0,
@@ -529,6 +572,24 @@ pub type CK_VOID_PTR_PTR = *mut CK_VOID_PTR;
 // Function typedefs
 
 pub type CK_C_CloseSession = unsafe extern "C" fn(hSession: CK_SESSION_HANDLE) -> CK_RV;
+pub type CK_C_CreateObject = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pTemplate: CK_ATTRIBUTE_PTR_CONST,
+    ulCount: CK_ULONG,
+    phObject: CK_OBJECT_HANDLE_PTR,
+) -> CK_RV;
+pub type CK_C_Decrypt = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pEncryptedData: CK_BYTE_PTR_CONST,
+    ulEncryptedDataLen: CK_ULONG,
+    pData: CK_BYTE_PTR,
+    pulDataLen: CK_ULONG_PTR,
+) -> CK_RV;
+pub type CK_C_DecryptInit = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pMechanism: CK_MECHANISM_PTR_CONST,
+    hKey: CK_OBJECT_HANDLE,
+) -> CK_RV;
 pub type CK_C_DestroyObject =
     unsafe extern "C" fn(hSession: CK_SESSION_HANDLE, hObject: CK_OBJECT_HANDLE) -> CK_RV;
 pub type CK_C_Encrypt = unsafe extern "C" fn(
@@ -555,6 +616,13 @@ pub type CK_C_FindObjectsInit = unsafe extern "C" fn(
     hSession: CK_SESSION_HANDLE,
     pTemplate: CK_ATTRIBUTE_PTR_CONST,
     ulCount: CK_ULONG,
+) -> CK_RV;
+pub type CK_C_GenerateKey = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pMechanism: CK_MECHANISM_PTR_CONST,
+    pTemplate: CK_ATTRIBUTE_PTR_CONST,
+    ulCount: CK_ULONG,
+    phKey: CK_OBJECT_HANDLE_PTR,
 ) -> CK_RV;
 pub type CK_C_GenerateKeyPair = unsafe extern "C" fn(
     hSession: CK_SESSION_HANDLE,
@@ -606,6 +674,18 @@ pub type CK_C_Sign = unsafe extern "C" fn(
     pulSignatureLen: CK_ULONG_PTR,
 ) -> CK_RV;
 pub type CK_C_SignInit = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pMechanism: CK_MECHANISM_PTR_CONST,
+    hKey: CK_OBJECT_HANDLE,
+) -> CK_RV;
+pub type CK_C_Verify = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    pData: CK_BYTE_PTR_CONST,
+    ulDataLen: CK_ULONG,
+    pSignature: CK_BYTE_PTR_CONST,
+    ulSignatureLen: CK_ULONG,
+) -> CK_RV;
+pub type CK_C_VerifyInit = unsafe extern "C" fn(
     hSession: CK_SESSION_HANDLE,
     pMechanism: CK_MECHANISM_PTR_CONST,
     hKey: CK_OBJECT_HANDLE,

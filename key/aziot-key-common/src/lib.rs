@@ -13,6 +13,13 @@ pub enum CreateKeyValue {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum KeyUsage {
+    Derive,
+    Encrypt,
+    Sign,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum SignMechanism {
     // ECDSA keys
     Ecdsa,

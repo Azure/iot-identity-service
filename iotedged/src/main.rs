@@ -18,7 +18,6 @@ async fn main() -> Result<(), Error> {
         device_id,
         keyd_uri,
         certd_uri,
-        identityd_uri,
         preloaded_device_id_ca_cert,
         preloaded_device_id_cert,
         sas_key,
@@ -254,6 +253,7 @@ async fn main() -> Result<(), Error> {
         .create_key_if_not_exists(
             "crypto-test",
             aziot_key_common::CreateKeyValue::Generate { length: 32 },
+            &[aziot_key_common::KeyUsage::Derive],
         )
         .await
         .unwrap();
@@ -287,6 +287,7 @@ async fn main() -> Result<(), Error> {
             aziot_key_common::CreateKeyValue::Import {
                 bytes: test_derived_key,
             },
+            &[aziot_key_common::KeyUsage::Derive],
         )
         .await
         .unwrap();
@@ -323,6 +324,7 @@ async fn main() -> Result<(), Error> {
                 .create_key_if_not_exists(
                     "device-id-iotedged",
                     aziot_key_common::CreateKeyValue::Import { bytes: key },
+                    &[aziot_key_common::KeyUsage::Sign],
                 )
                 .await
                 .unwrap()
@@ -461,83 +463,6 @@ async fn main() -> Result<(), Error> {
     let response: serde_json::Value = serde_json::from_slice(&response).unwrap();
     println!("{:#?}", response);
 
-    // Verify Identity Service
-
-    let body = serde_json::json! {{ "type": "aziot" }};
-    let client = reqwest::Client::new();
-    let res = client
-        .post(
-            identityd_uri
-                .join("/identities/device?api-version=2020-09-01")
-                .unwrap(),
-        )
-        .json(&body)
-        .send()
-        .await
-        .map_err(Error::Reqwest)?
-        .text()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    println!("Get provisioned device response: {:?}", res);
-
-    let client = reqwest::Client::new();
-    let res = client
-        .get(
-            identityd_uri
-                .join("/identities/modules?api-version=2020-09-01")
-                .unwrap(),
-        )
-        .send()
-        .await
-        .map_err(Error::Reqwest)?
-        .text()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    println!("Get modules response: {:?}", res);
-
-    let body = serde_json::json! {{ "type": "aziot", "moduleId": "testid" }};
-    let res = client
-        .post(
-            identityd_uri
-                .join("/identities/modules?api-version=2020-09-01")
-                .unwrap(),
-        )
-        .json(&body)
-        .send()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    println!("Create module response: {:?}", res);
-
-    let res = client
-        .get(
-            identityd_uri
-                .join("/identities/modules/testid?api-version=2020-09-01")
-                .unwrap(),
-        )
-        .send()
-        .await
-        .map_err(Error::Reqwest)?
-        .text()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    println!("Get module response{:?}", res);
-
-    let res = client
-        .delete(
-            identityd_uri
-                .join("/identities/modules/testid?api-version=2020-09-01")
-                .unwrap(),
-        )
-        .send()
-        .await
-        .map_err(Error::Reqwest)?;
-
-    println!("Delete module response{:?}", res);
-
     Ok(())
 }
 
@@ -559,10 +484,6 @@ struct Options {
     /// `certd` API endpoint.
     #[structopt(long, default_value = "unix:///run/aziot/certd.sock")]
     certd_uri: url::Url,
-
-    /// `identityd` API endpoint. At the moment, this must be a "http://" URI.
-    #[structopt(long, default_value = "http://localhost:8901")]
-    identityd_uri: url::Url,
 
     /// ID of a device ID CA cert that has been preloaded into the KS and CS.
     ///
@@ -716,7 +637,6 @@ enum Error {
     CreateOrLoadWorkloadCaCert(Box<dyn std::error::Error>),
     CreateOrLoadWorkloadCaKeyPair(std::io::Error),
     LoadKeyOpensslEngine(openssl2::Error),
-    Reqwest(reqwest::Error),
     VerifyWorkloadCaCert(openssl::error::ErrorStack),
 }
 
@@ -750,7 +670,6 @@ impl std::fmt::Display for Error {
             Error::LoadKeyOpensslEngine(_) => {
                 f.write_str("could not load aziot-key-openssl-engine")
             }
-            Error::Reqwest(_) => f.write_str("could not get response from Identity Service"),
             Error::VerifyWorkloadCaCert(_) => {
                 f.write_str("could not verify workload CA cert signature")
             }
@@ -767,7 +686,6 @@ impl std::error::Error for Error {
             Error::CreateOrLoadWorkloadCaCert(err) => Some(&**err),
             Error::CreateOrLoadWorkloadCaKeyPair(err) => Some(err),
             Error::LoadKeyOpensslEngine(err) => Some(err),
-            Error::Reqwest(err) => Some(err),
             Error::VerifyWorkloadCaCert(err) => Some(err),
         }
     }

@@ -230,6 +230,8 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     /// - If a key with that ID does not exist, a new random key will be created with the number of bytes specified by `length`.
     ///   It will be saved such that it can be looked up later using that same ID.
     ///
+    /// `usage` specifies what the key will be used for.
+    ///
     /// # Errors
     ///
     /// - `AZIOT_KEYS_RC_ERR_INVALID_PARAMETER`:
@@ -237,8 +239,11 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     ///   - `id` is invalid.
     ///
     /// - `AZIOT_KEYS_RC_ERR_EXTERNAL`
-    pub create_key_if_not_exists:
-        unsafe extern "C" fn(id: *const std::os::raw::c_char, length: usize) -> AZIOT_KEYS_RC,
+    pub create_key_if_not_exists: unsafe extern "C" fn(
+        id: *const std::os::raw::c_char,
+        length: usize,
+        usage: AZIOT_KEYS_KEY_USAGE,
+    ) -> AZIOT_KEYS_RC,
 
     /// Load an existing key identified by the specified `id`.
     ///
@@ -272,6 +277,7 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
         id: *const std::os::raw::c_char,
         bytes: *const u8,
         bytes_len: usize,
+        usage: AZIOT_KEYS_KEY_USAGE,
     ) -> AZIOT_KEYS_RC,
 
     /// Derive a key with a given base key using some derivation data, and return the derived key.
@@ -280,7 +286,8 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     /// the derivation process used by `encrypt` with the `AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED` mechanism and
     /// the derivation process used by `sign` with the `AZIOT_KEYS_SIGN_MECHANISM_DERIVED` mechanism.
     ///
-    /// `base_id` is the ID of the key that will be used to derive the new key.
+    /// `base_id` is the ID of the key that will be used to derive the new key. The key must have been created / imported
+    /// with the [`AZIOT_KEYS_KEY_USAGE_DERIVE`] usage.
     ///
     /// `derivation_data` is a byte buffer containing the data that used for the derivation.
     /// The caller sets `derivation_data_len` to the length of the buffer.
@@ -555,6 +562,34 @@ pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC: AZIOT_KEYS_KEY_PAIR_PARAME
 /// The key pair is an RSA key.
 pub const AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA: AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM =
     AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM { inner: 2 };
+
+/// The usage of key being created with `create_key_if_not_exists` or
+/// being imported with `import_key`.
+///
+/// This is a bitflag type, so its values can be combined. But note that not all combinations of flags
+/// are valid.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct AZIOT_KEYS_KEY_USAGE {
+    inner: std::os::raw::c_uint,
+}
+
+/// The key can be used for deriving other keys.
+///
+/// Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_ENCRYPT`]
+pub const AZIOT_KEYS_KEY_USAGE_DERIVE: AZIOT_KEYS_KEY_USAGE =
+    AZIOT_KEYS_KEY_USAGE { inner: 0x0001 };
+
+/// The key can be used for encryption.
+///
+/// Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_DERIVE`] or [`AZIOT_KEYS_KEY_USAGE_SIGN`]
+pub const AZIOT_KEYS_KEY_USAGE_ENCRYPT: AZIOT_KEYS_KEY_USAGE =
+    AZIOT_KEYS_KEY_USAGE { inner: 0x0010 };
+
+/// The key can be used for signing.
+///
+/// Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_ENCRYPT`]
+pub const AZIOT_KEYS_KEY_USAGE_SIGN: AZIOT_KEYS_KEY_USAGE = AZIOT_KEYS_KEY_USAGE_DERIVE;
 
 /// The mechanism used with `sign` / `verify`.
 ///
