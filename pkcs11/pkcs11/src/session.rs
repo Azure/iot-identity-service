@@ -303,11 +303,11 @@ impl Session {
                     Ok(key_handle) => {
                         let result = (self.context.C_DestroyObject)(self.handle, key_handle);
                         if result != pkcs11_sys::CKR_OK {
-                            return Err(GenerateKeyError::DeleteExistingKey(result));
+                            return Err(GenerateKeyError::DeleteExistingKeyFailed(result));
                         }
                     }
                     Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(GenerateKeyError::GetExistingKey(err)),
+                    Err(err) => return Err(GenerateKeyError::GetExistingKeyFailed(err)),
                 }
             }
 
@@ -425,23 +425,22 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum GenerateKeyError {
-    DeleteExistingKey(pkcs11_sys::CK_RV),
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GenerateKeyDidNotReturnHandle,
     GenerateKeyFailed(pkcs11_sys::CK_RV),
-    GetExistingKey(GetKeyError),
+    GetExistingKeyFailed(GetKeyError),
     LoginFailed(crate::LoginError),
 }
 
 impl std::fmt::Display for GenerateKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-			GenerateKeyError::DeleteExistingKey(result) => write!(f, "C_DestroyObject failed with {}", result),
+			GenerateKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
 			GenerateKeyError::GenerateKeyDidNotReturnHandle =>
 				f.write_str("could not generate key pair: C_GenerateKey succeeded but key handle is still CK_INVALID_HANDLE"),
 			GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key pair: C_GenerateKey failed with {}", result),
-			GenerateKeyError::GetExistingKey(_) => write!(f, "could not get existing key object"),
+			GenerateKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
 			GenerateKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
 		}
     }
@@ -451,10 +450,10 @@ impl std::error::Error for GenerateKeyError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         #[allow(clippy::match_same_arms)]
         match self {
-            GenerateKeyError::DeleteExistingKey(_) => None,
+            GenerateKeyError::DeleteExistingKeyFailed(_) => None,
             GenerateKeyError::GenerateKeyDidNotReturnHandle => None,
             GenerateKeyError::GenerateKeyFailed(_) => None,
-            GenerateKeyError::GetExistingKey(inner) => Some(inner),
+            GenerateKeyError::GetExistingKeyFailed(inner) => Some(inner),
             GenerateKeyError::LoginFailed(inner) => Some(inner),
         }
     }
@@ -478,11 +477,11 @@ impl Session {
                     Ok(key_handle) => {
                         let result = (self.context.C_DestroyObject)(self.handle, key_handle);
                         if result != pkcs11_sys::CKR_OK {
-                            return Err(ImportKeyError::DeleteExistingKey(result));
+                            return Err(ImportKeyError::DeleteExistingKeyFailed(result));
                         }
                     }
                     Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(ImportKeyError::GetExistingKey(err)),
+                    Err(err) => return Err(ImportKeyError::GetExistingKeyFailed(err)),
                 }
             }
 
@@ -594,12 +593,11 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum ImportKeyError {
     CreateObjectDidNotReturnHandle,
     CreateObjectFailed(pkcs11_sys::CK_RV),
-    DeleteExistingKey(pkcs11_sys::CK_RV),
-    GetExistingKey(GetKeyError),
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
+    GetExistingKeyFailed(GetKeyError),
     LoginFailed(crate::LoginError),
 }
 
@@ -609,8 +607,8 @@ impl std::fmt::Display for ImportKeyError {
 			ImportKeyError::CreateObjectDidNotReturnHandle =>
 				f.write_str("could not generate key pair: C_CreateObject succeeded but key handle is still CK_INVALID_HANDLE"),
 			ImportKeyError::CreateObjectFailed(result) => write!(f, "could not generate key pair: C_CreateObject failed with {}", result),
-			ImportKeyError::DeleteExistingKey(result) => write!(f, "C_DestroyObject failed with {}", result),
-			ImportKeyError::GetExistingKey(_) => write!(f, "could not get existing key object"),
+			ImportKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+			ImportKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
 			ImportKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
 		}
     }
@@ -622,8 +620,8 @@ impl std::error::Error for ImportKeyError {
         match self {
             ImportKeyError::CreateObjectDidNotReturnHandle => None,
             ImportKeyError::CreateObjectFailed(_) => None,
-            ImportKeyError::DeleteExistingKey(_) => None,
-            ImportKeyError::GetExistingKey(inner) => Some(inner),
+            ImportKeyError::DeleteExistingKeyFailed(_) => None,
+            ImportKeyError::GetExistingKeyFailed(inner) => Some(inner),
             ImportKeyError::LoginFailed(inner) => Some(inner),
         }
     }
@@ -723,11 +721,11 @@ impl Session {
                     Ok(key_handle) => {
                         let result = (self.context.C_DestroyObject)(self.handle, key_handle);
                         if result != pkcs11_sys::CKR_OK {
-                            return Err(GenerateKeyPairError::DeleteExistingKey(result));
+                            return Err(GenerateKeyPairError::DeleteExistingKeyFailed(result));
                         }
                     }
                     Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(GenerateKeyPairError::GetExistingKey(err)),
+                    Err(err) => return Err(GenerateKeyPairError::GetExistingKeyFailed(err)),
                 }
             }
         }
@@ -852,23 +850,22 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum GenerateKeyPairError {
-    DeleteExistingKey(pkcs11_sys::CK_RV),
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GenerateKeyPairDidNotReturnHandle(&'static str),
     GenerateKeyPairFailed(pkcs11_sys::CK_RV),
-    GetExistingKey(GetKeyError),
+    GetExistingKeyFailed(GetKeyError),
     LoginFailed(crate::LoginError),
 }
 
 impl std::fmt::Display for GenerateKeyPairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-			GenerateKeyPairError::DeleteExistingKey(result) => write!(f, "C_DestroyObject failed with {}", result),
+			GenerateKeyPairError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
 			GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) =>
 				write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {} key handle is still CK_INVALID_HANDLE", kind),
 			GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {}", result),
-			GenerateKeyPairError::GetExistingKey(_) => write!(f, "could not get existing key object"),
+			GenerateKeyPairError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
 			GenerateKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
 		}
     }
@@ -878,10 +875,10 @@ impl std::error::Error for GenerateKeyPairError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         #[allow(clippy::match_same_arms)]
         match self {
-            GenerateKeyPairError::DeleteExistingKey(_) => None,
+            GenerateKeyPairError::DeleteExistingKeyFailed(_) => None,
             GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(_) => None,
             GenerateKeyPairError::GenerateKeyPairFailed(_) => None,
-            GenerateKeyPairError::GetExistingKey(inner) => Some(inner),
+            GenerateKeyPairError::GetExistingKeyFailed(inner) => Some(inner),
             GenerateKeyPairError::LoginFailed(inner) => Some(inner),
         }
     }
