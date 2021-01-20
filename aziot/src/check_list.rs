@@ -8,15 +8,33 @@ use aziot_check_common::CheckListOutput;
 #[derive(StructOpt, Copy, Clone)]
 #[structopt(about = "List the checks that are run for 'aziot check'")]
 pub struct CheckListOptions {
-    /// Output available checks as a JSON object.
-    #[structopt(short, long)]
-    json: bool,
+    /// Output format. One of "text" or "json".
+    #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
+    output: OutputFormat,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum OutputFormat {
+    Text,
+    Json,
+}
+
+impl std::str::FromStr for OutputFormat {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, &'static str> {
+        Ok(match s {
+            "text" => OutputFormat::Text,
+            "json" => OutputFormat::Json,
+            _ => return Err("invalid output format"),
+        })
+    }
 }
 
 pub fn check_list(cfg: CheckListOptions) -> Result<()> {
     let checks = crate::internal::check::all_checks();
 
-    if cfg.json {
+    if matches!(cfg.output, OutputFormat::Json) {
         let mut output = CheckListOutput::new();
         for (section_name, section_checks) in checks {
             output.insert(
