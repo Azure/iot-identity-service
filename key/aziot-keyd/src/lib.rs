@@ -492,8 +492,8 @@ fn key_handle_to_id(
 ) -> Result<(KeyId<'static>, std::ffi::CString), Error> {
     // DEVNOTE:
     //
-    // Map errors from using the master encryption key to Error::Internal instead of relying on `?`,
-    // because all errors from using the master encryption key are internal errors.
+    // Map errors from using the handle validation key to Error::Internal instead of relying on `?`,
+    // because all errors from using the handle validation key are internal errors.
 
     let params = handle.0.split('&');
 
