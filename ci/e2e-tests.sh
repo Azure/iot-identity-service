@@ -407,7 +407,7 @@ nsg_id="$(
         --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
         --name "$common_resource_name" \
         --tags "$resource_tag" \
-        --query 'id' --output tsv
+        --query 'NewNSG.id' --output tsv
 )"
 echo 'Created NSG' >&2
 
