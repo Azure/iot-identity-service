@@ -50,9 +50,6 @@ pub mod create_key_if_not_exists {
         #[serde(rename = "keyId")]
         pub id: String,
 
-        #[serde(rename = "lengthBytes")]
-        pub generate_key_len: Option<usize>,
-
         #[serde(rename = "keyBytes")]
         pub import_key_bytes: Option<http_common::ByteString>,
 

@@ -17,11 +17,11 @@ A symmetric key is a sequence of random bytes. There is nothing special about th
 
 #### Encryption
 
-If a symmetric key is used to encrypt plaintext to get ciphertext, the same key is needed to decrypt the ciphertext back to plaintext. Depending on the algorithm, additional data may be involved in the process. For example, libaziot-keys uses the AES-256-GCM algorithm, which uses an IV buffer and an AAD buffer in addition to the plaintext / ciphertext:
+If a symmetric key is used to encrypt plaintext to get ciphertext, the same key is needed to decrypt the ciphertext back to plaintext. Depending on the algorithm, additional data may be involved in the process. For example, libaziot-keys uses the AES-GCM algorithm, which uses an IV buffer and an AAD buffer in addition to the plaintext / ciphertext:
 
 ```
-aes_256_gcm_encrypt(key, plaintext,  iv, aad) -> ciphertext
-aes_256_gcm_decrypt(key, ciphertext, iv, aad) -> plaintext
+aes_gcm_encrypt(key, plaintext,  iv, aad) -> ciphertext
+aes_gcm_decrypt(key, ciphertext, iv, aad) -> plaintext
 ```
 
 The encryption process also produces a "tag", and the decryption process requires it, but it can essentially be treated as part of the ciphertext. For example, the implementation can prefix it to the actual ciphertext since it has a constant length. This is what libaziot-keys's implementation also does.

@@ -177,7 +177,7 @@ typedef struct {
      * Create or load a key identified by the specified `id`.
      *
      * - If a key with that ID exists and can be loaded, it will be left as-is.
-     * - If a key with that ID does not exist, a new random key will be created with the number of bytes specified by `length`.
+     * - If a key with that ID does not exist, a new random key will be created.
      *   It will be saved such that it can be looked up later using that same ID.
      *
      * `usage` specifies what the key will be used for.
@@ -190,7 +190,7 @@ typedef struct {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*create_key_if_not_exists)(const char *id, uintptr_t length, AZIOT_KEYS_KEY_USAGE usage);
+    AZIOT_KEYS_RC (*create_key_if_not_exists)(const char *id, AZIOT_KEYS_KEY_USAGE usage);
     /**
      * Load an existing key identified by the specified `id`.
      *
@@ -575,7 +575,7 @@ typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
 #define AZIOT_KEYS_SIGN_MECHANISM_DERIVED 3
 
 /**
- * Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-256-GCM.
+ * Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-GCM.
  *
  * The exact AEAD algorithm used is left to the implementation and need not always be the same.
  * The caller must not make any assumptions about the format of the ciphertext.

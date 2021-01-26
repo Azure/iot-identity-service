@@ -43,32 +43,12 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
-        let create_key_value = match (body.generate_key_len, body.import_key_bytes) {
-            (Some(generate_key_len), None) => aziot_key_common::CreateKeyValue::Generate {
-                length: generate_key_len,
-            },
-
-            (None, Some(import_key_bytes)) => aziot_key_common::CreateKeyValue::Import {
+        let create_key_value = body.import_key_bytes.map_or(
+            aziot_key_common::CreateKeyValue::Generate,
+            |import_key_bytes| aziot_key_common::CreateKeyValue::Import {
                 bytes: import_key_bytes.0,
             },
-
-            (Some(_), Some(_)) => {
-                return Err(http_common::server::Error {
-                    status_code: hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                    message:
-                        "both lengthBytes and keyBytes cannot be specified in the same request"
-                            .into(),
-                })
-            }
-
-            (None, None) => {
-                return Err(http_common::server::Error {
-                    status_code: hyper::StatusCode::UNPROCESSABLE_ENTITY,
-                    message: "one of lengthBytes and keyBytes must be specified in the request"
-                        .into(),
-                })
-            }
-        };
+        );
 
         let mut api = self.api.lock().await;
         let api = &mut *api;

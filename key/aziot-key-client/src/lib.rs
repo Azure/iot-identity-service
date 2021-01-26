@@ -101,10 +101,9 @@ impl Client {
         let mut stream = self.connector.connect()?;
 
         let body = match value {
-            aziot_key_common::CreateKeyValue::Generate { length } => {
+            aziot_key_common::CreateKeyValue::Generate => {
                 aziot_key_common_http::create_key_if_not_exists::Request {
                     id: id.to_owned(),
-                    generate_key_len: Some(length),
                     import_key_bytes: None,
                     usage: usage.to_owned(),
                 }
@@ -112,7 +111,6 @@ impl Client {
             aziot_key_common::CreateKeyValue::Import { bytes } => {
                 aziot_key_common_http::create_key_if_not_exists::Request {
                     id: id.to_owned(),
-                    generate_key_len: None,
                     import_key_bytes: Some(http_common::ByteString(bytes)),
                     usage: usage.to_owned(),
                 }

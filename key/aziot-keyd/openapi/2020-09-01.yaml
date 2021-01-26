@@ -240,13 +240,10 @@ components:
         properties:
           'keyId':
             type: 'string'
-          'lengthBytes':
-            type: 'integer'
           'usage':
             type: 'string'
         required:
         - 'keyId'
-        - 'lengthBytes'
         - 'usage'
       - type: 'object'
         properties:

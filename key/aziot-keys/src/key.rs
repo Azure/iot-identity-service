@@ -2,7 +2,6 @@
 
 pub(crate) unsafe extern "C" fn create_key_if_not_exists(
     id: *const std::os::raw::c_char,
-    length: usize,
     usage: crate::AZIOT_KEYS_KEY_USAGE,
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
@@ -23,7 +22,7 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
         let locations = crate::implementation::Location::of(id)?;
 
         if load_inner(&locations)?.is_none() {
-            create_inner(&locations, CreateMethod::Generate(length), usage)?;
+            create_inner(&locations, CreateMethod::Generate, usage)?;
             if load_inner(&locations)?.is_none() {
                 return Err(crate::implementation::err_external(
                     "key created successfully but could not be found",
@@ -409,21 +408,24 @@ pub(crate) unsafe fn decrypt(
 
     let cipher = openssl::symm::Cipher::aes_256_gcm();
 
-    if ciphertext.len() < 1 + 16 {
+    let (&version, ciphertext) = ciphertext
+        .split_first()
+        .ok_or_else(|| crate::implementation::err_invalid_parameter("ciphertext", "malformed"))?;
+    if version != 0x01 {
+        return Err(crate::implementation::err_invalid_parameter(
+            "ciphertext",
+            format!("unknown version {:?}", version),
+        ));
+    }
+
+    if ciphertext.len() < 16 {
         return Err(crate::implementation::err_invalid_parameter(
             "ciphertext",
             "malformed",
         ));
     }
-    if ciphertext[0] != 0x01 {
-        return Err(crate::implementation::err_invalid_parameter(
-            "ciphertext",
-            format!("unknown version {:?}", ciphertext[0]),
-        ));
-    }
 
-    let ciphertext = &ciphertext[1..(ciphertext.len() - 16)];
-    let tag = &ciphertext[(ciphertext.len() - 16)..];
+    let (ciphertext, tag) = ciphertext.split_at(ciphertext.len() - 16);
 
     match key {
         Key::FileSystem(key) => {
@@ -487,7 +489,7 @@ fn load_inner(
 
 #[derive(Clone, Copy)]
 enum CreateMethod<'a> {
-    Generate(usize),
+    Generate,
     Import(&'a [u8]),
 }
 
@@ -500,8 +502,11 @@ fn create_inner(
         match location {
             crate::implementation::Location::Filesystem(path) => {
                 let result = match create_method {
-                    CreateMethod::Generate(length) => {
-                        let mut bytes = vec![0_u8; length];
+                    CreateMethod::Generate => {
+                        // Filesystem uses AES-256-GCM for encryption keys and HMAC-SHA256 for hash keys,
+                        // so it uses 256-bit == 32-byte keys for both.
+
+                        let mut bytes = vec![0_u8; 32];
                         openssl::rand::rand_bytes(&mut bytes)?;
                         std::fs::write(path, bytes)
                     }
@@ -537,12 +542,9 @@ fn create_inner(
                     .map_err(crate::implementation::err_external)?;
 
                 match create_method {
-                    CreateMethod::Generate(length) => {
-                        let result = pkcs11_session.generate_key(
-                            length,
-                            uri.object_label.as_ref().map(AsRef::as_ref),
-                            usage,
-                        );
+                    CreateMethod::Generate => {
+                        let result = pkcs11_session
+                            .generate_key(uri.object_label.as_ref().map(AsRef::as_ref), usage);
                         match result {
                             Ok(_) => return Ok(()),
 

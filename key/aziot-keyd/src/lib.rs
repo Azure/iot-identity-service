@@ -198,12 +198,12 @@ impl Api {
         }
 
         match value {
-            aziot_key_common::CreateKeyValue::Generate { length } => self
-                .keys
-                .create_key_if_not_exists(&id_cstr, length, usage_raw)?,
+            aziot_key_common::CreateKeyValue::Generate => {
+                self.keys.create_key_if_not_exists(&id_cstr, usage_raw)?;
+            }
 
             aziot_key_common::CreateKeyValue::Import { bytes } => {
-                self.keys.import_key(&id_cstr, &bytes, usage_raw)?
+                self.keys.import_key(&id_cstr, &bytes, usage_raw)?;
             }
         }
 
@@ -469,12 +469,11 @@ impl KeyId<'_> {
 }
 
 fn handle_validation_key_id(keys: &mut keys::Keys) -> Result<&'static std::ffi::CStr, Error> {
-    const HANDLE_VALIDATION_KEY_ID_C: &[u8] = b"master-encryption-key\0";
+    const HANDLE_VALIDATION_KEY_ID_C: &[u8] = b"handle-validation-key\0";
     let handle_validation_key_id = std::ffi::CStr::from_bytes_with_nul(HANDLE_VALIDATION_KEY_ID_C)
         .expect("hard-coded key ID is valid CStr");
     keys.create_key_if_not_exists(
         handle_validation_key_id,
-        32,
         keys::sys::AZIOT_KEYS_KEY_USAGE_SIGN,
     )
     .map_err(|err| Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)))?;

@@ -13,9 +13,17 @@ An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/202
 ```json
 {
     "keyId": "...",
-    "lengthBytes": 32
+    "usage": "..."
 }
 ```
+
+`usage` is a comma-separated sequence of one or more of the following strings:
+
+- `derive`
+- `encrypt`
+- `sign`
+
+Eg: `"usage": "derive,sign"`
 
 #### Response
 
@@ -240,7 +248,7 @@ Only valid for symmetric keys.
 
 For AEAD encryption, the ciphertext includes the AEAD tag so the caller does not need to handle that specially.
 
-Note also that the exact AEAD algorithm used cannot be chosed by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-256-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
+Note also that the exact AEAD algorithm used cannot be chosed by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
 
 ---
 

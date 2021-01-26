@@ -227,7 +227,7 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     /// Create or load a key identified by the specified `id`.
     ///
     /// - If a key with that ID exists and can be loaded, it will be left as-is.
-    /// - If a key with that ID does not exist, a new random key will be created with the number of bytes specified by `length`.
+    /// - If a key with that ID does not exist, a new random key will be created.
     ///   It will be saved such that it can be looked up later using that same ID.
     ///
     /// `usage` specifies what the key will be used for.
@@ -241,7 +241,6 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     /// - `AZIOT_KEYS_RC_ERR_EXTERNAL`
     pub create_key_if_not_exists: unsafe extern "C" fn(
         id: *const std::os::raw::c_char,
-        length: usize,
         usage: AZIOT_KEYS_KEY_USAGE,
     ) -> AZIOT_KEYS_RC,
 
@@ -654,7 +653,7 @@ pub struct AZIOT_KEYS_ENCRYPT_MECHANISM {
     inner: std::os::raw::c_uint,
 }
 
-/// Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-256-GCM.
+/// Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-GCM.
 ///
 /// The exact AEAD algorithm used is left to the implementation and need not always be the same.
 /// The caller must not make any assumptions about the format of the ciphertext.

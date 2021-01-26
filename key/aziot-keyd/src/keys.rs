@@ -40,7 +40,6 @@ pub(crate) enum Keys {
 
         create_key_if_not_exists: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
-            length: usize,
             usage: sys::AZIOT_KEYS_KEY_USAGE,
         ) -> sys::AZIOT_KEYS_RC,
 
@@ -444,7 +443,6 @@ impl Keys {
     pub(crate) fn create_key_if_not_exists(
         &mut self,
         id: &std::ffi::CStr,
-        length: usize,
         usage: sys::AZIOT_KEYS_KEY_USAGE,
     ) -> Result<(), CreateKeyIfNotExistsError> {
         unsafe {
@@ -453,7 +451,7 @@ impl Keys {
                     create_key_if_not_exists,
                     ..
                 } => {
-                    keys_ok(create_key_if_not_exists(id.as_ptr(), length, usage))
+                    keys_ok(create_key_if_not_exists(id.as_ptr(), usage))
                         .map_err(|err| CreateKeyIfNotExistsError { err })?;
 
                     Ok(())

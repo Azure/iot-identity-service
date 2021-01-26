@@ -80,7 +80,7 @@ pub struct CK_ATTRIBUTE {
     pub ulValueLen: CK_ULONG,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct CK_ATTRIBUTE_IN {
     pub r#type: CK_ATTRIBUTE_TYPE,

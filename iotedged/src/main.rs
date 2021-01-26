@@ -55,6 +55,79 @@ async fn main() -> Result<(), Error> {
         cert_client
     };
 
+    // Verify encrypt-decrypt
+
+    {
+        // New generated key can decrypt things encrypted with it
+        let test_key_handle = key_client
+            .create_key_if_not_exists(
+                "crypto-test-encrypt",
+                aziot_key_common::CreateKeyValue::Generate,
+                &[aziot_key_common::KeyUsage::Encrypt],
+            )
+            .await
+            .unwrap();
+        verify_encrypt_decrypt(&key_client, &test_key_handle, &test_key_handle).await;
+    }
+
+    {
+        // New generated key can be used to derive a key, which in turn can decrypt things encrypted with it
+        let test_key_handle = key_client
+            .create_key_if_not_exists(
+                "crypto-test-derive",
+                aziot_key_common::CreateKeyValue::Generate,
+                &[aziot_key_common::KeyUsage::Derive],
+            )
+            .await
+            .unwrap();
+        verify_encrypt_decrypt(&key_client, &test_key_handle, &test_key_handle).await;
+
+        // Derived key can decrypt things encrypted with it
+        let test_derived_key_handle = key_client
+            .create_derived_key(&test_key_handle, b"bbbbbb")
+            .await
+            .unwrap();
+
+        verify_encrypt_decrypt(
+            &key_client,
+            &test_derived_key_handle,
+            &test_derived_key_handle,
+        )
+        .await;
+
+        // Derived key can be reimported as a new key, and can decrypt things encrypted with the derived key, and vice versa.
+        let test_derived_key = key_client
+            .export_derived_key(&test_derived_key_handle)
+            .await
+            .unwrap();
+        println!(
+            "Exported derived key: {}",
+            base64::encode(&test_derived_key)
+        );
+        let test_derived_key_handle2 = key_client
+            .create_key_if_not_exists(
+                "crypto-test-derived-encrypt",
+                aziot_key_common::CreateKeyValue::Import {
+                    bytes: test_derived_key,
+                },
+                &[aziot_key_common::KeyUsage::Derive],
+            )
+            .await
+            .unwrap();
+        verify_encrypt_decrypt(
+            &key_client,
+            &test_derived_key_handle,
+            &test_derived_key_handle2,
+        )
+        .await;
+        verify_encrypt_decrypt(
+            &key_client,
+            &test_derived_key_handle2,
+            &test_derived_key_handle,
+        )
+        .await;
+    }
+
     // Device CA
 
     let device_ca_key_pair_handle = key_client
@@ -245,64 +318,6 @@ async fn main() -> Result<(), Error> {
             }
         }
     }
-
-    // Verify encrypt-decrypt
-
-    // New generated key can decrypt things encrypted with it
-    let test_key_handle = key_client
-        .create_key_if_not_exists(
-            "crypto-test",
-            aziot_key_common::CreateKeyValue::Generate { length: 32 },
-            &[aziot_key_common::KeyUsage::Derive],
-        )
-        .await
-        .unwrap();
-    verify_encrypt_decrypt(&key_client, &test_key_handle, &test_key_handle).await;
-
-    // Derived key can decrypt things encrypted with it
-    let test_derived_key_handle = key_client
-        .create_derived_key(&test_key_handle, b"bbbbbb")
-        .await
-        .unwrap();
-
-    verify_encrypt_decrypt(
-        &key_client,
-        &test_derived_key_handle,
-        &test_derived_key_handle,
-    )
-    .await;
-
-    // Derived key can be reimported as a new key, and can decrypt things encrypted with the derived key, and vice versa.
-    let test_derived_key = key_client
-        .export_derived_key(&test_derived_key_handle)
-        .await
-        .unwrap();
-    println!(
-        "Exported derived key: {}",
-        base64::encode(&test_derived_key)
-    );
-    let test_derived_key_handle2 = key_client
-        .create_key_if_not_exists(
-            "crypto-test-derived",
-            aziot_key_common::CreateKeyValue::Import {
-                bytes: test_derived_key,
-            },
-            &[aziot_key_common::KeyUsage::Derive],
-        )
-        .await
-        .unwrap();
-    verify_encrypt_decrypt(
-        &key_client,
-        &test_derived_key_handle,
-        &test_derived_key_handle2,
-    )
-    .await;
-    verify_encrypt_decrypt(
-        &key_client,
-        &test_derived_key_handle2,
-        &test_derived_key_handle,
-    )
-    .await;
 
     // Verify IoT Hub auth using SAS key
 
