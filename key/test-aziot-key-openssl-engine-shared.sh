@@ -48,6 +48,9 @@ cd "$(find target -type f -name aziot-key-openssl-engine-shared-test | head -n 1
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
 
 
+OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
+
+
 # Configure aziot-keyd and spawn it in the background
 
 # Assert /run/aziot exists and is writable
@@ -129,22 +132,30 @@ echo "Client key: $client_key_handle"
 [ -f "$PWD/client.pem" ]
 
 
-# Verify keys were created using PKCS#11 or not, depending on whether PKCS11_LIB_PATH is set or not.
-num_keys="$(find keys/ -type f | wc -l)"
-if [ -n "${PKCS11_LIB_PATH:-}" ]; then
-    # Only master encryption key should have been created.
-    if (( num_keys != 1 )); then
-        echo "Expected to find 1 key under keys/ but found $num_keys" >&2
-        ls -l keys/
-        exit 1
-    fi
+# Verify which of the four keys (the three keys above plus the handle validation key) were
+# created with PKCS#11 and which were created on the filesystem.
+#
+# If PKCS11_LIB_PATH is not set, all keys would've been created on the filesystem.
+#
+# Otherwise, if the installed softhsm version supports C_GenerateKey(CKM_GENERIC_SECRET_KEY_GEN),
+# all keys would've been created with PKCS#11 and none on the filesystem.
+#
+# Otherwise, all keys would've been created with PKCS#11, except for the handle validation key
+# which would've been created on the filesystem.
+#
+# softhsm supports CKM_GENERIC_SECRET_KEY_GEN starting from v2.5. Only ubuntu:20.04 has this version.
+if [ -z "${PKCS11_LIB_PATH:-}" ]; then
+    expected_num_keys=4
+elif [ "$OS" = 'ubuntu:20.04' ]; then
+    expected_num_keys=0
 else
-    # Master encryption key and the three keys above should have been created.
-    if (( num_keys != 4 )); then
-        echo "Expected to find 4 keys under keys/ but found $num_keys" >&2
-        ls -l keys/
-        exit 1
-    fi
+    expected_num_keys=1
+fi
+actual_num_keys="$(find keys/ -type f | wc -l)"
+if (( actual_num_keys != expected_num_keys )); then
+    echo "Expected to find $expected_num_keys keys under keys/ but found $actual_num_keys" >&2
+    ls -l keys/
+    exit 1
 fi
 
 
@@ -174,7 +185,6 @@ sleep 1
 
 
 # Connect with `curl` and print the response.
-OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
 case "$OS" in
     'centos:7'|'debian:9')
         # CentOS 7's curl doesn't support openssl engines.

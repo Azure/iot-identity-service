@@ -20,6 +20,8 @@ impl Session {
     }
 }
 
+pub type Key = crate::Object<()>;
+
 pub enum KeyPair {
     Ec(
         crate::Object<openssl::ec::EcKey<openssl::pkey::Public>>,
@@ -85,6 +87,17 @@ impl Session {
 
                 _ => Err(GetKeyError::MismatchedMechanismType),
             }
+        }
+    }
+
+    /// Get a key in the current session with the given label.
+    pub fn get_key(self: std::sync::Arc<Self>, label: Option<&str>) -> Result<Key, GetKeyError> {
+        unsafe {
+            // Private key access needs login
+            self.login().map_err(GetKeyError::LoginFailed)?;
+
+            let key_handle = self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, label)?;
+            Ok(crate::Object::new(self, key_handle))
         }
     }
 
@@ -266,6 +279,432 @@ impl std::fmt::Display for FindObjectsError {
 
 impl std::error::Error for FindObjectsError {}
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KeyUsage {
+    Aes,
+    Hmac,
+}
+
+impl Session {
+    /// Generate a symmetric key in the current session with the given length and label.
+    pub fn generate_key(
+        self: std::sync::Arc<Self>,
+        label: Option<&str>,
+        usage: KeyUsage,
+    ) -> Result<Key, GenerateKeyError> {
+        unsafe {
+            // Deleting existing keys and generating new ones needs login
+            self.login().map_err(GenerateKeyError::LoginFailed)?;
+
+            // If label is set, delete any existing objects with that label first
+            if let Some(label) = label {
+                match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+                    Ok(key_handle) => {
+                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
+                        if result != pkcs11_sys::CKR_OK {
+                            return Err(GenerateKeyError::DeleteExistingKeyFailed(result));
+                        }
+                    }
+                    Err(GetKeyError::KeyDoesNotExist) => (),
+                    Err(err) => return Err(GenerateKeyError::GetExistingKeyFailed(err)),
+                }
+            }
+
+            let r#true = pkcs11_sys::CK_TRUE;
+            let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
+                .expect("usize -> CK_ULONG");
+            let r#true = &r#true as *const _ as _;
+
+            // Common to all keys
+            let mut key_template = vec![
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_PRIVATE,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_SENSITIVE,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_TOKEN,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VERIFY,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+            ];
+
+            if let Some(label) = label {
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_LABEL,
+                    pValue: label.as_ptr() as _,
+                    ulValueLen: std::convert::TryInto::try_into(label.len())
+                        .expect("usize -> CK_ULONG"),
+                });
+            }
+
+            match usage {
+                KeyUsage::Aes => {
+                    // We want to use AES-256-GCM, but fall back to AES-128-GCM if the PKCS#11 implementation
+                    // doesn't support AES-256-GCM (eg Cryptoauthlib on ATECC608A).
+                    //
+                    // Unfortunately PKCS#11 doesn't give us a way to know up-front if the token supports AES-256-GCM or not.
+                    // So first try creating a 256-bit key. If that fails, try again with a 128-bit key.
+                    // If that also fails, return an error.
+
+                    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                        mechanism: pkcs11_sys::CKM_AES_KEY_GEN,
+                        pParameter: std::ptr::null(),
+                        ulParameterLen: 0,
+                    };
+
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_DECRYPT,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_ENCRYPT,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+
+                    let key_type = pkcs11_sys::CKK_AES;
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_KEY_TYPE,
+                        pValue: &key_type as *const _ as _,
+                        ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
+                            &key_type,
+                        ))
+                        .expect("usize -> CK_ULONG"),
+                    });
+
+                    let key_template_except_value_len = key_template.clone();
+
+                    let mut len: pkcs11_sys::CK_ULONG =
+                        std::convert::TryInto::try_into(32).expect("usize -> CK_ULONG");
+                    let len_size: pkcs11_sys::CK_ULONG =
+                        std::convert::TryInto::try_into(std::mem::size_of_val(&len))
+                            .expect("usize -> CK_ULONG");
+
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_VALUE_LEN,
+                        pValue: &len as *const _ as _,
+                        ulValueLen: len_size,
+                    });
+
+                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                    let result = (self.context.C_GenerateKey)(
+                        self.handle,
+                        &mechanism,
+                        key_template.as_ptr() as _,
+                        std::convert::TryInto::try_into(key_template.len())
+                            .expect("usize -> CK_ULONG"),
+                        &mut key_handle,
+                    );
+                    if result == pkcs11_sys::CKR_OK
+                        && key_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE
+                    {
+                        return Ok(crate::Object::new(self, key_handle));
+                    }
+
+                    // C_GenerateKey failed. Try with a 128-bit key.
+
+                    let mut key_template = key_template_except_value_len;
+                    len = 16;
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_VALUE_LEN,
+                        pValue: &len as *const _ as _,
+                        ulValueLen: len_size,
+                    });
+
+                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                    let result = (self.context.C_GenerateKey)(
+                        self.handle,
+                        &mechanism,
+                        key_template.as_ptr() as _,
+                        std::convert::TryInto::try_into(key_template.len())
+                            .expect("usize -> CK_ULONG"),
+                        &mut key_handle,
+                    );
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(GenerateKeyError::GenerateKeyFailed(result));
+                    }
+                    if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+                        return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
+                    }
+
+                    Ok(crate::Object::new(self, key_handle))
+                }
+
+                KeyUsage::Hmac => {
+                    // HMAC-SHA256 uses 256-bit keys
+
+                    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                        mechanism: pkcs11_sys::CKM_GENERIC_SECRET_KEY_GEN,
+                        pParameter: std::ptr::null(),
+                        ulParameterLen: 0,
+                    };
+
+                    let len: pkcs11_sys::CK_ULONG =
+                        std::convert::TryInto::try_into(32).expect("usize -> CK_ULONG");
+                    let len_size: pkcs11_sys::CK_ULONG =
+                        std::convert::TryInto::try_into(std::mem::size_of_val(&len))
+                            .expect("usize -> CK_ULONG");
+
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_SIGN,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_VALUE_LEN,
+                        pValue: &len as *const _ as _,
+                        ulValueLen: len_size,
+                    });
+
+                    let key_type = pkcs11_sys::CKK_GENERIC_SECRET;
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_KEY_TYPE,
+                        pValue: &key_type as *const _ as _,
+                        ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
+                            &key_type,
+                        ))
+                        .expect("usize -> CK_ULONG"),
+                    });
+
+                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                    let result = (self.context.C_GenerateKey)(
+                        self.handle,
+                        &mechanism,
+                        key_template.as_ptr() as _,
+                        std::convert::TryInto::try_into(key_template.len())
+                            .expect("usize -> CK_ULONG"),
+                        &mut key_handle,
+                    );
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(GenerateKeyError::GenerateKeyFailed(result));
+                    }
+                    if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+                        return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
+                    }
+
+                    Ok(crate::Object::new(self, key_handle))
+                }
+            }
+        }
+    }
+}
+
+/// An error from generating a key pair.
+#[derive(Debug)]
+pub enum GenerateKeyError {
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
+    GenerateKeyDidNotReturnHandle,
+    GenerateKeyFailed(pkcs11_sys::CK_RV),
+    GetExistingKeyFailed(GetKeyError),
+    LoginFailed(crate::LoginError),
+}
+
+impl std::fmt::Display for GenerateKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GenerateKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            GenerateKeyError::GenerateKeyDidNotReturnHandle =>
+                f.write_str("could not generate key pair: C_GenerateKey succeeded but key handle is still CK_INVALID_HANDLE"),
+            GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key pair: C_GenerateKey failed with {}", result),
+            GenerateKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
+            GenerateKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
+    }
+}
+
+impl std::error::Error for GenerateKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            GenerateKeyError::DeleteExistingKeyFailed(_) => None,
+            GenerateKeyError::GenerateKeyDidNotReturnHandle => None,
+            GenerateKeyError::GenerateKeyFailed(_) => None,
+            GenerateKeyError::GetExistingKeyFailed(inner) => Some(inner),
+            GenerateKeyError::LoginFailed(inner) => Some(inner),
+        }
+    }
+}
+
+impl Session {
+    /// Import a symmetric key in the current session with the given bytes and label.
+    pub fn import_key(
+        self: std::sync::Arc<Self>,
+        bytes: &[u8],
+        label: Option<&str>,
+        usage: KeyUsage,
+    ) -> Result<Key, ImportKeyError> {
+        unsafe {
+            // Deleting existing keys and importing new ones needs login
+            self.login().map_err(ImportKeyError::LoginFailed)?;
+
+            // If label is set, delete any existing objects with that label first
+            if let Some(label) = label {
+                match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+                    Ok(key_handle) => {
+                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
+                        if result != pkcs11_sys::CKR_OK {
+                            return Err(ImportKeyError::DeleteExistingKeyFailed(result));
+                        }
+                    }
+                    Err(GetKeyError::KeyDoesNotExist) => (),
+                    Err(err) => return Err(ImportKeyError::GetExistingKeyFailed(err)),
+                }
+            }
+
+            let class = pkcs11_sys::CKO_SECRET_KEY;
+
+            let r#true = pkcs11_sys::CK_TRUE;
+            let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
+                .expect("usize -> CK_ULONG");
+            let r#true = &r#true as *const _ as _;
+
+            // Common to all keys
+            let mut key_template = vec![
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_CLASS,
+                    pValue: &class as *const _ as _,
+                    ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&class))
+                        .expect("usize -> CK_ULONG"),
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_PRIVATE,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_SENSITIVE,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_TOKEN,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                },
+                pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VALUE,
+                    pValue: bytes.as_ptr() as _,
+                    ulValueLen: std::convert::TryInto::try_into(bytes.len())
+                        .expect("usize -> CK_ULONG"),
+                },
+            ];
+
+            if let Some(label) = label {
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_LABEL,
+                    pValue: label.as_ptr() as _,
+                    ulValueLen: std::convert::TryInto::try_into(label.len())
+                        .expect("usize -> CK_ULONG"),
+                });
+            }
+
+            let key_type = match usage {
+                KeyUsage::Aes => {
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_DECRYPT,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_ENCRYPT,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+
+                    pkcs11_sys::CKK_AES
+                }
+
+                KeyUsage::Hmac => {
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_SIGN,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                        r#type: pkcs11_sys::CKA_VERIFY,
+                        pValue: r#true,
+                        ulValueLen: true_size,
+                    });
+
+                    pkcs11_sys::CKK_GENERIC_SECRET
+                }
+            };
+
+            key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_KEY_TYPE,
+                pValue: &key_type as *const _ as _,
+                ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&key_type))
+                    .expect("usize -> CK_ULONG"),
+            });
+
+            let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+
+            let result = (self.context.C_CreateObject)(
+                self.handle,
+                key_template.as_ptr() as _,
+                std::convert::TryInto::try_into(key_template.len()).expect("usize -> CK_ULONG"),
+                &mut key_handle,
+            );
+            if result != pkcs11_sys::CKR_OK {
+                return Err(ImportKeyError::CreateObjectFailed(result));
+            }
+            if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+                return Err(ImportKeyError::CreateObjectDidNotReturnHandle);
+            }
+
+            Ok(crate::Object::new(self, key_handle))
+        }
+    }
+}
+
+/// An error from generating a key pair.
+#[derive(Debug)]
+pub enum ImportKeyError {
+    CreateObjectDidNotReturnHandle,
+    CreateObjectFailed(pkcs11_sys::CK_RV),
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
+    GetExistingKeyFailed(GetKeyError),
+    LoginFailed(crate::LoginError),
+}
+
+impl std::fmt::Display for ImportKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImportKeyError::CreateObjectDidNotReturnHandle =>
+                f.write_str("could not generate key pair: C_CreateObject succeeded but key handle is still CK_INVALID_HANDLE"),
+            ImportKeyError::CreateObjectFailed(result) => write!(f, "could not generate key pair: C_CreateObject failed with {}", result),
+            ImportKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            ImportKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
+            ImportKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
+    }
+}
+
+impl std::error::Error for ImportKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            ImportKeyError::CreateObjectDidNotReturnHandle => None,
+            ImportKeyError::CreateObjectFailed(_) => None,
+            ImportKeyError::DeleteExistingKeyFailed(_) => None,
+            ImportKeyError::GetExistingKeyFailed(inner) => Some(inner),
+            ImportKeyError::LoginFailed(inner) => Some(inner),
+        }
+    }
+}
+
 impl Session {
     /// Generate an EC key pair in the current session with the given curve and label.
     pub fn generate_ec_key_pair(
@@ -360,11 +799,11 @@ impl Session {
                     Ok(key_handle) => {
                         let result = (self.context.C_DestroyObject)(self.handle, key_handle);
                         if result != pkcs11_sys::CKR_OK {
-                            return Err(GenerateKeyPairError::DeleteExistingKey(result));
+                            return Err(GenerateKeyPairError::DeleteExistingKeyFailed(result));
                         }
                     }
                     Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(GenerateKeyPairError::GetExistingKey(err)),
+                    Err(err) => return Err(GenerateKeyPairError::GetExistingKeyFailed(err)),
                 }
             }
         }
@@ -489,25 +928,24 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum GenerateKeyPairError {
-    DeleteExistingKey(pkcs11_sys::CK_RV),
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GenerateKeyPairDidNotReturnHandle(&'static str),
     GenerateKeyPairFailed(pkcs11_sys::CK_RV),
-    GetExistingKey(GetKeyError),
+    GetExistingKeyFailed(GetKeyError),
     LoginFailed(crate::LoginError),
 }
 
 impl std::fmt::Display for GenerateKeyPairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-			GenerateKeyPairError::DeleteExistingKey(result) => write!(f, "C_DestroyObject failed with {}", result),
-			GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) =>
-				write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {} key handle is still CK_INVALID_HANDLE", kind),
-			GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {}", result),
-			GenerateKeyPairError::GetExistingKey(_) => write!(f, "could not get existing key object"),
-			GenerateKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
-		}
+            GenerateKeyPairError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) =>
+                write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {} key handle is still CK_INVALID_HANDLE", kind),
+            GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {}", result),
+            GenerateKeyPairError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
+            GenerateKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
     }
 }
 
@@ -515,10 +953,10 @@ impl std::error::Error for GenerateKeyPairError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         #[allow(clippy::match_same_arms)]
         match self {
-            GenerateKeyPairError::DeleteExistingKey(_) => None,
+            GenerateKeyPairError::DeleteExistingKeyFailed(_) => None,
             GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(_) => None,
             GenerateKeyPairError::GenerateKeyPairFailed(_) => None,
-            GenerateKeyPairError::GetExistingKey(inner) => Some(inner),
+            GenerateKeyPairError::GetExistingKeyFailed(inner) => Some(inner),
             GenerateKeyPairError::LoginFailed(inner) => Some(inner),
         }
     }

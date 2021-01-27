@@ -50,6 +50,15 @@ typedef unsigned int AZIOT_KEYS_RC;
 typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE;
 
 /**
+ * The usage of key being created with `create_key_if_not_exists` or
+ * being imported with `import_key`.
+ *
+ * This is a bitflag type, so its values can be combined. But note that not all combinations of flags
+ * are valid.
+ */
+typedef unsigned int AZIOT_KEYS_KEY_USAGE;
+
+/**
  * The mechanism used with `sign` / `verify`.
  *
  * One of the `AZIOT_KEYS_SIGN_MECHANISM_*` constants.
@@ -168,8 +177,10 @@ typedef struct {
      * Create or load a key identified by the specified `id`.
      *
      * - If a key with that ID exists and can be loaded, it will be left as-is.
-     * - If a key with that ID does not exist, a new random key will be created with the number of bytes specified by `length`.
+     * - If a key with that ID does not exist, a new random key will be created.
      *   It will be saved such that it can be looked up later using that same ID.
+     *
+     * `usage` specifies what the key will be used for.
      *
      * # Errors
      *
@@ -179,7 +190,7 @@ typedef struct {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*create_key_if_not_exists)(const char *id, uintptr_t length);
+    AZIOT_KEYS_RC (*create_key_if_not_exists)(const char *id, AZIOT_KEYS_KEY_USAGE usage);
     /**
      * Load an existing key identified by the specified `id`.
      *
@@ -211,7 +222,7 @@ typedef struct {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len);
+    AZIOT_KEYS_RC (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len, AZIOT_KEYS_KEY_USAGE usage);
     /**
      * Derive a key with a given base key using some derivation data, and return the derived key.
      *
@@ -219,7 +230,8 @@ typedef struct {
      * the derivation process used by `encrypt` with the `AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED` mechanism and
      * the derivation process used by `sign` with the `AZIOT_KEYS_SIGN_MECHANISM_DERIVED` mechanism.
      *
-     * `base_id` is the ID of the key that will be used to derive the new key.
+     * `base_id` is the ID of the key that will be used to derive the new key. The key must have been created / imported
+     * with the [`AZIOT_KEYS_KEY_USAGE_DERIVE`] usage.
      *
      * `derivation_data` is a byte buffer containing the data that used for the derivation.
      * The caller sets `derivation_data_len` to the length of the buffer.
@@ -520,6 +532,27 @@ typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
 #define AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA 2
 
 /**
+ * The key can be used for deriving other keys.
+ *
+ * Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_ENCRYPT`]
+ */
+#define AZIOT_KEYS_KEY_USAGE_DERIVE 1
+
+/**
+ * The key can be used for encryption.
+ *
+ * Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_DERIVE`] or [`AZIOT_KEYS_KEY_USAGE_SIGN`]
+ */
+#define AZIOT_KEYS_KEY_USAGE_ENCRYPT 16
+
+/**
+ * The key can be used for signing.
+ *
+ * Cannot be combined with [`AZIOT_KEYS_KEY_USAGE_ENCRYPT`]
+ */
+#define AZIOT_KEYS_KEY_USAGE_SIGN AZIOT_KEYS_KEY_USAGE_DERIVE
+
+/**
  * Used with `sign` / `verify` to sign / verify using ECDSA.
  *
  * The `parameters` parameter of `sign` / `verify` is unused and ignored.
@@ -542,7 +575,7 @@ typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
 #define AZIOT_KEYS_SIGN_MECHANISM_DERIVED 3
 
 /**
- * Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-256-GCM.
+ * Used with `encrypt` / `decrypt` to encrypt / decrypt using an AEAD mechanism, like AES-GCM.
  *
  * The exact AEAD algorithm used is left to the implementation and need not always be the same.
  * The caller must not make any assumptions about the format of the ciphertext.

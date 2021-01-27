@@ -177,17 +177,33 @@ impl Api {
         &mut self,
         id: &str,
         value: aziot_key_common::CreateKeyValue,
+        usage: &[aziot_key_common::KeyUsage],
     ) -> Result<aziot_key_common::KeyHandle, Error> {
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
 
+        let mut usage_raw = 0;
+        for &usage in usage {
+            match usage {
+                aziot_key_common::KeyUsage::Derive => {
+                    usage_raw |= keys::sys::AZIOT_KEYS_KEY_USAGE_DERIVE;
+                }
+                aziot_key_common::KeyUsage::Encrypt => {
+                    usage_raw |= keys::sys::AZIOT_KEYS_KEY_USAGE_ENCRYPT;
+                }
+                aziot_key_common::KeyUsage::Sign => {
+                    usage_raw |= keys::sys::AZIOT_KEYS_KEY_USAGE_SIGN;
+                }
+            }
+        }
+
         match value {
-            aziot_key_common::CreateKeyValue::Generate { length } => {
-                self.keys.create_key_if_not_exists(&id_cstr, length)?
+            aziot_key_common::CreateKeyValue::Generate => {
+                self.keys.create_key_if_not_exists(&id_cstr, usage_raw)?;
             }
 
             aziot_key_common::CreateKeyValue::Import { bytes } => {
-                self.keys.import_key(&id_cstr, &bytes)?
+                self.keys.import_key(&id_cstr, &bytes, usage_raw)?;
             }
         }
 
@@ -452,10 +468,16 @@ impl KeyId<'_> {
     }
 }
 
-fn master_encryption_key_id() -> &'static std::ffi::CStr {
-    const MASTER_ENCRYPTION_KEY_ID_C: &[u8] = b"master-encryption-key\0";
-    std::ffi::CStr::from_bytes_with_nul(MASTER_ENCRYPTION_KEY_ID_C)
-        .expect("hard-coded key ID is valid CStr")
+fn handle_validation_key_id(keys: &mut keys::Keys) -> Result<&'static std::ffi::CStr, Error> {
+    const HANDLE_VALIDATION_KEY_ID_C: &[u8] = b"handle-validation-key\0";
+    let handle_validation_key_id = std::ffi::CStr::from_bytes_with_nul(HANDLE_VALIDATION_KEY_ID_C)
+        .expect("hard-coded key ID is valid CStr");
+    keys.create_key_if_not_exists(
+        handle_validation_key_id,
+        keys::sys::AZIOT_KEYS_KEY_USAGE_SIGN,
+    )
+    .map_err(|err| Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)))?;
+    Ok(handle_validation_key_id)
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -470,8 +492,8 @@ fn key_handle_to_id(
 ) -> Result<(KeyId<'static>, std::ffi::CString), Error> {
     // DEVNOTE:
     //
-    // Map errors from using the master encryption key to Error::Internal instead of relying on `?`,
-    // because all errors from using the master encryption key are internal errors.
+    // Map errors from using the handle validation key to Error::Internal instead of relying on `?`,
+    // because all errors from using the handle validation key are internal errors.
 
     let params = handle.0.split('&');
 
@@ -495,12 +517,10 @@ fn key_handle_to_id(
     let sr = sr.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
     let sig = sig.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
 
-    let master_encryption_key_id = master_encryption_key_id();
-    keys.create_key_if_not_exists(master_encryption_key_id, 32)
-        .map_err(|err| Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)))?;
+    let handle_validation_key = handle_validation_key_id(keys)?;
     let ok = keys
         .verify(
-            master_encryption_key_id,
+            handle_validation_key,
             keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
             std::ptr::null(),
             sr.as_bytes(),
@@ -556,12 +576,10 @@ fn key_id_to_handle(
         sr
     };
 
-    let master_encryption_key_id = master_encryption_key_id();
-    keys.create_key_if_not_exists(master_encryption_key_id, 32)
-        .map_err(|err| Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)))?;
+    let handle_validation_key = handle_validation_key_id(keys)?;
     let sig = keys
         .sign(
-            master_encryption_key_id,
+            handle_validation_key,
             keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
             std::ptr::null(),
             sr.as_bytes(),

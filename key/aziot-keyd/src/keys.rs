@@ -40,7 +40,7 @@ pub(crate) enum Keys {
 
         create_key_if_not_exists: unsafe extern "C" fn(
             id: *const std::os::raw::c_char,
-            length: usize,
+            usage: sys::AZIOT_KEYS_KEY_USAGE,
         ) -> sys::AZIOT_KEYS_RC,
 
         load_key: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_RC,
@@ -49,6 +49,7 @@ pub(crate) enum Keys {
             id: *const std::os::raw::c_char,
             bytes: *const u8,
             bytes_len: usize,
+            usage: sys::AZIOT_KEYS_KEY_USAGE,
         ) -> sys::AZIOT_KEYS_RC,
 
         derive_key: unsafe extern "C" fn(
@@ -442,7 +443,7 @@ impl Keys {
     pub(crate) fn create_key_if_not_exists(
         &mut self,
         id: &std::ffi::CStr,
-        length: usize,
+        usage: sys::AZIOT_KEYS_KEY_USAGE,
     ) -> Result<(), CreateKeyIfNotExistsError> {
         unsafe {
             match self {
@@ -450,7 +451,7 @@ impl Keys {
                     create_key_if_not_exists,
                     ..
                 } => {
-                    keys_ok(create_key_if_not_exists(id.as_ptr(), length))
+                    keys_ok(create_key_if_not_exists(id.as_ptr(), usage))
                         .map_err(|err| CreateKeyIfNotExistsError { err })?;
 
                     Ok(())
@@ -505,11 +506,12 @@ impl Keys {
         &mut self,
         id: &std::ffi::CStr,
         bytes: &[u8],
+        usage: sys::AZIOT_KEYS_KEY_USAGE,
     ) -> Result<(), ImportKeyError> {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { import_key, .. } => {
-                    keys_ok(import_key(id.as_ptr(), bytes.as_ptr(), bytes.len()))
+                    keys_ok(import_key(id.as_ptr(), bytes.as_ptr(), bytes.len(), usage))
                         .map_err(|err| ImportKeyError { err })?;
 
                     Ok(())
