@@ -94,7 +94,7 @@ pub async fn resolve_and_tls_handshake(endpoint: hyper::Uri, hostname_display: &
     let _ = hyper_openssl::HttpsConnector::new()
         .with_context(|| {
             anyhow!(
-                "Could not connect to {} : could not create TLS connector",
+                "Could not connect to {} : could not create TLS connector. In nested configuration make sure root certificate and parent root cerificate are identical",
                 hostname_display,
             )
         })?
