@@ -7,6 +7,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+mod restart;
+
+pub use restart::restart;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResultsSerializable {
     pub additional_info: serde_json::Value,
@@ -57,3 +61,24 @@ pub struct CheckerMetaSerializable {
 
 /// Keys are section names
 pub type CheckListOutput = BTreeMap<String, Vec<CheckerMetaSerializable>>;
+
+pub struct ServiceDefinition {
+    pub service: &'static str,
+    pub sockets: &'static [&'static str],
+}
+
+// Note, the ordering is important, since the first service is considered the root and will be started. 
+pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
+    &ServiceDefinition {
+        service: "aziot-identityd.service",
+        sockets: &["aziot-identityd.socket"],
+    },
+    &ServiceDefinition {
+        service: "aziot-keyd.service",
+        sockets: &["aziot-keyd.socket"],
+    },
+    &ServiceDefinition {
+        service: "aziot-certd.service",
+        sockets: &["aziot-certd.socket"],
+    },
+];

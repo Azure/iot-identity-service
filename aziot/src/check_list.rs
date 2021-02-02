@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use structopt::StructOpt;
 
-use aziot_check_common::CheckListOutput;
+use aziot_common::CheckListOutput;
 
 #[derive(StructOpt, Copy, Clone)]
 #[structopt(about = "List the checks that are run for 'aziot check'")]

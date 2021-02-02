@@ -85,7 +85,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "aziot-certd-config",
- "aziot-check-common",
+ "aziot-common",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",
@@ -184,14 +184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aziot-check-common"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "aziot-cloud-client-async-common"
 version = "0.1.0"
 dependencies = [
@@ -215,6 +207,14 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+]
+
+[[package]]
+name = "aziot-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

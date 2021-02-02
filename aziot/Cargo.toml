@@ -27,7 +27,7 @@ tokio = { version = "1", features = ["macros", "fs", "io-util", "rt-multi-thread
 toml = "0.5"
 url = "2"
 
-aziot-check-common = { path = "./aziot-check-common" }
+aziot-common = { path = "./aziot-common" }
 aziot-certd-config = { path = "../cert/aziot-certd-config" }
 aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }

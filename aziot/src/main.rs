@@ -19,6 +19,7 @@ mod internal;
 mod check;
 mod check_list;
 mod init;
+mod system;
 
 async fn try_main() -> Result<()> {
     let options = StructOpt::from_args();
@@ -26,6 +27,7 @@ async fn try_main() -> Result<()> {
         Options::Init => init::run()?,
         Options::Check(cfg) => check::check(cfg).await?,
         Options::CheckList(cfg) => check_list::check_list(cfg)?,
+        Options::System(cfg) => system::system(cfg),
     }
 
     Ok(())
@@ -46,4 +48,6 @@ enum Options {
     Check(check::CheckOptions),
     /// List the checks that are run for 'aziot check'
     CheckList(check_list::CheckListOptions),
+    ///Use system helper commands
+    System(system::SystemOptions),
 }
