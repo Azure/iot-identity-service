@@ -28,6 +28,9 @@ pub struct Context {
     _library: crate::dl::Library,
 
     pub(crate) C_CloseSession: pkcs11_sys::CK_C_CloseSession,
+    pub(crate) C_CreateObject: pkcs11_sys::CK_C_CreateObject,
+    pub(crate) C_Decrypt: pkcs11_sys::CK_C_Decrypt,
+    pub(crate) C_DecryptInit: pkcs11_sys::CK_C_DecryptInit,
     pub(crate) C_DestroyObject: pkcs11_sys::CK_C_DestroyObject,
     pub(crate) C_Encrypt: pkcs11_sys::CK_C_Encrypt,
     pub(crate) C_EncryptInit: pkcs11_sys::CK_C_EncryptInit,
@@ -35,6 +38,7 @@ pub struct Context {
     pub(crate) C_FindObjects: pkcs11_sys::CK_C_FindObjects,
     pub(crate) C_FindObjectsFinal: pkcs11_sys::CK_C_FindObjectsFinal,
     pub(crate) C_FindObjectsInit: pkcs11_sys::CK_C_FindObjectsInit,
+    pub(crate) C_GenerateKey: pkcs11_sys::CK_C_GenerateKey,
     pub(crate) C_GenerateKeyPair: pkcs11_sys::CK_C_GenerateKeyPair,
     pub(crate) C_GetAttributeValue: pkcs11_sys::CK_C_GetAttributeValue,
     pub(crate) C_GetSessionInfo: pkcs11_sys::CK_C_GetSessionInfo,
@@ -45,6 +49,8 @@ pub struct Context {
     C_OpenSession: pkcs11_sys::CK_C_OpenSession,
     pub(crate) C_Sign: pkcs11_sys::CK_C_Sign,
     pub(crate) C_SignInit: pkcs11_sys::CK_C_SignInit,
+    pub(crate) C_Verify: pkcs11_sys::CK_C_Verify,
+    pub(crate) C_VerifyInit: pkcs11_sys::CK_C_VerifyInit,
 }
 
 impl Context {
@@ -93,6 +99,15 @@ impl Context {
             let C_CloseSession = (*function_list)
                 .C_CloseSession
                 .ok_or(LoadContextError::MissingFunction("C_CloseSession"))?;
+            let C_CreateObject = (*function_list)
+                .C_CreateObject
+                .ok_or(LoadContextError::MissingFunction("C_CreateObject"))?;
+            let C_Decrypt = (*function_list)
+                .C_Decrypt
+                .ok_or(LoadContextError::MissingFunction("C_Decrypt"))?;
+            let C_DecryptInit = (*function_list)
+                .C_DecryptInit
+                .ok_or(LoadContextError::MissingFunction("C_DecryptInit"))?;
             let C_DestroyObject = (*function_list)
                 .C_DestroyObject
                 .ok_or(LoadContextError::MissingFunction("C_DestroyObject"))?;
@@ -112,6 +127,9 @@ impl Context {
             let C_FindObjectsInit = (*function_list)
                 .C_FindObjectsInit
                 .ok_or(LoadContextError::MissingFunction("C_FindObjectsInit"))?;
+            let C_GenerateKey = (*function_list)
+                .C_GenerateKey
+                .ok_or(LoadContextError::MissingFunction("C_GenerateKey"))?;
             let C_GenerateKeyPair = (*function_list)
                 .C_GenerateKeyPair
                 .ok_or(LoadContextError::MissingFunction("C_GenerateKeyPair"))?;
@@ -140,6 +158,12 @@ impl Context {
             let C_SignInit = (*function_list)
                 .C_SignInit
                 .ok_or(LoadContextError::MissingFunction("C_SignInit"))?;
+            let C_Verify = (*function_list)
+                .C_Verify
+                .ok_or(LoadContextError::MissingFunction("C_Verify"))?;
+            let C_VerifyInit = (*function_list)
+                .C_VerifyInit
+                .ok_or(LoadContextError::MissingFunction("C_VerifyInit"))?;
 
             // Do initialization as the very last thing, so that if it succeeds we're guaranteed to call the corresponding C_Finalize
             let C_Initialize = (*function_list)
@@ -164,6 +188,9 @@ impl Context {
                 _library: library,
 
                 C_CloseSession,
+                C_CreateObject,
+                C_Decrypt,
+                C_DecryptInit,
                 C_DestroyObject,
                 C_Encrypt,
                 C_EncryptInit,
@@ -171,6 +198,7 @@ impl Context {
                 C_FindObjects,
                 C_FindObjectsFinal,
                 C_FindObjectsInit,
+                C_GenerateKey,
                 C_GenerateKeyPair,
                 C_GetAttributeValue,
                 C_GetInfo,
@@ -181,6 +209,8 @@ impl Context {
                 C_OpenSession,
                 C_Sign,
                 C_SignInit,
+                C_Verify,
+                C_VerifyInit,
             };
 
             let version = context.info().map_or(

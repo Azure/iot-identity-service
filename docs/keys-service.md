@@ -13,9 +13,17 @@ An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/202
 ```json
 {
     "keyId": "...",
-    "lengthBytes": 32
+    "usage": "..."
 }
 ```
+
+`usage` is a comma-separated sequence of one or more of the following strings:
+
+- `derive`
+- `encrypt`
+- `sign`
+
+Eg: `"usage": "derive,sign"`
 
 #### Response
 
@@ -240,7 +248,7 @@ Only valid for symmetric keys.
 
 For AEAD encryption, the ciphertext includes the AEAD tag so the caller does not need to handle that specially.
 
-Note also that the exact AEAD algorithm used cannot be chosed by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-256-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
+Note also that the exact AEAD algorithm used cannot be chosed by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
 
 ---
 
@@ -310,7 +318,7 @@ The KS is made up of the following crates:
 
     libaziot-keys is a dynamic library that implements key storage and crypto operations. The REST API exported by KS maps nearly one-to-one with the C API exposed by libaziot-keys.
 
-    It exists as a dynamic library so that users can replace it with their own alternative implementation that provides the same interface. It is similar to the existing libiothsm that is used by iotedged, except that it only concerns itself with keys (both symmetric and asymmetric), not certificates. Also, unlike libiothsm, libaziot-keys does not require keys to be exportable to memory.
+    It exists as a dynamic library so that users can replace it with their own alternative implementation that provides the same interface. It is similar to the libiothsm library that was used by iotedged in IoT Edge 1.1 and earlier, except that it only concerns itself with keys (both symmetric and asymmetric), not certificates. Also, unlike libiothsm, libaziot-keys does not require keys to be exportable to memory.
 
     The implementation of libaziot-keys shipped by Microsoft supports keys that are stored on the filesystem and manipulated in memory, and keys that are accessed via PKCS#11.
 

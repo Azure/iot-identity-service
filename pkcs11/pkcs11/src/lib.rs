@@ -20,11 +20,15 @@ pub use context::{Context, GetTokenInfoError, ListSlotsError, LoadContextError, 
 mod dl;
 
 mod object;
-pub use object::{EncryptError, GetKeyParametersError, Object, RsaSignMechanism, SignError};
+pub use object::{
+    DecryptError, EncryptError, GetKeyParametersError, Object, RsaSignMechanism, SignError,
+    VerifyError,
+};
 
 mod session;
 pub use session::{
-    FindObjectsError, GenerateKeyPairError, GetKeyError, KeyPair, LoginError, PublicKey, Session,
+    FindObjectsError, GenerateKeyError, GenerateKeyPairError, GetKeyError, ImportKeyError, Key,
+    KeyPair, KeyUsage, LoginError, PublicKey, Session,
 };
 
 #[derive(Clone, Debug, PartialEq)]

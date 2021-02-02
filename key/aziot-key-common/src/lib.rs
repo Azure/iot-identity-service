@@ -8,8 +8,15 @@ pub struct KeyHandle(pub String);
 
 #[derive(Clone, Debug)]
 pub enum CreateKeyValue {
-    Generate { length: usize },
+    Generate,
     Import { bytes: Vec<u8> },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum KeyUsage {
+    Derive,
+    Encrypt,
+    Sign,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -23,7 +30,7 @@ pub enum SignMechanism {
 
 #[derive(Clone, Debug)]
 pub enum EncryptMechanism {
-    /// AEAD mechanism, like AES-256-GCM.
+    /// AEAD mechanism, like AES-GCM.
     Aead { iv: Vec<u8>, aad: Vec<u8> },
 
     /// RSA with PKCS1 padding.
