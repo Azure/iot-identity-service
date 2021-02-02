@@ -8,8 +8,10 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 mod restart;
+mod system_logs;
 
 pub use restart::restart;
+pub use system_logs::get_system_logs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResultsSerializable {
@@ -67,7 +69,7 @@ pub struct ServiceDefinition {
     pub sockets: &'static [&'static str],
 }
 
-// Note, the ordering is important, since the first service is considered the root and will be started. 
+// Note, the ordering is important, since the first service is considered the root and will be started.
 pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
     &ServiceDefinition {
         service: "aziot-identityd.service",
