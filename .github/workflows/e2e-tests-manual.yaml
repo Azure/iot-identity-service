@@ -26,6 +26,7 @@ jobs:
         - 'ubuntu:20.04'
         test_name:
         - 'manual-symmetric-key'
+        - 'manual-x509'
 
     steps:
     - uses: 'actions/checkout@v1'
