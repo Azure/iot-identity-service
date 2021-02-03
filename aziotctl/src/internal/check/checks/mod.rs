@@ -31,8 +31,8 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(well_formed_configs::well_formed_configs());
             v.push(Box::new(hostname::Hostname::default()));
-            // TODO: add aziot version info to https://github.com/Azure/azure-iotedge
-            // v.push(Box::new(aziot_version::AziotVersion::default()));
+            // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
+            // v.push(Box::new(aziotd_version::AziotdVersion::default()));
             v.push(Box::new(host_local_time::HostLocalTime::default()));
             v.extend(cert_expiry::cert_expirations());
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
