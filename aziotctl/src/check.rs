@@ -8,7 +8,7 @@ use anyhow::Result;
 use colored::Colorize;
 use structopt::StructOpt;
 
-use aziot_check_common::{
+use aziotctl_check_common::{
     CheckOutputSerializable, CheckOutputSerializableStreaming, CheckResultSerializable,
     CheckResultsSerializable,
 };
@@ -21,7 +21,7 @@ use crate::internal::check::{
 #[structopt(about = "Check for common config and deployment issues")]
 pub struct CheckOptions {
     /// Space-separated list of check IDs. The checks listed here will not be run.
-    /// See 'aziot check-list' for details of all checks.
+    /// See 'aziotctl check-list' for details of all checks.
     #[structopt(
         long,
         value_name = "DONT_RUN",
@@ -39,7 +39,7 @@ pub struct CheckOptions {
     #[structopt(short, long)]
     verbose: bool,
 
-    /// Treats warnings as errors. Thus 'aziot check' will exit with non-zero
+    /// Treats warnings as errors. Thus 'aziotctl check' will exit with non-zero
     /// code if it encounters warnings.
     #[structopt(long)]
     warnings_as_errors: bool,

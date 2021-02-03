@@ -1,5 +1,5 @@
 [package]
-name = "aziot"
+name = "aziotctl"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2018"
@@ -27,12 +27,12 @@ tokio = { version = "1", features = ["macros", "fs", "io-util", "rt-multi-thread
 toml = "0.5"
 url = "2"
 
-aziot-check-common = { path = "./aziot-check-common" }
 aziot-certd-config = { path = "../cert/aziot-certd-config" }
 aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
+aziotctl-check-common = { path = "./aziotctl-check-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
 mini-sntp = { path = "../mini-sntp" }
 

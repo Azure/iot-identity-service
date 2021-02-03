@@ -40,10 +40,12 @@ async fn main() {
 
 #[derive(StructOpt)]
 enum Options {
-    /// Interactive wizard to get 'aziot' up and running.
+    /// Interactive wizard to get the Azure IoT Identity Service up and running.
     Init,
+
     /// Check for common config and deployment issues.
     Check(check::CheckOptions),
-    /// List the checks that are run for 'aziot check'
+
+    /// List the checks that are run for 'aziotctl check'
     CheckList(check_list::CheckListOptions),
 }

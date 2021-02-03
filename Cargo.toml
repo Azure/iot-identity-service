@@ -1,7 +1,7 @@
 [workspace]
 members = [
-	"aziot",
-	"aziot/aziot-check-common",
+	"aziotctl",
+	"aziotctl/aziotctl-check-common",
 
 	"aziotd",
 
