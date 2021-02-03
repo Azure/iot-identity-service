@@ -35,7 +35,7 @@ This package also contains the following libraries:
 - libaziot_keys.so - The library used by the Keys Service to communicate with HSMs for key operations.
 - <openssl engines directory>/openssl/engines/libaziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
 
-Lastly, this package contains the aziot binary that is used to configure and manage the services.
+Lastly, this package contains the aziotctl binary that is used to configure and manage the services.
 
 
 %package devel
@@ -146,7 +146,7 @@ fi
 %{_libexecdir}/%{name}/aziot-keyd
 %{_libexecdir}/%{name}/aziot-tpmd
 
-%{_bindir}/aziot
+%{_bindir}/aziotctl
 
 # libaziot-keys
 %{_libdir}/libaziot_keys.so
