@@ -397,50 +397,6 @@ EOF
                 -sha256 \
                 -out device-id-root.pem
 
-            echo 'Uploading root CA to IoT Hub...' >&2
-            az iot hub certificate create \
-                --hub-name "$common_resource_name" --name device-id-root \
-                --path device-id-root.pem
-            echo 'Uploaded root CA to IoT Hub' >&2
-
-            echo 'Fetching first etag for verification code request...' >&2
-            etag="$(
-                az iot hub certificate show \
-                --hub-name "$common_resource_name" --name device-id-root \
-                --query etag --output tsv
-            )"
-
-            echo 'Generating verification code and saving new etag...' >&2
-            cloud_certificate="$(
-                az iot hub certificate generate-verification-code \
-                --hub-name "$common_resource_name" --name device-id-root \
-                --etag "$etag"
-            )"
-            etag="$(<<< "$cloud_certificate" jq '.etag' -r)"
-            verification_code="$(
-                <<< "$cloud_certificate" jq '.properties.verificationCode' -r
-            )"
-
-            echo 'Generating CSR for verification cert and signing it with the root CA to get the verification cert.' >&2
-            openssl req \
-                -newkey rsa:2048 -keyout device-id-root-verify.key.pem -nodes \
-                -out device-id-root-verify.csr \
-                -days 1 \
-                -subj "/CN=${verification_code}"
-
-            openssl x509 -req \
-                -in device-id-root-verify.csr \
-                -CA device-id-root.pem -CAkey device-id-root.key.pem \
-                -out device-id-root-verify.pem \
-                -days 365 -CAcreateserial
-
-            echo 'Uploading verification cert to IoT Hub...' >&2
-            az iot hub certificate verify \
-                --hub-name "$common_resource_name" --name device-id-root \
-                --path device-id-root-verify.pem \
-                --etag "$etag"
-            echo 'Uploaded verification cert to IoT Hub' >&2
-
             echo 'Generating CSR for device ID cert and signing it with the root CA to get the device id cert.' >&2
             openssl req \
                 -newkey rsa:2048 -keyout device-id.key.pem -nodes \
@@ -472,7 +428,7 @@ EOF
 homedir_path = "/var/lib/aziot/keyd"
 
 [preloaded_keys]
-device-id = "file:///home/aziot/device-id.key.pem"
+device-id = "file:///var/secrets/aziot/keyd/device-id.key.pem"
 EOF
 
             >certd.toml cat <<-EOF
@@ -481,7 +437,7 @@ homedir_path = "/var/lib/aziot/certd"
 [cert_issuance]
 
 [preloaded_certs]
-device-id = "file:///home/aziot/device-id.pem"
+device-id = "file:///var/secrets/aziot/certd/device-id.pem"
 EOF
 
             >identityd.toml cat <<-EOF
@@ -707,33 +663,37 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
     sudo usermod -aG aziotid aziot
+
+    sudo mkdir -p /var/secrets/aziot/certd
+    sudo chown aziotcs:aziotcs /var/secrets/aziot/certd
+    sudo chmod 0700 /var/secrets/aziot/certd
+
+    sudo mkdir -p /var/secrets/aziot/keyd
+    sudo chown aziotks:aziotks /var/secrets/aziot/keyd
+    sudo chmod 0700 /var/secrets/aziot/keyd
 '
-
-if [ -f device-id.key.pem ] && [ -f device-id.pem ]; then
-    scp -i "$PWD/vm-ssh-key" device-id.key.pem device-id.pem "aziot@$vm_public_ip:/home/aziot/"
-    ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
-        set -euxo pipefail
-
-        sudo chown aziotks:aziotks /home/aziot/device-id.key.pem
-        sudo chmod 0700 /home/aziot/device-id.key.pem
-
-        sudo chown aziotcs:aziotcs /home/aziot/device-id.pem
-        sudo chmod 0700 /home/aziot/device-id.pem
-    '
-fi
 
 if [ -f device-id ]; then
     scp -i "$PWD/vm-ssh-key" device-id "aziot@$vm_public_ip:/home/aziot/"
     ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
         set -euxo pipefail
 
-        sudo mkdir -p /var/secrets/aziot/keyd
-        sudo chown aziotks:aziotks /var/secrets/aziot/keyd
-        sudo chmod 0700 /var/secrets/aziot/keyd
-
         sudo mv /home/aziot/device-id /var/secrets/aziot/keyd/device-id
         sudo chown aziotks:aziotks /var/secrets/aziot/keyd/device-id
         sudo chmod 0600 /var/secrets/aziot/keyd/device-id
+    '
+elif [ -f device-id.key.pem ] && [ -f device-id.pem ]; then
+    scp -i "$PWD/vm-ssh-key" device-id.key.pem device-id.pem "aziot@$vm_public_ip:/home/aziot/"
+    ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+        set -euxo pipefail
+
+        sudo mv /home/aziot/device-id.key.pem /var/secrets/aziot/keyd/device-id.key.pem
+        sudo chown aziotks:aziotks /var/secrets/aziot/keyd/device-id.key.pem
+        sudo chmod 0600 /var/secrets/aziot/keyd/device-id.key.pem
+
+        sudo mv /home/aziot/device-id.pem /var/secrets/aziot/certd/device-id.pem
+        sudo chown aziotcs:aziotcs /var/secrets/aziot/certd/device-id.pem
+        sudo chmod 0600 /var/secrets/aziot/certd/device-id.pem
     '
 fi
 
