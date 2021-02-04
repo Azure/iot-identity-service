@@ -8,9 +8,11 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 mod restart;
+mod status;
 mod system_logs;
 
 pub use restart::restart;
+pub use status::get_status;
 pub use system_logs::get_system_logs;
 
 #[derive(Debug, Serialize, Deserialize)]
