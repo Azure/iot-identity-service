@@ -20,6 +20,130 @@ impl<T> Object<T> {
     }
 }
 
+impl Object<()> {
+    /// Use this key to sign the given digest and store the result into the given signature buffer.
+    pub fn sign(
+        &self,
+        digest: &[u8],
+        signature: &mut [u8],
+    ) -> Result<pkcs11_sys::CK_ULONG, SignError> {
+        unsafe {
+            // Signing with the key needs login
+            self.session.login().map_err(SignError::LoginFailed)?;
+
+            let signature_len = sign_inner(
+                &self.session,
+                self.handle,
+                pkcs11_sys::CKM_SHA256_HMAC,
+                digest,
+                signature,
+            )?;
+            Ok(signature_len)
+        }
+    }
+}
+
+impl Object<()> {
+    /// Use this key to verify the given digest has the given signature.
+    pub fn verify(&self, digest: &[u8], signature: &[u8]) -> Result<bool, VerifyError> {
+        unsafe {
+            // Verifying with the key needs login
+            self.session.login().map_err(VerifyError::LoginFailed)?;
+
+            let ok = verify_inner(
+                &self.session,
+                self.handle,
+                pkcs11_sys::CKM_SHA256_HMAC,
+                digest,
+                signature,
+            )?;
+            Ok(ok)
+        }
+    }
+}
+
+impl Object<()> {
+    pub fn encrypt(
+        &self,
+        iv: &[u8],
+        aad: &[u8],
+        plaintext: &[u8],
+        ciphertext: &mut [u8],
+    ) -> Result<pkcs11_sys::CK_ULONG, EncryptError> {
+        unsafe {
+            // Encrypting with the key needs login
+            self.session.login().map_err(EncryptError::LoginFailed)?;
+
+            let iv_len = std::convert::TryInto::try_into(iv.len()).expect("usize -> CK_ULONG");
+
+            let params = pkcs11_sys::CK_GCM_PARAMS {
+                pIv: iv.as_ptr(),
+                ulIvLen: iv_len,
+                ulIvBits: iv_len * 8,
+                pAAD: aad.as_ptr(),
+                ulAADLen: std::convert::TryInto::try_into(aad.len()).expect("usize -> CK_ULONG"),
+                ulTagBits: 16 * 8,
+            };
+            let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                mechanism: pkcs11_sys::CKM_AES_GCM,
+                pParameter: &params as *const _ as _,
+                ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
+                    .expect("usize -> CK_ULONG"),
+            };
+
+            let ciphertext_len = encrypt_inner(
+                &self.session,
+                self.handle,
+                &mechanism,
+                plaintext,
+                ciphertext,
+            )?;
+            Ok(ciphertext_len)
+        }
+    }
+}
+
+impl Object<()> {
+    pub fn decrypt(
+        &self,
+        iv: &[u8],
+        aad: &[u8],
+        ciphertext: &[u8],
+        plaintext: &mut [u8],
+    ) -> Result<pkcs11_sys::CK_ULONG, DecryptError> {
+        unsafe {
+            // Decrypting with the key needs login
+            self.session.login().map_err(DecryptError::LoginFailed)?;
+
+            let iv_len = std::convert::TryInto::try_into(iv.len()).expect("usize -> CK_ULONG");
+
+            let params = pkcs11_sys::CK_GCM_PARAMS {
+                pIv: iv.as_ptr(),
+                ulIvLen: iv_len,
+                ulIvBits: iv_len * 8,
+                pAAD: aad.as_ptr(),
+                ulAADLen: std::convert::TryInto::try_into(aad.len()).expect("usize -> CK_ULONG"),
+                ulTagBits: 16 * 8,
+            };
+            let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                mechanism: pkcs11_sys::CKM_AES_GCM,
+                pParameter: &params as *const _ as _,
+                ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
+                    .expect("usize -> CK_ULONG"),
+            };
+
+            let plaintext_len = decrypt_inner(
+                &self.session,
+                self.handle,
+                &mechanism,
+                ciphertext,
+                plaintext,
+            )?;
+            Ok(plaintext_len)
+        }
+    }
+}
+
 impl Object<openssl::ec::EcKey<openssl::pkey::Public>> {
     /// Get the EC parameters of this EC public key object.
     pub fn parameters(
@@ -161,33 +285,13 @@ impl Object<openssl::ec::EcKey<openssl::pkey::Private>> {
             // Signing with the private key needs login
             self.session.login().map_err(SignError::LoginFailed)?;
 
-            let mechanism = pkcs11_sys::CK_MECHANISM_IN {
-                mechanism: pkcs11_sys::CKM_ECDSA,
-                pParameter: std::ptr::null(),
-                ulParameterLen: 0,
-            };
-            let result =
-                (self.session.context.C_SignInit)(self.session.handle, &mechanism, self.handle);
-            if result != pkcs11_sys::CKR_OK {
-                return Err(SignError::SignInitFailed(result));
-            }
-
-            let original_signature_len =
-                std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG");
-            let mut signature_len = original_signature_len;
-
-            let result = (self.session.context.C_Sign)(
-                self.session.handle,
-                digest.as_ptr(),
-                std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
-                signature.as_mut_ptr(),
-                &mut signature_len,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Err(SignError::SignFailed(result));
-            }
-            assert!(signature_len <= original_signature_len);
-
+            let signature_len = sign_inner(
+                &self.session,
+                self.handle,
+                pkcs11_sys::CKM_ECDSA,
+                digest,
+                signature,
+            )?;
             Ok(signature_len)
         }
     }
@@ -211,43 +315,76 @@ impl Object<openssl::rsa::Rsa<openssl::pkey::Private>> {
             self.session.login().map_err(SignError::LoginFailed)?;
 
             let mechanism = match mechanism {
-                RsaSignMechanism::Pkcs1 => pkcs11_sys::CK_MECHANISM_IN {
-                    mechanism: pkcs11_sys::CKM_RSA_PKCS,
-                    pParameter: std::ptr::null(),
-                    ulParameterLen: 0,
-                },
-
-                RsaSignMechanism::X509 => pkcs11_sys::CK_MECHANISM_IN {
-                    mechanism: pkcs11_sys::CKM_RSA_X509,
-                    pParameter: std::ptr::null(),
-                    ulParameterLen: 0,
-                },
+                RsaSignMechanism::Pkcs1 => pkcs11_sys::CKM_RSA_PKCS,
+                RsaSignMechanism::X509 => pkcs11_sys::CKM_RSA_X509,
             };
-            let result =
-                (self.session.context.C_SignInit)(self.session.handle, &mechanism, self.handle);
-            if result != pkcs11_sys::CKR_OK {
-                return Err(SignError::SignInitFailed(result));
-            }
-
-            let original_signature_len =
-                std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG");
-            let mut signature_len = original_signature_len;
-
-            let result = (self.session.context.C_Sign)(
-                self.session.handle,
-                digest.as_ptr(),
-                std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
-                signature.as_mut_ptr(),
-                &mut signature_len,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Err(SignError::SignFailed(result));
-            }
-            assert!(signature_len <= original_signature_len);
-
+            let signature_len =
+                sign_inner(&self.session, self.handle, mechanism, digest, signature)?;
             Ok(signature_len)
         }
     }
+}
+
+impl Object<openssl::rsa::Rsa<openssl::pkey::Public>> {
+    /// Use this key to encrypt the given plaintext and store the result into the given ciphertext buffer.
+    pub fn encrypt(
+        &self,
+        mechanism: pkcs11_sys::CK_MECHANISM_TYPE,
+        plaintext: &[u8],
+        ciphertext: &mut [u8],
+    ) -> Result<pkcs11_sys::CK_ULONG, EncryptError> {
+        unsafe {
+            let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                mechanism,
+                pParameter: std::ptr::null(),
+                ulParameterLen: 0,
+            };
+            let ciphertext_len = encrypt_inner(
+                &self.session,
+                self.handle,
+                &mechanism,
+                plaintext,
+                ciphertext,
+            )?;
+            Ok(ciphertext_len)
+        }
+    }
+}
+
+unsafe fn sign_inner(
+    session: &crate::Session,
+    handle: pkcs11_sys::CK_OBJECT_HANDLE,
+    mechanism: pkcs11_sys::CK_MECHANISM_TYPE,
+    digest: &[u8],
+    signature: &mut [u8],
+) -> Result<pkcs11_sys::CK_ULONG, SignError> {
+    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+        mechanism,
+        pParameter: std::ptr::null(),
+        ulParameterLen: 0,
+    };
+    let result = (session.context.C_SignInit)(session.handle, &mechanism, handle);
+    if result != pkcs11_sys::CKR_OK {
+        return Err(SignError::SignInitFailed(result));
+    }
+
+    let original_signature_len =
+        std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG");
+    let mut signature_len = original_signature_len;
+
+    let result = (session.context.C_Sign)(
+        session.handle,
+        digest.as_ptr(),
+        std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
+        signature.as_mut_ptr(),
+        &mut signature_len,
+    );
+    if result != pkcs11_sys::CKR_OK {
+        return Err(SignError::SignFailed(result));
+    }
+    assert!(signature_len <= original_signature_len);
+
+    Ok(signature_len)
 }
 
 #[derive(Debug)]
@@ -279,51 +416,105 @@ impl std::error::Error for SignError {
     }
 }
 
-impl Object<openssl::rsa::Rsa<openssl::pkey::Public>> {
-    /// Use this key to encrypt the given plaintext and store the result into the given ciphertext buffer.
-    pub fn encrypt(
-        &self,
-        mechanism: pkcs11_sys::CK_MECHANISM_TYPE,
-        plaintext: &[u8],
-        ciphertext: &mut [u8],
-    ) -> Result<pkcs11_sys::CK_ULONG, EncryptError> {
-        unsafe {
-            let mechanism = pkcs11_sys::CK_MECHANISM_IN {
-                mechanism,
-                pParameter: std::ptr::null(),
-                ulParameterLen: 0,
-            };
-            let result =
-                (self.session.context.C_EncryptInit)(self.session.handle, &mechanism, self.handle);
-            if result != pkcs11_sys::CKR_OK {
-                return Err(EncryptError::EncryptInitFailed(result));
-            }
+unsafe fn verify_inner(
+    session: &crate::Session,
+    handle: pkcs11_sys::CK_OBJECT_HANDLE,
+    mechanism: pkcs11_sys::CK_MECHANISM_TYPE,
+    digest: &[u8],
+    signature: &[u8],
+) -> Result<bool, VerifyError> {
+    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+        mechanism,
+        pParameter: std::ptr::null(),
+        ulParameterLen: 0,
+    };
+    let result = (session.context.C_VerifyInit)(session.handle, &mechanism, handle);
+    if result != pkcs11_sys::CKR_OK {
+        return Err(VerifyError::VerifyInitFailed(result));
+    }
 
-            let original_ciphertext_len =
-                std::convert::TryInto::try_into(ciphertext.len()).expect("usize -> CK_ULONG");
-            let mut ciphertext_len = original_ciphertext_len;
-
-            let result = (self.session.context.C_Encrypt)(
-                self.session.handle,
-                plaintext.as_ptr(),
-                std::convert::TryInto::try_into(plaintext.len()).expect("usize -> CK_ULONG"),
-                ciphertext.as_mut_ptr(),
-                &mut ciphertext_len,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Err(EncryptError::EncryptFailed(result));
-            }
-            assert!(ciphertext_len <= original_ciphertext_len);
-
-            Ok(ciphertext_len)
-        }
+    let result = (session.context.C_Verify)(
+        session.handle,
+        digest.as_ptr(),
+        std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
+        signature.as_ptr(),
+        std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG"),
+    );
+    match result {
+        pkcs11_sys::CKR_OK => Ok(true),
+        pkcs11_sys::CKR_SIGNATURE_INVALID | pkcs11_sys::CKR_SIGNATURE_LEN_RANGE => Ok(false),
+        result => Err(VerifyError::VerifyFailed(result)),
     }
 }
 
 #[derive(Debug)]
+#[allow(clippy::pub_enum_variant_names)]
+pub enum VerifyError {
+    LoginFailed(crate::LoginError),
+    VerifyInitFailed(pkcs11_sys::CK_RV),
+    VerifyFailed(pkcs11_sys::CK_RV),
+}
+
+impl std::fmt::Display for VerifyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VerifyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+            VerifyError::VerifyInitFailed(result) => {
+                write!(f, "C_VerifyInit failed with {}", result)
+            }
+            VerifyError::VerifyFailed(result) => write!(f, "C_Verify failed with {}", result),
+        }
+    }
+}
+
+impl std::error::Error for VerifyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            VerifyError::LoginFailed(inner) => Some(inner),
+            VerifyError::VerifyInitFailed(_) => None,
+            VerifyError::VerifyFailed(_) => None,
+        }
+    }
+}
+
+unsafe fn encrypt_inner(
+    session: &crate::Session,
+    handle: pkcs11_sys::CK_OBJECT_HANDLE,
+    mechanism: &pkcs11_sys::CK_MECHANISM_IN,
+    plaintext: &[u8],
+    ciphertext: &mut [u8],
+) -> Result<pkcs11_sys::CK_ULONG, EncryptError> {
+    let result = (session.context.C_EncryptInit)(session.handle, mechanism, handle);
+    if result != pkcs11_sys::CKR_OK {
+        return Err(EncryptError::EncryptInitFailed(result));
+    }
+
+    let original_ciphertext_len =
+        std::convert::TryInto::try_into(ciphertext.len()).expect("usize -> CK_ULONG");
+    let mut ciphertext_len = original_ciphertext_len;
+
+    let result = (session.context.C_Encrypt)(
+        session.handle,
+        plaintext.as_ptr(),
+        std::convert::TryInto::try_into(plaintext.len()).expect("usize -> CK_ULONG"),
+        ciphertext.as_mut_ptr(),
+        &mut ciphertext_len,
+    );
+    if result != pkcs11_sys::CKR_OK {
+        return Err(EncryptError::EncryptFailed(result));
+    }
+    assert!(ciphertext_len <= original_ciphertext_len);
+
+    Ok(ciphertext_len)
+}
+
+#[allow(clippy::pub_enum_variant_names)]
+#[derive(Debug)]
 pub enum EncryptError {
     EncryptInitFailed(pkcs11_sys::CK_RV),
     EncryptFailed(pkcs11_sys::CK_RV),
+    LoginFailed(crate::LoginError),
 }
 
 impl std::fmt::Display for EncryptError {
@@ -333,11 +524,65 @@ impl std::fmt::Display for EncryptError {
                 write!(f, "C_EncryptInit failed with {}", result)
             }
             EncryptError::EncryptFailed(result) => write!(f, "C_Encrypt failed with {}", result),
+            EncryptError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
     }
 }
 
 impl std::error::Error for EncryptError {}
+
+unsafe fn decrypt_inner(
+    session: &crate::Session,
+    handle: pkcs11_sys::CK_OBJECT_HANDLE,
+    mechanism: &pkcs11_sys::CK_MECHANISM_IN,
+    ciphertext: &[u8],
+    plaintext: &mut [u8],
+) -> Result<pkcs11_sys::CK_ULONG, DecryptError> {
+    let result = (session.context.C_DecryptInit)(session.handle, mechanism, handle);
+    if result != pkcs11_sys::CKR_OK {
+        return Err(DecryptError::DecryptInitFailed(result));
+    }
+
+    let original_plaintext_len =
+        std::convert::TryInto::try_into(plaintext.len()).expect("usize -> CK_ULONG");
+    let mut plaintext_len = original_plaintext_len;
+
+    let result = (session.context.C_Decrypt)(
+        session.handle,
+        ciphertext.as_ptr(),
+        std::convert::TryInto::try_into(ciphertext.len()).expect("usize -> CK_ULONG"),
+        plaintext.as_mut_ptr(),
+        &mut plaintext_len,
+    );
+    if result != pkcs11_sys::CKR_OK {
+        return Err(DecryptError::DecryptFailed(result));
+    }
+    assert!(plaintext_len <= original_plaintext_len);
+
+    Ok(plaintext_len)
+}
+
+#[allow(clippy::pub_enum_variant_names)]
+#[derive(Debug)]
+pub enum DecryptError {
+    DecryptInitFailed(pkcs11_sys::CK_RV),
+    DecryptFailed(pkcs11_sys::CK_RV),
+    LoginFailed(crate::LoginError),
+}
+
+impl std::fmt::Display for DecryptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DecryptError::DecryptInitFailed(result) => {
+                write!(f, "C_DecryptInit failed with {}", result)
+            }
+            DecryptError::DecryptFailed(result) => write!(f, "C_Decrypt failed with {}", result),
+            DecryptError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
+    }
+}
+
+impl std::error::Error for DecryptError {}
 
 /// Query an attribute value as a byte buffer of arbitrary length.
 unsafe fn get_attribute_value_byte_buf<T>(

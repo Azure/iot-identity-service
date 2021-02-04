@@ -101,7 +101,7 @@ impl HostConnectIotHub {
                             let reason = "Could not retrieve iothub_hostname from provisioning file.\n\
                             Please specify the backing IoT Hub name using --iothub-hostname switch if you have that information.\n\
                             Since no hostname is provided, all hub connectivity tests will be skipped.";
-                            return Err(anyhow::Error::msg(reason));
+                            return Ok(CheckResult::Warning(anyhow::Error::msg(reason)));
                         }
                     }
                     _ => return Ok(CheckResult::Ignored),

@@ -240,11 +240,11 @@ components:
         properties:
           'keyId':
             type: 'string'
-          'lengthBytes':
-            type: 'integer'
+          'usage':
+            type: 'string'
         required:
         - 'keyId'
-        - 'lengthBytes'
+        - 'usage'
       - type: 'object'
         properties:
           'keyId':
@@ -252,9 +252,12 @@ components:
           'keyBytes':
             type: 'string'
             format: 'byte'
+          'usage':
+            type: 'string'
         required:
         - 'keyId'
         - 'keyBytes'
+        - 'usage'
 
     'CreateKeyPairIfNotExistsRequest':
       type: 'object'

@@ -50,11 +50,11 @@ pub mod create_key_if_not_exists {
         #[serde(rename = "keyId")]
         pub id: String,
 
-        #[serde(rename = "lengthBytes")]
-        pub generate_key_len: Option<usize>,
-
         #[serde(rename = "keyBytes")]
         pub import_key_bytes: Option<http_common::ByteString>,
+
+        #[serde(rename = "usage", with = "crate::key_usage")]
+        pub usage: Vec<aziot_key_common::KeyUsage>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -191,5 +191,64 @@ pub mod sign {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
         pub signature: http_common::ByteString,
+    }
+}
+
+mod key_usage {
+    pub(crate) fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Vec<aziot_key_common::KeyUsage>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Vec<aziot_key_common::KeyUsage>;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("KeyUsage")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                s.split(',')
+                    .map(|usage| match usage {
+                        "derive" => Ok(aziot_key_common::KeyUsage::Derive),
+                        "encrypt" => Ok(aziot_key_common::KeyUsage::Encrypt),
+                        "sign" => Ok(aziot_key_common::KeyUsage::Sign),
+                        usage => Err(serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Str(usage),
+                            &self,
+                        )),
+                    })
+                    .collect()
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
+
+    pub(crate) fn serialize<S>(
+        value: &[aziot_key_common::KeyUsage],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = String::new();
+        for usage in value {
+            if !s.is_empty() {
+                s.push(',');
+            }
+            s.push_str(match usage {
+                aziot_key_common::KeyUsage::Derive => "derive",
+                aziot_key_common::KeyUsage::Encrypt => "encrypt",
+                aziot_key_common::KeyUsage::Sign => "sign",
+            });
+        }
+        serializer.serialize_str(&s)
     }
 }

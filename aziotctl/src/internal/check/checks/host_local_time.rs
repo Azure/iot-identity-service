@@ -37,8 +37,8 @@ impl HostLocalTime {
                 mini_sntp::Error::ResolveNtpPoolHostname(_) => true,
                 mini_sntp::Error::SendClientRequest(err)
                 | mini_sntp::Error::ReceiveServerResponse(err) => {
-                    err.kind() == std::io::ErrorKind::TimedOut || // Windows
-                    err.kind() == std::io::ErrorKind::WouldBlock // Unix
+                    err.kind() == std::io::ErrorKind::TimedOut
+                        || err.kind() == std::io::ErrorKind::WouldBlock
                 }
                 _ => false,
             }

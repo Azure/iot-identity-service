@@ -7,10 +7,10 @@ use byte_unit::{Byte, ByteUnit};
 use serde::Serialize;
 use sysinfo::{DiskExt, SystemExt};
 
-/// Additional info for the JSON output of `aziot check`
+/// Additional info for the JSON output of `aziotctl check`
 #[derive(Clone, Debug, Serialize)]
 pub struct AdditionalInfo {
-    // TODO: update https://github.com/Azure/azure-iotedge to include aziot version
+    // TODO: update https://github.com/Azure/azure-iotedge to include aziotd version
     now: chrono::DateTime<chrono::Utc>,
     os: OsInfo,
     system_info: SystemInfo,

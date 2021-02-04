@@ -84,8 +84,41 @@ impl Checker for DaemonRunningTpmd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
+
+        use aziot_identityd_config::{DpsAttestationMethod, ProvisioningType};
+
+        // Only try to connect to the tpmd when using DPS-TPM provisioning
+        #[allow(clippy::clippy::match_like_matches_macro)]
+        let using_tpmd = match &cache.cfg.identityd {
+            Some(config) => match &config.provisioning.provisioning {
+                ProvisioningType::Dps {
+                    attestation: DpsAttestationMethod::Tpm { .. },
+                    ..
+                } => true,
+                _ => false,
+            },
+            None => {
+                // Check if the prev config happens to use DPS-TPM provisioning
+                match &cache.cfg.identityd_prev {
+                    Some(cfg) => match &cfg.provisioning.provisioning {
+                        ProvisioningType::Dps {
+                            attestation: DpsAttestationMethod::Tpm { .. },
+                            ..
+                        } => true,
+                        _ => false,
+                    },
+                    // there's no way to tell whether or not the user is using tpmd
+                    // in this case, let's play it safe and try to connect to tpmd
+                    None => true,
+                }
+            }
+        };
+
+        if !using_tpmd {
+            return CheckResult::Skipped;
+        }
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_tpmd;
         let res = connector

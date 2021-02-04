@@ -532,45 +532,46 @@ impl KeyPair {
 fn load_inner(
     locations: &[crate::implementation::Location],
 ) -> Result<Option<KeyPair>, crate::AZIOT_KEYS_RC> {
-    let location = locations
-        .first()
-        .ok_or_else(|| crate::implementation::err_external("no valid location for key pair"))?;
-    match location {
-        crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
-            Ok(private_key_pem) => {
-                let private_key = openssl::pkey::PKey::private_key_from_pem(&private_key_pem)?;
+    for location in locations {
+        match location {
+            crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
+                Ok(private_key_pem) => {
+                    let private_key = openssl::pkey::PKey::private_key_from_pem(&private_key_pem)?;
 
-                // Copy private_key's public parameters into a new public key
-                let public_key_der = private_key.public_key_to_der()?;
-                let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der)?;
+                    // Copy private_key's public parameters into a new public key
+                    let public_key_der = private_key.public_key_to_der()?;
+                    let public_key = openssl::pkey::PKey::public_key_from_der(&public_key_der)?;
 
-                Ok(Some(KeyPair::FileSystem(public_key, private_key)))
-            }
+                    return Ok(Some(KeyPair::FileSystem(public_key, private_key)));
+                }
 
-            Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
 
-            Err(err) => Err(crate::implementation::err_external(err)),
-        },
+                Err(err) => return Err(crate::implementation::err_external(err)),
+            },
 
-        crate::implementation::Location::Pkcs11 { lib_path, uri } => {
-            let pkcs11_context = pkcs11::Context::load(lib_path.clone())
-                .map_err(crate::implementation::err_external)?;
-            let pkcs11_slot = pkcs11_context
-                .find_slot(&uri.slot_identifier)
-                .map_err(crate::implementation::err_external)?;
-            let pkcs11_session = pkcs11_context
-                .open_session(pkcs11_slot, uri.pin.clone())
-                .map_err(crate::implementation::err_external)?;
+            crate::implementation::Location::Pkcs11 { lib_path, uri } => {
+                let pkcs11_context = pkcs11::Context::load(lib_path.clone())
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_slot = pkcs11_context
+                    .find_slot(&uri.slot_identifier)
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_session = pkcs11_context
+                    .open_session(pkcs11_slot, uri.pin.clone())
+                    .map_err(crate::implementation::err_external)?;
 
-            match pkcs11_session.get_key_pair(uri.object_label.as_ref().map(AsRef::as_ref)) {
-                Ok(key_pair) => Ok(Some(KeyPair::Pkcs11(key_pair))),
+                match pkcs11_session.get_key_pair(uri.object_label.as_ref().map(AsRef::as_ref)) {
+                    Ok(key_pair) => return Ok(Some(KeyPair::Pkcs11(key_pair))),
 
-                Err(pkcs11::GetKeyError::KeyDoesNotExist) => Ok(None),
+                    Err(pkcs11::GetKeyError::KeyDoesNotExist) => (),
 
-                Err(err) => Err(crate::implementation::err_external(err)),
+                    Err(err) => return Err(crate::implementation::err_external(err)),
+                }
             }
         }
     }
+
+    Ok(None)
 }
 
 fn create_inner(
