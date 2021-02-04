@@ -89,7 +89,7 @@ default:
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 	$(CARGO) build \
-		-p aziot \
+		-p aziotctl \
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
@@ -215,7 +215,7 @@ dist:
 
 	# Copy source files
 	cp -R \
-		./aziot ./aziotd ./cert ./config-common ./http-common ./identity ./iotedged ./key ./mini-sntp ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
+		./aziotctl ./aziotd ./cert ./config-common ./http-common ./identity ./iotedged ./key ./mini-sntp ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
@@ -310,7 +310,7 @@ install-common:
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-tpmd
 
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziot $(DESTDIR)$(bindir)/aziot
+	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziotctl $(DESTDIR)$(bindir)/aziotctl
 
 	# libaziot-keys
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so

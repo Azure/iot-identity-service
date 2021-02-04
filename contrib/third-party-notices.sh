@@ -36,7 +36,7 @@ cargo_metadata="$(
 # Map of package ID to 0 or 1. 0 => not yet processed, 1 => processed
 declare -A dependencies
 
-for crate_name in 'aziot' 'aziot-certd' 'aziot-identityd' 'aziot-keyd' 'aziot-keys' 'aziot-tpmd'; do
+for crate_name in 'aziotctl' 'aziot-certd' 'aziot-identityd' 'aziot-keyd' 'aziot-keys' 'aziot-tpmd'; do
     crate_pkg_id="$(
         <<< "$cargo_metadata" jq -r \
             --arg 'crate_name' "$crate_name" \

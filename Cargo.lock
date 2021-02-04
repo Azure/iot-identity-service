@@ -79,41 +79,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
-name = "aziot"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "aziot-certd-config",
- "aziot-check-common",
- "aziot-identityd-config",
- "aziot-keyd-config",
- "aziot-keys-common",
- "aziot-tpmd-config",
- "base64",
- "byte-unit",
- "bytes",
- "chrono",
- "colored",
- "derive_more",
- "erased-serde",
- "http-common",
- "hyper",
- "hyper-openssl",
- "mini-sntp",
- "nix",
- "openssl",
- "rustyline",
- "serde",
- "serde_json",
- "structopt",
- "sysinfo",
- "tokio",
- "toml",
- "url",
-]
-
-[[package]]
 name = "aziot-cert-client-async"
 version = "0.1.0"
 dependencies = [
@@ -181,14 +146,6 @@ dependencies = [
  "serde",
  "toml",
  "url",
-]
-
-[[package]]
-name = "aziot-check-common"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -570,6 +527,49 @@ dependencies = [
  "http-common",
  "serde",
  "toml",
+]
+
+[[package]]
+name = "aziotctl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "aziot-certd-config",
+ "aziot-identityd-config",
+ "aziot-keyd-config",
+ "aziot-keys-common",
+ "aziot-tpmd-config",
+ "aziotctl-check-common",
+ "base64",
+ "byte-unit",
+ "bytes",
+ "chrono",
+ "colored",
+ "derive_more",
+ "erased-serde",
+ "http-common",
+ "hyper",
+ "hyper-openssl",
+ "mini-sntp",
+ "nix",
+ "openssl",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "structopt",
+ "sysinfo",
+ "tokio",
+ "toml",
+ "url",
+]
+
+[[package]]
+name = "aziotctl-check-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
