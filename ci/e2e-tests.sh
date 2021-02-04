@@ -386,6 +386,79 @@ EOF
             echo 'Generated config files' >&2
             ;;
 
+        'manual-x509')
+            echo 'Creating self-signed root CA' >&2
+            openssl req \
+                -new \
+                -x509 \
+                -newkey rsa:4096 -keyout device-id-root.key.pem -nodes \
+                -subj "/CN=aziot_root_ca_cert_e2e_test" \
+                -days 30 \
+                -sha256 \
+                -out device-id-root.pem
+
+            echo 'Generating CSR for device ID cert and signing it with the root CA to get the device id cert.' >&2
+            openssl req \
+                -newkey rsa:2048 -keyout device-id.key.pem -nodes \
+                -out device-id.csr \
+                -days 1 \
+                -subj="/CN=aziot_device_id_cert_e2e_test"
+            openssl x509 -req \
+                -in device-id.csr \
+                -CA device-id-root.pem -CAkey device-id-root.key.pem \
+                -out device-id.pem \
+                -days 365 -CAcreateserial
+
+            thumbprint=$(< device-id.pem openssl x509 -fingerprint -noout | grep -Po 'Fingerprint=\K.*' | tr -d ':')
+
+            echo 'Creating IoT device...' >&2
+            iot_device_id="$common_resource_name-01"
+            az iot hub device-identity create \
+                --hub-name "$common_resource_name" \
+                --device-id "$iot_device_id" \
+                --auth-method 'x509_thumbprint' \
+                --primary-thumbprint "$thumbprint" \
+                --secondary-thumbprint "$thumbprint"
+            echo 'Created IoT device' >&2
+
+            echo 'Generating config files...' >&2
+
+            >keyd.toml cat <<-EOF
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+device-id = "file:///var/secrets/aziot/keyd/device-id.key.pem"
+EOF
+
+            >certd.toml cat <<-EOF
+homedir_path = "/var/lib/aziot/certd"
+
+[cert_issuance]
+
+[preloaded_certs]
+device-id = "file:///var/secrets/aziot/certd/device-id.pem"
+EOF
+
+            >identityd.toml cat <<-EOF
+hostname = "$common_resource_name"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+always_reprovision_on_startup = true
+source = "manual"
+iothub_hostname = "$common_resource_name.azure-devices.net"
+device_id = "$iot_device_id"
+
+[provisioning.authentication]
+method = "x509"
+identity_cert = "device-id"
+identity_pk = "device-id"
+EOF
+
+            echo 'Generated config files' >&2
+            ;;
+
         *)
             echo "Unsupported test $1" >&2
             exit 1
@@ -590,6 +663,14 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
     sudo usermod -aG aziotid aziot
+
+    sudo mkdir -p /var/secrets/aziot/certd
+    sudo chown aziotcs:aziotcs /var/secrets/aziot/certd
+    sudo chmod 0700 /var/secrets/aziot/certd
+
+    sudo mkdir -p /var/secrets/aziot/keyd
+    sudo chown aziotks:aziotks /var/secrets/aziot/keyd
+    sudo chmod 0700 /var/secrets/aziot/keyd
 '
 
 if [ -f device-id ]; then
@@ -597,13 +678,22 @@ if [ -f device-id ]; then
     ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
         set -euxo pipefail
 
-        sudo mkdir -p /var/secrets/aziot/keyd
-        sudo chown aziotks:aziotks /var/secrets/aziot/keyd
-        sudo chmod 0700 /var/secrets/aziot/keyd
-
         sudo mv /home/aziot/device-id /var/secrets/aziot/keyd/device-id
         sudo chown aziotks:aziotks /var/secrets/aziot/keyd/device-id
         sudo chmod 0600 /var/secrets/aziot/keyd/device-id
+    '
+elif [ -f device-id.key.pem ] && [ -f device-id.pem ]; then
+    scp -i "$PWD/vm-ssh-key" device-id.key.pem device-id.pem "aziot@$vm_public_ip:/home/aziot/"
+    ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+        set -euxo pipefail
+
+        sudo mv /home/aziot/device-id.key.pem /var/secrets/aziot/keyd/device-id.key.pem
+        sudo chown aziotks:aziotks /var/secrets/aziot/keyd/device-id.key.pem
+        sudo chmod 0600 /var/secrets/aziot/keyd/device-id.key.pem
+
+        sudo mv /home/aziot/device-id.pem /var/secrets/aziot/certd/device-id.pem
+        sudo chown aziotcs:aziotcs /var/secrets/aziot/certd/device-id.pem
+        sudo chmod 0600 /var/secrets/aziot/certd/device-id.pem
     '
 fi
 
