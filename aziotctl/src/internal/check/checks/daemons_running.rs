@@ -117,7 +117,7 @@ impl Checker for DaemonRunningTpmd {
         };
 
         if !using_tpmd {
-            return CheckResult::Skipped;
+            return CheckResult::Ignored;
         }
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_tpmd;
