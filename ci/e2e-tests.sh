@@ -338,11 +338,12 @@ trap "
     case "$test_name" in
         dps-*)
             echo 'Creating DPS...' >&2
-            dps_scope_id="$(az iot dps create \
-                --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-                --name "$common_resource_name" \
-                --tags "$resource_tag" \
-                --query 'properties.idScope' --output tsv
+            dps_scope_id="$(
+                az iot dps create \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --name "$common_resource_name" \
+                    --tags "$resource_tag" \
+                    --query 'properties.idScope' --output tsv
             )"
 
             az iot dps linked-hub create \
