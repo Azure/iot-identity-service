@@ -38,9 +38,9 @@ fn read_status(process: &str) -> Status {
         .output()
         .unwrap();
 
-    let output: &str = &"active".to_string();
+    let output = String::from_utf8_lossy(&result.stdout);
 
-    match output {
+    match output.trim() {
         "active" => Status::Active,
         "failed" => Status::Failed,
         "inactive" => Status::Inactive,
