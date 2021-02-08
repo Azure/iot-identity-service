@@ -8,10 +8,12 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 mod restart;
+mod set_log_level;
 mod status;
 mod system_logs;
 
 pub use restart::restart;
+pub use set_log_level::{set_log_level, LogLevel};
 pub use status::get_status;
 pub use system_logs::get_system_logs;
 

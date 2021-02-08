@@ -40,6 +40,8 @@ pub fn get_status(processes: &[&ServiceDefinition]) {
                 }
             }
         }
+
+        println!("\n\nFor more detailed logs, use the `system logs` command. If the logs do not contain enough information, consider setting debug logs using `system set-log-level`.");
     } else {
         println!("Ok");
     }

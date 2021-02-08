@@ -1,13 +1,15 @@
 use structopt::StructOpt;
 
-use aziot_common::{get_status, get_system_logs, restart, SERVICE_DEFINITIONS};
+use aziot_common::{
+    get_status, get_system_logs, restart, set_log_level, LogLevel, SERVICE_DEFINITIONS,
+};
 
 #[derive(StructOpt)]
 pub enum SystemOptions {
     Restart(RestartOptions),
     Status(StatusOptions),
     Logs(LogsOptions),
-    SetLogLevel(LogLevelOptions)
+    SetLogLevel(LogLevelOptions),
 }
 
 #[derive(StructOpt)]
@@ -28,14 +30,17 @@ pub struct LogsOptions {
 
 #[derive(StructOpt)]
 #[structopt(about = "Set the log level")]
-pub struct LogLevelOptions {}
+pub struct LogLevelOptions {
+    #[structopt(value_name = "normal | debug")]
+    log_level: LogLevel,
+}
 
 pub fn system(options: SystemOptions) {
     match options {
         SystemOptions::Restart(_) => restart(SERVICE_DEFINITIONS),
         SystemOptions::Status(_) => get_status(SERVICE_DEFINITIONS),
         SystemOptions::Logs(opts) => logs(&opts),
-        SystemOptions::SetLogLevel(_) => (),
+        SystemOptions::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, &opts.log_level),
     }
 }
 
