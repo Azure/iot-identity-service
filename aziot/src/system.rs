@@ -7,6 +7,7 @@ pub enum SystemOptions {
     Restart(RestartOptions),
     Status(StatusOptions),
     Logs(LogsOptions),
+    SetLogLevel(LogLevelOptions)
 }
 
 #[derive(StructOpt)]
@@ -25,11 +26,16 @@ pub struct LogsOptions {
     args: Vec<String>,
 }
 
+#[derive(StructOpt)]
+#[structopt(about = "Set the log level")]
+pub struct LogLevelOptions {}
+
 pub fn system(options: SystemOptions) {
     match options {
         SystemOptions::Restart(_) => restart(SERVICE_DEFINITIONS),
         SystemOptions::Status(_) => get_status(SERVICE_DEFINITIONS),
         SystemOptions::Logs(opts) => logs(&opts),
+        SystemOptions::SetLogLevel(_) => (),
     }
 }
 
