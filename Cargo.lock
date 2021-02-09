@@ -281,14 +281,12 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "notify",
  "openssl",
  "openssl2",
  "percent-encoding",
  "regex",
  "serde",
  "serde_json",
- "tokio",
  "toml",
  "url",
 ]
@@ -711,8 +709,12 @@ dependencies = [
 name = "config-common"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "backtrace",
+ "futures-util",
+ "notify",
  "serde",
+ "tokio",
  "toml",
 ]
 

@@ -24,8 +24,9 @@ pub mod error;
 mod http;
 pub mod identity;
 
+use async_trait::async_trait;
+use config_common::watcher::{ReprovisionTrigger, UpdateConfig};
 pub use error::{Error, InternalError};
-use notify::Watcher;
 
 /// URI query parameter that identifies module identity type.
 const ID_TYPE_AZIOT: &str = "aziot";
@@ -48,13 +49,6 @@ macro_rules! match_id_type {
     };
 }
 
-#[derive(Debug)]
-pub enum ReprovisionTrigger {
-    ConfigurationFileUpdate,
-    Api,
-    Startup,
-}
-
 pub async fn main(
     settings: config::Settings,
     config_path: std::path::PathBuf,
@@ -74,59 +68,12 @@ pub async fn main(
     let api = Arc::new(futures_util::lock::Mutex::new(api));
 
     let api_startup = api.clone();
+    let mut api_ = api_startup.lock().await;
+    let _ = api_
+        .update_config(settings.clone(), ReprovisionTrigger::Startup)
+        .await;
 
-    let settings_copy = settings.clone();
-
-    tokio::spawn(async move {
-        let mut api_ = api_startup.lock().await;
-        let _ = api_
-            .update_settings(settings_copy, ReprovisionTrigger::Startup)
-            .await;
-        drop(api_);
-    });
-
-    let api_watcher = api.clone();
-
-    // DEVNOTE: The channel created for file watcher receiver needs to address upto two messages,
-    // since the message is resent to file change receiver using a blocking send.
-    // When the numbe rof messages is set to 1, then main thread appears to block.
-    let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(2);
-
-    // Start file watcher using blocking channel
-    std::thread::spawn({
-        let config_directory_path = config_directory_path.clone();
-
-        move || {
-            let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
-
-            // Create a watcher object, delivering debounced events
-            let mut file_watcher =
-                notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
-
-            // Add configuration path to be watched
-            file_watcher
-                .watch(config_directory_path, notify::RecursiveMode::Recursive)
-                .unwrap();
-
-            loop {
-                let _ = file_watcher_rx.recv();
-                let _ = file_changed_tx.blocking_send(());
-            }
-        }
-    });
-
-    // Start file change listener that asynchronously updates Identity Service
-    tokio::spawn(async move {
-        while let Some(()) = file_changed_rx.recv().await {
-            let new_settings =
-                config_common::read_config(&config_path, &config_directory_path).unwrap();
-
-            let mut api_ = api_watcher.lock().await;
-            let _ = api_
-                .update_settings(new_settings, ReprovisionTrigger::ConfigurationFileUpdate)
-                .await;
-        }
-    });
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
@@ -398,33 +345,6 @@ impl Api {
         })
     }
 
-    pub async fn update_settings(
-        &mut self,
-        settings: config::Settings,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Error> {
-        let (allowed_users, _, local_modules) =
-            configext::prepare_authorized_principals(&settings.principal);
-
-        let authorizer = Box::new(SettingsAuthorizer {});
-        self.authorizer = authorizer;
-
-        // All uids in the principals are authenticated users to this service
-        let authenticator = Box::new(SettingsAuthenticator {
-            allowed_users: allowed_users.clone(),
-        });
-        self.authenticator = authenticator;
-        self.local_identities = local_modules;
-
-        let _ = self
-            .reprovision_device(auth::AuthId::LocalRoot, trigger)
-            .await?;
-
-        self.settings = settings;
-
-        Ok(())
-    }
-
     pub async fn reprovision_device(
         &mut self,
         auth_id: auth::AuthId,
@@ -541,6 +461,39 @@ impl Api {
         };
 
         Ok(local_identity)
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = config::Settings;
+    type Error = Error;
+
+    async fn update_config(
+        &mut self,
+        settings: config::Settings,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Self::Error> {
+        let (allowed_users, _, local_modules) =
+            configext::prepare_authorized_principals(&settings.principal);
+
+        let authorizer = Box::new(SettingsAuthorizer {});
+        self.authorizer = authorizer;
+
+        // All uids in the principals are authenticated users to this service
+        let authenticator = Box::new(SettingsAuthenticator {
+            allowed_users: allowed_users.clone(),
+        });
+        self.authenticator = authenticator;
+        self.local_identities = local_modules;
+
+        let _ = self
+            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .await?;
+
+        self.settings = settings;
+
+        Ok(())
     }
 }
 
