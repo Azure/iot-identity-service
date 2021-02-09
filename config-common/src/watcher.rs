@@ -13,15 +13,12 @@ pub trait UpdateConfig {
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error>;
 }
 
-pub fn start_watcher<TConfig, TError>(
+pub fn start_watcher<TApi>(
     config_path: PathBuf,
     config_directory_path: PathBuf,
-    api: std::sync::Arc<
-        futures_util::lock::Mutex<dyn UpdateConfig<Config = TConfig, Error = TError> + Send>,
-    >,
+    api: std::sync::Arc<futures_util::lock::Mutex<TApi>>,
 ) where
-    TConfig: serde::de::DeserializeOwned + Send + 'static,
-    TError: std::error::Error + Send + 'static,
+    TApi: UpdateConfig + Send + 'static,
 {
     // DEVNOTE: The channel created for file watcher receiver needs to address up to two messages,
     // since the message is resent to file change receiver using a blocking send.
@@ -41,9 +38,12 @@ pub fn start_watcher<TConfig, TError>(
                 notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
 
             // Add configuration paths to be watched.
-            file_watcher
-                .watch(config_directory_path, notify::RecursiveMode::Recursive)
-                .expect("Watching config directory path should not fail.");
+            if config_directory_path.exists() {
+                file_watcher
+                    .watch(config_directory_path, notify::RecursiveMode::NonRecursive)
+                    .expect("Watching config directory path should not fail.");
+            }
+
             file_watcher
                 .watch(config_path, notify::RecursiveMode::NonRecursive)
                 .expect("Watching config file should not fail.");
