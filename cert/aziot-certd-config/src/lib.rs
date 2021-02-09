@@ -360,6 +360,10 @@ est-ca = "file:///var/secrets/est-ca.cer"
 trust-bundle = [
 	"est-ca",
 ]
+
+[[principal]]
+uid = 1000
+certs = ["test"]
 "#;
 
         let actual: super::Config = toml::from_str(actual).unwrap();
@@ -481,6 +485,11 @@ trust-bundle = [
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: vec![super::Principal {
+                    uid: 1000,
+                    certs: vec!["test".to_string()]
+                }]
             }
         );
     }
@@ -514,6 +523,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: Default::default(),
             }
         );
     }
