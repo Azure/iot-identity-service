@@ -22,7 +22,7 @@ pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result
     }
     Command::new("systemctl").arg("daemon-reload").output()?;
 
-    println!("Set log level to {} for all services. Run the `system restart` command for the changes to take effect.");
+    println!("Set log level to {} for all services. Run the `system restart` command for the changes to take effect.", level);
     Ok(())
 }
 
