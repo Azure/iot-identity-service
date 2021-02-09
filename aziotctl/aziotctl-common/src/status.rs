@@ -109,6 +109,7 @@ struct ServiceStatus<'a> {
 
 impl<'a> ServiceStatus<'a> {
     fn ok(&self) -> bool {
+        // If status is not failed and there are no sockets that are not ok
         self.service_status != Status::Failed && !self.sockets.iter().any(|s| !s.ok())
     }
 }
