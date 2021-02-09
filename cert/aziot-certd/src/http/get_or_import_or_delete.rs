@@ -33,7 +33,7 @@ impl http_common::server::Route for Route {
             .decode_utf8()
             .ok()?;
 
-        let uid = extensions.get::<libc::uid_t>().cloned()?;
+        let uid = extensions.get::<libc::uid_t>().copied()?;
 
         Some(Route {
             api: service.api.clone(),

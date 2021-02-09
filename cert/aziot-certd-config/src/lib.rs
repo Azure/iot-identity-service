@@ -24,22 +24,22 @@ pub struct Config {
     #[serde(default)]
     pub preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
 
+    /// Authorized Unix users and the corresponding certificate IDs.
+    ///
+    /// A Unix user with the given UID is granted write access to the certificate IDs
+    /// specified. Wildcards may be used for certificate IDs.
+    ///
+    /// This authorization only affects write access. Read access for all certificate IDs is
+    /// granted to all users.
+    #[serde(default)]
+    pub principal: Vec<Principal>,
+
     /// Map of service names to endpoint URIs.
     ///
     /// Only configurable in debug builds for the sake of tests.
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
-
-    /// Authorized Unix users and the corresponding certificates.
-    ///
-    /// A Unix user with the given UID is granted write access to the certificates
-    /// specified. Wildcards may be used for certificate names.
-    ///
-    /// This authorization only affects write access. Read access for certificates is
-    /// granted to all users.
-    #[serde(default)]
-    pub principal: Vec<Principal>,
 }
 
 /// Configuration of how new certificates should be issued.
@@ -315,13 +315,13 @@ impl Default for Endpoints {
     }
 }
 
-/// Map of a Unix UID to certificates with write access.
+/// Map of a Unix UID to certificate IDs with write access.
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,
 
-    /// Certificates for which the given UID has write access. Wildcards may be used.
+    /// Certificate IDs for which the given UID has write access. Wildcards may be used.
     pub certs: Vec<String>,
 }
 
@@ -477,6 +477,11 @@ certs = ["test"]
                 .into_iter()
                 .collect(),
 
+                principal: vec![super::Principal {
+                    uid: 1000,
+                    certs: vec!["test".to_string()]
+                }],
+
                 endpoints: super::Endpoints {
                     aziot_certd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/run/aziot/certd.sock").into()
@@ -484,12 +489,7 @@ certs = ["test"]
                     aziot_keyd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
-                },
-
-                principal: vec![super::Principal {
-                    uid: 1000,
-                    certs: vec!["test".to_string()]
-                }]
+                }
             }
         );
     }
@@ -515,6 +515,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
 
                 preloaded_certs: Default::default(),
 
+                principal: Default::default(),
+
                 endpoints: super::Endpoints {
                     aziot_certd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/run/aziot/certd.sock").into()
@@ -523,8 +525,6 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
-
-                principal: Default::default(),
             }
         );
     }

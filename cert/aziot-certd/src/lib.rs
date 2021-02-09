@@ -80,7 +80,7 @@ struct Api {
     homedir_path: std::path::PathBuf,
     cert_issuance: CertIssuance,
     preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
-    principals: std::collections::BTreeMap<libc::uid_t, Vec<String>>,
+    principals: std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
@@ -155,11 +155,7 @@ impl Api {
 
         // Authorize user based on stored principals config.
         if let Some(certs) = self.principals.get(&user) {
-            for cert in certs {
-                if wildmatch::WildMatch::new(cert).is_match(id) {
-                    return true;
-                }
-            }
+            return certs.iter().any(|cert| cert.is_match(id));
         }
 
         false
@@ -823,9 +819,16 @@ fn get_cert_inner(
 
 fn principal_to_map(
     principal: Vec<Principal>,
-) -> std::collections::BTreeMap<libc::uid_t, Vec<String>> {
+) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
     principal
         .into_iter()
-        .map(|principal| (principal.uid, principal.certs))
+        .map(|principal| {
+            let certs = principal
+                .certs
+                .into_iter()
+                .map(|cert| wildmatch::WildMatch::new(&cert))
+                .collect();
+            (principal.uid, certs)
+        })
         .collect()
 }
