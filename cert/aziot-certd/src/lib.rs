@@ -143,8 +143,8 @@ impl UpdateConfig for Api {
     ) -> Result<(), Self::Error> {
         log::info!("Updating config due to {:?}.", trigger);
 
-        // Don't allow changes to homedir path while daemon is running. Only update
-        // cert issuance method and preloaded certs.
+        // Don't allow changes to homedir path or endpoints while daemon is running.
+        // Only update other fields.
         self.cert_issuance = new_config.cert_issuance;
         self.preloaded_certs = new_config.preloaded_certs;
 

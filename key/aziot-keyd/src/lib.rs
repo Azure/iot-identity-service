@@ -18,10 +18,13 @@ mod http;
 
 use aziot_keyd_config::{Config, Endpoints};
 
+use async_trait::async_trait;
+use config_common::watcher::{UpdateConfig, ReprovisionTrigger};
+
 pub async fn main(
     config: Config,
-    _: std::path::PathBuf,
-    _: std::path::PathBuf,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         aziot_keys,
@@ -74,6 +77,8 @@ pub async fn main(
         Api { keys }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
@@ -441,6 +446,25 @@ impl Api {
         };
 
         Ok(plaintext)
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = Config;
+    type Error = Error;
+
+    async fn update_config(
+        &mut self,
+        _new_config: Self::Config,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Self::Error> {
+        log::info!("Updating config due to {:?}.", trigger);
+
+        // TODO: implement update to authorization.
+
+        log::info!("Config update finished.");
+        Ok(())
     }
 }
 

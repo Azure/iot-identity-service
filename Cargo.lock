@@ -406,6 +406,7 @@ dependencies = [
  "aziot-key-common-http",
  "aziot-keyd-config",
  "base64",
+ "config-common",
  "futures-util",
  "http",
  "http-common",
