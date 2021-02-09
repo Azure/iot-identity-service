@@ -1,5 +1,5 @@
 [package]
-name = "aziot-common"
+name = "aziotctl-common"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2018"

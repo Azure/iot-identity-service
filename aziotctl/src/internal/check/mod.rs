@@ -10,10 +10,10 @@ mod util;
 pub(crate) use additional_info::AdditionalInfo;
 pub(crate) use checks::all_checks;
 
-// NOTE: this struct gets `structopt(flatten)`ed as part of the `aziot check` subcommand.
+// NOTE: this struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
-    // TODO: add aziot version info to https://github.com/Azure/azure-iotedge
+    // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
     // /// Sets the expected version of the iotedged binary. Defaults to the value
     // /// contained in <http://aka.ms/latest-iotedge-stable>
     // expected_iotedged_version: String,
@@ -74,9 +74,9 @@ pub struct CheckerMeta {
     pub description: &'static str,
 }
 
-impl From<CheckerMeta> for aziot_common::CheckerMetaSerializable {
-    fn from(meta: CheckerMeta) -> aziot_common::CheckerMetaSerializable {
-        aziot_common::CheckerMetaSerializable {
+impl From<CheckerMeta> for aziotctl_common::CheckerMetaSerializable {
+    fn from(meta: CheckerMeta) -> aziotctl_common::CheckerMetaSerializable {
+        aziotctl_common::CheckerMetaSerializable {
             id: meta.id.into(),
             description: meta.description.into(),
         }

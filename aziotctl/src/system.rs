@@ -1,7 +1,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use aziot_common::{
+use aziotctl_common::{
     get_status, get_system_logs, restart, set_log_level, LogLevel, SERVICE_DEFINITIONS,
 };
 

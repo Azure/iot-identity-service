@@ -45,7 +45,7 @@ The `iotedge` CLI tool is used to interact with the `iotedged` service.
 ```
 /usr/
 ├── bin/
-│   └── aziot
+│   └── aziotctl
 ├── lib/
 │   └── libaziot_keys.so
 └── libexec/
@@ -55,9 +55,9 @@ The `iotedge` CLI tool is used to interact with the `iotedged` service.
         └── aziot-keyd
 ```
 
-The `aziot` CLI tool is used to interact with the three `aziot-*` services.
+The `aziotctl` CLI tool is used to interact with the `aziot-*` services.
 
-(The `aziot-*` binaries are installed under the "libexec" directory, meant for executables that are not intended to be directly invoked by a user. Most distributions map this directory to `/usr/lib/`, which is why the tree above shows them under `/usrlib/aziot/`)
+(The `aziot-*` service binaries are installed under the "libexec" directory, meant for executables that are not intended to be directly invoked by a user.)
 </td>
 <td>
 
@@ -305,7 +305,7 @@ The IS+KS+CS+TPMS components can still be installed as a standalone package on d
 ```sh
 apt install aziot-identity-service
 
-aziot init
+aziotctl init
 ```
 
-After installing the package, run `aziot init` to interactively set up the configuration with minimal information like the device provisioning method.
+After installing the package, run `aziotctl init` to interactively set up the configuration with minimal information like the device provisioning method.

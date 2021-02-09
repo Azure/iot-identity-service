@@ -3,10 +3,10 @@
 use anyhow::{Context, Result};
 use structopt::StructOpt;
 
-use aziot_common::CheckListOutput;
+use aziotctl_common::CheckListOutput;
 
 #[derive(StructOpt, Copy, Clone)]
-#[structopt(about = "List the checks that are run for 'aziot check'")]
+#[structopt(about = "List the checks that are run for 'aziotctl check'")]
 pub struct CheckListOptions {
     /// Output format. One of "text" or "json".
     #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
