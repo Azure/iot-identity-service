@@ -31,6 +31,7 @@ aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
 

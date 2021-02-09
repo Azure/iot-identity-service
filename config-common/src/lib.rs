@@ -9,6 +9,7 @@
 )]
 
 pub mod error;
+pub mod watcher;
 
 use crate::error::{Error, ErrorKind};
 
