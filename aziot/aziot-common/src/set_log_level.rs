@@ -8,6 +8,10 @@ use std::str::FromStr;
 use crate::ServiceDefinition;
 
 #[allow(clippy::module_name_repetitions)]
+/// # Errors
+///
+/// Will return `Err` if the systemd folder for the service does not exist or the user does not have
+/// permission to read it.
 pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result<(), io::Error> {
     for ServiceDefinition {
         service,
