@@ -9,6 +9,8 @@
     clippy::missing_errors_doc
 )]
 
+use libc::uid_t as Uid;
+
 pub mod util;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -30,6 +32,16 @@ pub struct Config {
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
+
+    /// Authorized Unix users and the corresponding certificates.
+    ///
+    /// A Unix user with the given UID is granted write access to the certificates
+    /// specified. Wildcards may be used for certificate names.
+    ///
+    /// This authorization only affects write access. Read access for certificates is
+    /// granted to all users.
+    #[serde(default)]
+    pub principals: Vec<Principal>,
 }
 
 /// Configuration of how new certificates should be issued.
@@ -303,6 +315,16 @@ impl Default for Endpoints {
             },
         }
     }
+}
+
+/// Map of a Unix UID to certificates with write access.
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Principal {
+    /// Unix UID.
+    uid: Uid,
+
+    /// Certificates for which the given UID has write access.
+    certs: Vec<String>,
 }
 
 #[cfg(test)]

@@ -6,11 +6,13 @@ edition = "2018"
 
 
 [dependencies]
-http-common = { path = "../../http-common" }
+hex = "0.4"
+libc = "0.2"
+openssl = "0.10"
 serde = { version = "1", features = ["derive"] }
 url = { version = "2", features = ["serde"] }
-openssl = "0.10"
-hex = "0.4"
+
+http-common = { path = "../../http-common" }
 
 [dev-dependencies]
 toml = "0.5"

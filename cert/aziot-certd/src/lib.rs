@@ -22,7 +22,7 @@ mod http;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuthBasic,
-    EstAuthX509, LocalCa, PreloadedCert,
+    EstAuthX509, LocalCa, PreloadedCert, Principal,
 };
 
 use config_common::watcher::UpdateConfig;
@@ -41,6 +41,7 @@ pub async fn main(
                 aziot_certd: connector,
                 aziot_keyd: key_connector,
             },
+        principals,
     } = config;
 
     let api = {
@@ -60,6 +61,7 @@ pub async fn main(
             homedir_path,
             cert_issuance,
             preloaded_certs,
+            principals,
 
             key_client,
             key_engine,
@@ -78,6 +80,7 @@ struct Api {
     homedir_path: std::path::PathBuf,
     cert_issuance: CertIssuance,
     preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
+    principals: Vec<Principal>,
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
@@ -147,9 +150,11 @@ impl UpdateConfig for Api {
             cert_issuance,
             preloaded_certs,
             endpoints: _,
+            principals,
         } = new_config;
         self.cert_issuance = cert_issuance;
         self.preloaded_certs = preloaded_certs;
+        self.principals = principals;
 
         log::info!("Config update finished.");
         Ok(())
