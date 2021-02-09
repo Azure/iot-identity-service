@@ -11,6 +11,8 @@
     clippy::too_many_lines
 )]
 
+use async_trait::async_trait;
+
 mod error;
 use error::{Error, InternalError};
 
@@ -23,8 +25,7 @@ use aziot_certd_config::{
     EstAuthX509, LocalCa, PreloadedCert,
 };
 
-use async_trait::async_trait;
-use config_common::watcher::{ReprovisionTrigger, UpdateConfig};
+use config_common::watcher::UpdateConfig;
 
 pub async fn main(
     config: Config,
@@ -136,17 +137,19 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
-    async fn update_config(
-        &mut self,
-        new_config: Self::Config,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Self::Error> {
-        log::info!("Updating config due to {:?}.", trigger);
+    async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
+        log::info!("Detected change in config files. Updating config.");
 
         // Don't allow changes to homedir path or endpoints while daemon is running.
         // Only update other fields.
-        self.cert_issuance = new_config.cert_issuance;
-        self.preloaded_certs = new_config.preloaded_certs;
+        let Config {
+            homedir_path: _,
+            cert_issuance,
+            preloaded_certs,
+            endpoints: _,
+        } = new_config;
+        self.cert_issuance = cert_issuance;
+        self.preloaded_certs = preloaded_certs;
 
         log::info!("Config update finished.");
         Ok(())

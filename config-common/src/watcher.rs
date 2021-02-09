@@ -1,39 +1,27 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use async_trait::async_trait;
-use notify::Watcher;
 use std::path::PathBuf;
 
-type Api<TConfig, TError> = std::sync::Arc<
-    futures_util::lock::Mutex<dyn UpdateConfig<Config = TConfig, Error = TError> + Send>,
->;
-
-#[derive(Debug)]
-pub enum ReprovisionTrigger {
-    ConfigurationFileUpdate,
-    Api,
-    Startup,
-}
+use async_trait::async_trait;
+use notify::Watcher;
 
 #[async_trait]
 pub trait UpdateConfig {
-    type Config: serde::de::DeserializeOwned;
-    type Error: std::error::Error;
+    type Config: serde::de::DeserializeOwned + Send;
+    type Error: std::error::Error + Send;
 
-    async fn update_config(
-        &mut self,
-        new_config: Self::Config,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Self::Error>;
+    async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error>;
 }
 
-pub fn start_watcher<TConfig: 'static, TError: 'static>(
+pub fn start_watcher<TConfig, TError>(
     config_path: PathBuf,
     config_directory_path: PathBuf,
-    api: Api<TConfig, TError>,
+    api: std::sync::Arc<
+        futures_util::lock::Mutex<dyn UpdateConfig<Config = TConfig, Error = TError> + Send>,
+    >,
 ) where
-    TConfig: serde::de::DeserializeOwned + Send,
-    TError: std::error::Error,
+    TConfig: serde::de::DeserializeOwned + Send + 'static,
+    TError: std::error::Error + Send + 'static,
 {
     // DEVNOTE: The channel created for file watcher receiver needs to address up to two messages,
     // since the message is resent to file change receiver using a blocking send.
@@ -55,10 +43,10 @@ pub fn start_watcher<TConfig: 'static, TError: 'static>(
             // Add configuration paths to be watched.
             file_watcher
                 .watch(config_directory_path, notify::RecursiveMode::Recursive)
-                .unwrap();
+                .expect("Watching config directory path should not fail.");
             file_watcher
                 .watch(config_path, notify::RecursiveMode::NonRecursive)
-                .unwrap();
+                .expect("Watching config file should not fail.");
 
             loop {
                 let _ = file_watcher_rx.recv();
@@ -73,9 +61,7 @@ pub fn start_watcher<TConfig: 'static, TError: 'static>(
             let new_config = crate::read_config(&config_path, &config_directory_path).unwrap();
 
             let mut api_ = api.lock().await;
-            let _ = api_
-                .update_config(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
-                .await;
+            let _ = api_.update_config(new_config).await;
         }
     });
 }

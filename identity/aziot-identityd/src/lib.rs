@@ -16,6 +16,8 @@
 
 use std::sync::Arc;
 
+use async_trait::async_trait;
+
 use aziot_identityd_config as config;
 
 pub mod auth;
@@ -24,8 +26,7 @@ pub mod error;
 mod http;
 pub mod identity;
 
-use async_trait::async_trait;
-use config_common::watcher::{ReprovisionTrigger, UpdateConfig};
+use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
 
 /// URI query parameter that identifies module identity type.
@@ -49,6 +50,13 @@ macro_rules! match_id_type {
     };
 }
 
+#[derive(Debug)]
+pub enum ReprovisionTrigger {
+    ConfigurationFileUpdate,
+    Api,
+    Startup,
+}
+
 pub async fn main(
     settings: config::Settings,
     config_path: std::path::PathBuf,
@@ -70,7 +78,7 @@ pub async fn main(
     let api_startup = api.clone();
     let mut api_ = api_startup.lock().await;
     let _ = api_
-        .update_config(settings.clone(), ReprovisionTrigger::Startup)
+        .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
         .await;
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
@@ -462,18 +470,12 @@ impl Api {
 
         Ok(local_identity)
     }
-}
 
-#[async_trait]
-impl UpdateConfig for Api {
-    type Config = config::Settings;
-    type Error = Error;
-
-    async fn update_config(
+    async fn update_config_inner(
         &mut self,
         settings: config::Settings,
         trigger: ReprovisionTrigger,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), Error> {
         let (allowed_users, _, local_modules) =
             configext::prepare_authorized_principals(&settings.principal);
 
@@ -494,6 +496,17 @@ impl UpdateConfig for Api {
         self.settings = settings;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = config::Settings;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
+        self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
+            .await
     }
 }
 

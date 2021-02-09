@@ -9,6 +9,8 @@
     clippy::missing_errors_doc
 )]
 
+use async_trait::async_trait;
+
 mod error;
 pub use error::{Error, InternalError};
 
@@ -18,8 +20,7 @@ mod http;
 
 use aziot_keyd_config::{Config, Endpoints};
 
-use async_trait::async_trait;
-use config_common::watcher::{ReprovisionTrigger, UpdateConfig};
+use config_common::watcher::UpdateConfig;
 
 pub async fn main(
     config: Config,
@@ -454,16 +455,12 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
-    async fn update_config(
-        &mut self,
-        _new_config: Self::Config,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Self::Error> {
-        log::info!("Updating config due to {:?}.", trigger);
+    async fn update_config(&mut self, _new_config: Self::Config) -> Result<(), Self::Error> {
+        // log::info!("Detected change in config files. Updating config.");
 
         // TODO: implement update to authorization.
 
-        log::info!("Config update finished.");
+        // log::info!("Config update finished.");
         Ok(())
     }
 }
