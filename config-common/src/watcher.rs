@@ -42,18 +42,22 @@ pub fn start_watcher<TConfig: 'static, TError: 'static>(
 
     // Start file watcher using blocking channel.
     std::thread::spawn({
+        let config_path = config_path.clone();
         let config_directory_path = config_directory_path.clone();
 
         move || {
             let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
-            // Create a watcher object, delivering debounced events
+            // Create a watcher object, delivering debounced events.
             let mut file_watcher =
                 notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
 
-            // Add configuration path to be watched
+            // Add configuration paths to be watched.
             file_watcher
                 .watch(config_directory_path, notify::RecursiveMode::Recursive)
+                .unwrap();
+            file_watcher.
+                watch(config_path, notify::RecursiveMode::NonRecursive)
                 .unwrap();
 
             loop {

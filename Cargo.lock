@@ -116,6 +116,7 @@ dependencies = [
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "base64",
+ "config-common",
  "foreign-types-shared",
  "futures-util",
  "hex",

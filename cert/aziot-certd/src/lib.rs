@@ -23,10 +23,13 @@ use aziot_certd_config::{
     EstAuthX509, LocalCa, PreloadedCert,
 };
 
+use async_trait::async_trait;
+use config_common::watcher::{UpdateConfig, ReprovisionTrigger};
+
 pub async fn main(
     config: Config,
-    _: std::path::PathBuf,
-    _: std::path::PathBuf,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         homedir_path,
@@ -62,6 +65,8 @@ pub async fn main(
         }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
@@ -123,6 +128,28 @@ impl Api {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(Error::Internal(InternalError::DeleteFile(err))),
         }
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = Config;
+    type Error = Error;
+
+    async fn update_config(
+        &mut self,
+        new_config: Self::Config,
+        trigger: ReprovisionTrigger,
+    ) -> Result<(), Self::Error> {
+        log::info!("Updating config due to {:?}.", trigger);
+
+        // Don't allow changes to homedir path while daemon is running. Only update
+        // cert issuance method and preloaded certs.
+        self.cert_issuance = new_config.cert_issuance;
+        self.preloaded_certs = new_config.preloaded_certs;
+
+        log::info!("Config update finished.");
+        Ok(())
     }
 }
 
