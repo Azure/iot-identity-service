@@ -41,7 +41,7 @@ pub async fn main(
                 aziot_certd: connector,
                 aziot_keyd: key_connector,
             },
-        principals,
+        principal,
     } = config;
 
     let api = {
@@ -61,7 +61,7 @@ pub async fn main(
             homedir_path,
             cert_issuance,
             preloaded_certs,
-            principals,
+            principals: principal_to_map(principal),
 
             key_client,
             key_engine,
@@ -80,7 +80,7 @@ struct Api {
     homedir_path: std::path::PathBuf,
     cert_issuance: CertIssuance,
     preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
-    principals: Vec<Principal>,
+    principals: std::collections::BTreeMap<libc::uid_t, Vec<String>>,
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
@@ -92,8 +92,13 @@ impl Api {
         id: String,
         csr: Vec<u8>,
         issuer: Option<(String, aziot_key_common::KeyHandle)>,
+        user: libc::uid_t,
     ) -> Result<Vec<u8>, Error> {
         let mut this = this.lock().await;
+
+        if !this.authorize(user, &id) {
+            return Err(Error::Unauthorized(user, id));
+        }
 
         let x509 = create_cert(
             &mut *this,
@@ -108,7 +113,11 @@ impl Api {
         Ok(x509)
     }
 
-    pub fn import_cert(&mut self, id: &str, pem: &[u8]) -> Result<(), Error> {
+    pub fn import_cert(&mut self, id: &str, pem: &[u8], user: libc::uid_t) -> Result<(), Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_string()));
+        }
+
         let path =
             aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -123,7 +132,11 @@ impl Api {
         Ok(bytes)
     }
 
-    pub fn delete_cert(&mut self, id: &str) -> Result<(), Error> {
+    pub fn delete_cert(&mut self, id: &str, user: libc::uid_t) -> Result<(), Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_string()));
+        }
+
         let path =
             aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -132,6 +145,24 @@ impl Api {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(Error::Internal(InternalError::DeleteFile(err))),
         }
+    }
+
+    fn authorize(&self, user: libc::uid_t, id: &str) -> bool {
+        // Root user is always authorized.
+        if user == 0 {
+            return true;
+        }
+
+        // Authorize user based on stored principals config.
+        if let Some(certs) = self.principals.get(&user) {
+            for cert in certs {
+                if wildmatch::WildMatch::new(cert).is_match(id) {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }
 
@@ -150,11 +181,11 @@ impl UpdateConfig for Api {
             cert_issuance,
             preloaded_certs,
             endpoints: _,
-            principals,
+            principal,
         } = new_config;
         self.cert_issuance = cert_issuance;
         self.preloaded_certs = preloaded_certs;
-        self.principals = principals;
+        self.principals = principal_to_map(principal);
 
         log::info!("Config update finished.");
         Ok(())
@@ -788,4 +819,13 @@ fn get_cert_inner(
         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
     let bytes = load_inner(&path)?;
     Ok(bytes)
+}
+
+fn principal_to_map(
+    principal: Vec<Principal>,
+) -> std::collections::BTreeMap<libc::uid_t, Vec<String>> {
+    principal
+        .into_iter()
+        .map(|principal| (principal.uid, principal.certs))
+        .collect()
 }

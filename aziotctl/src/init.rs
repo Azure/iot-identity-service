@@ -423,7 +423,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
             homedir_path: AZIOT_CERTD_HOMEDIR_PATH.into(),
             cert_issuance: Default::default(),
             preloaded_certs: Default::default(),
-            principals: Default::default(),
+            principal: Default::default(),
             endpoints: Default::default(),
         };
 

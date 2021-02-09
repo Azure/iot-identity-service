@@ -4,6 +4,7 @@
 pub enum Error {
     Internal(InternalError),
     InvalidParameter(&'static str, Box<dyn std::error::Error + Send + Sync>),
+    Unauthorized(libc::uid_t, String),
 }
 
 impl Error {
@@ -22,6 +23,9 @@ impl std::fmt::Display for Error {
             Error::InvalidParameter(name, _) => {
                 write!(f, "parameter {:?} has an invalid value", name)
             }
+            Error::Unauthorized(user, id) => {
+                write!(f, "User {} not authorized to modify cert {}.", user, id)
+            }
         }
     }
 }
@@ -31,6 +35,7 @@ impl std::error::Error for Error {
         match self {
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
+            Error::Unauthorized(_, _) => None,
         }
     }
 }
