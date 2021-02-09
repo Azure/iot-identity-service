@@ -56,8 +56,8 @@ pub fn start_watcher<TConfig: 'static, TError: 'static>(
             file_watcher
                 .watch(config_directory_path, notify::RecursiveMode::Recursive)
                 .unwrap();
-            file_watcher.
-                watch(config_path, notify::RecursiveMode::NonRecursive)
+            file_watcher
+                .watch(config_path, notify::RecursiveMode::NonRecursive)
                 .unwrap();
 
             loop {

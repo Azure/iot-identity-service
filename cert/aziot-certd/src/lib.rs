@@ -24,7 +24,7 @@ use aziot_certd_config::{
 };
 
 use async_trait::async_trait;
-use config_common::watcher::{UpdateConfig, ReprovisionTrigger};
+use config_common::watcher::{ReprovisionTrigger, UpdateConfig};
 
 pub async fn main(
     config: Config,
