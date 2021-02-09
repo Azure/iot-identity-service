@@ -1,3 +1,4 @@
+use anyhow::Result;
 use structopt::StructOpt;
 
 use aziot_common::{
@@ -35,12 +36,21 @@ pub struct LogLevelOptions {
     log_level: LogLevel,
 }
 
-pub fn system(options: SystemOptions) {
+pub fn system(options: SystemOptions) -> Result<()> {
     match options {
-        SystemOptions::Restart(_) => restart(SERVICE_DEFINITIONS),
-        SystemOptions::Status(_) => get_status(SERVICE_DEFINITIONS),
-        SystemOptions::Logs(opts) => logs(&opts),
-        SystemOptions::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, &opts.log_level),
+        SystemOptions::Restart(_) => {
+            restart(SERVICE_DEFINITIONS);
+            Ok(())
+        }
+        SystemOptions::Status(_) => {
+            get_status(SERVICE_DEFINITIONS);
+            Ok(())
+        }
+        SystemOptions::Logs(opts) => {
+            logs(&opts);
+            Ok(())
+        }
+        SystemOptions::SetLogLevel(opts) => Ok(set_log_level(SERVICE_DEFINITIONS, opts.log_level)?),
     }
 }
 

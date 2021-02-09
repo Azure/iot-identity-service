@@ -27,7 +27,7 @@ async fn try_main() -> Result<()> {
         Options::Init => init::run()?,
         Options::Check(cfg) => check::check(cfg).await?,
         Options::CheckList(cfg) => check_list::check_list(cfg)?,
-        Options::System(cfg) => system::system(cfg),
+        Options::System(cfg) => system::system(cfg)?,
     }
 
     Ok(())
