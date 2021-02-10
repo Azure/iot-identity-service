@@ -341,7 +341,8 @@ trap "
             dps_result="$(
                 az iot dps create \
                     --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-                    --name "$common_resource_name"
+                    --name "$common_resource_name" \
+                    --tags "$resource_tag"
             )"
             dps_scope_id="$(<<< "$dps_result" jq '.properties.idScope' -r)"
             dps_resource_id="$(<<< "$dps_result" jq '.id' -r)"
@@ -359,8 +360,9 @@ trap "
                         --query 'location' --output tsv
                 )"
 
-            # For some reason, `az resource tag` must come after
-            # `az iot dps linked-hub create`, or else the tags won't "stick"
+            # `az iot dps linked-hub create` deletes the tags on the DPS that
+            # were set by `az iot dps create` for some unknown reason, so we
+            # need to tag it again.
             >/dev/null az resource tag \
                 --ids "$dps_resource_id" \
                 --tags "$resource_tag"
