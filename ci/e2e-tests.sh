@@ -509,7 +509,7 @@ EOF
 
             echo 'Deriving individual device key...' >&2
             keybytes="$(echo "$dps_symmetric_key" | base64 --decode | xxd -p -u -c 1000)"
-            derived_device_key="$(echo -n $common_resource_name | openssl sha256 -mac HMAC -macopt hexkey:$keybytes -binary | base64)"
+            derived_device_key="$(echo -n $common_resource_name | openssl sha256 -mac HMAC -macopt hexkey:$keybytes -binary | base64 -w 0)"
 
             echo 'Generating config files...' >&2
 
