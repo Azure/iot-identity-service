@@ -33,6 +33,7 @@ jobs:
         - 'manual-symmetric-key'
         - 'manual-x509'
         - 'dps-x509'
+        - 'dps-symmetric-key'
 
     steps:
     - uses: 'actions/checkout@v1'
