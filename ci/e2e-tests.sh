@@ -359,9 +359,8 @@ trap "
                         --query 'location' --output tsv
                 )"
 
-            # `az iot dps create` doesn't have `--tags`, so tag it manually.
-            #
-            # Ref: https://github.com/Azure/azure-cli/issues/13497
+            # For some reason, `az resource tag` must come after
+            # `az iot dps linked-hub create`, or else the tags won't "stick"
             >/dev/null az resource tag \
                 --ids "$dps_resource_id" \
                 --tags "$resource_tag"
