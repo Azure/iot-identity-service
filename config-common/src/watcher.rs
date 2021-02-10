@@ -58,7 +58,16 @@ pub fn start_watcher<TApi>(
     // Start file change listener that asynchronously updates service config.
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
-            let new_config = crate::read_config(&config_path, &config_directory_path).unwrap();
+            let new_config = match crate::read_config(&config_path, &config_directory_path) {
+                Ok(config) => config,
+                Err(err) => {
+                    log::warn!(
+                        "Detected config file update, but new config failed to parse. Error: {}",
+                        err
+                    );
+                    continue;
+                }
+            };
 
             let mut api_ = api.lock().await;
             let _ = api_.update_config(new_config).await;
