@@ -116,6 +116,7 @@ dependencies = [
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
  "base64",
+ "config-common",
  "foreign-types-shared",
  "futures-util",
  "hex",
@@ -281,14 +282,12 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "notify",
  "openssl",
  "openssl2",
  "percent-encoding",
  "regex",
  "serde",
  "serde_json",
- "tokio",
  "toml",
  "url",
 ]
@@ -407,6 +406,7 @@ dependencies = [
  "aziot-key-common-http",
  "aziot-keyd-config",
  "base64",
+ "config-common",
  "futures-util",
  "http",
  "http-common",
@@ -711,8 +711,12 @@ dependencies = [
 name = "config-common"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "backtrace",
+ "futures-util",
+ "notify",
  "serde",
+ "tokio",
  "toml",
 ]
 

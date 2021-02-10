@@ -24,4 +24,5 @@ url = "2"
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-keyd-config = { path = "../aziot-keyd-config" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common", features = ["tokio1"] }

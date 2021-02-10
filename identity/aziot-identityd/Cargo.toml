@@ -18,14 +18,12 @@ hyper = "0.14"
 lazy_static = "1"
 libc = "0.2"
 log = "0.4"
-notify = "4"
 openssl = "0.10"
 percent-encoding = "2"
 regex = "1"
 serde = "1"
 serde_json = "1.0"
 toml = "0.5"
-tokio = { version = "1", features = ["rt"] }
 url = "2"
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
