@@ -32,6 +32,7 @@ jobs:
         test_name:
         - 'manual-symmetric-key'
         - 'manual-x509'
+        - 'dps-symmetric-key'
         - 'dps-x509'
 
     steps:
