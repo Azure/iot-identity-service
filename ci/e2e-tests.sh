@@ -338,13 +338,13 @@ trap "
     case "$test_name" in
         dps-*)
             echo 'Creating DPS...' >&2
-            dps_scope_id="$(
+            dps_result="$(
                 az iot dps create \
                     --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-                    --name "$common_resource_name" \
-                    --tags "$resource_tag" \
-                    --query 'properties.idScope' --output tsv
+                    --name "$common_resource_name"
             )"
+            dps_scope_id="$(<<< "$dps_result" jq '.properties.idScope' -r)"
+            dps_resource_id="$(<<< "$dps_result" jq '.id' -r)"
 
             az iot dps linked-hub create \
                 --resource-group "$AZURE_RESOURCE_GROUP_NAME" --dps-name "$common_resource_name" \
@@ -358,6 +358,14 @@ trap "
                         --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$common_resource_name" \
                         --query 'location' --output tsv
                 )"
+
+            # `az iot dps create` doesn't have `--tags`, so tag it manually.
+            #
+            # Ref: https://github.com/Azure/azure-cli/issues/13497
+            >/dev/null az resource tag \
+                --ids "$dps_resource_id" \
+                --tags "$resource_tag"
+
             echo 'Created DPS' >&2
             ;;
     esac
