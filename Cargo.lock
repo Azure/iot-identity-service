@@ -717,6 +717,7 @@ dependencies = [
  "async-trait",
  "backtrace",
  "futures-util",
+ "log",
  "notify",
  "serde",
  "tokio",
