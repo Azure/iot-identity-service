@@ -5,6 +5,7 @@ Configuration consists of the main config file (default `/etc/aziot/certd/config
 The main config file and all files in the config directory must be readable by the user you will run the service as. The default main config file and config directory can be overridden with the environment variables `AZIOT_CERTD_CONFIG` and `AZIOT_CERTD_CONFIG_DIR`, respectively.
 
 Example main config file:
+
 ```toml
 homedir_path = "/var/lib/aziot/certd"
 
@@ -18,6 +19,7 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 Example principal file in config directory:
+
 ```toml
 [[principal]]
 uid = 1000
@@ -60,7 +62,8 @@ Fill out the configuration depending on what workflow you want to test:
 
     1. ... dynamically generated locally and self-signed.
 
-        `/etc/aziot/certd/config.toml`:
+        `/etc/aziot/certd/config.toml`
+
         ```toml
         [cert_issuance]
         device-ca = { method = "self_signed" }
@@ -74,6 +77,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `device-ca` key in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -81,6 +85,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... pre-created on the filesystem and preloaded into the service.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance]
@@ -97,6 +103,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `device-ca` key in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -104,6 +111,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... issued by an EST server.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance]
@@ -124,6 +133,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `device-ca` in KS. If the EST server uses a client certificate for authentication, you must also grant access to the EST client certificate key.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -131,6 +141,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... issued with custom options instead of the defaults.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance]
@@ -143,6 +155,8 @@ Fill out the configuration depending on what workflow you want to test:
     1. ... not used. The device authenticates to IoT Hub using a SAS key. This is the case with a IoT Device identity using the `shared_private_key` auth method.
 
     1. ... pre-created on the filesystem and preloaded into the service.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [preloaded_certs]
@@ -159,6 +173,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `device-id-ca` key in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -166,6 +181,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... issued by the device CA cert. This can be the case with a IoT Device identity using the `x509_ca` auth method, and the CA uploaded to IoT Hub is a root of every device's device CA cert.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance]
@@ -175,6 +192,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `local_ca` key in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -182,6 +200,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... issued by an EST server.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance]
@@ -200,6 +220,8 @@ Fill out the configuration depending on what workflow you want to test:
 
     1. ... used with basic auth.
 
+        `/etc/aziot/certd/config.toml`
+
         ```toml
         [cert_issuance.est]
         username = "estuser"
@@ -207,6 +229,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... used with X509 auth, with a preloaded EST identity cert.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance.est]
@@ -220,6 +244,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `est-id` key in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`
@@ -227,6 +252,8 @@ Fill out the configuration depending on what workflow you want to test:
         ```
 
     1. ... used with X509 auth, with a preloaded bootstrap EST identity cert.
+
+        `/etc/aziot/certd/config.toml`
 
         ```toml
         [cert_issuance.est]
@@ -242,6 +269,7 @@ Fill out the configuration depending on what workflow you want to test:
         You must grant access to the `est-id` and `est-bootstrap-id` keys in KS.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`

@@ -5,6 +5,7 @@ Configuration consists of the main config file (default `/etc/aziot/keyd/config.
 The main config file and all files in the config directory must be readable by the user you will run the service as. The default main config file and config directory can be overridden with the environment variables `AZIOT_KEYD_CONFIG` and `AZIOT_KEYD_CONFIG_DIR`, respectively.
 
 Example main config file:
+
 ```toml
 [aziot_keys]
 
@@ -15,10 +16,11 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 Example principal file in config directory:
+
 ```toml
 [[principal]]
 uid = 1000
-certs = ["example"]
+keys = ["example"]
 ```
 
 - `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot_keys.so` library. The names and values of these parameters depend on the library.
@@ -107,6 +109,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
     - If the device identity is set to use the `sas` auth method, preload the device ID key.
 
         `/etc/aziot/keyd/config.toml`
+
         ```toml
         [preloaded_keys]
         device-id = "file:///path/to/device-id.key.pem"
@@ -115,6 +118,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
         You must also grant IS access to this key.
 
         `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotid`
@@ -123,21 +127,26 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
     - If the device identity is set to use the `x509_thumbprint` auth method, preload the private key of the device ID cert:
 
+        `/etc/aziot/keyd/config.toml`
+
         ```toml
         [preloaded_keys]
         device-id = "file:///path/to/device-id.key.pem"
         ```
 
-        You must also grant CS access to this key.
+        You must also grant IS access to this key.
 
-        `/etc/aziot/keyd/config.d/certd-principal.toml`
+        `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
         ```toml
         [[principal]]
-        uid = 123 # Replace with output of `id -u aziotcs`
+        uid = 123 # Replace with output of `id -u aziotid`
         keys = ["device-id"]
         ```
 
     - If the device identity is set to use the `x509_ca` auth method, preload the private key of the device ID CA cert:
+
+        `/etc/aziot/keyd/config.toml`
 
         ```toml
         [preloaded_keys]
@@ -147,6 +156,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
         You must also grant CS access to this key.
 
         `/etc/aziot/keyd/config.d/certd-principal.toml`
+
         ```toml
         [[principal]]
         uid = 123 # Replace with output of `id -u aziotcs`

@@ -5,6 +5,7 @@ Configuration consists of the main config file (default `/etc/aziot/identityd/co
 The main config file and all files in the config directory must be readable by the user you will run the service as. The default main config file and config directory can be overridden with the environment variables `AZIOT_IDENTITYD_CONFIG` and `AZIOT_IDENTITYD_CONFIG_DIR`, respectively.
 
 Example main config file:
+
 ```toml
 hostname = "devicehostname"
 homedir = "/var/lib/aziot/identityd"
@@ -18,6 +19,7 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
 ```
 
 Example principal file in config directory:
+
 ```toml
 [[principal]]
 uid = 1002
@@ -56,6 +58,7 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 1. No matter which provisioning method is used, you must grant IS access to its master encryption key in KS.
 
     `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
     ```toml
     [[principal]]
     uid = 123 # Replace with output of `id -u aziotid`
@@ -65,6 +68,7 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 1. Automated provisioning of IoT Hub device identity using DPS with X.509 attestation -
 
     `/etc/aziot/identityd/config.toml`
+
     ```toml
     [provisioning]
     "source" = "dps"
@@ -73,20 +77,23 @@ The `[provisioning.attestation]` section is configured in one of following ways,
     [provisioning.attestation]
     "method" = "x509"
     "registration_id" = "<ADD DPS REGISTRATION ID HERE>" # Optional for X.509 attestation
-    "identity_cert" = "device-id-cert-handle" # Pre-loaded Certificate service handle
-    "identity_pk" = "device-id-key-handle" # Pre-loaded Key service handle
+    "identity_cert" = "device-id" # Pre-loaded Certificate Service ID
+    "identity_pk" = "device-id" # Pre-loaded Key Service ID
     ```
 
-    You must grant CS access to the `device-id-key-handle` key in KS.
+    You must grant CS access to the `device-id` key in KS.
 
     `/etc/aziot/keyd/config.d/certd-principal.toml`
+
     ```toml
     [[principal]]
     uid = 123 # Replace with output of `id -u aziotcs`
-    keys = ["device-id-key-handle"]
+    keys = ["device-id"]
     ```
 
 2. Automated provisioning of IoT Hub device identity using DPS with symmetric key attestation -
+
+    `/etc/aziot/identityd/config.toml`
 
     ```toml
     [provisioning]
@@ -96,16 +103,17 @@ The `[provisioning.attestation]` section is configured in one of following ways,
     [provisioning.attestation]
     "method" = "symmetric_key"
     "registration_id" = "<ADD DPS REGISTRATION ID HERE>" # Required for symmetric key attestation
-    "symmetric_key" = "device-id-symkey-handle" # Pre-loaded Key service handle
+    "symmetric_key" = "device-id" # Pre-loaded Key Service ID
     ```
 
-    You must grant IS access to the `device-id-symkey-handle` key in KS.
+    You must grant IS access to the `device-id` key in KS.
 
     `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
     ```toml
     [[principal]]
     uid = 123 # Replace with output of `id -u aziotid`
-    keys = ["aziot_identityd_master_id", "device-id-symkey-handle"]
+    keys = ["aziot_identityd_master_id", "device-id"]
     ```
 
 - The `provisioning.attestation.identity_pk` and `provisioning.attestation.symmetric_key` values are preloaded key IDs defined in the Key Service.
@@ -115,6 +123,8 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 
 3. Manual provisioning of IoT Hub device identity using X.509 -
 
+    `/etc/aziot/identityd/config.toml`
+
     ```toml
     [provisioning]
     source = "manual"
@@ -123,13 +133,14 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 
     [provisioning.authentication]
     method = "x509"
-    identity_cert = "device-id" # Pre-loaded Certificate service handle
-    identity_pk = "device-id" # Pre-loaded Key service handle
+    identity_cert = "device-id" # Pre-loaded Certificate service ID
+    identity_pk = "device-id" # Pre-loaded Key service ID
     ```
 
     You must grant CS access to the `device-id` key in KS.
 
     `/etc/aziot/keyd/config.d/certd-principal.toml`
+
     ```toml
     [[principal]]
     uid = 123 # Replace with output of `id -u aziotcs`
@@ -137,6 +148,8 @@ The `[provisioning.attestation]` section is configured in one of following ways,
     ```
 
 4. Manual provisioning of IoT Hub device identity using shared private key -
+
+    `/etc/aziot/identityd/config.toml`
 
     ```toml
     [provisioning]
@@ -146,12 +159,13 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 
     [provisioning.authentication]
     method = "sas"
-    device_id_pk = "device-id" # Pre-loaded Key service handle
+    device_id_pk = "device-id" # Pre-loaded Key service ID
     ```
 
     You must grant IS access to the `device-id` key in KS.
 
     `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
     ```toml
     [[principal]]
     uid = 123 # Replace with output of `id -u aziotid`
