@@ -285,14 +285,14 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
 
         ProvisioningMethod::DpsX509 => {
             let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
-            let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
+            let registration_id = prompt(stdin, "(optional) Enter the DPS registration ID.")?;
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
-                        registration_id,
+                        registration_id: registration_id.is_empty().then(|| registration_id),
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),
                     },
