@@ -51,7 +51,7 @@ certs = ["example"]
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
-- `[[principal]]` - Principals provide a list of users and certificates they are authorized to modify; any user can retrieve a certificate without being in the principal list. See [API authorization](https://azure.github.io/iot-identity-service/certificates-service.html#create-new-certificate-from-csr#api-authentication) for more information.
+- `[[principal]]` - Principals provide a list of users and certificates they are authorized to modify; any user can retrieve a certificate without being in the principal list. See [API authorization](https://azure.github.io/iot-identity-service/certificates-service.html#api-authentication) for more information.
 
 Fill out the configuration depending on what workflow you want to test:
 
@@ -278,7 +278,7 @@ Fill out the configuration depending on what workflow you want to test:
 
 1. Finally, run the service.
 
-    As mentioned at the beginning, if your config file is not saved at `/etc/aziot/certd/config.toml`, set the `AZIOT_CERTD_CONFIG` env var to its actual path.
+    As mentioned at the beginning, set the `AZIOT_CERTD_CONFIG` and `AZIOT_CERTD_CONFIG_DIR` env vars if you configuration does not use the default paths.
 
     ```sh
     export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/target/x86_64-unknown-linux-gnu/debug"
@@ -286,6 +286,8 @@ Fill out the configuration depending on what workflow you want to test:
     export AZIOT_LOG=aziot=debug
 
     export AZIOT_CERTD_CONFIG='...'
+
+    export AZIOT_CERTD_CONFIG_DIR='...'
 
     cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-certd
     ```
