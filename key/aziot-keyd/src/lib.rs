@@ -9,6 +9,8 @@
     clippy::missing_errors_doc
 )]
 
+use async_trait::async_trait;
+
 mod error;
 pub use error::{Error, InternalError};
 
@@ -16,12 +18,14 @@ mod keys;
 
 mod http;
 
-use aziot_keyd_config::{Config, Endpoints};
+use aziot_keyd_config::{Config, Endpoints, Principal};
+
+use config_common::watcher::UpdateConfig;
 
 pub async fn main(
     config: Config,
-    _: std::path::PathBuf,
-    _: std::path::PathBuf,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         aziot_keys,
@@ -29,6 +33,7 @@ pub async fn main(
         endpoints: Endpoints {
             aziot_keyd: connector,
         },
+        principal,
     } = config;
 
     let api = {
@@ -71,9 +76,14 @@ pub async fn main(
             keys.set_parameter(&name, &value)?;
         }
 
-        Api { keys }
+        Api {
+            keys,
+            principals: principal_to_map(principal),
+        }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
@@ -82,12 +92,14 @@ pub async fn main(
 
 pub struct Api {
     keys: keys::Keys,
+    principals: std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 }
 
 impl Api {
     pub fn new(
         aziot_keys: std::collections::BTreeMap<String, String>,
         preloaded_keys: std::collections::BTreeMap<String, String>,
+        principal: Vec<Principal>,
     ) -> Result<Self, Error> {
         let mut keys = keys::Keys::new()?;
 
@@ -128,7 +140,10 @@ impl Api {
             keys.set_parameter(&name, &value)?;
         }
 
-        Ok(Api { keys })
+        Ok(Api {
+            keys,
+            principals: principal_to_map(principal),
+        })
     }
 
     pub fn create_key_pair_if_not_exists(
@@ -444,6 +459,28 @@ impl Api {
     }
 }
 
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = Config;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
+        log::info!("Detected change in config files. Updating config.");
+
+        // Only allow runtime updates to principals.
+        let Config {
+            aziot_keys: _,
+            preloaded_keys: _,
+            endpoints: _,
+            principal,
+        } = new_config;
+        self.principals = principal_to_map(principal);
+
+        log::info!("Config update finished.");
+        Ok(())
+    }
+}
+
 /// Decoded from a [`aziot_key_common::KeyHandle`]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 enum KeyId<'a> {
@@ -598,4 +635,20 @@ fn key_id_to_handle(
 
     let handle = aziot_key_common::KeyHandle(token);
     Ok(handle)
+}
+
+fn principal_to_map(
+    principal: Vec<Principal>,
+) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
+    principal
+        .into_iter()
+        .map(|principal| {
+            let keys = principal
+                .keys
+                .into_iter()
+                .map(|key| wildmatch::WildMatch::new(&key))
+                .collect();
+            (principal.uid, keys)
+        })
+        .collect()
 }

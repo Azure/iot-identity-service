@@ -334,6 +334,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
             aziot_keys: Default::default(),
             preloaded_keys: Default::default(),
             endpoints: Default::default(),
+            principal: Default::default(),
         };
 
         keyd_config.aziot_keys.insert(

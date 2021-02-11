@@ -20,6 +20,15 @@ pub struct Config {
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
+
+    /// Authorized Unix users and the corresponding key IDs.
+    ///
+    /// A Unix user with the given UID is granted access to the key IDs specified.
+    /// Wildcards may be used for key IDs.
+    ///
+    /// Authorization is required for both reading and writing keys.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub principal: Vec<Principal>,
 }
 
 /// Map of service names to endpoint URIs.
@@ -37,6 +46,16 @@ impl Default for Endpoints {
             },
         }
     }
+}
+
+/// Map of a Unix UID to key IDs with access.
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Principal {
+    /// Unix UID.
+    pub uid: libc::uid_t,
+
+    /// Key IDs for which the given UID has access. Wildcards may be used.
+    pub keys: Vec<String>,
 }
 
 #[cfg(test)]
