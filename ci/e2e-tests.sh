@@ -341,7 +341,8 @@ trap "
             dps_result="$(
                 az iot dps create \
                     --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-                    --name "$common_resource_name"
+                    --name "$common_resource_name" \
+                    --tags "$resource_tag"
             )"
             dps_scope_id="$(<<< "$dps_result" jq '.properties.idScope' -r)"
             dps_resource_id="$(<<< "$dps_result" jq '.id' -r)"
@@ -359,8 +360,9 @@ trap "
                         --query 'location' --output tsv
                 )"
 
-            # For some reason, `az resource tag` must come after
-            # `az iot dps linked-hub create`, or else the tags won't "stick"
+            # `az iot dps linked-hub create` deletes the tags on the DPS that
+            # were set by `az iot dps create` for some unknown reason, so we
+            # need to tag it again.
             >/dev/null az resource tag \
                 --ids "$dps_resource_id" \
                 --tags "$resource_tag"
@@ -489,6 +491,61 @@ method = "x509"
 identity_cert = "device-id"
 identity_pk = "device-id"
 EOF
+
+            echo 'Generated config files' >&2
+            ;;
+
+        'dps-symmetric-key')
+            echo 'Creating symmetric key enrollment group in DPS...' >&2
+            dps_symmetric_key="$(
+                az iot dps enrollment-group create \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --dps-name "$common_resource_name" \
+                    --enrollment-id "$common_resource_name" \
+                    --iot-hub-host-name "$common_resource_name.azure-devices.net" \
+                    --query 'attestation.symmetricKey.primaryKey' --output tsv
+            )"
+            echo 'Created symmetric key enrollment group in DPS.' >&2
+
+            echo 'Deriving individual device key...' >&2
+            keybytes="$(echo "$dps_symmetric_key" | base64 --decode | xxd -p -u -c 1000)"
+            derived_device_key="$(echo -n $common_resource_name | openssl sha256 -mac HMAC -macopt hexkey:$keybytes -binary | base64 -w 0)"
+
+            echo 'Generating config files...' >&2
+
+            >keyd.toml cat <<-EOF
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+device-id = "file:///var/secrets/aziot/keyd/device-id"
+EOF
+
+            >certd.toml cat <<-EOF
+homedir_path = "/var/lib/aziot/certd"
+
+[cert_issuance]
+
+[preloaded_certs]
+EOF
+
+            >identityd.toml cat <<-EOF
+hostname = "$common_resource_name"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+always_reprovision_on_startup = true
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net"
+scope_id = "$dps_scope_id"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "$common_resource_name"
+symmetric_key = "device-id"
+EOF
+
+            >device-id base64 -d <<< "$derived_device_key"
 
             echo 'Generated config files' >&2
             ;;
