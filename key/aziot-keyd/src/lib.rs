@@ -171,7 +171,11 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key_pair(&mut self, id: &str, user: libc::uid_t) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key_pair(
+        &mut self,
+        id: &str,
+        user: libc::uid_t,
+    ) -> Result<aziot_key_common::KeyHandle, Error> {
         if !self.authorize(user, id) {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }
@@ -240,7 +244,11 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key(&mut self, id: &str, user: libc::uid_t) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key(
+        &mut self,
+        id: &str,
+        user: libc::uid_t,
+    ) -> Result<aziot_key_common::KeyHandle, Error> {
         if !self.authorize(user, id) {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }

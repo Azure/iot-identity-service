@@ -10,7 +10,7 @@ pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     type_: String,
     key_id: String,
-    user: libc::uid_t
+    user: libc::uid_t,
 }
 
 #[async_trait::async_trait]

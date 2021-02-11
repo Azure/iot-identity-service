@@ -2,7 +2,7 @@
 
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
-    user: libc::uid_t
+    user: libc::uid_t,
 }
 
 #[async_trait::async_trait]
@@ -50,9 +50,11 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let handle = match api
-            .create_key_pair_if_not_exists(&body.id, body.preferred_algorithms.as_deref(), self.user)
-        {
+        let handle = match api.create_key_pair_if_not_exists(
+            &body.id,
+            body.preferred_algorithms.as_deref(),
+            self.user,
+        ) {
             Ok(handle) => handle,
             Err(err) => return Err(super::to_http_error(&err)),
         };

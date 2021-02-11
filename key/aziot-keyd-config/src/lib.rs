@@ -71,6 +71,10 @@ pkcs11_base_slot = "pkcs11:token=Key pairs?pin-value=1234"
 [preloaded_keys]
 bootstrap = "file:///var/secrets/bootstrap.key"
 device-id = "pkcs11:token=Key pairs;object=device-id?pin-value=1234"
+
+[[principal]]
+uid = 1000
+keys = ["test"]
 "#;
         let actual: super::Config = toml::from_str(actual).unwrap();
 
@@ -102,6 +106,11 @@ device-id = "pkcs11:token=Key pairs;object=device-id?pin-value=1234"
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: vec![super::Principal {
+                    uid: 1000,
+                    keys: vec!["test".to_owned()]
+                }],
             }
         );
     }
@@ -127,6 +136,8 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: Default::default(),
             }
         );
     }
