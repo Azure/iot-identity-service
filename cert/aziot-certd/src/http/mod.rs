@@ -44,5 +44,10 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
             status_code: hyper::StatusCode::BAD_REQUEST,
             message: error_message.into(),
         },
+
+        crate::Error::Unauthorized(_, _) => http_common::server::Error {
+            status_code: hyper::StatusCode::UNAUTHORIZED,
+            message: err.to_string().into(),
+        },
     }
 }

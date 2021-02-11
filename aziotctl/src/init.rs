@@ -424,6 +424,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
             cert_issuance: Default::default(),
             preloaded_certs: Default::default(),
             endpoints: Default::default(),
+            principal: Default::default(),
         };
 
         match device_id_source {

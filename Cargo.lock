@@ -125,6 +125,7 @@ dependencies = [
  "hyper",
  "hyper-openssl",
  "lazy_static",
+ "libc",
  "log",
  "openssl",
  "openssl-build",
@@ -135,6 +136,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+ "wildmatch",
 ]
 
 [[package]]
@@ -143,6 +145,7 @@ version = "0.1.0"
 dependencies = [
  "hex",
  "http-common",
+ "libc",
  "openssl",
  "serde",
  "toml",
@@ -714,6 +717,7 @@ dependencies = [
  "async-trait",
  "backtrace",
  "futures-util",
+ "log",
  "notify",
  "serde",
  "tokio",
@@ -2323,6 +2327,12 @@ name = "wasi"
 version = "0.10.1+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93c6c3420963c5c64bca373b25e77acb562081b9bb4dd5bb864187742186cea9"
+
+[[package]]
+name = "wildmatch"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2399814fda0d6999a6bfe9b5c7660d836334deb162a09db8b73d5b38fd8c40a"
 
 [[package]]
 name = "winapi"
