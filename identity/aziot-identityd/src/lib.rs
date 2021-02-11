@@ -5,6 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
@@ -580,15 +581,15 @@ impl auth::authentication::Authenticator for SettingsAuthenticator {
         //         so that a host process can be configured to run as root.
         if let Some(p) = self.allowed_users.get(&credentials) {
             if p.id_type.is_some() {
-                return Ok(auth::AuthId::HostProcess(p.clone()));
+                Ok(auth::AuthId::HostProcess(p.clone()))
             } else {
-                return Ok(auth::AuthId::Daemon);
+                Ok(auth::AuthId::Daemon)
             }
         } else if credentials == config::Uid(0) {
-            return Ok(auth::AuthId::LocalRoot);
+            Ok(auth::AuthId::LocalRoot)
+        } else {
+            Ok(auth::AuthId::Unknown)
         }
-
-        Ok(auth::AuthId::Unknown)
     }
 }
 
