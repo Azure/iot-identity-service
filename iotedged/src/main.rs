@@ -171,7 +171,7 @@ async fn main() -> Result<(), Error> {
         Displayable(&*device_ca_cert)
     );
     let regenerate_device_ca_cert =
-        match verify_device_ca_cert(&device_ca_cert[0], &device_ca_private_key)? {
+        match verify_device_ca_cert(&device_ca_cert[0], &device_ca_private_key) {
             VerifyDeviceCaCertResult::Ok => false,
 
             VerifyDeviceCaCertResult::MismatchedKeys => {
@@ -200,7 +200,7 @@ async fn main() -> Result<(), Error> {
             "Loaded device CA cert with parameters: {}",
             Displayable(&*device_ca_cert)
         );
-        match verify_device_ca_cert(&device_ca_cert[0], &device_ca_private_key)? {
+        match verify_device_ca_cert(&device_ca_cert[0], &device_ca_private_key) {
             VerifyDeviceCaCertResult::Ok => (),
 
             verify_result @ VerifyDeviceCaCertResult::MismatchedKeys => panic!(
@@ -428,7 +428,8 @@ async fn main() -> Result<(), Error> {
                     )
                     .await
                     .unwrap();
-                let _ = openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap();
+                // Assert that certd returned a valid X.509 stack
+                drop(openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap());
 
                 device_id.into()
             } else {
@@ -558,12 +559,12 @@ fn create_csr(
 fn verify_device_ca_cert(
     device_ca_cert: &openssl::x509::X509Ref,
     device_ca_private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
-) -> Result<VerifyDeviceCaCertResult, Error> {
-    if !cert_public_key_matches_private_key(device_ca_cert, device_ca_private_key) {
-        return Ok(VerifyDeviceCaCertResult::MismatchedKeys);
+) -> VerifyDeviceCaCertResult {
+    if cert_public_key_matches_private_key(device_ca_cert, device_ca_private_key) {
+        VerifyDeviceCaCertResult::Ok
+    } else {
+        VerifyDeviceCaCertResult::MismatchedKeys
     }
-
-    Ok(VerifyDeviceCaCertResult::Ok)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

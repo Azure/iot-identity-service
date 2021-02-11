@@ -670,13 +670,14 @@ impl IdentityManager {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
 
-                let _ = self
-                    .cert_client
-                    .create_cert(&identity_cert, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
+                drop(
+                    self.cert_client
+                        .create_cert(&identity_cert, &csr, None)
+                        .await
+                        .map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                        })?,
+                );
 
                 Ok::<(), Error>(())
             }

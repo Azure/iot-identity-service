@@ -437,9 +437,9 @@ fn try_parse_response(
     let body = if let Some(content_length) = content_length {
         if body.len() < content_length {
             return Ok(None);
-        } else {
-            &body[..content_length]
         }
+
+        &body[..content_length]
     } else {
         // Without a content-length, read until there's no more to read.
         if new_read == 0 {
