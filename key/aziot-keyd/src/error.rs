@@ -37,10 +37,12 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
         match self {
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(Some((_, err))) => Some(&**err),
-            Error::InvalidParameter(None) | Error::Unauthorized(_, _) => None,
+            Error::InvalidParameter(None) => None,
+            Error::Unauthorized(_, _) => None,
         }
     }
 }
