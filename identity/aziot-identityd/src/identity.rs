@@ -441,7 +441,7 @@ impl IdentityManager {
                         self.create_identity_cert_if_not_exist_or_expired(
                             &identity_pk,
                             &identity_cert,
-                            &device_id,
+                            IdentitySubject::DeviceId(&device_id),
                         )
                         .await?;
                         aziot_identity_common::Credentials::X509 {
@@ -522,12 +522,27 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        self.create_identity_cert_if_not_exist_or_expired(
-                            &identity_pk,
-                            &identity_cert,
-                            &registration_id,
-                        )
-                        .await?;
+                        let cert = self
+                            .create_identity_cert_if_not_exist_or_expired(
+                                &identity_pk,
+                                &identity_cert,
+                                IdentitySubject::RegistrationId(registration_id.as_deref()),
+                            )
+                            .await?;
+
+                        let cert_cn = cert
+                            .subject_name()
+                            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+                            .next()
+                            .expect("CN is guaranteed to be present")
+                            .data()
+                            .as_utf8()
+                            .map(|openssl_str| AsRef::<str>::as_ref(&openssl_str).to_owned())
+                            .map_err(|e| Error::Internal(InternalError::ParseCertCN(e)))?;
+
+                        if cert_cn.is_empty() && registration_id.map_or(false, |s| !s.is_empty()) {
+                            // ???
+                        }
 
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
                             identity_cert: identity_cert.clone(),
@@ -545,7 +560,7 @@ impl IdentityManager {
                             backup_device.expect("backup device cannot be none")
                         } else {
                             let operation = dps_client
-                                .register(&registration_id, &dps_auth_kind)
+                                .register(&cert_cn, &dps_auth_kind)
                                 .await
                                 .map_err(Error::DPSClient)?;
 
@@ -615,81 +630,72 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        subject: &str,
-    ) -> Result<(), Error> {
+        subject: IdentitySubject<'_>,
+    ) -> Result<openssl::x509::X509, Error> {
         // Retrieve existing cert and check it for expiry.
-        let device_id_cert = match self.cert_client.get_cert(identity_cert).await {
-            Ok(pem) => {
-                let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let cert_expiration = cert.as_ref().not_after();
-                let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+        if let Ok(pem) = self.cert_client.get_cert(identity_cert).await {
+            let cert = openssl::x509::X509::from_pem(&pem)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let cert_expiration = cert.as_ref().not_after();
+            let current_time = openssl::asn1::Asn1Time::days_from_now(0)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let expiration_time = current_time
+                .diff(cert_expiration)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-                if expiration_time.days < 1 {
-                    log::info!("{} has expired. Renewing certificate", identity_cert);
-
-                    None
-                } else {
-                    Some(pem)
-                }
+            if expiration_time.days < 1 {
+                log::info!("{} has expired. Renewing certificate", identity_cert);
+            } else {
+                return Ok(cert);
             }
-            Err(_) => {
-                // TODO: Need to check if key exists.
-                // If this function fails, delete any key it creates but don't delete an existing key.
+        } else {
+            // TODO: Need to check if key exists.
+            // If this function fails, delete any key it creates but don't delete an existing key.
+        };
 
-                None
+        let key_handle = self
+            .key_client
+            .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+        let key_handle = std::ffi::CString::new(key_handle.0)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        let mut key_engine = self.key_engine.lock().await;
+        let private_key = key_engine
+            .load_private_key(&key_handle)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+        let public_key = key_engine
+            .load_public_key(&key_handle)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        let subject = match subject {
+            IdentitySubject::DeviceId(id) | IdentitySubject::RegistrationId(Some(id)) => id,
+            IdentitySubject::RegistrationId(None) => {
+                return Err(Error::Internal(InternalError::CreateCertificate(
+                    "no default registration_id was specified".into(),
+                )))
             }
         };
 
-        // Create new certificate if needed.
-        if device_id_cert.is_none() {
-            let key_handle = self
-                .key_client
-                .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let key_handle = std::ffi::CString::new(key_handle.0)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+        let csr = create_csr(&subject, &public_key, &private_key, None)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            let mut key_engine = self.key_engine.lock().await;
-            let private_key = key_engine
-                .load_private_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let public_key = key_engine
-                .load_public_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+        let pem = self
+            .cert_client
+            .create_cert(&identity_cert, &csr, None)
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))));
 
-            let result = async {
-                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-
-                let _ = self
-                    .cert_client
-                    .create_cert(&identity_cert, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-
-                Ok::<(), Error>(())
-            }
-            .await;
-
-            if let Err(err) = result {
+        match pem {
+            Ok(pem) => openssl::x509::X509::from_pem(&pem)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err)))),
+            Err(err) => {
                 // TODO: need to delete key from keyd.
 
-                return Err(err);
+                Err(err)
             }
         }
-
-        Ok(())
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
@@ -807,4 +813,9 @@ impl HubDeviceInfo {
     pub fn unprovisioned() -> String {
         "unprovisioned".to_owned()
     }
+}
+
+enum IdentitySubject<'a> {
+    DeviceId(&'a str),
+    RegistrationId(Option<&'a str>),
 }

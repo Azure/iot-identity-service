@@ -66,6 +66,7 @@ pub enum InternalError {
     LoadSettings(std::io::Error),
     MasterIdentityKey(std::io::Error),
     ParseDeviceInfo(toml::de::Error),
+    ParseCertCN(openssl::error::ErrorStack),
     ParseSettings(toml::de::Error),
     SaveDeviceInfo(std::io::Error),
     SerializeDeviceInfo(toml::ser::Error),
@@ -91,6 +92,7 @@ impl std::fmt::Display for InternalError {
                 f.write_str("could not parse device information state")
             }
             InternalError::ParseSettings(_) => f.write_str("could not parse settings"),
+            InternalError::ParseCertCN(_) => f.write_str("could not parse certificate common name"),
             InternalError::SaveDeviceInfo(_) => {
                 f.write_str("could not save device information state")
             }
@@ -115,6 +117,7 @@ impl std::error::Error for InternalError {
             InternalError::LoadSettings(err) => Some(err),
             InternalError::MasterIdentityKey(err) => Some(err),
             InternalError::ParseDeviceInfo(err) => Some(err),
+            InternalError::ParseCertCN(err) => Some(err),
             InternalError::ParseSettings(err) => Some(err),
             InternalError::SaveDeviceInfo(err) => Some(err),
             InternalError::SaveSettings(err) => Some(err),
