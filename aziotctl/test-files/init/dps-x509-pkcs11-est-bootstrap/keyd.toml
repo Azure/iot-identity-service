@@ -12,4 +12,4 @@ keys = ["aziot_identityd_master_id"]
 
 [[principal]]
 uid = 1000
-keys = ["device-id", "est-bootstrap-id"]
+keys = ["device-id", "est-bootstrap-id", "est-id"]

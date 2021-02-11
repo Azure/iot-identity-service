@@ -8,6 +8,10 @@ An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/202
 
 `POST /key?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Request
 
 ```json
@@ -39,6 +43,10 @@ Eg: `"usage": "derive,sign"`
 
 `POST /key?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Request
 
 ```json
@@ -62,6 +70,10 @@ Eg: `"usage": "derive,sign"`
 
 `GET /key/{keyId}?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Response
 
 ```json
@@ -75,6 +87,10 @@ Eg: `"usage": "derive,sign"`
 ### Generate New Asymmetric Key Pair
 
 `POST /keypair?api-version=2020-09-01`
+
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
 
 #### Request
 
@@ -105,6 +121,10 @@ Eg: `"usage": "derive,sign"`
 
 `GET /keypair/{keyPairId}?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Response
 
 ```json
@@ -118,6 +138,10 @@ Eg: `"usage": "derive,sign"`
 ### Get Parameter of Asymmetric Key Pair
 
 `POST /parameters/{parameterName}?api-version=2020-09-01`
+
+#### Authentication
+
+Not required.
 
 #### Request
 
@@ -154,6 +178,10 @@ The value of `value` in the response depends on the `parameterName`:
 `POST /sign?api-version=2020-09-01`
 
 This includes both digital signatures using asymmetric keys and HMAC-SHA256 using symmetric keys.
+
+#### Authentication
+
+Not required.
 
 #### Request
 
@@ -256,6 +284,10 @@ Note also that the exact AEAD algorithm used cannot be chosed by the caller; it 
 
 `POST /decrypt?api-version=2020-09-01`
 
+#### Authentication
+
+Not required.
+
 #### Request
 
 ##### AEAD
@@ -305,6 +337,33 @@ Only valid for symmetric keys.
 The ciphertext must have come from the `/encrypt` API so that it matches the format that the `/decrypt` API expects. See the note in the `/encrypt` API above for details.
 
 ---
+
+## API authentication
+
+APIs that create or retrieve keys require the caller to authenticate with KS. Allowed callers are listed in the KS config directory, `/etc/aziot/keyd/config.d`.
+
+Each file in the KS config directory should list allowed Unix user IDs (UIDs) and the keys that those users may access. The file name does not matter, but files must have the extension `.toml`. Only files directly under the config directory are parsed (i.e. the config directory is not searched recursively).
+
+For example, `/etc/aziot/keyd/config.d/example.toml`:
+```toml
+# Each user should be listed as a [[principal]]
+# This principal grants user 1000 access to the 'example1' and 'example2' key.
+[[principal]]
+uid = 1000
+keys = ["example1", "example2"]
+
+# Wildcards may also be used for key IDs.
+# This principal grants user 1001 access to all key IDs beginning with 'example'.
+#
+# Supported wildcards are:
+#  * (placeholder for any characters)
+#  ? (placeholder for a single character)
+[[principal]]
+uid = 1001
+keys = ["example*"]
+```
+
+In addition, all users added as principals must be in the `aziotks` group.
 
 ## Code organization
 

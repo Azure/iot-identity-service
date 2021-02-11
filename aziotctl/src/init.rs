@@ -634,6 +634,7 @@ fn run_inner(
                             };
                             keyd_config.preloaded_keys.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri.to_string());
                             aziotcs_keys.keys.push(EST_BOOTSTRAP_ID.to_owned());
+                            aziotcs_keys.keys.push(EST_ID_ID.to_owned());
 
                             let est_bootstrap_id_cert_uri = loop {
                                 let est_bootstrap_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST bootstrap ID certificate file.")?;
