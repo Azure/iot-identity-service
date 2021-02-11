@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -441,7 +442,7 @@ impl IdentityManager {
                         self.create_identity_cert_if_not_exist_or_expired(
                             &identity_pk,
                             &identity_cert,
-                            IdentitySubject::DeviceId(&device_id),
+                            IdentitySubject::DeviceId(device_id.as_str().into()),
                         )
                         .await?;
                         aziot_identity_common::Credentials::X509 {
@@ -526,21 +527,12 @@ impl IdentityManager {
                             .create_identity_cert_if_not_exist_or_expired(
                                 &identity_pk,
                                 &identity_cert,
-                                IdentitySubject::RegistrationId(registration_id.as_deref()),
+                                IdentitySubject::RegistrationId(
+                                    registration_id.as_deref().map(Into::into),
+                                ),
                             )
                             .await?;
-
-                        let cert_cn = cert
-                            .subject_name()
-                            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
-                            .next()
-                            .ok_or_else(|| {
-                                Error::Internal(InternalError::ParseCertCN("missing CN".into()))
-                            })?
-                            .data()
-                            .as_utf8()
-                            .map(|openssl_str| AsRef::<str>::as_ref(&openssl_str).to_owned())
-                            .map_err(|e| Error::Internal(InternalError::ParseCertCN(e.into())))?;
+                        let cert_cn = extract_cn(&cert)?;
 
                         if cert_cn.is_empty() && registration_id.map_or(false, |s| !s.is_empty()) {
                             // ???
@@ -632,7 +624,7 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        subject: IdentitySubject<'_>,
+        mut subject: IdentitySubject<'_>,
     ) -> Result<openssl::x509::X509, Error> {
         // Retrieve existing cert and check it for expiry.
         if let Ok(pem) = self.cert_client.get_cert(identity_cert).await {
@@ -647,6 +639,10 @@ impl IdentityManager {
 
             if expiration_time.days < 1 {
                 log::info!("{} has expired. Renewing certificate", identity_cert);
+
+                // use same CN when renewing the cert
+                let cert_cn = extract_cn(&cert)?;
+                subject = IdentitySubject::RegistrationId(Some(cert_cn.into()))
             } else {
                 return Ok(cert);
             }
@@ -818,6 +814,17 @@ impl HubDeviceInfo {
 }
 
 enum IdentitySubject<'a> {
-    DeviceId(&'a str),
-    RegistrationId(Option<&'a str>),
+    DeviceId(Cow<'a, str>),
+    RegistrationId(Option<Cow<'a, str>>),
+}
+
+fn extract_cn(cert: &openssl::x509::X509) -> Result<String, Error> {
+    cert.subject_name()
+        .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+        .next()
+        .ok_or_else(|| Error::Internal(InternalError::ParseCertCN("missing CN".into())))?
+        .data()
+        .as_utf8()
+        .map(|openssl_str| AsRef::<str>::as_ref(&openssl_str).to_owned())
+        .map_err(|e| Error::Internal(InternalError::ParseCertCN(e.into())))
 }
