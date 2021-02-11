@@ -5,6 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
     clippy::type_complexity
 )]
 
@@ -429,7 +430,7 @@ async fn main() -> Result<(), Error> {
                     .await
                     .unwrap();
                 // Assert that certd returned a valid X.509 stack
-                drop(openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap());
+                let _ = openssl::x509::X509::stack_from_pem(&device_id_cert).unwrap();
 
                 device_id.into()
             } else {

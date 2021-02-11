@@ -646,7 +646,7 @@ where
                 let value = value(entry.key())?;
                 let strong = std::sync::Arc::new(value);
                 let weak = std::sync::Arc::downgrade(&strong);
-                let _weak = entry.insert(weak);
+                let _ = entry.insert(weak);
                 Ok(strong)
             }
         }
@@ -656,7 +656,7 @@ where
             let value = value(entry.key())?;
             let strong = std::sync::Arc::new(value);
             let weak = std::sync::Arc::downgrade(&strong);
-            let _weak = entry.insert(weak);
+            let _ = entry.insert(weak);
             Ok(strong)
         }
     }
