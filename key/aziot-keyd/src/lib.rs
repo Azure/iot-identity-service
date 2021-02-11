@@ -90,62 +90,12 @@ pub async fn main(
     Ok((connector, service))
 }
 
-pub struct Api {
+struct Api {
     keys: keys::Keys,
     principals: std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 }
 
 impl Api {
-    pub fn new(
-        aziot_keys: std::collections::BTreeMap<String, String>,
-        preloaded_keys: std::collections::BTreeMap<String, String>,
-        principal: Vec<Principal>,
-    ) -> Result<Self, Error> {
-        let mut keys = keys::Keys::new()?;
-
-        for (name, value) in aziot_keys {
-            let name = std::ffi::CString::new(name.clone()).map_err(|err| {
-                Error::Internal(InternalError::ReadConfig(
-                    format!(
-                        "key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                        name, err,
-                    )
-                    .into(),
-                ))
-            })?;
-
-            let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                    name, err,
-                ).into())))?;
-
-            keys.set_parameter(&name, &value)?;
-        }
-
-        for (key_id, value) in preloaded_keys {
-            let name = format!("preloaded_key:{}", key_id);
-            let name =
-                std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
-                ).into())))?;
-
-            let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
-                ).into())))?;
-
-            keys.set_parameter(&name, &value)?;
-        }
-
-        Ok(Api {
-            keys,
-            principals: principal_to_map(principal),
-        })
-    }
-
     pub fn create_key_pair_if_not_exists(
         &mut self,
         id: &str,

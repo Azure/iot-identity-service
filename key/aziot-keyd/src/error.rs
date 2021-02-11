@@ -40,8 +40,7 @@ impl std::error::Error for Error {
         match self {
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(Some((_, err))) => Some(&**err),
-            Error::InvalidParameter(None) => None,
-            Error::Unauthorized(_, _) => None,
+            Error::InvalidParameter(None) | Error::Unauthorized(_, _) => None,
         }
     }
 }
