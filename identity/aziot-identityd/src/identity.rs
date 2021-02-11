@@ -534,11 +534,13 @@ impl IdentityManager {
                             .subject_name()
                             .entries_by_nid(openssl::nid::Nid::COMMONNAME)
                             .next()
-                            .expect("CN is guaranteed to be present")
+                            .ok_or_else(|| {
+                                Error::Internal(InternalError::ParseCertCN("missing CN".into()))
+                            })?
                             .data()
                             .as_utf8()
                             .map(|openssl_str| AsRef::<str>::as_ref(&openssl_str).to_owned())
-                            .map_err(|e| Error::Internal(InternalError::ParseCertCN(e)))?;
+                            .map_err(|e| Error::Internal(InternalError::ParseCertCN(e.into())))?;
 
                         if cert_cn.is_empty() && registration_id.map_or(false, |s| !s.is_empty()) {
                             // ???
