@@ -150,7 +150,12 @@ impl Api {
         &mut self,
         id: &str,
         preferred_algorithms: Option<&str>,
+        user: libc::uid_t,
     ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         let preferred_algorithms = preferred_algorithms
@@ -166,7 +171,11 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key_pair(&mut self, id: &str) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key_pair(&mut self, id: &str, user: libc::uid_t) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key_pair(&id_cstr)?;
@@ -193,7 +202,12 @@ impl Api {
         id: &str,
         value: aziot_key_common::CreateKeyValue,
         usage: &[aziot_key_common::KeyUsage],
+        user: libc::uid_t,
     ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
 
@@ -226,7 +240,11 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key(&mut self, id: &str) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key(&mut self, id: &str, user: libc::uid_t) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key(&id_cstr)?;
@@ -456,6 +474,20 @@ impl Api {
         };
 
         Ok(plaintext)
+    }
+
+    fn authorize(&self, user: libc::uid_t, id: &str) -> bool {
+        // Root user is always authorized.
+        if user == 0 {
+            return true;
+        }
+
+        // Authorize user based on stored principals config.
+        if let Some(keys) = self.principals.get(&user) {
+            return keys.iter().any(|key| key.is_match(id));
+        }
+
+        false
     }
 }
 

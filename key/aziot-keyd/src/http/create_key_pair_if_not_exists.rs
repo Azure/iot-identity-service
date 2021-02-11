@@ -2,6 +2,7 @@
 
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    user: libc::uid_t
 }
 
 #[async_trait::async_trait]
@@ -16,14 +17,17 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-        _extensions: &http::Extensions,
+        extensions: &http::Extensions,
     ) -> Option<Self> {
         if path != "/keypair" {
             return None;
         }
 
+        let uid = extensions.get::<libc::uid_t>().copied()?;
+
         Some(Route {
             api: service.api.clone(),
+            user: uid,
         })
     }
 
@@ -47,7 +51,7 @@ impl http_common::server::Route for Route {
         let api = &mut *api;
 
         let handle = match api
-            .create_key_pair_if_not_exists(&body.id, body.preferred_algorithms.as_deref())
+            .create_key_pair_if_not_exists(&body.id, body.preferred_algorithms.as_deref(), self.user)
         {
             Ok(handle) => handle,
             Err(err) => return Err(super::to_http_error(&err)),
