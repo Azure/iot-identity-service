@@ -54,6 +54,7 @@ pub struct Client {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Client {
@@ -65,6 +66,7 @@ impl Client {
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
+        proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         Client {
             global_endpoint: global_endpoint.to_owned(),
@@ -74,6 +76,7 @@ impl Client {
             key_engine,
             cert_client,
             tpm_client,
+            proxy_uri,
         }
     }
 
@@ -222,18 +225,26 @@ impl Client {
         let mut req = req.expect("cannot fail to create hyper request");
 
         let connector = match &auth_kind {
-            DpsAuthKind::Tpm => hyper_openssl::HttpsConnector::new()?,
+            DpsAuthKind::Tpm => http_common::MaybeProxyConnector::build(self.proxy_uri, None)?,
             DpsAuthKind::SymmetricKey { sas_key: key }
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey { .. }) {
-                    get_sas_connector(&audience, &key, &*self.key_client, false).await?
+                    get_sas_connector(
+                        &audience,
+                        &key,
+                        &*self.key_client,
+                        self.proxy_uri.clone(),
+                        false,
+                    )
+                    .await?
                 } else {
                     get_sas_connector(
                         &audience,
                         &base64::decode(key)
                             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
                         &*self.tpm_client,
+                        self.proxy_uri.clone(),
                         true,
                     )
                     .await?
@@ -255,12 +266,13 @@ impl Client {
                     &self.key_client,
                     &mut *self.key_engine.lock().await,
                     &self.cert_client,
+                    self.proxy_uri.clone(),
                 )
                 .await?
             }
         };
 
-        let client = hyper::Client::builder().build(connector);
+        let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
         log::debug!("DPS request {:?}", req);
 
         let res = client

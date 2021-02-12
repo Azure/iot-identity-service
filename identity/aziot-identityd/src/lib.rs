@@ -15,6 +15,7 @@
 )]
 #![allow(dead_code)]
 
+use std::env;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -103,6 +104,7 @@ pub struct Api {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -150,6 +152,8 @@ impl Api {
             tpm_client
         };
 
+        let proxy_uri = get_proxy_uri(None)?;
+
         let id_manager = identity::IdentityManager::new(
             settings.homedir.clone(),
             key_client.clone(),
@@ -157,6 +161,7 @@ impl Api {
             cert_client.clone(),
             tpm_client.clone(),
             None,
+            proxy_uri.clone(),
         );
 
         Ok(Api {
@@ -170,6 +175,7 @@ impl Api {
             key_engine,
             cert_client,
             tpm_client,
+            proxy_uri,
         })
     }
 
@@ -641,6 +647,36 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
     Ok(expiration)
 }
 
+pub fn get_proxy_uri(https_proxy: Option<String>) -> Result<Option<hyper::Uri>, Error> {
+    let proxy_uri = https_proxy
+        .or_else(|| env::var("HTTPS_PROXY").ok())
+        .or_else(|| env::var("https_proxy").ok());
+    let proxy_uri = match proxy_uri {
+        None => None,
+        Some(s) => {
+            let proxy = s
+                .parse::<hyper::Uri>()
+                .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
+            // Mask the password in the proxy URI before logging it
+            let mut sanitized_proxy = url::Url::parse(&proxy.to_string())
+                .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
+            if sanitized_proxy.password().is_some() {
+                sanitized_proxy.set_password(Some("******")).map_err(|()| {
+                    Error::Internal(InternalError::InvalidProxyUri(
+                        "set proxy password failed".into(),
+                    ))
+                })?;
+            }
+            log::info!("Detected HTTPS proxy server {}", sanitized_proxy);
+
+            Some(proxy)
+        }
+    };
+    Ok(proxy_uri)
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -652,7 +688,46 @@ mod tests {
     use crate::auth::{AuthId, Operation, OperationType};
     use crate::SettingsAuthorizer;
 
+    use super::{get_proxy_uri, Api};
     use crate::configext::prepare_authorized_principals;
+
+    fn make_empty_settings() -> Settings {
+        Settings {
+            hostname: Default::default(),
+            homedir: Default::default(),
+            principal: Default::default(),
+            provisioning: Provisioning {
+                provisioning: ProvisioningType::Manual {
+                    iothub_hostname: Default::default(),
+                    device_id: Default::default(),
+                    authentication: ManualAuthMethod::SharedPrivateKey {
+                        device_id_pk: Default::default(),
+                    },
+                },
+                dynamic_reprovisioning: Default::default(),
+            },
+            // Use unreachable endpoints for the defaults.
+            endpoints: Endpoints {
+                aziot_certd: Connector::Tcp {
+                    host: "localhost".into(),
+                    port: 0,
+                },
+                aziot_identityd: Connector::Tcp {
+                    host: "localhost".into(),
+                    port: 0,
+                },
+                aziot_keyd: Connector::Tcp {
+                    host: "localhost".into(),
+                    port: 0,
+                },
+                aziot_tpmd: Connector::Tcp {
+                    host: "localhost".into(),
+                    port: 0,
+                },
+            },
+            localid: Default::default(),
+        }
+    }
 
     #[test]
     fn convert_to_map_creates_principal_lookup() {
@@ -786,5 +861,43 @@ mod tests {
             Ok(false) => (),
             _ => panic!("incorrect authorization returned"),
         }
+    }
+
+    #[test]
+    fn get_proxy_uri_recognizes_https_proxy() {
+        let proxy_val = "https://example.com"
+            .to_string()
+            .parse::<hyper::Uri>()
+            .unwrap()
+            .to_string();
+
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
+    }
+
+    #[test]
+    fn get_proxy_uri_allows_credentials_in_authority() {
+        let proxy_val = "https://username:password@example.com/".to_string();
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
+
+        let proxy_val = "https://username%2f:password%2f@example.com/".to_string();
+        assert_eq!(
+            get_proxy_uri(Some(proxy_val.clone()))
+                .unwrap()
+                .unwrap()
+                .to_string(),
+            proxy_val
+        );
     }
 }

@@ -6,6 +6,8 @@
 
 use std::io;
 
+use http_common::MaybeProxyConnector;
+
 pub const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 /// `key_client` must be either an `aziot_key_client_async::Client` or an `aziot_tpm_client_async::Client`.
@@ -13,11 +15,9 @@ pub async fn get_sas_connector(
     audience: &str,
     key_handle: impl AsRef<[u8]>,
     key_client: &impl KeyClient,
+    proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
-) -> io::Result<(
-    hyper_openssl::HttpsConnector<hyper::client::HttpConnector>,
-    String,
-)> {
+) -> io::Result<(MaybeProxyConnector, String)> {
     let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
 
     let token = {
@@ -49,8 +49,8 @@ pub async fn get_sas_connector(
 
     let token = format!("SharedAccessSignature {}", token);
 
-    let tls_connector = hyper_openssl::HttpsConnector::new()?;
-    Ok((tls_connector, token))
+    let proxy_connector = MaybeProxyConnector::build(proxy_uri, None)?;
+    Ok((proxy_connector, token))
 }
 
 pub async fn get_x509_connector(
@@ -59,42 +59,22 @@ pub async fn get_x509_connector(
     key_client: &aziot_key_client_async::Client,
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
-) -> io::Result<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
-    let connector = {
-        let mut tls_connector =
-            openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
-
-        let device_id_private_key = {
-            let device_id_key_handle = key_client.load_key_pair(&identity_pk).await?;
-            let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)?;
-            let device_id_private_key = key_engine
-                .load_private_key(&device_id_key_handle)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-            device_id_private_key
-        };
-        tls_connector.set_private_key(&device_id_private_key)?;
-
-        let mut device_id_certs = {
-            let device_id_certs = cert_client.get_cert(&identity_cert).await?;
-            let device_id_certs =
-                openssl::x509::X509::stack_from_pem(&device_id_certs)?.into_iter();
-            device_id_certs
-        };
-        let client_cert = device_id_certs.next().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::Other, "device identity cert not found")
-        })?;
-        tls_connector.set_certificate(&client_cert)?;
-        for cert in device_id_certs {
-            tls_connector.add_extra_chain_cert(cert)?;
-        }
-
-        let mut http_connector = hyper::client::HttpConnector::new();
-        http_connector.enforce_http(false);
-        let tls_connector =
-            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
-        tls_connector
+    proxy_uri: Option<hyper::Uri>,
+) -> io::Result<MaybeProxyConnector> {
+    let device_id_private_key = {
+        let device_id_key_handle = key_client.load_key_pair(&identity_pk).await?;
+        let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)?;
+        let device_id_private_key = key_engine
+            .load_private_key(&device_id_key_handle)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        device_id_private_key
     };
-    Ok(connector)
+
+    let device_id_certs = cert_client.get_cert(&identity_cert).await?;
+
+    let proxy_connector =
+        MaybeProxyConnector::build(proxy_uri, Some((device_id_private_key, device_id_certs)))?;
+    Ok(proxy_connector)
 }
 
 mod private {
