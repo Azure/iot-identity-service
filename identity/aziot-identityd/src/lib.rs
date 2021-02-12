@@ -78,9 +78,8 @@ pub async fn main(
 
     let api_startup = api.clone();
     let mut api_ = api_startup.lock().await;
-    let _ = api_
-        .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
-        .await;
+    api_.update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
+        .await?;
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
