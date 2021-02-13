@@ -2,6 +2,13 @@
 #
 # Copyright (c) Microsoft. All rights reserved.
 
+
+# TODO:
+# Building debuginfo package fails due to https://github.com/rust-lang/rust/issues/82006
+# Remove this once that's fixed.
+%define debug_package %{nil}
+
+
 Name: aziot-identity-service
 Version: @version@
 Release: @release@
