@@ -6,13 +6,14 @@ use std::{
     pin::Pin,
     task::{Context, Poll},
 };
+use futures::future::TryFutureExt;
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 #[cfg(feature = "tokio1")]
 pub enum MaybeProxyStream<C> {
-    NoProxy(hyper_openssl::MaybeHttpsStream<C>),
-    Proxy(hyper_proxy::ProxyStream<hyper_openssl::MaybeHttpsStream<C>>),
+    NoProxy(C),
+    Proxy(hyper_proxy::ProxyStream<C>),
 }
 
 #[cfg(feature = "tokio1")]
@@ -64,19 +65,18 @@ where
 }
 
 #[cfg(feature = "tokio1")]
+#[derive(Clone)]
 pub enum MaybeProxyConnector<C> {
-    NoProxy(hyper_openssl::HttpsConnector<C>),
-    Proxy(hyper_proxy::ProxyConnector<hyper_openssl::HttpsConnector<C>>),
+    NoProxy(C),
+    Proxy(hyper_proxy::ProxyConnector<C>),
 }
 
 #[cfg(feature = "tokio1")]
-impl MaybeProxyConnector<hyper::client::HttpConnector> {
-    pub fn build(
+impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
+    pub fn new(
         proxy_uri: Option<hyper::Uri>,
         identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
     ) -> io::Result<Self> {
-        let mut http_connector = hyper::client::HttpConnector::new();
-
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
             let proxy_connector = match identity {
@@ -91,22 +91,22 @@ impl MaybeProxyConnector<hyper::client::HttpConnector> {
                         openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
                     let mut proxy_tls_connector =
                         openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
-                    let connectors = vec![tls_connector, proxy_tls_connector];
 
-                    let device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+                    let mut device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
                     let client_cert = device_id_certs.next().ok_or_else(|| {
                         io::Error::new(io::ErrorKind::Other, "device identity cert not found")
                     })?;
 
-                    for connector in connectors {
-                        connector.set_certificate(&client_cert)?;
+                    tls_connector.set_certificate(&client_cert)?;
+                    proxy_tls_connector.set_certificate(&client_cert)?;
 
-                        for cert in device_id_certs {
-                            connector.add_extra_chain_cert(cert.clone())?;
-                        }
-
-                        connector.set_private_key(&key);
+                    for cert in device_id_certs {
+                        tls_connector.add_extra_chain_cert(cert.clone())?;
+                        proxy_tls_connector.add_extra_chain_cert(cert.clone())?;
                     }
+
+                    tls_connector.set_private_key(&key);
+                    proxy_tls_connector.set_private_key(&key);
 
                     let mut http_connector = hyper::client::HttpConnector::new();
                     http_connector.enforce_http(false);
@@ -114,7 +114,7 @@ impl MaybeProxyConnector<hyper::client::HttpConnector> {
                         http_connector,
                         tls_connector,
                     )?;
-                    let proxy_connector =
+                    let mut proxy_connector =
                         hyper_proxy::ProxyConnector::from_proxy(tls_connector, proxy)?;
                     proxy_connector.set_tls(Some(proxy_tls_connector.build()));
                     proxy_connector
@@ -149,19 +149,11 @@ where
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
-        match *self {
-            MaybeProxyConnector::NoProxy(https_stream) => Box::pin(async move {
-                match Pin::new(&mut https_stream).call(req).await {
-                    Ok(connect) => Ok(MaybeProxyStream::NoProxy(connect)),
-                    Err(e) => Err(io::Error::new(io::ErrorKind::Other, e).into()),
-                }
-            }),
-            MaybeProxyConnector::Proxy(proxy_stream) => Box::pin(async move {
-                match Pin::new(&mut proxy_stream).call(req).await {
-                    Ok(connect) => Ok(MaybeProxyStream::Proxy(connect)),
-                    Err(e) => Err(io::Error::new(io::ErrorKind::Other, e).into()),
-                }
-            }),
+        match self {
+            MaybeProxyConnector::NoProxy(https_connector) => Box::pin(https_connector.call(req).map_ok(MaybeProxyStream::NoProxy)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into())),
+            MaybeProxyConnector::Proxy(proxy_connector) => Box::pin(proxy_connector.call(req).map_ok(MaybeProxyStream::Proxy)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into())),
         }
     }
 }

@@ -225,7 +225,7 @@ impl Client {
         let mut req = req.expect("cannot fail to create hyper request");
 
         let connector = match &auth_kind {
-            DpsAuthKind::Tpm => http_common::MaybeProxyConnector::build(self.proxy_uri, None)?,
+            DpsAuthKind::Tpm => http_common::MaybeProxyConnector::new(self.proxy_uri, None)?,
             DpsAuthKind::SymmetricKey { sas_key: key }
             | DpsAuthKind::TpmWithAuth { auth_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);

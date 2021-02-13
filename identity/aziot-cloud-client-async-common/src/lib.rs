@@ -17,7 +17,7 @@ pub async fn get_sas_connector(
     key_client: &impl KeyClient,
     proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
-) -> io::Result<(MaybeProxyConnector, String)> {
+) -> io::Result<(MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>, String)> {
     let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
 
     let token = {
@@ -49,7 +49,7 @@ pub async fn get_sas_connector(
 
     let token = format!("SharedAccessSignature {}", token);
 
-    let proxy_connector = MaybeProxyConnector::build(proxy_uri, None)?;
+    let proxy_connector = MaybeProxyConnector::new(proxy_uri, None)?;
     Ok((proxy_connector, token))
 }
 
@@ -60,7 +60,7 @@ pub async fn get_x509_connector(
     key_engine: &mut openssl2::FunctionalEngineRef,
     cert_client: &aziot_cert_client_async::Client,
     proxy_uri: Option<hyper::Uri>,
-) -> io::Result<MaybeProxyConnector> {
+) -> io::Result<MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>> {
     let device_id_private_key = {
         let device_id_key_handle = key_client.load_key_pair(&identity_pk).await?;
         let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)?;
@@ -73,7 +73,7 @@ pub async fn get_x509_connector(
     let device_id_certs = cert_client.get_cert(&identity_cert).await?;
 
     let proxy_connector =
-        MaybeProxyConnector::build(proxy_uri, Some((device_id_private_key, device_id_certs)))?;
+        MaybeProxyConnector::new(proxy_uri, Some((device_id_private_key, device_id_certs)))?;
     Ok(proxy_connector)
 }
 

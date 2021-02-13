@@ -168,6 +168,7 @@ dependencies = [
  "http",
  "http-common",
  "hyper",
+ "hyper-openssl",
  "log",
  "openssl",
  "openssl2",
@@ -1162,6 +1163,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.13.0",
+ "futures",
  "futures-util",
  "http",
  "hyper",
