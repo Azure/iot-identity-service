@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use futures::future::TryFutureExt;
 use std::{
     future::Future,
     io,
     pin::Pin,
     task::{Context, Poll},
 };
-use futures::future::TryFutureExt;
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -92,7 +92,8 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
                     let mut proxy_tls_connector =
                         openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
-                    let mut device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+                    let mut device_id_certs =
+                        openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
                     let client_cert = device_id_certs.next().ok_or_else(|| {
                         io::Error::new(io::ErrorKind::Other, "device identity cert not found")
                     })?;
@@ -105,8 +106,8 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
                         proxy_tls_connector.add_extra_chain_cert(cert.clone())?;
                     }
 
-                    tls_connector.set_private_key(&key);
-                    proxy_tls_connector.set_private_key(&key);
+                    tls_connector.set_private_key(&key)?;
+                    proxy_tls_connector.set_private_key(&key)?;
 
                     let mut http_connector = hyper::client::HttpConnector::new();
                     http_connector.enforce_http(false);
@@ -143,17 +144,25 @@ where
 
     fn poll_ready(
         &mut self,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
         match self {
-            MaybeProxyConnector::NoProxy(https_connector) => Box::pin(https_connector.call(req).map_ok(MaybeProxyStream::NoProxy)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into())),
-            MaybeProxyConnector::Proxy(proxy_connector) => Box::pin(proxy_connector.call(req).map_ok(MaybeProxyStream::Proxy)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into())),
+            MaybeProxyConnector::NoProxy(https_connector) => Box::pin(
+                https_connector
+                    .call(req)
+                    .map_ok(MaybeProxyStream::NoProxy)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into()),
+            ),
+            MaybeProxyConnector::Proxy(proxy_connector) => Box::pin(
+                proxy_connector
+                    .call(req)
+                    .map_ok(MaybeProxyStream::Proxy)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e).into()),
+            ),
         }
     }
 }

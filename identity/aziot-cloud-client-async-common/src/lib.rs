@@ -17,7 +17,10 @@ pub async fn get_sas_connector(
     key_client: &impl KeyClient,
     proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
-) -> io::Result<(MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>, String)> {
+) -> io::Result<(
+    MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+    String,
+)> {
     let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
 
     let token = {
