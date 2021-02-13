@@ -112,7 +112,11 @@ pub(crate) fn run() -> Result<()> {
         identityd_config,
         tpmd_config,
         preloaded_device_id_pk_bytes,
-    } = run_inner(&mut stdin)?;
+    } = run_inner(
+        &mut stdin,
+        aziotcs_user.uid.as_raw(),
+        aziotid_user.uid.as_raw(),
+    )?;
 
     if let Some(preloaded_device_id_pk_bytes) = preloaded_device_id_pk_bytes {
         println!("Note: Symmetric key will be written to /var/secrets/aziot/keyd/device-id");
@@ -186,13 +190,30 @@ struct RunOutput {
 }
 
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
-fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
+fn run_inner(
+    stdin: &mut impl Reader,
+    aziotcs_user: libc::uid_t,
+    aziotid_user: libc::uid_t,
+) -> Result<RunOutput> {
     println!("Welcome to the configuration tool for aziot-identity-service.");
     println!();
     println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
     println!();
 
     let hostname = crate::internal::common::get_hostname()?;
+
+    // Authorization of IS with KS. IS will always need authorization for its master identity key,
+    // and may need access to the device ID key based on the provided configuration.
+    let mut aziotid_keys = aziot_keyd_config::Principal {
+        uid: aziotid_user,
+        keys: vec!["aziot_identityd_master_id".to_owned()],
+    };
+
+    // Authorization of CS with KS. The keys CS needs will be determined by the provided configuration.
+    let mut aziotcs_keys = aziot_keyd_config::Principal {
+        uid: aziotcs_user,
+        keys: vec![],
+    };
 
     let (provisioning_type, preloaded_device_id_pk_bytes) = choose! {
         stdin,
@@ -206,6 +227,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                     Err(err) => println!("Connection string is invalid: {}", err),
                 }
             };
+
+            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
 
             (
                 aziot_identityd_config::ProvisioningType::Manual {
@@ -230,6 +253,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                 }
             };
 
+            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
+
             (
                 aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
@@ -245,6 +270,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
         ProvisioningMethod::ManualX509 => {
             let iothub_hostname = prompt(stdin, "Enter the IoT Hub hostname.")?;
             let device_id = prompt(stdin, "Enter the IoT Device ID.")?;
+
+            aziotcs_keys.keys.push(DEVICE_ID_ID.to_owned());
 
             (
                 aziot_identityd_config::ProvisioningType::Manual {
@@ -270,6 +297,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                 }
             };
 
+            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
+
             (
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
@@ -286,6 +315,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
         ProvisioningMethod::DpsX509 => {
             let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
             let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
+
+            aziotcs_keys.keys.push(DEVICE_ID_ID.to_owned());
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
@@ -334,6 +365,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
             aziot_keys: Default::default(),
             preloaded_keys: Default::default(),
             endpoints: Default::default(),
+            principal: vec![aziotid_keys],
         };
 
         keyd_config.aziot_keys.insert(
@@ -407,6 +439,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                         }
                     };
                     keyd_config.preloaded_keys.insert(LOCAL_CA.to_owned(), local_ca_pk_uri.to_string());
+                    aziotcs_keys.keys.push(LOCAL_CA.to_owned());
 
                     DeviceIdSource::LocalCa
                 },
@@ -568,6 +601,7 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                                 }
                             };
                             keyd_config.preloaded_keys.insert(EST_ID_ID.to_owned(), est_id_pk_uri.to_string());
+                            aziotcs_keys.keys.push(EST_ID_ID.to_owned());
 
                             let est_id_cert_uri = loop {
                                 let est_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST ID certificate file.")?;
@@ -599,6 +633,8 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
                                 }
                             };
                             keyd_config.preloaded_keys.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri.to_string());
+                            aziotcs_keys.keys.push(EST_BOOTSTRAP_ID.to_owned());
+                            aziotcs_keys.keys.push(EST_ID_ID.to_owned());
 
                             let est_bootstrap_id_cert_uri = loop {
                                 let est_bootstrap_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST bootstrap ID certificate file.")?;
@@ -640,6 +676,10 @@ fn run_inner(stdin: &mut impl Reader) -> Result<RunOutput> {
     let tpmd_config = aziot_tpmd_config::Config {
         endpoints: Default::default(),
     };
+
+    if !aziotcs_keys.keys.is_empty() {
+        keyd_config.principal.push(aziotcs_keys);
+    }
 
     let keyd_config =
         toml::to_vec(&keyd_config).context("could not serialize aziot-keyd config")?;
@@ -1152,13 +1192,17 @@ mod tests {
                     Err(err) => panic!("could not read device-id file: {}", err),
                 };
 
+            // Set arbitrary UIDs for the aziotcs and aziotks user. The UIDs of the test output must match these.
+            let aziotcs_user = 1000;
+            let aziotid_user = 1001;
+
             let super::RunOutput {
                 keyd_config: actual_keyd_config,
                 certd_config: actual_certd_config,
                 identityd_config: actual_identityd_config,
                 tpmd_config: actual_tpmd_config,
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
-            } = super::run_inner(&mut input).unwrap();
+            } = super::run_inner(&mut input, aziotcs_user, aziotid_user).unwrap();
 
             // Convert the four configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
             // It doesn't matter for the device ID file since it's binary anyway.
