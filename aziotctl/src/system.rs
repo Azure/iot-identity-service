@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::ffi::{OsStr, OsString};
 
 use anyhow::Result;
