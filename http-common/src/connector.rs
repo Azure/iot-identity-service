@@ -187,41 +187,43 @@ impl Connector {
             }
         }
     }
-}
 
-impl std::fmt::Display for Connector {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let url = match self {
+    fn to_url(&self) -> Result<url::Url, String> {
+        match self {
             Connector::Tcp { host, port } => {
                 let mut url: url::Url = "http://foo"
                     .parse()
                     .expect("hard-coded URL parses successfully");
-                url.set_host(Some(host)).map_err(|err| {
-                    serde::ser::Error::custom(format!("could not set host {:?}: {:?}", host, err))
-                })?;
+                url.set_host(Some(host))
+                    .map_err(|err| format!("could not set host {:?}: {:?}", host, err))?;
                 if *port != 80 {
-                    url.set_port(Some(*port)).map_err(|()| {
-                        serde::ser::Error::custom(format!("could not set port {:?}", port))
-                    })?;
+                    url.set_port(Some(*port))
+                        .map_err(|()| format!("could not set port {:?}", port))?;
                 }
-                url
+                Ok(url)
             }
 
             Connector::Unix { socket_path } => {
                 let socket_path = socket_path.to_str().ok_or_else(|| {
-                    serde::ser::Error::custom(format!(
+                    format!(
                         "socket path {} cannot be serialized as a utf-8 string",
                         socket_path.display()
-                    ))
+                    )
                 })?;
 
                 let mut url: url::Url = "unix:///foo"
                     .parse()
                     .expect("hard-coded URL parses successfully");
                 url.set_path(socket_path);
-                url
+                Ok(url)
             }
-        };
+        }
+    }
+}
+
+impl std::fmt::Display for Connector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let url = self.to_url().map_err(|_| std::fmt::Error)?;
         url.fmt(f)
     }
 }
@@ -305,8 +307,8 @@ impl serde::Serialize for Connector {
     where
         S: serde::ser::Serializer,
     {
-        let s = self.to_string();
-        s.serialize(serializer)
+        let url = self.to_url().map_err(serde::ser::Error::custom)?;
+        url.to_string().serialize(serializer)
     }
 }
 

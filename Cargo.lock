@@ -415,6 +415,7 @@ dependencies = [
  "http-common",
  "hyper",
  "lazy_static",
+ "libc",
  "log",
  "openssl",
  "openssl-sys",
@@ -423,6 +424,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+ "wildmatch",
 ]
 
 [[package]]
@@ -430,6 +432,7 @@ name = "aziot-keyd-config"
 version = "0.1.0"
 dependencies = [
  "http-common",
+ "libc",
  "serde",
  "toml",
 ]
@@ -554,6 +557,7 @@ dependencies = [
  "http-common",
  "hyper",
  "hyper-openssl",
+ "libc",
  "mini-sntp",
  "nix",
  "openssl",

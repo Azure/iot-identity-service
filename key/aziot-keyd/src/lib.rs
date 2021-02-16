@@ -9,6 +9,8 @@
     clippy::missing_errors_doc
 )]
 
+use async_trait::async_trait;
+
 mod error;
 pub use error::{Error, InternalError};
 
@@ -16,12 +18,14 @@ mod keys;
 
 mod http;
 
-use aziot_keyd_config::{Config, Endpoints};
+use aziot_keyd_config::{Config, Endpoints, Principal};
+
+use config_common::watcher::UpdateConfig;
 
 pub async fn main(
     config: Config,
-    _: std::path::PathBuf,
-    _: std::path::PathBuf,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         aziot_keys,
@@ -29,6 +33,7 @@ pub async fn main(
         endpoints: Endpoints {
             aziot_keyd: connector,
         },
+        principal,
     } = config;
 
     let api = {
@@ -71,71 +76,36 @@ pub async fn main(
             keys.set_parameter(&name, &value)?;
         }
 
-        Api { keys }
+        Api {
+            keys,
+            principals: principal_to_map(principal),
+        }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
     Ok((connector, service))
 }
 
-pub struct Api {
+struct Api {
     keys: keys::Keys,
+    principals: std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 }
 
 impl Api {
-    pub fn new(
-        aziot_keys: std::collections::BTreeMap<String, String>,
-        preloaded_keys: std::collections::BTreeMap<String, String>,
-    ) -> Result<Self, Error> {
-        let mut keys = keys::Keys::new()?;
-
-        for (name, value) in aziot_keys {
-            let name = std::ffi::CString::new(name.clone()).map_err(|err| {
-                Error::Internal(InternalError::ReadConfig(
-                    format!(
-                        "key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                        name, err,
-                    )
-                    .into(),
-                ))
-            })?;
-
-            let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                    name, err,
-                ).into())))?;
-
-            keys.set_parameter(&name, &value)?;
-        }
-
-        for (key_id, value) in preloaded_keys {
-            let name = format!("preloaded_key:{}", key_id);
-            let name =
-                std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
-                ).into())))?;
-
-            let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
-                ).into())))?;
-
-            keys.set_parameter(&name, &value)?;
-        }
-
-        Ok(Api { keys })
-    }
-
     pub fn create_key_pair_if_not_exists(
         &mut self,
         id: &str,
         preferred_algorithms: Option<&str>,
+        user: libc::uid_t,
     ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         let preferred_algorithms = preferred_algorithms
@@ -151,7 +121,15 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key_pair(&mut self, id: &str) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key_pair(
+        &mut self,
+        id: &str,
+        user: libc::uid_t,
+    ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key_pair(&id_cstr)?;
@@ -178,7 +156,12 @@ impl Api {
         id: &str,
         value: aziot_key_common::CreateKeyValue,
         usage: &[aziot_key_common::KeyUsage],
+        user: libc::uid_t,
     ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
 
@@ -211,7 +194,15 @@ impl Api {
         Ok(handle)
     }
 
-    pub fn load_key(&mut self, id: &str) -> Result<aziot_key_common::KeyHandle, Error> {
+    pub fn load_key(
+        &mut self,
+        id: &str,
+        user: libc::uid_t,
+    ) -> Result<aziot_key_common::KeyHandle, Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_owned()));
+        }
+
         let id_cstr = std::ffi::CString::new(id.to_owned())
             .map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key(&id_cstr)?;
@@ -442,6 +433,42 @@ impl Api {
 
         Ok(plaintext)
     }
+
+    fn authorize(&self, user: libc::uid_t, id: &str) -> bool {
+        // Root user is always authorized.
+        if user == 0 {
+            return true;
+        }
+
+        // Authorize user based on stored principals config.
+        if let Some(keys) = self.principals.get(&user) {
+            return keys.iter().any(|key| key.is_match(id));
+        }
+
+        false
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = Config;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
+        log::info!("Detected change in config files. Updating config.");
+
+        // Only allow runtime updates to principals.
+        let Config {
+            aziot_keys: _,
+            preloaded_keys: _,
+            endpoints: _,
+            principal,
+        } = new_config;
+        self.principals = principal_to_map(principal);
+
+        log::info!("Config update finished.");
+        Ok(())
+    }
 }
 
 /// Decoded from a [`aziot_key_common::KeyHandle`]
@@ -598,4 +625,20 @@ fn key_id_to_handle(
 
     let handle = aziot_key_common::KeyHandle(token);
     Ok(handle)
+}
+
+fn principal_to_map(
+    principal: Vec<Principal>,
+) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
+    principal
+        .into_iter()
+        .map(|principal| {
+            let keys = principal
+                .keys
+                .into_iter()
+                .map(|key| wildmatch::WildMatch::new(&key))
+                .collect();
+            (principal.uid, keys)
+        })
+        .collect()
 }
