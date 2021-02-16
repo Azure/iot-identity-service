@@ -1,25 +1,31 @@
 use std::fmt;
 use std::process::Command;
 
-use crate::ServiceDefinition;
+use anyhow::{Context, Result};
 
-#[allow(clippy::module_name_repetitions)]
-pub fn get_status(processes: &[&ServiceDefinition]) {
+use crate::{program_name, ServiceDefinition};
+
+#[allow(clippy::missing_errors_doc)]
+pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
     let results: Vec<ServiceStatus<'_>> = processes
         .iter()
-        .map(|process| ServiceStatus {
-            service_name: process.service,
-            service_status: read_status(process.service),
-            sockets: process
-                .sockets
-                .iter()
-                .map(|socket| SocketStatus {
-                    socket_name: socket,
-                    socket_status: read_status(socket),
-                })
-                .collect(),
+        .map(|process| -> Result<ServiceStatus<'_>> {
+            Ok(ServiceStatus {
+                service_name: process.service,
+                service_status: read_status(process.service)?,
+                sockets: process
+                    .sockets
+                    .iter()
+                    .map(|socket| -> Result<SocketStatus<'_>> {
+                        Ok(SocketStatus {
+                            socket_name: socket,
+                            socket_status: read_status(socket)?,
+                        })
+                    })
+                    .collect::<Result<Vec<SocketStatus<'_>>>>()?,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<ServiceStatus<'_>>>>()?;
 
     if results.iter().any(|s| !s.ok()) {
         for result in &results {
@@ -30,63 +36,67 @@ pub fn get_status(processes: &[&ServiceDefinition]) {
             println!();
         }
 
-        for result in &results {
-            if result.service_status == Status::Failed {
-                print_logs(result.service_name);
+        for result in results {
+            if let Status::Failed(_) = result.service_status {
+                print_logs(result.service_name)?;
             }
-            for socket in &result.sockets {
+            for socket in result.sockets {
                 if !socket.ok() {
-                    print_logs(socket.socket_name);
+                    print_logs(socket.socket_name)?;
                 }
             }
         }
 
-        println!("\n\nFor more detailed logs, use the `system logs` command. If the logs do not contain enough information, consider setting debug logs using `system set-log-level`.");
+        let name = program_name();
+        println!("\n\nFor more detailed logs, use the `{} system logs` command. If the logs do not contain enough information, consider setting debug logs using `{} system set-log-level`.", name, name);
     } else {
         println!("Ok");
     }
+
+    Ok(())
 }
 
-fn read_status(process: &str) -> Status {
+fn read_status(process: &str) -> Result<Status> {
     let result = Command::new("systemctl")
         .args(&["is-active", process])
         .output()
-        .unwrap();
+        .context("Failed to call systemctl is-active")?;
 
     let output = String::from_utf8_lossy(&result.stdout);
 
-    match output.trim() {
+    let result = match output.trim() {
         "active" => Status::Active,
-        "failed" => Status::Failed,
         "inactive" => Status::Inactive,
-        &_ => {
-            println!("\nError calling `systemctl is-active {}`.", process);
-            println!(
-                "{}\n{}",
-                String::from_utf8_lossy(&result.stdout),
-                String::from_utf8_lossy(&result.stderr)
-            );
-            println!("Treating status as failed.");
-            Status::Failed
-        }
-    }
+        _ => Status::Failed(format!(
+            "{} {}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        )),
+    };
+
+    Ok(result)
 }
 
-fn print_logs(process: &str) {
-    println!("{} is in a bad state. Printing the last 10 log lines.", process);
+fn print_logs(process: &str) -> Result<()> {
+    println!(
+        "{} is in a bad state. Printing the last 10 log lines.",
+        process
+    );
     Command::new("journalctl")
         .args(&["-u", process, "--no-pager", "-e", "-n", "10"])
         .spawn()
-        .unwrap()
+        .context("Failed to spawn new process for printing logs")?
         .wait()
-        .unwrap();
+        .context("Failed to call journalctl")?;
     println!();
+
+    Ok(())
 }
 
 #[derive(PartialEq)]
 enum Status {
     Active,
-    Failed,
+    Failed(String),
     Inactive,
 }
 
@@ -95,7 +105,7 @@ impl fmt::Display for Status {
         match self {
             Status::Active => write!(f, "active"),
             Status::Inactive => write!(f, "inactive"),
-            Status::Failed => write!(f, "failed"),
+            Status::Failed(message) => write!(f, "{}", message),
         }
     }
 }
@@ -110,7 +120,10 @@ struct ServiceStatus<'a> {
 impl<'a> ServiceStatus<'a> {
     fn ok(&self) -> bool {
         // If status is not failed and there are no sockets that are not ok
-        self.service_status != Status::Failed && !self.sockets.iter().any(|s| !s.ok())
+        match self.service_status {
+            Status::Failed(_) => !self.sockets.iter().any(|s| !s.ok()),
+            _ => true,
+        }
     }
 }
 

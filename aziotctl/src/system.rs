@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use anyhow::Result;
 use structopt::StructOpt;
 
@@ -26,37 +28,27 @@ pub struct StatusOptions {}
 pub struct LogsOptions {
     /// Extra args to be passed to journalctl
     #[structopt(last = true)]
-    args: Vec<String>,
+    args: Vec<OsString>,
 }
 
 #[derive(StructOpt)]
-#[structopt(about = "Set the log level")]
+#[structopt(about = "Set the log level of the services")]
 pub struct LogLevelOptions {
-    #[structopt(value_name = "normal | debug")]
+    #[structopt(value_name = r#"One of "normal" or "debug"."#)]
     log_level: LogLevel,
 }
 
 pub fn system(options: SystemOptions) -> Result<()> {
     match options {
-        SystemOptions::Restart(_) => {
-            restart(SERVICE_DEFINITIONS);
-            Ok(())
-        }
-        SystemOptions::Status(_) => {
-            get_status(SERVICE_DEFINITIONS);
-            Ok(())
-        }
-        SystemOptions::Logs(opts) => {
-            logs(&opts);
-            Ok(())
-        }
-        SystemOptions::SetLogLevel(opts) => Ok(set_log_level(SERVICE_DEFINITIONS, opts.log_level)?),
+        SystemOptions::Restart(_) => restart(SERVICE_DEFINITIONS),
+        SystemOptions::Status(_) => get_status(SERVICE_DEFINITIONS),
+        SystemOptions::Logs(opts) => logs(&opts),
+        SystemOptions::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, opts.log_level),
     }
 }
 
-fn logs(options: &LogsOptions) {
+fn logs(options: &LogsOptions) -> Result<()>{
     let services: Vec<&str> = SERVICE_DEFINITIONS.iter().map(|s| s.service).collect();
-    let args: Vec<&str> = options.args.iter().map(|a| &**a).collect();
 
-    get_system_logs(&services, &args);
+    get_system_logs(&services, &options.args)
 }

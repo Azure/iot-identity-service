@@ -1,40 +1,41 @@
 use std::fmt;
-use std::fs::File;
-use std::io;
+use std::fs;
 use std::io::prelude::*;
 use std::process::Command;
 use std::str::FromStr;
 
-use crate::ServiceDefinition;
+use anyhow::{Context, Result};
 
-#[allow(clippy::module_name_repetitions)]
-/// # Errors
-///
-/// Will return `Err` if the systemd folder for the service does not exist or the user does not have
-/// permission to read it.
-pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result<(), io::Error> {
+use crate::{program_name, ServiceDefinition};
+
+#[allow(clippy::missing_errors_doc)]
+pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result<()> {
     for ServiceDefinition {
         service,
         sockets: _,
     } in services
     {
-        write_log(service, level)?;
+        write_log_level_file(service, level)?;
     }
     Command::new("systemctl").arg("daemon-reload").output()?;
 
-    println!("Set log level to {} for all services. Run the `system restart` command for the changes to take effect.", level);
+    println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, program_name());
     Ok(())
 }
 
-fn write_log(service: &str, level: LogLevel) -> Result<(), io::Error> {
-    let filename = format!("/etc/systemd/system/{}.d/log-level.conf", service);
+fn write_log_level_file(service: &str, level: LogLevel) -> Result<()> {
+    let directory = format!("/etc/systemd/system/{}.d", service);
+    fs::create_dir_all("directory")?;
+
+    let filename = format!("{}/log-level.conf", directory);
     let contents = format!(
         "[Service]
 Environment=AZIOT_LOG={}",
         level
     );
 
-    let mut file = File::create(filename)?;
+    let mut file = fs::File::create(filename)
+        .with_context(|| format!("Failed to create log-level.conf file for {}", service))?;
     file.write_all(contents.as_bytes())?;
 
     Ok(())

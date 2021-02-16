@@ -50,6 +50,7 @@ enum Options {
 
     /// List the checks that are run for 'aziotctl check'
     CheckList(check_list::CheckListOptions),
-    ///Use system helper commands
+    
+    /// Use system helper commands
     System(system::SystemOptions),
 }

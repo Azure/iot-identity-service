@@ -2,6 +2,14 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::let_unit_value,
+    clippy::module_name_repetitions,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::type_complexity
+)]
 
 use std::collections::BTreeMap;
 
@@ -73,7 +81,7 @@ pub struct ServiceDefinition {
     pub sockets: &'static [&'static str],
 }
 
-// Note, the ordering is important, since the first service is considered the root and will be started.
+// Note, the ordering is important, since the first service is considered the root and will be started by the restart command.
 pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
     &ServiceDefinition {
         service: "aziot-identityd.service",
@@ -88,3 +96,10 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
         sockets: &["aziot-certd.socket"],
     },
 ];
+
+pub fn program_name() -> String {
+    std::env::args_os()
+        .next()
+        .and_then(|arg| arg.into_string().ok())
+        .unwrap_or_else(|| "<current program>".to_owned())
+}

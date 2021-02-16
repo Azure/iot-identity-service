@@ -1,17 +1,24 @@
+use std::ffi::OsString;
 use std::process::Command;
 
-#[allow(clippy::module_name_repetitions)]
-pub fn get_system_logs(processes: &[&str], mut additional_args: &[&str]) {
+use anyhow::{Context, Result};
+
+#[allow(clippy::missing_errors_doc)]
+pub fn get_system_logs(processes: &[&str], additional_args: &[OsString]) -> Result<()> {
     let processes = processes.iter().flat_map(|p| vec!["-u", p]);
-    if additional_args.is_empty() {
-        additional_args = &["-e", "--no-pager"];
-    }
+    let default_args = ["-e".into(), "--no-pager".into()];
 
     Command::new("journalctl")
         .args(processes)
-        .args(additional_args)
+        .args(if additional_args.is_empty() {
+            &default_args
+        } else {
+            additional_args
+        })
         .spawn()
-        .unwrap()
+        .context("Failed to spawn new process for getting logs")?
         .wait()
-        .unwrap();
+        .context("Failed to call journalctl")?;
+
+    Ok(())
 }
