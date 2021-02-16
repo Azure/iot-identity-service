@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::io::{self, Write};
 use std::process::Command;
 
@@ -5,7 +7,6 @@ use anyhow::{Context, Result};
 
 use crate::ServiceDefinition;
 
-#[allow(clippy::missing_errors_doc)]
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
     // stop all services
     for service in services.iter().map(|s| s.service) {

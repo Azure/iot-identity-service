@@ -8,7 +8,9 @@
     clippy::module_name_repetitions,
     clippy::similar_names,
     clippy::too_many_lines,
-    clippy::type_complexity
+    clippy::type_complexity,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
 )]
 
 use std::collections::BTreeMap;
@@ -103,7 +105,6 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
     },
 ];
 
-#[allow(clippy::must_use_candidate)]
 pub fn program_name() -> String {
     std::env::args_os()
         .next()

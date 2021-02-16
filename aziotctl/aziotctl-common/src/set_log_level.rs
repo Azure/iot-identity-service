@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::fs;
 use std::io::prelude::*;
 use std::process::Command;
@@ -6,7 +8,6 @@ use anyhow::{Context, Result};
 
 use crate::{program_name, ServiceDefinition};
 
-#[allow(clippy::missing_errors_doc)]
 pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
         write_log_level_file(service, level)?;

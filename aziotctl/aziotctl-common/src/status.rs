@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::fmt;
 use std::process::Command;
 
@@ -5,7 +7,6 @@ use anyhow::{Context, Result};
 
 use crate::{program_name, ServiceDefinition};
 
-#[allow(clippy::missing_errors_doc)]
 pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
     let results: Vec<ServiceStatus<'_>> = processes
         .iter()

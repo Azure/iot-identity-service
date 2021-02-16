@@ -1,9 +1,10 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::ffi::OsString;
 use std::process::Command;
 
 use anyhow::{Context, Result};
 
-#[allow(clippy::missing_errors_doc)]
 pub fn get_system_logs(processes: &[&str], additional_args: &[OsString]) -> Result<()> {
     let processes = processes.iter().flat_map(|p| vec!["-u", p]);
     let default_args = ["-e".into(), "--no-pager".into()];
