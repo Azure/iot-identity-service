@@ -103,6 +103,7 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
     },
 ];
 
+#[allow(clippy::must_use_candidate)]
 pub fn program_name() -> String {
     std::env::args_os()
         .next()

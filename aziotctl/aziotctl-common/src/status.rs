@@ -124,11 +124,7 @@ struct ServiceStatus<'a> {
 impl<'a> ServiceStatus<'a> {
     fn ok(&self) -> bool {
         // If status is not failed and there are no sockets that are not ok
-        let service = match self.service_status {
-            Status::Failed(_) => false,
-            _ => true,
-        };
-        service && !self.sockets.iter().any(|s| !s.ok())
+        !matches!(self.service_status, Status::Failed(_)) && !self.sockets.iter().any(|s| !s.ok())
     }
 }
 
