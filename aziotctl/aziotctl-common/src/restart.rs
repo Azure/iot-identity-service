@@ -19,10 +19,7 @@ pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
         if result.status.success() {
             println!("Stopped!");
         } else {
-            eprintln!("\nError stopping {}\n", service);
-            io::stdout().write_all(&result.stdout)?;
-            io::stderr().write_all(&result.stderr)?;
-            println!();
+            print_command_error(&result);
         }
     }
 
@@ -46,11 +43,18 @@ fn start(name: &str) -> Result<()> {
     if result.status.success() {
         println!("Started!");
     } else {
-        eprintln!("\nError starting {}\n", name);
-        io::stdout().write_all(&result.stdout)?;
-        io::stderr().write_all(&result.stderr)?;
-        println!();
+        print_command_error(&result);
     }
 
     Ok(())
+}
+
+fn print_command_error(result: &std::process::Output) {
+    eprintln!("stdout:");
+    eprintln!("=======");
+    io::stdout().write_all(&result.stdout).unwrap();
+    eprintln!("stderr:");
+    eprintln!("=======");
+    io::stdout().write_all(&result.stderr).unwrap();
+    eprintln!();
 }

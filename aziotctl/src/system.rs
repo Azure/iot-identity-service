@@ -1,10 +1,10 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
 use anyhow::Result;
 use structopt::StructOpt;
 
 use aziotctl_common::{
-    get_status, get_system_logs, restart, set_log_level, LogLevel, SERVICE_DEFINITIONS,
+    get_status, get_system_logs, restart, set_log_level, Level, SERVICE_DEFINITIONS,
 };
 
 #[derive(StructOpt)]
@@ -35,7 +35,7 @@ pub struct LogsOptions {
 #[structopt(about = "Set the log level of the services")]
 pub struct LogLevelOptions {
     #[structopt(value_name = r#"One of "trace", "debug", "info", "warn", or "error""#)]
-    log_level: LogLevel,
+    log_level: Level,
 }
 
 pub fn system(options: SystemOptions) -> Result<()> {
@@ -47,8 +47,9 @@ pub fn system(options: SystemOptions) -> Result<()> {
     }
 }
 
-fn logs(options: &LogsOptions) -> Result<()>{
+fn logs(options: &LogsOptions) -> Result<()> {
     let services: Vec<&str> = SERVICE_DEFINITIONS.iter().map(|s| s.service).collect();
+    let args: Vec<&OsStr> = options.args.iter().map(AsRef::as_ref).collect();
 
-    get_system_logs(&services, &options.args)
+    get_system_logs(&services, &args)
 }

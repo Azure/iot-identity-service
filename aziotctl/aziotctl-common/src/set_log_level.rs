@@ -10,9 +10,14 @@ use crate::{program_name, ServiceDefinition};
 
 pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
-        write_log_level_file(service, level)?;
+        write_log_level_file(service, level).with_context(|| {
+            format!("could not write log level service override for {}", service)
+        })?;
     }
-    Command::new("systemctl").arg("daemon-reload").output()?;
+    Command::new("systemctl")
+        .arg("daemon-reload")
+        .output()
+        .context("could not run systemctl daemon-reload")?;
 
     println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, program_name());
     Ok(())
@@ -23,36 +28,10 @@ fn write_log_level_file(service: &str, level: log::Level) -> Result<()> {
     fs::create_dir_all(&directory)?;
 
     let filename = format!("{}/log-level.conf", directory);
-    let contents = format!(
-        "[Service]
-Environment=AZIOT_LOG={}",
-        level
-    );
+    let contents = format!("[Service]\nEnvironment=AZIOT_LOG={}", level);
 
-    let mut file = fs::File::create(filename)
-        .with_context(|| format!("Failed to create log-level.conf file for {}", service))?;
+    let mut file = fs::File::create(filename)?;
     file.write_all(contents.as_bytes())?;
 
     Ok(())
 }
-
-// impl FromStr for LogLevel {
-//     type Err = &'static str;
-
-//     fn from_str(s: &str) -> Result<Self, &'static str> {
-//         Ok(match s {
-//             "normal" => LogLevel::Normal,
-//             "debug" => LogLevel::Debug,
-//             _ => return Err("invalid log level"),
-//         })
-//     }
-// }
-
-// impl fmt::Display for LogLevel {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         match self {
-//             LogLevel::Normal => write!(f, "info"),
-//             LogLevel::Debug => write!(f, "debug"),
-//         }
-//     }
-// }
