@@ -8,11 +8,7 @@ use crate::ServiceDefinition;
 #[allow(clippy::missing_errors_doc)]
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
     // stop all services
-    for ServiceDefinition {
-        service,
-        sockets: _,
-    } in services
-    {
+    for service in services.iter().map(|s| s.service) {
         print!("Stopping {}...", service);
         let result = Command::new("systemctl")
             .args(&["stop", service])
@@ -22,7 +18,7 @@ pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
         if result.status.success() {
             println!("Stopped!");
         } else {
-            println!("\nError stopping {}", service);
+            eprintln!("\nError stopping {}\n", service);
             io::stdout().write_all(&result.stdout)?;
             io::stderr().write_all(&result.stderr)?;
             println!();
@@ -30,14 +26,8 @@ pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
     }
 
     // start all sockets
-    for ServiceDefinition {
-        service: _,
-        sockets,
-    } in services
-    {
-        for socket in sockets.iter() {
-            start(socket)?;
-        }
+    for socket in services.iter().flat_map(|s| s.sockets) {
+        start(socket)?;
     }
 
     // Start the first service. This is the primary service that should be enabled and started.
@@ -55,7 +45,7 @@ fn start(name: &str) -> Result<()> {
     if result.status.success() {
         println!("Started!");
     } else {
-        println!("\nError starting {}", name);
+        eprintln!("\nError starting {}\n", name);
         io::stdout().write_all(&result.stdout)?;
         io::stderr().write_all(&result.stderr)?;
         println!();

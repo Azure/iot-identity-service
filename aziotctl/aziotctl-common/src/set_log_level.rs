@@ -1,20 +1,14 @@
-use std::fmt;
 use std::fs;
 use std::io::prelude::*;
 use std::process::Command;
-use std::str::FromStr;
 
 use anyhow::{Context, Result};
 
 use crate::{program_name, ServiceDefinition};
 
 #[allow(clippy::missing_errors_doc)]
-pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result<()> {
-    for ServiceDefinition {
-        service,
-        sockets: _,
-    } in services
-    {
+pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
+    for service in services.iter().map(|s| s.service) {
         write_log_level_file(service, level)?;
     }
     Command::new("systemctl").arg("daemon-reload").output()?;
@@ -23,9 +17,9 @@ pub fn set_log_level(services: &[&ServiceDefinition], level: LogLevel) -> Result
     Ok(())
 }
 
-fn write_log_level_file(service: &str, level: LogLevel) -> Result<()> {
+fn write_log_level_file(service: &str, level: log::Level) -> Result<()> {
     let directory = format!("/etc/systemd/system/{}.d", service);
-    fs::create_dir_all("directory")?;
+    fs::create_dir_all(&directory)?;
 
     let filename = format!("{}/log-level.conf", directory);
     let contents = format!(
@@ -41,29 +35,23 @@ Environment=AZIOT_LOG={}",
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum LogLevel {
-    Debug,
-    Normal,
-}
+// impl FromStr for LogLevel {
+//     type Err = &'static str;
 
-impl FromStr for LogLevel {
-    type Err = &'static str;
+//     fn from_str(s: &str) -> Result<Self, &'static str> {
+//         Ok(match s {
+//             "normal" => LogLevel::Normal,
+//             "debug" => LogLevel::Debug,
+//             _ => return Err("invalid log level"),
+//         })
+//     }
+// }
 
-    fn from_str(s: &str) -> Result<Self, &'static str> {
-        Ok(match s {
-            "normal" => LogLevel::Normal,
-            "debug" => LogLevel::Debug,
-            _ => return Err("invalid log level"),
-        })
-    }
-}
-
-impl fmt::Display for LogLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LogLevel::Normal => write!(f, "warn"),
-            LogLevel::Debug => write!(f, "debug"),
-        }
-    }
-}
+// impl fmt::Display for LogLevel {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         match self {
+//             LogLevel::Normal => write!(f, "info"),
+//             LogLevel::Debug => write!(f, "debug"),
+//         }
+//     }
+// }

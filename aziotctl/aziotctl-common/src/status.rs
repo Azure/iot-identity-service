@@ -38,17 +38,20 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
 
         for result in results {
             if let Status::Failed(_) = result.service_status {
-                print_logs(result.service_name)?;
+                print_logs(result.service_name, &result.service_status)?;
             }
             for socket in result.sockets {
                 if !socket.ok() {
-                    print_logs(socket.socket_name)?;
+                    print_logs(socket.socket_name, &result.service_status)?;
                 }
             }
         }
 
         let name = program_name();
-        println!("\n\nFor more detailed logs, use the `{} system logs` command. If the logs do not contain enough information, consider setting debug logs using `{} system set-log-level`.", name, name);
+        println!();
+        println!();
+        println!("Note: inactive services are considered OK, while inactive sockets are considered failed. This is because services will be inactive if not in use.");
+        println!("For more detailed logs, use the `{} system logs` command. If the logs do not contain enough information, consider setting debug logs using `{} system set-log-level`.", name, name);
     } else {
         println!("Ok");
     }
@@ -77,10 +80,10 @@ fn read_status(process: &str) -> Result<Status> {
     Ok(result)
 }
 
-fn print_logs(process: &str) -> Result<()> {
+fn print_logs(process: &str, state: &Status) -> Result<()> {
     println!(
-        "{} is in a bad state. Printing the last 10 log lines.",
-        process
+        "{} is in a bad state: {:?}. Printing the last 10 log lines.",
+        process, state,
     );
     Command::new("journalctl")
         .args(&["-u", process, "--no-pager", "-e", "-n", "10"])
@@ -93,7 +96,7 @@ fn print_logs(process: &str) -> Result<()> {
     Ok(())
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Status {
     Active,
     Failed(String),
@@ -110,6 +113,7 @@ impl fmt::Display for Status {
     }
 }
 
+#[derive(Debug)]
 struct ServiceStatus<'a> {
     service_name: &'a str,
     service_status: Status,
@@ -120,13 +124,15 @@ struct ServiceStatus<'a> {
 impl<'a> ServiceStatus<'a> {
     fn ok(&self) -> bool {
         // If status is not failed and there are no sockets that are not ok
-        match self.service_status {
-            Status::Failed(_) => !self.sockets.iter().any(|s| !s.ok()),
+        let service = match self.service_status {
+            Status::Failed(_) => false,
             _ => true,
-        }
+        };
+        service && !self.sockets.iter().any(|s| !s.ok())
     }
 }
 
+#[derive(Debug)]
 struct SocketStatus<'a> {
     socket_name: &'a str,
     socket_status: Status,

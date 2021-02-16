@@ -34,7 +34,7 @@ pub struct LogsOptions {
 #[derive(StructOpt)]
 #[structopt(about = "Set the log level of the services")]
 pub struct LogLevelOptions {
-    #[structopt(value_name = r#"One of "normal" or "debug"."#)]
+    #[structopt(value_name = r#"One of "trace", "debug", "info", "warn", or "error""#)]
     log_level: LogLevel,
 }
 
