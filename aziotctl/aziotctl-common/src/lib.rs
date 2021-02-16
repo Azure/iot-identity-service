@@ -95,6 +95,10 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
         service: "aziot-certd.service",
         sockets: &["aziot-certd.socket"],
     },
+    &ServiceDefinition {
+        service: "aziot-tpmd.service",
+        sockets: &["aziot-tpmd.socket"],
+    },
 ];
 
 pub fn program_name() -> String {
