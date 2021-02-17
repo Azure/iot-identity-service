@@ -24,7 +24,7 @@ pub use connector::{Connector, ConnectorError, Stream};
 #[cfg(feature = "tokio1")]
 mod proxy;
 #[cfg(feature = "tokio1")]
-pub use proxy::MaybeProxyConnector;
+pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
 pub mod server;
 

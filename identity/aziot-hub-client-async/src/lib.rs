@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector, MaybeProxyClient};
+use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
 
 pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');

@@ -164,7 +164,6 @@ dependencies = [
  "base64 0.13.0",
  "bytes 1.0.1",
  "chrono",
- "futures-util",
  "http",
  "http-common",
  "hyper",
@@ -1163,7 +1162,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.13.0",
- "futures",
  "futures-util",
  "http",
  "hyper",
