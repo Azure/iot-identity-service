@@ -75,7 +75,7 @@ pub enum DpsAttestationMethod {
         symmetric_key: String,
     },
     X509 {
-        registration_id: Option<String>,
+        device_id_cert_subject_name: Option<String>,
         identity_cert: String,
         identity_pk: String,
     },

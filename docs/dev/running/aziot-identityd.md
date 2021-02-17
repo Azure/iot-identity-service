@@ -76,7 +76,6 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 
     [provisioning.attestation]
     "method" = "x509"
-    "registration_id" = "<ADD DPS REGISTRATION ID HERE>" # Optional for X.509 attestation
     "identity_cert" = "device-id" # Pre-loaded Certificate Service ID
     "identity_pk" = "device-id" # Pre-loaded Key Service ID
     ```

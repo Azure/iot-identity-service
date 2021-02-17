@@ -314,7 +314,7 @@ fn run_inner(
 
         ProvisioningMethod::DpsX509 => {
             let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
-            let registration_id = prompt(stdin, "(optional) Enter the DPS registration ID.")?;
+            let device_id_cert_subject_name = prompt(stdin, "(optional) Enter the device ID certificate subject name.")?;
 
             aziotcs_keys.keys.push(DEVICE_ID_ID.to_owned());
 
@@ -323,10 +323,10 @@ fn run_inner(
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
-                        registration_id: if registration_id.is_empty() {
+                        device_id_cert_subject_name: if device_id_cert_subject_name.is_empty() {
                             None
                         } else {
-                            Some(registration_id)
+                            Some(device_id_cert_subject_name)
                         },
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),

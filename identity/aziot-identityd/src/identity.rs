@@ -442,7 +442,7 @@ impl IdentityManager {
                         self.create_identity_cert_if_not_exist_or_expired(
                             &identity_pk,
                             &identity_cert,
-                            IdentitySubject::DeviceId(device_id.as_str().into()),
+                            Some(device_id.as_str().into()),
                         )
                         .await?;
                         aziot_identity_common::Credentials::X509 {
@@ -519,7 +519,7 @@ impl IdentityManager {
                         }
                     }
                     config::DpsAttestationMethod::X509 {
-                        registration_id,
+                        device_id_cert_subject_name,
                         identity_cert,
                         identity_pk,
                     } => {
@@ -527,16 +527,10 @@ impl IdentityManager {
                             .create_identity_cert_if_not_exist_or_expired(
                                 &identity_pk,
                                 &identity_cert,
-                                IdentitySubject::RegistrationId(
-                                    registration_id.as_deref().map(Into::into),
-                                ),
+                                device_id_cert_subject_name.as_deref().map(Into::into),
                             )
                             .await?;
                         let cert_cn = extract_cn(&cert)?;
-
-                        if cert_cn.is_empty() && registration_id.map_or(false, |s| !s.is_empty()) {
-                            // ???
-                        }
 
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
                             identity_cert: identity_cert.clone(),
@@ -624,7 +618,7 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        mut subject: IdentitySubject<'_>,
+        mut subject: Option<Cow<'_, str>>,
     ) -> Result<openssl::x509::X509, Error> {
         // Retrieve existing cert and check it for expiry.
         if let Ok(pem) = self.cert_client.get_cert(identity_cert).await {
@@ -642,7 +636,7 @@ impl IdentityManager {
 
                 // use same CN when renewing the cert
                 let cert_cn = extract_cn(&cert)?;
-                subject = IdentitySubject::RegistrationId(Some(cert_cn.into()))
+                subject = Some(cert_cn.into())
             } else {
                 return Ok(cert);
             }
@@ -668,10 +662,10 @@ impl IdentityManager {
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
         let subject = match subject {
-            IdentitySubject::DeviceId(id) | IdentitySubject::RegistrationId(Some(id)) => id,
-            IdentitySubject::RegistrationId(None) => {
+            Some(id) => id,
+            None => {
                 return Err(Error::Internal(InternalError::CreateCertificate(
-                    "no default registration_id was specified".into(),
+                    "no default device_id_cert_subject_name was specified".into(),
                 )))
             }
         };
@@ -811,11 +805,6 @@ impl HubDeviceInfo {
     pub fn unprovisioned() -> String {
         "unprovisioned".to_owned()
     }
-}
-
-enum IdentitySubject<'a> {
-    DeviceId(Cow<'a, str>),
-    RegistrationId(Option<Cow<'a, str>>),
 }
 
 fn extract_cn(cert: &openssl::x509::X509) -> Result<String, Error> {
