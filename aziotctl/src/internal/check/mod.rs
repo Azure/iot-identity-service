@@ -74,9 +74,9 @@ pub struct CheckerMeta {
     pub description: &'static str,
 }
 
-impl From<CheckerMeta> for aziotctl_check_common::CheckerMetaSerializable {
-    fn from(meta: CheckerMeta) -> aziotctl_check_common::CheckerMetaSerializable {
-        aziotctl_check_common::CheckerMetaSerializable {
+impl From<CheckerMeta> for aziotctl_common::CheckerMetaSerializable {
+    fn from(meta: CheckerMeta) -> aziotctl_common::CheckerMetaSerializable {
+        aziotctl_common::CheckerMetaSerializable {
             id: meta.id.into(),
             description: meta.description.into(),
         }

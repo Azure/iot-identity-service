@@ -1,10 +1,12 @@
 [package]
-name = "aziotctl-check-common"
+name = "aziotctl-common"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
 
 [dependencies]
+anyhow = "1.0.34"
+log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.59"
