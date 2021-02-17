@@ -42,7 +42,7 @@ impl Hostname {
             return Ok(CheckResult::Ok);
         }
 
-        let machine_hostname = crate::internal::common::get_hostname()?;
+        let machine_hostname = aziotctl_common::hostname()?;
         self.machine_hostname = Some(machine_hostname.clone());
 
         // Technically the value of config_hostname doesn't matter as long as it resolves to this device.

@@ -9,3 +9,7 @@ common_name = "my-device"
 
 [preloaded_certs]
 local-ca = "file:///var/secrets/local-ca.pem"
+
+[[principal]]
+uid = 1001
+certs = ["device-id"]

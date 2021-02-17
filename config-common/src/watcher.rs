@@ -38,15 +38,16 @@ pub fn start_watcher<TApi>(
                 notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
 
             // Add configuration paths to be watched.
+            if config_path.exists() {
+                file_watcher
+                    .watch(config_path, notify::RecursiveMode::NonRecursive)
+                    .expect("Watching config file should not fail.");
+            }
             if config_directory_path.exists() {
                 file_watcher
                     .watch(config_directory_path, notify::RecursiveMode::NonRecursive)
                     .expect("Watching config directory path should not fail.");
             }
-
-            file_watcher
-                .watch(config_path, notify::RecursiveMode::NonRecursive)
-                .expect("Watching config file should not fail.");
 
             loop {
                 let _ = file_watcher_rx.recv();

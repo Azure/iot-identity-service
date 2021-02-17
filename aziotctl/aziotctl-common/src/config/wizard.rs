@@ -1,171 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-//! This subcommand interactively asks the user to give out basic provisioning information for their device and
-//! creates the config files for the four services based on that information.
-//!
-//! Notes:
-//!
-//! - Provisioning with a symmetric key (manual or DPS) requires the key to be preloaded into KS, which means it needs to be
-//!   saved to a file. This subcommand uses a file named `/var/secrets/aziot/keyd/device-id` for that purpose.
-//!   It creates the directory structure and ACLs the directory and the file appropriately to the KS user.
-//!
-//! - `always_reprovision_on_startup` is enabled by default in IS provisioning settings.
-//!
-//! - This implementation assumes that Microsoft's implementation of libaziot-keys is being used, in that it generates the keyd config
-//!   with the `aziot_keys.homedir_path` property set, and with validation that the preloaded keys must be `file://` or `pkcs11:` URIs.
-
-use anyhow::{anyhow, Context, Result};
-
-const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";
-
-const AZIOT_KEYD_HOMEDIR_PATH: &str = "/var/lib/aziot/keyd";
-const AZIOT_CERTD_HOMEDIR_PATH: &str = "/var/lib/aziot/certd";
-const AZIOT_IDENTITYD_HOMEDIR_PATH: &str = "/var/lib/aziot/identityd";
-
-/// The ID used for the device ID key (symmetric or X.509 private) and the device ID cert.
-const DEVICE_ID_ID: &str = "device-id";
-
-/// The ID used for the private key and cert that is used as the local CA.
-const LOCAL_CA: &str = "local-ca";
-
-/// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server.
-const EST_ID_ID: &str = "est-id";
-
-/// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server for the initial bootstrap.
-const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
-
-/// The ID used for the CA cert that is used to validate the EST server's server cert.
-const EST_SERVER_CA_ID: &str = "est-server-ca";
-
-pub(crate) fn run() -> Result<()> {
-    // In production, running as root is the easiest way to guarantee the tool has write access to every service's config file.
-    // But it's convenient to not do this for the sake of development because the the development machine doesn't necessarily
-    // have the package installed and the users created, and it's easier to have the config files owned by the current user anyway.
-    //
-    // So when running as root, get the four users appropriately.
-    // Otherwise, if this is a debug build, fall back to using the current user.
-    // Otherwise, tell the user to re-run as root.
-    let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
-        if nix::unistd::Uid::current().is_root() {
-            let aziotks_user = nix::unistd::User::from_name("aziotks")
-                .context("could not query aziotks user information")?
-                .ok_or_else(|| anyhow!("could not query aziotks user information"))?;
-
-            let aziotcs_user = nix::unistd::User::from_name("aziotcs")
-                .context("could not query aziotcs user information")?
-                .ok_or_else(|| anyhow!("could not query aziotcs user information"))?;
-
-            let aziotid_user = nix::unistd::User::from_name("aziotid")
-                .context("could not query aziotid user information")?
-                .ok_or_else(|| anyhow!("could not query aziotid user information"))?;
-
-            let aziottpm_user = nix::unistd::User::from_name("aziottpm")
-                .context("could not query aziottpm user information")?
-                .ok_or_else(|| anyhow!("could not query aziottpm user information"))?;
-
-            (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user)
-        } else if cfg!(debug_assertions) {
-            let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
-                .context("could not query current user information")?
-                .ok_or_else(|| anyhow!("could not query current user information"))?;
-            (
-                current_user.clone(),
-                current_user.clone(),
-                current_user.clone(),
-                current_user,
-            )
-        } else {
-            return Err(anyhow!("this command must be run as root"));
-        };
-
-    for &f in &[
-        "/etc/aziot/certd/config.toml",
-        "/etc/aziot/identityd/config.toml",
-        "/etc/aziot/keyd/config.toml",
-        "/etc/aziot/tpmd/config.toml",
-    ] {
-        // Don't overwrite any of the configs if they already exist.
-        //
-        // It would be less racy to test this right before we're about to overwrite the files, but by then we'll have asked the user
-        // all of the questions and it would be a waste to give up.
-        if std::path::Path::new(f).exists() {
-            return Err(anyhow!(
-                    "\
-                    Cannot run because file {} already exists. \
-                    Delete this file (after taking a backup if necessary) before running this command.\
-                ",
-                f
-            ));
-        }
-    }
-
-    let mut stdin = Stdin {
-        editor: rustyline::Editor::new(),
-    };
-    stdin.editor.set_helper(Some(StdinHelper {
-        reading_secret: false,
-    }));
-
-    let RunOutput {
-        keyd_config,
-        certd_config,
-        identityd_config,
-        tpmd_config,
-        preloaded_device_id_pk_bytes,
-    } = run_inner(
-        &mut stdin,
-        aziotcs_user.uid.as_raw(),
-        aziotid_user.uid.as_raw(),
-    )?;
-
-    if let Some(preloaded_device_id_pk_bytes) = preloaded_device_id_pk_bytes {
-        println!("Note: Symmetric key will be written to /var/secrets/aziot/keyd/device-id");
-
-        create_dir_all("/var/secrets/aziot/keyd", &aziotks_user, 0o0700)?;
-        write_file(
-            "/var/secrets/aziot/keyd/device-id",
-            &preloaded_device_id_pk_bytes,
-            &aziotks_user,
-            0o0600,
-        )?;
-    }
-
-    write_file(
-        "/etc/aziot/keyd/config.toml",
-        &keyd_config,
-        &aziotks_user,
-        0o0600,
-    )?;
-
-    write_file(
-        "/etc/aziot/certd/config.toml",
-        &certd_config,
-        &aziotcs_user,
-        0o0600,
-    )?;
-
-    write_file(
-        "/etc/aziot/identityd/config.toml",
-        &identityd_config,
-        &aziotid_user,
-        0o0600,
-    )?;
-
-    write_file(
-        "/etc/aziot/tpmd/config.toml",
-        &tpmd_config,
-        &aziottpm_user,
-        0o0600,
-    )?;
-
-    println!("aziot-identity-service has been configured successfully!");
-    println!(
-        "You can find the configured files at /etc/aziot/{{key,cert,identity,tpm}}d/config.toml"
-    );
-
-    Ok(())
-}
-
 /// This macro expands to a relatively straightforward expression. The advantage of using this macro instead of calling
 /// [`choose`] directly is that the macro forces you to use each one of your choice enum variants exactly once, no more and no less.
 macro_rules! choose {
@@ -181,38 +15,26 @@ macro_rules! choose {
 }
 
 #[derive(Debug)]
-struct RunOutput {
-    certd_config: Vec<u8>,
-    identityd_config: Vec<u8>,
-    keyd_config: Vec<u8>,
-    tpmd_config: Vec<u8>,
-    preloaded_device_id_pk_bytes: Option<Vec<u8>>,
+pub struct RunOutput {
+    pub certd_config: aziot_certd_config::Config,
+    pub identityd_config: aziot_identityd_config::Settings,
+    pub keyd_config: aziot_keyd_config::Config,
+    pub tpmd_config: aziot_tpmd_config::Config,
+    pub preloaded_device_id_pk_bytes: Option<Vec<u8>>,
 }
 
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
-fn run_inner(
+pub fn run(
     stdin: &mut impl Reader,
-    aziotcs_user: libc::uid_t,
-    aziotid_user: libc::uid_t,
-) -> Result<RunOutput> {
-    println!("Welcome to the configuration tool for aziot-identity-service.");
-    println!();
-    println!("This command will set up the configurations for aziot-keyd, aziot-certd and aziot-identityd.");
-    println!();
+    aziotcs_user: nix::unistd::Uid,
+    aziotid_user: nix::unistd::Uid,
+) -> anyhow::Result<RunOutput> {
+    let hostname = crate::hostname()?;
 
-    let hostname = crate::internal::common::get_hostname()?;
-
-    // Authorization of IS with KS. IS will always need authorization for its master identity key,
-    // and may need access to the device ID key based on the provided configuration.
+    // Authorization of IS with KS.
     let mut aziotid_keys = aziot_keyd_config::Principal {
-        uid: aziotid_user,
+        uid: aziotid_user.as_raw(),
         keys: vec!["aziot_identityd_master_id".to_owned()],
-    };
-
-    // Authorization of CS with KS. The keys CS needs will be determined by the provided configuration.
-    let mut aziotcs_keys = aziot_keyd_config::Principal {
-        uid: aziotcs_user,
-        keys: vec![],
     };
 
     let (provisioning_type, preloaded_device_id_pk_bytes) = choose! {
@@ -222,20 +44,18 @@ fn run_inner(
         ProvisioningMethod::ManualConnectionString => {
             let (iothub_hostname, device_id, symmetric_key) = loop {
                 let connection_string = prompt(stdin, "Enter the connection string.")?;
-                match parse_manual_connection_string(&connection_string) {
+                match super::parse_manual_connection_string(&connection_string) {
                     Ok(parts) => break parts,
                     Err(err) => println!("Connection string is invalid: {}", err),
                 }
             };
-
-            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
 
             (
                 aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
                     authentication: aziot_identityd_config::ManualAuthMethod::SharedPrivateKey {
-                        device_id_pk: DEVICE_ID_ID.to_owned(),
+                        device_id_pk: super::DEVICE_ID_ID.to_owned(),
                     },
                 },
                 Some(symmetric_key),
@@ -253,14 +73,12 @@ fn run_inner(
                 }
             };
 
-            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
-
             (
                 aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
                     authentication: aziot_identityd_config::ManualAuthMethod::SharedPrivateKey {
-                        device_id_pk: DEVICE_ID_ID.to_owned(),
+                        device_id_pk: super::DEVICE_ID_ID.to_owned(),
                     },
                 },
                 Some(symmetric_key),
@@ -271,15 +89,13 @@ fn run_inner(
             let iothub_hostname = prompt(stdin, "Enter the IoT Hub hostname.")?;
             let device_id = prompt(stdin, "Enter the IoT Device ID.")?;
 
-            aziotcs_keys.keys.push(DEVICE_ID_ID.to_owned());
-
             (
                 aziot_identityd_config::ProvisioningType::Manual {
                     iothub_hostname,
                     device_id,
                     authentication: aziot_identityd_config::ManualAuthMethod::X509 {
-                        identity_cert: DEVICE_ID_ID.to_owned(),
-                        identity_pk: DEVICE_ID_ID.to_owned(),
+                        identity_cert: super::DEVICE_ID_ID.to_owned(),
+                        identity_pk: super::DEVICE_ID_ID.to_owned(),
                     },
                 },
                 None,
@@ -297,15 +113,13 @@ fn run_inner(
                 }
             };
 
-            aziotid_keys.keys.push(DEVICE_ID_ID.to_owned());
-
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
-                        symmetric_key: DEVICE_ID_ID.to_owned(),
+                        symmetric_key: super::DEVICE_ID_ID.to_owned(),
                     },
                 },
                 Some(symmetric_key),
@@ -316,16 +130,14 @@ fn run_inner(
             let scope_id = prompt(stdin, "Enter the DPS ID scope.")?;
             let registration_id = prompt(stdin, "Enter the DPS registration ID.")?;
 
-            aziotcs_keys.keys.push(DEVICE_ID_ID.to_owned());
-
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
                         registration_id,
-                        identity_cert: DEVICE_ID_ID.to_owned(),
-                        identity_pk: DEVICE_ID_ID.to_owned(),
+                        identity_cert: super::DEVICE_ID_ID.to_owned(),
+                        identity_pk: super::DEVICE_ID_ID.to_owned(),
                     },
                 },
                 None,
@@ -338,7 +150,7 @@ fn run_inner(
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::Tpm {
                         registration_id,
@@ -357,6 +169,12 @@ fn run_inner(
         YesNo::No => false,
     };
 
+    // Authorization of CS with KS.
+    let mut aziotcs_keys = aziot_keyd_config::Principal {
+        uid: aziotcs_user.as_raw(),
+        keys: vec![],
+    };
+
     let mut device_id_source = None;
 
     // Might be mutated again while building certd config to insert EST ID cert's private key
@@ -365,12 +183,12 @@ fn run_inner(
             aziot_keys: Default::default(),
             preloaded_keys: Default::default(),
             endpoints: Default::default(),
-            principal: vec![aziotid_keys],
+            principal: vec![],
         };
 
         keyd_config.aziot_keys.insert(
             "homedir_path".to_owned(),
-            AZIOT_KEYD_HOMEDIR_PATH.to_owned(),
+            super::AZIOT_KEYD_HOMEDIR_PATH.to_owned(),
         );
 
         if uses_pkcs11 {
@@ -390,7 +208,9 @@ fn run_inner(
             };
             keyd_config
                 .preloaded_keys
-                .insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
+                .insert(super::DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
+
+            aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
         } else if matches!(
             provisioning_type,
             aziot_identityd_config::ProvisioningType::Manual {
@@ -419,7 +239,9 @@ fn run_inner(
                             break device_id_pk_uri;
                         }
                     };
-                    keyd_config.preloaded_keys.insert(DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
+                    keyd_config.preloaded_keys.insert(super::DEVICE_ID_ID.to_owned(), device_id_pk_uri.to_string());
+
+                    aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
                     DeviceIdSource::Preloaded
                 },
@@ -438,26 +260,40 @@ fn run_inner(
                             break local_ca_pk_uri;
                         }
                     };
-                    keyd_config.preloaded_keys.insert(LOCAL_CA.to_owned(), local_ca_pk_uri.to_string());
-                    aziotcs_keys.keys.push(LOCAL_CA.to_owned());
+                    keyd_config.preloaded_keys.insert(super::LOCAL_CA.to_owned(), local_ca_pk_uri.to_string());
+                    aziotcs_keys.keys.push(super::LOCAL_CA.to_owned());
+                    aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
                     DeviceIdSource::LocalCa
                 },
 
-                DeviceIdSource::Est => DeviceIdSource::Est,
+                DeviceIdSource::Est => {
+                    aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
+
+                    // More questions will be asked as part of certd_config
+                    DeviceIdSource::Est
+                },
             });
         }
+
+        keyd_config.principal.push(aziotid_keys);
 
         keyd_config
     };
 
+    // Authorization of IS with CS.
+    let mut aziotid_certs = aziot_certd_config::Principal {
+        uid: aziotid_user.as_raw(),
+        certs: vec![],
+    };
+
     let certd_config = {
         let mut certd_config = aziot_certd_config::Config {
-            homedir_path: AZIOT_CERTD_HOMEDIR_PATH.into(),
+            homedir_path: super::AZIOT_CERTD_HOMEDIR_PATH.into(),
             cert_issuance: Default::default(),
             preloaded_certs: Default::default(),
             endpoints: Default::default(),
-            principal: Default::default(),
+            principal: vec![],
         };
 
         match device_id_source {
@@ -474,7 +310,7 @@ fn run_inner(
                 let device_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(device_id_cert_uri);
                 certd_config
                     .preloaded_certs
-                    .insert(DEVICE_ID_ID.to_owned(), device_id_cert_uri);
+                    .insert(super::DEVICE_ID_ID.to_owned(), device_id_cert_uri);
             }
 
             Some(DeviceIdSource::LocalCa) => {
@@ -490,26 +326,28 @@ fn run_inner(
                 let local_ca_cert_uri = aziot_certd_config::PreloadedCert::Uri(local_ca_cert_uri);
                 certd_config
                     .preloaded_certs
-                    .insert(LOCAL_CA.to_owned(), local_ca_cert_uri);
+                    .insert(super::LOCAL_CA.to_owned(), local_ca_cert_uri);
 
                 certd_config.cert_issuance.local_ca = Some(aziot_certd_config::LocalCa {
-                    cert: LOCAL_CA.to_owned(),
-                    pk: LOCAL_CA.to_owned(),
+                    cert: super::LOCAL_CA.to_owned(),
+                    pk: super::LOCAL_CA.to_owned(),
                 });
 
                 certd_config.cert_issuance.certs.insert(
-                    DEVICE_ID_ID.to_owned(),
+                    super::DEVICE_ID_ID.to_owned(),
                     aziot_certd_config::CertIssuanceOptions {
                         method: aziot_certd_config::CertIssuanceMethod::LocalCa,
                         common_name: Some(hostname.clone()),
                         expiry_days: None,
                     },
                 );
+
+                aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
             }
 
             Some(DeviceIdSource::Est) => {
                 certd_config.cert_issuance.certs.insert(
-                    DEVICE_ID_ID.to_owned(),
+                    super::DEVICE_ID_ID.to_owned(),
                     aziot_certd_config::CertIssuanceOptions {
                         method: aziot_certd_config::CertIssuanceMethod::Est,
                         common_name: Some(hostname.clone()),
@@ -533,7 +371,7 @@ fn run_inner(
                                     stdin,
                                     "Enter the URL of your EST server that should be used for issuing device identity certificates.",
                                 )?;
-                            urls.insert(DEVICE_ID_ID.to_owned(), device_id_url);
+                            urls.insert(super::DEVICE_ID_ID.to_owned(), device_id_url);
                         },
 
                         YesNo::No => (),
@@ -556,9 +394,9 @@ fn run_inner(
                             }
                         };
                         let est_trusted_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_trusted_cert_uri);
-                        certd_config.preloaded_certs.insert(EST_SERVER_CA_ID.to_owned(), est_trusted_cert_uri);
+                        certd_config.preloaded_certs.insert(super::EST_SERVER_CA_ID.to_owned(), est_trusted_cert_uri);
 
-                        vec![EST_SERVER_CA_ID.to_owned()]
+                        vec![super::EST_SERVER_CA_ID.to_owned()]
                     },
                 };
 
@@ -600,8 +438,8 @@ fn run_inner(
                                     break est_id_pk_uri;
                                 }
                             };
-                            keyd_config.preloaded_keys.insert(EST_ID_ID.to_owned(), est_id_pk_uri.to_string());
-                            aziotcs_keys.keys.push(EST_ID_ID.to_owned());
+                            keyd_config.preloaded_keys.insert(super::EST_ID_ID.to_owned(), est_id_pk_uri.to_string());
+                            aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                             let est_id_cert_uri = loop {
                                 let est_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST ID certificate file.")?;
@@ -610,10 +448,10 @@ fn run_inner(
                                 }
                             };
                             let est_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_id_cert_uri);
-                            certd_config.preloaded_certs.insert(EST_ID_ID.to_owned(), est_id_cert_uri);
+                            certd_config.preloaded_certs.insert(super::EST_ID_ID.to_owned(), est_id_cert_uri);
 
                             Some(aziot_certd_config::EstAuthX509 {
-                                identity: (EST_ID_ID.to_owned(), EST_ID_ID.to_owned()),
+                                identity: (super::EST_ID_ID.to_owned(), super::EST_ID_ID.to_owned()),
                                 bootstrap_identity: None,
                             })
                         },
@@ -632,9 +470,9 @@ fn run_inner(
                                     break est_bootstrap_id_pk_uri;
                                 }
                             };
-                            keyd_config.preloaded_keys.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri.to_string());
-                            aziotcs_keys.keys.push(EST_BOOTSTRAP_ID.to_owned());
-                            aziotcs_keys.keys.push(EST_ID_ID.to_owned());
+                            keyd_config.preloaded_keys.insert(super::EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_pk_uri.to_string());
+                            aziotcs_keys.keys.push(super::EST_BOOTSTRAP_ID.to_owned());
+                            aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                             let est_bootstrap_id_cert_uri = loop {
                                 let est_bootstrap_id_cert_uri = prompt(stdin, "Enter the filesystem path of the EST bootstrap ID certificate file.")?;
@@ -643,11 +481,11 @@ fn run_inner(
                                 }
                             };
                             let est_bootstrap_id_cert_uri = aziot_certd_config::PreloadedCert::Uri(est_bootstrap_id_cert_uri);
-                            certd_config.preloaded_certs.insert(EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_cert_uri);
+                            certd_config.preloaded_certs.insert(super::EST_BOOTSTRAP_ID.to_owned(), est_bootstrap_id_cert_uri);
 
                             Some(aziot_certd_config::EstAuthX509 {
-                                identity: (EST_ID_ID.to_owned(), EST_ID_ID.to_owned()),
-                                bootstrap_identity: Some((EST_BOOTSTRAP_ID.to_owned(), EST_BOOTSTRAP_ID.to_owned())),
+                                identity: (super::EST_ID_ID.to_owned(), super::EST_ID_ID.to_owned()),
+                                bootstrap_identity: Some((super::EST_BOOTSTRAP_ID.to_owned(), super::EST_BOOTSTRAP_ID.to_owned())),
                             })
                         },
                     },
@@ -665,31 +503,32 @@ fn run_inner(
 
                     urls,
                 });
+
+                aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
             }
 
             None => (),
         }
 
-        certd_config
-    };
+        if !aziotid_certs.certs.is_empty() {
+            certd_config.principal.push(aziotid_certs);
+        }
 
-    let tpmd_config = aziot_tpmd_config::Config {
-        endpoints: Default::default(),
+        certd_config
     };
 
     if !aziotcs_keys.keys.is_empty() {
         keyd_config.principal.push(aziotcs_keys);
     }
 
-    let keyd_config =
-        toml::to_vec(&keyd_config).context("could not serialize aziot-keyd config")?;
-    let certd_config =
-        toml::to_vec(&certd_config).context("could not serialize aziot-certd config")?;
+    let tpmd_config = aziot_tpmd_config::Config {
+        endpoints: Default::default(),
+    };
 
     let identityd_config = {
         aziot_identityd_config::Settings {
             hostname,
-            homedir: AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
+            homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
             principal: vec![],
             provisioning: aziot_identityd_config::Provisioning {
                 always_reprovision_on_startup: true,
@@ -699,11 +538,6 @@ fn run_inner(
             localid: None,
         }
     };
-    let identityd_config =
-        toml::to_vec(&identityd_config).context("could not serialize aziot-identityd config")?;
-
-    let tpmd_config =
-        toml::to_vec(&tpmd_config).context("could not serialize aziot-certd config")?;
 
     Ok(RunOutput {
         keyd_config,
@@ -788,7 +622,7 @@ enum EstTrustedCert {
 /// because reading secrets (symmetric keys, etc) requires disabling echo on the tty directly which can't be done while stdin is locked.
 ///
 /// Making a trait also allows it to be mocked for tests where the input comes from files.
-trait Reader {
+pub trait Reader {
     /// Prints the given prompt string, reads a line from the user and appends the response to the given line buffer.
     ///
     /// Unlike `std::io::BufRead::read_line`, this does not include a trailing newline. Specifically, empty input is returned as an empty string.
@@ -802,8 +636,22 @@ trait Reader {
     fn read_secret(&mut self, prompt: &str, line: &mut String) -> std::io::Result<usize>;
 }
 
-struct Stdin {
+pub struct Stdin {
     editor: rustyline::Editor<StdinHelper>,
+}
+
+impl Default for Stdin {
+    fn default() -> Self {
+        let mut stdin = Stdin {
+            editor: rustyline::Editor::new(),
+        };
+
+        stdin.editor.set_helper(Some(StdinHelper {
+            reading_secret: false,
+        }));
+
+        stdin
+    }
 }
 
 impl Reader for Stdin {
@@ -907,11 +755,11 @@ impl rustyline::validate::Validator for StdinHelper {}
 
 impl rustyline::Helper for StdinHelper {}
 
-fn choose<'a, TChoice>(
+pub fn choose<'a, TChoice>(
     stdin: &mut impl Reader,
     question: &str,
     choices: &'a [TChoice],
-) -> Result<&'a TChoice>
+) -> anyhow::Result<&'a TChoice>
 where
     TChoice: std::fmt::Display,
 {
@@ -952,7 +800,7 @@ where
     }
 }
 
-fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String> {
+pub fn prompt(stdin: &mut impl Reader, question: &str) -> anyhow::Result<String> {
     println!("{}", question);
 
     let mut line = String::new();
@@ -969,7 +817,7 @@ fn prompt(stdin: &mut impl Reader, question: &str) -> Result<String> {
     }
 }
 
-fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String> {
+pub fn prompt_secret(stdin: &mut impl Reader, question: &str) -> anyhow::Result<String> {
     println!("{}", question);
 
     let mut line = String::new();
@@ -984,47 +832,6 @@ fn prompt_secret(stdin: &mut impl Reader, question: &str) -> Result<String> {
 
         return Ok(line);
     }
-}
-
-fn parse_manual_connection_string(
-    connection_string: &str,
-) -> Result<(String, String, Vec<u8>), String> {
-    const HOSTNAME_KEY: &str = "HostName";
-    const DEVICEID_KEY: &str = "DeviceId";
-    const SHAREDACCESSKEY_KEY: &str = "SharedAccessKey";
-
-    let mut iothub_hostname = None;
-    let mut device_id = None;
-    let mut symmetric_key = None;
-
-    for sections in connection_string.split(';') {
-        let mut parts = sections.split('=');
-        match parts
-            .next()
-            .expect("str::split always returns at least one part")
-        {
-            HOSTNAME_KEY => iothub_hostname = parts.next(),
-            DEVICEID_KEY => device_id = parts.next(),
-            SHAREDACCESSKEY_KEY => symmetric_key = parts.next(),
-            _ => (), // Ignore extraneous component in the connection string
-        }
-    }
-
-    let iothub_hostname = iothub_hostname.ok_or(r#"required parameter "HostName" is missing"#)?;
-
-    let device_id = device_id.ok_or(r#"required parameter "DeviceId" is missing"#)?;
-
-    let symmetric_key =
-        symmetric_key.ok_or(r#"required parameter "SharedAccessKey" is missing"#)?;
-    let symmetric_key =
-        base64::decode(symmetric_key)
-        .map_err(|err| format!(r#"connection string's "SharedAccessKey" parameter could not be decoded from base64: {}"#, err))?;
-
-    Ok((
-        iothub_hostname.to_owned(),
-        device_id.to_owned(),
-        symmetric_key,
-    ))
 }
 
 fn parse_preloaded_key_location(value: &str) -> Option<aziot_keys_common::PreloadedKeyLocation> {
@@ -1082,7 +889,7 @@ fn parse_cert_location(value: &str) -> Option<url::Url> {
 }
 
 /// Prompts the user to enter an EST server URL, and fixes it to have a "/.well-known/est" component if it doesn't already.
-fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> Result<url::Url> {
+fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> anyhow::Result<url::Url> {
     loop {
         let url = prompt(stdin, prompt_question)?;
         let url = if url.contains("/.well-known/est") {
@@ -1097,46 +904,6 @@ fn read_est_url(stdin: &mut impl Reader, prompt_question: &str) -> Result<url::U
             Err(err) => println!("Could not parse response as an http or https URL: {}", err),
         }
     }
-}
-
-fn create_dir_all(
-    path: &(impl AsRef<std::path::Path> + ?Sized),
-    user: &nix::unistd::User,
-    mode: u32,
-) -> Result<()> {
-    let path = path.as_ref();
-    let path_displayable = path.display();
-
-    let () = std::fs::create_dir_all(path)
-        .with_context(|| format!("could not create {} directory", path_displayable))?;
-    let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid))
-        .with_context(|| format!("could not set ownership on {} directory", path_displayable))?;
-    let () = std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(mode))
-        .with_context(|| {
-            format!(
-                "could not set permissions on {} directory",
-                path_displayable
-            )
-        })?;
-    Ok(())
-}
-
-fn write_file(
-    path: &(impl AsRef<std::path::Path> + ?Sized),
-    content: &[u8],
-    user: &nix::unistd::User,
-    mode: u32,
-) -> Result<()> {
-    let path = path.as_ref();
-    let path_displayable = path.display();
-
-    let () = std::fs::write(path, content)
-        .with_context(|| format!("could not create {}", path_displayable))?;
-    let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid))
-        .with_context(|| format!("could not set ownership on {}", path_displayable))?;
-    let () = std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(mode))
-        .with_context(|| format!("could not set permissions on {}", path_displayable))?;
-    Ok(())
 }
 
 #[cfg(test)]
@@ -1163,7 +930,7 @@ mod tests {
     #[test]
     fn test() {
         let files_directory =
-            std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/test-files/init"));
+            std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/test-files/wizard"));
         for entry in std::fs::read_dir(files_directory).unwrap() {
             let entry = entry.unwrap();
             if !entry.file_type().unwrap().is_dir() {
@@ -1179,11 +946,15 @@ mod tests {
             let mut input = Stdin(std::io::BufReader::new(
                 std::fs::File::open(case_directory.join("input.txt")).unwrap(),
             ));
-            let expected_keyd_config = std::fs::read(case_directory.join("keyd.toml")).unwrap();
-            let expected_certd_config = std::fs::read(case_directory.join("certd.toml")).unwrap();
-            let expected_identityd_config =
-                std::fs::read(case_directory.join("identityd.toml")).unwrap();
-            let expected_tpmd_config = std::fs::read(case_directory.join("tpmd.toml")).unwrap();
+
+            let expected_keyd_config = std::fs::read(case_directory.join("keyd.toml"))
+                .expect("could not deserialize expected aziot-keyd config");
+            let expected_certd_config = std::fs::read(case_directory.join("certd.toml"))
+                .expect("could not deserialize expected aziot-certd config");
+            let expected_identityd_config = std::fs::read(case_directory.join("identityd.toml"))
+                .expect("could not deserialize expected aziot-identityd config");
+            let expected_tpmd_config = std::fs::read(case_directory.join("tpmd.toml"))
+                .expect("could not deserialize expected aziot-tpmd config");
 
             let expected_preloaded_device_id_pk_bytes =
                 match std::fs::read(case_directory.join("device-id")) {
@@ -1193,8 +964,8 @@ mod tests {
                 };
 
             // Set arbitrary UIDs for the aziotcs and aziotks user. The UIDs of the test output must match these.
-            let aziotcs_user = 1000;
-            let aziotid_user = 1001;
+            let aziotcs_user = nix::unistd::Uid::from_raw(1000);
+            let aziotid_user = nix::unistd::Uid::from_raw(1001);
 
             let super::RunOutput {
                 keyd_config: actual_keyd_config,
@@ -1202,7 +973,16 @@ mod tests {
                 identityd_config: actual_identityd_config,
                 tpmd_config: actual_tpmd_config,
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
-            } = super::run_inner(&mut input, aziotcs_user, aziotid_user).unwrap();
+            } = super::run(&mut input, aziotcs_user, aziotid_user).unwrap();
+
+            let actual_keyd_config = toml::to_vec(&actual_keyd_config)
+                .expect("could not serialize actual aziot-keyd config");
+            let actual_certd_config = toml::to_vec(&actual_certd_config)
+                .expect("could not serialize actual aziot-certd config");
+            let actual_identityd_config = toml::to_vec(&actual_identityd_config)
+                .expect("could not serialize actual aziot-identityd config");
+            let actual_tpmd_config = toml::to_vec(&actual_tpmd_config)
+                .expect("could not serialize actual aziot-tpmd config");
 
             // Convert the four configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.
             // It doesn't matter for the device ID file since it's binary anyway.

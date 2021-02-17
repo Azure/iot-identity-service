@@ -8,10 +8,10 @@
     clippy::module_name_repetitions
 )]
 
-pub mod error;
-pub mod watcher;
+mod error;
+pub use crate::error::Error;
 
-use crate::error::{Error, ErrorKind};
+pub mod watcher;
 
 pub fn read_config<TConfig>(
     config_path: &std::path::Path,
@@ -20,21 +20,30 @@ pub fn read_config<TConfig>(
 where
     TConfig: serde::de::DeserializeOwned,
 {
-    let config = std::fs::read(config_path)
-        .map_err(|err| ErrorKind::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?;
-    let mut config: toml::Value = toml::from_slice(&config)
-        .map_err(|err| ErrorKind::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?;
+    let mut config: toml::Value = match std::fs::read(config_path) {
+        Ok(contents) => toml::from_slice(&contents)
+            .map_err(|err| Error::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            toml::Value::Table(Default::default())
+        }
+        Err(err) => {
+            return Err(Error::ReadConfig(
+                Some(config_path.to_owned()),
+                Box::new(err),
+            ));
+        }
+    };
 
     match std::fs::read_dir(config_directory_path) {
         Ok(entries) => {
             let mut patch_paths = vec![];
             for entry in entries {
                 let entry = entry.map_err(|err| {
-                    ErrorKind::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
+                    Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
                 })?;
 
                 let entry_file_type = entry.file_type().map_err(|err| {
-                    ErrorKind::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
+                    Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
                 })?;
                 if !entry_file_type.is_file() {
                     continue;
@@ -50,11 +59,10 @@ where
             patch_paths.sort();
 
             for patch_path in patch_paths {
-                let patch = std::fs::read(&patch_path).map_err(|err| {
-                    ErrorKind::ReadConfig(Some(patch_path.clone()), Box::new(err))
-                })?;
+                let patch = std::fs::read(&patch_path)
+                    .map_err(|err| Error::ReadConfig(Some(patch_path.clone()), Box::new(err)))?;
                 let patch: toml::Value = toml::from_slice(&patch)
-                    .map_err(|err| ErrorKind::ReadConfig(Some(patch_path), Box::new(err)))?;
+                    .map_err(|err| Error::ReadConfig(Some(patch_path), Box::new(err)))?;
                 merge_toml(&mut config, patch);
             }
         }
@@ -62,16 +70,15 @@ where
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
 
         Err(err) => {
-            return Err(ErrorKind::ReadConfig(
+            return Err(Error::ReadConfig(
                 Some(config_directory_path.to_owned()),
                 Box::new(err),
-            )
-            .into())
+            ))
         }
     }
 
     let config: TConfig = serde::Deserialize::deserialize(config)
-        .map_err(|err| ErrorKind::ReadConfig(None, Box::new(err)))?;
+        .map_err(|err| Error::ReadConfig(None, Box::new(err)))?;
 
     Ok(config)
 }
@@ -82,6 +89,7 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     // - Maps are called tables.
     // - There is no equivalent of null that can be used to remove keys from an object.
     // - Arrays are merged via concatenating the patch to the base, rather than replacing the base with the patch.
+    //   This is needed to make principals work; `[[principal]]` sections from multiple files need to be concatenated.
 
     if let toml::Value::Table(base) = base {
         if let toml::Value::Table(patch) = patch {

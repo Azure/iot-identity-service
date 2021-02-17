@@ -6,8 +6,4 @@ device-id = "file:///var/secrets/device-id.key.pem"
 
 [[principal]]
 uid = 1001
-keys = ["aziot_identityd_master_id"]
-
-[[principal]]
-uid = 1000
-keys = ["device-id"]
+keys = ["aziot_identityd_master_id", "device-id"]

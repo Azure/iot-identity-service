@@ -16,17 +16,18 @@ use structopt::StructOpt;
 
 mod internal;
 
+// Subcommands
 mod check;
 mod check_list;
-mod init;
+mod config;
 mod system;
 
 async fn try_main() -> Result<()> {
     let options = StructOpt::from_args();
     match options {
-        Options::Init => init::run()?,
         Options::Check(cfg) => check::check(cfg).await?,
         Options::CheckList(cfg) => check_list::check_list(cfg)?,
+        Options::Config(cfg) => config::run(cfg)?,
         Options::System(cfg) => system::system(cfg)?,
     }
 
@@ -42,8 +43,8 @@ async fn main() {
 
 #[derive(StructOpt)]
 enum Options {
-    /// Interactive wizard to get the Azure IoT Identity Service up and running.
-    Init,
+    /// Work with the configuration of the Azure IoT Identity Service and related services.
+    Config(config::Options),
 
     /// Check for common config and deployment issues.
     Check(check::CheckOptions),

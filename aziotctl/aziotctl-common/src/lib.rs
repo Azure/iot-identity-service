@@ -15,8 +15,10 @@
 
 use std::collections::BTreeMap;
 
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
+pub mod config;
 mod restart;
 mod set_log_level;
 mod status;
@@ -102,6 +104,20 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
         sockets: &["aziot-tpmd.socket"],
     },
 ];
+
+pub fn hostname() -> anyhow::Result<String> {
+    if cfg!(test) {
+        Ok("my-device".to_owned())
+    } else {
+        let mut hostname = vec![0_u8; 256];
+        let hostname =
+            nix::unistd::gethostname(&mut hostname).context("could not get machine hostname")?;
+        let hostname = hostname
+            .to_str()
+            .context("could not get machine hostname")?;
+        Ok(hostname.to_owned())
+    }
+}
 
 pub fn program_name() -> String {
     std::env::args_os()
