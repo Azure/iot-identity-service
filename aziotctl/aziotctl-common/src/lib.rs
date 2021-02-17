@@ -27,8 +27,6 @@ pub use set_log_level::set_log_level;
 pub use status::get_status;
 pub use system_logs::get_system_logs;
 
-pub use log::Level;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResultsSerializable {
     pub additional_info: serde_json::Value,

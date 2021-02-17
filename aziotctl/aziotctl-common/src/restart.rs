@@ -50,6 +50,7 @@ fn start(name: &str) -> Result<()> {
 }
 
 fn print_command_error(result: &std::process::Output) {
+    eprintln!("systemctl exited with non-zero status code.");
     eprintln!("stdout:");
     eprintln!("=======");
     io::stdout().write_all(&result.stdout).unwrap();

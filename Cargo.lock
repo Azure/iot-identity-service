@@ -551,6 +551,7 @@ dependencies = [
  "http-common",
  "hyper",
  "hyper-openssl",
+ "log",
  "mini-sntp",
  "nix",
  "openssl",
