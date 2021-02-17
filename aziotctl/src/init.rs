@@ -323,7 +323,11 @@ fn run_inner(
                     global_endpoint: DPS_GLOBAL_ENDPOINT.to_owned(),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
-                        registration_id: registration_id.is_empty().then(|| registration_id),
+                        registration_id: if registration_id.is_empty() {
+                            None
+                        } else {
+                            Some(registration_id)
+                        },
                         identity_cert: DEVICE_ID_ID.to_owned(),
                         identity_pk: DEVICE_ID_ID.to_owned(),
                     },
