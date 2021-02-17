@@ -546,7 +546,7 @@ dependencies = [
  "aziot-keyd-config",
  "aziot-keys-common",
  "aziot-tpmd-config",
- "aziotctl-check-common",
+ "aziotctl-common",
  "base64",
  "byte-unit",
  "bytes",
@@ -558,6 +558,7 @@ dependencies = [
  "hyper",
  "hyper-openssl",
  "libc",
+ "log",
  "mini-sntp",
  "nix",
  "openssl",
@@ -572,9 +573,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "aziotctl-check-common"
+name = "aziotctl-common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "log",
  "serde",
  "serde_json",
 ]

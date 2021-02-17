@@ -876,6 +876,15 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo usermod -aG aziotks aziot
     sudo usermod -aG aziotid aziot
 
+    >/tmp/principals.toml cat <<-EOF
+[[principal]]
+uid = $(id -u aziotid)
+keys = ["aziot_identityd_master_id", "device-id"]
+EOF
+    sudo mv /tmp/principals.toml /etc/aziot/keyd/config.d/principals.toml
+    sudo chown aziotks:aziotks /etc/aziot/keyd/config.d/principals.toml
+    sudo chmod 0600 /etc/aziot/keyd/config.d/principals.toml
+
     sudo mkdir -p /var/secrets/aziot/certd
     sudo chown aziotcs:aziotcs /var/secrets/aziot/certd
     sudo chmod 0700 /var/secrets/aziot/certd
