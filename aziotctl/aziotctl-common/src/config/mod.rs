@@ -2,6 +2,8 @@
 
 use anyhow::Context;
 
+pub mod apply;
+pub mod super_config;
 pub mod wizard;
 
 const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";

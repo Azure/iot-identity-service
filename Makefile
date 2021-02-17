@@ -328,6 +328,8 @@ install-common:
 	$(INSTALL_DATA) -D tpm/aziot-tpmd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.toml.default
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.d
 
+	$(INSTALL_DATA) -D aziotctl/config/unix/template.toml $(DESTDIR)$(sysconfdir)/aziot/config.toml.template
+
 	# Home directories
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/certd
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/identityd

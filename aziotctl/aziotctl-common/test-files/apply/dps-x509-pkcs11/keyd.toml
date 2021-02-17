@@ -1,0 +1,11 @@
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+pkcs11_base_slot = "pkcs11:slot-id=0?pin-value=1234"
+pkcs11_lib_path = "/usr/lib/libmypkcs11.so"
+
+[preloaded_keys]
+device-id = "pkcs11:slot-id=0;object=device%2Did?pin-value=1234"
+
+[[principal]]
+uid = 1001
+keys = ["aziot_identityd_master_id", "device-id"]

@@ -1,0 +1,8 @@
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+
+[[principal]]
+uid = 1001
+keys = ["aziot_identityd_master_id"]

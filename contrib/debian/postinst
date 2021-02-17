@@ -26,7 +26,7 @@ case "$1" in
 		chown aziottpm:aziottpm /etc/aziot/tpmd/config.toml.default
 		chown root:root /etc/aziot/config.toml.template
 		for f in \
-			/etc/aziot/{cert,identity,key,tpm}d/config.toml.default; do
+			/etc/aziot/{cert,identity,key,tpm}d/config.toml.default /etc/aziot/config.toml.template; do
 			chmod 0400 "$f"
 		done
 
