@@ -6,9 +6,10 @@ edition = "2018"
 
 
 [dependencies]
-http-common = { path = "../../http-common" }
+libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 
+http-common = { path = "../../http-common" }
 
 [dev-dependencies]
 toml = "0.5"

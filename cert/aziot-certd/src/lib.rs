@@ -11,6 +11,8 @@
     clippy::too_many_lines
 )]
 
+use async_trait::async_trait;
+
 mod error;
 use error::{Error, InternalError};
 
@@ -20,13 +22,15 @@ mod http;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuthBasic,
-    EstAuthX509, LocalCa, PreloadedCert,
+    EstAuthX509, LocalCa, PreloadedCert, Principal,
 };
+
+use config_common::watcher::UpdateConfig;
 
 pub async fn main(
     config: Config,
-    _: std::path::PathBuf,
-    _: std::path::PathBuf,
+    config_path: std::path::PathBuf,
+    config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
     let Config {
         homedir_path,
@@ -37,6 +41,7 @@ pub async fn main(
                 aziot_certd: connector,
                 aziot_keyd: key_connector,
             },
+        principal,
     } = config;
 
     let api = {
@@ -56,12 +61,15 @@ pub async fn main(
             homedir_path,
             cert_issuance,
             preloaded_certs,
+            principals: principal_to_map(principal),
 
             key_client,
             key_engine,
         }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+
+    config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
@@ -72,6 +80,7 @@ struct Api {
     homedir_path: std::path::PathBuf,
     cert_issuance: CertIssuance,
     preloaded_certs: std::collections::BTreeMap<String, PreloadedCert>,
+    principals: std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
@@ -83,8 +92,13 @@ impl Api {
         id: String,
         csr: Vec<u8>,
         issuer: Option<(String, aziot_key_common::KeyHandle)>,
+        user: libc::uid_t,
     ) -> Result<Vec<u8>, Error> {
         let mut this = this.lock().await;
+
+        if !this.authorize(user, &id) {
+            return Err(Error::Unauthorized(user, id));
+        }
 
         let x509 = create_cert(
             &mut *this,
@@ -99,7 +113,11 @@ impl Api {
         Ok(x509)
     }
 
-    pub fn import_cert(&mut self, id: &str, pem: &[u8]) -> Result<(), Error> {
+    pub fn import_cert(&mut self, id: &str, pem: &[u8], user: libc::uid_t) -> Result<(), Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_string()));
+        }
+
         let path =
             aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -114,7 +132,11 @@ impl Api {
         Ok(bytes)
     }
 
-    pub fn delete_cert(&mut self, id: &str) -> Result<(), Error> {
+    pub fn delete_cert(&mut self, id: &str, user: libc::uid_t) -> Result<(), Error> {
+        if !self.authorize(user, id) {
+            return Err(Error::Unauthorized(user, id.to_string()));
+        }
+
         let path =
             aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -123,6 +145,46 @@ impl Api {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(Error::Internal(InternalError::DeleteFile(err))),
         }
+    }
+
+    fn authorize(&self, user: libc::uid_t, id: &str) -> bool {
+        // Root user is always authorized.
+        if user == 0 {
+            return true;
+        }
+
+        // Authorize user based on stored principals config.
+        if let Some(certs) = self.principals.get(&user) {
+            return certs.iter().any(|cert| cert.is_match(id));
+        }
+
+        false
+    }
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = Config;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
+        log::info!("Detected change in config files. Updating config.");
+
+        // Don't allow changes to homedir path or endpoints while daemon is running.
+        // Only update other fields.
+        let Config {
+            homedir_path: _,
+            cert_issuance,
+            preloaded_certs,
+            endpoints: _,
+            principal,
+        } = new_config;
+        self.cert_issuance = cert_issuance;
+        self.preloaded_certs = preloaded_certs;
+        self.principals = principal_to_map(principal);
+
+        log::info!("Config update finished.");
+        Ok(())
     }
 }
 
@@ -753,4 +815,20 @@ fn get_cert_inner(
         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
     let bytes = load_inner(&path)?;
     Ok(bytes)
+}
+
+fn principal_to_map(
+    principal: Vec<Principal>,
+) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
+    principal
+        .into_iter()
+        .map(|principal| {
+            let certs = principal
+                .certs
+                .into_iter()
+                .map(|cert| wildmatch::WildMatch::new(&cert))
+                .collect();
+            (principal.uid, certs)
+        })
+        .collect()
 }

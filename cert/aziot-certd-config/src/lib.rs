@@ -30,6 +30,16 @@ pub struct Config {
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
+
+    /// Authorized Unix users and the corresponding certificate IDs.
+    ///
+    /// A Unix user with the given UID is granted write access to the certificate IDs
+    /// specified. Wildcards may be used for certificate IDs.
+    ///
+    /// This authorization only affects write access. Read access for all certificate IDs is
+    /// granted to all users.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub principal: Vec<Principal>,
 }
 
 /// Configuration of how new certificates should be issued.
@@ -305,6 +315,16 @@ impl Default for Endpoints {
     }
 }
 
+/// Map of a Unix UID to certificate IDs with write access.
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Principal {
+    /// Unix UID.
+    pub uid: libc::uid_t,
+
+    /// Certificate IDs for which the given UID has write access. Wildcards may be used.
+    pub certs: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -340,6 +360,10 @@ est-ca = "file:///var/secrets/est-ca.cer"
 trust-bundle = [
 	"est-ca",
 ]
+
+[[principal]]
+uid = 1000
+certs = ["test"]
 "#;
 
         let actual: super::Config = toml::from_str(actual).unwrap();
@@ -461,6 +485,11 @@ trust-bundle = [
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: vec![super::Principal {
+                    uid: 1000,
+                    certs: vec!["test".to_string()]
+                }],
             }
         );
     }
@@ -494,6 +523,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
+
+                principal: Default::default(),
             }
         );
     }

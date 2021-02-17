@@ -1,6 +1,10 @@
 # Configuring and running `aziot-keyd`
 
-A basic configuration looks like:
+Configuration consists of the main config file (default `/etc/aziot/keyd/config.toml`) and any number of principal files in the config directory (`/etc/aziot/keyd/config.d`).
+
+The main config file and all files in the config directory must be readable by the user you will run the service as. The default main config file and config directory can be overridden with the environment variables `AZIOT_KEYD_CONFIG` and `AZIOT_KEYD_CONFIG_DIR`, respectively.
+
+Example main config file:
 
 ```toml
 [aziot_keys]
@@ -9,6 +13,14 @@ A basic configuration looks like:
 
 [endpoints]
 aziot_keyd = "unix:///run/aziot/keyd.sock"
+```
+
+Example principal file in config directory:
+
+```toml
+[[principal]]
+uid = 1000
+keys = ["example"]
 ```
 
 - `[aziot_keys]` - This section contains arbitrary key-value pairs of string type that are passed down to the `libaziot_keys.so` library. The names and values of these parameters depend on the library.
@@ -57,6 +69,8 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
+- `[[principal]]` - Principals provide a list of users and keys they are authorized to access. See [API authorization](https://azure.github.io/iot-identity-service/keys-service.html#api-authentication) for more information.
+
 Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 
 1. Set `aziot_keys.homedir_path`
@@ -92,25 +106,64 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
 1. Preload private keys for certs, corresponding to the auth method of the device identity:
 
-    - If the device identity is set to use the `shared_private_key` auth method, there are no keys to be preloaded.
+    - If the device identity is set to use the `sas` auth method, preload the device ID key.
 
-    - If the device identity is set to use the `x509_thumbprint` auth method, preload the private key of the device ID cert:
+        `/etc/aziot/keyd/config.toml`
 
         ```toml
         [preloaded_keys]
         device-id = "file:///path/to/device-id.key.pem"
         ```
 
+        You must also grant IS access to this key.
+
+        `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
+        ```toml
+        [[principal]]
+        uid = 123 # Replace with output of `id -u aziotid`
+        keys = ["device-id"]
+        ```
+
+    - If the device identity is set to use the `x509_thumbprint` auth method, preload the private key of the device ID cert:
+
+        `/etc/aziot/keyd/config.toml`
+
+        ```toml
+        [preloaded_keys]
+        device-id = "file:///path/to/device-id.key.pem"
+        ```
+
+        You must also grant IS access to this key.
+
+        `/etc/aziot/keyd/config.d/identityd-principal.toml`
+
+        ```toml
+        [[principal]]
+        uid = 123 # Replace with output of `id -u aziotid`
+        keys = ["device-id"]
+        ```
+
     - If the device identity is set to use the `x509_ca` auth method, preload the private key of the device ID CA cert:
+
+        `/etc/aziot/keyd/config.toml`
 
         ```toml
         [preloaded_keys]
         device-id-ca = "file:///path/to/device-id-ca.key.pem"
         ```
 
-    For `x509_thumbprint` and `x509_ca`, if the keys are backed by hardware, use a `pkcs11:` URI instead of a `file://` URI.
+        You must also grant CS access to this key.
 
-1. Save this file to any location that is readable by the user you will run the service as. The service looks for this file by default at `/etc/aziot/keyd/config.toml`, but it can be given a different path by setting the `AZIOT_KEYD_CONFIG` env var.
+        `/etc/aziot/keyd/config.d/certd-principal.toml`
+
+        ```toml
+        [[principal]]
+        uid = 123 # Replace with output of `id -u aziotcs`
+        keys = ["device-id-ca"]
+        ```
+
+    For `x509_thumbprint` and `x509_ca`, if the keys are backed by hardware, use a `pkcs11:` URI instead of a `file://` URI.
 
 1. If you're using PKCS#11 and specifically the `tpm2-pkcs11` library, remember to also export the `TPM2_PKCS11_STORE` env var.
 
@@ -120,7 +173,7 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
 1. Create the `/run/aziot` directory if it doesn't already exist, and make sure it's readable and writable by the user you will run the service as.
 
-1. Run the service, setting the `AZIOT_KEYD_CONFIG` env var if necessary.
+1. Run the service, setting the `AZIOT_KEYD_CONFIG` and `AZIOT_KEYD_CONFIG_DIR` env vars if necessary.
 
     ```sh
     export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/target/x86_64-unknown-linux-gnu/debug"
@@ -128,6 +181,8 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
     export AZIOT_LOG=aziot=debug
 
     export AZIOT_KEYD_CONFIG='...'
+
+    export AZIOT_KEYD_CONFIG_DIR='...'
 
     cargo run --target x86_64-unknown-linux-gnu -p aziotd -- aziot-keyd
     ```

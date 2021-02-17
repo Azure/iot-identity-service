@@ -101,7 +101,7 @@ impl Tpm {
 
         // ensure that calls to `aziot_tpm_create` are serialized
         let handle = {
-            let _guard = TPM_CREATE_GUARD.lock();
+            let _guard = TPM_CREATE_GUARD.lock().expect("failed to lock TPM mutex");
             unsafe { aziot_tpm_create() }
         };
 
