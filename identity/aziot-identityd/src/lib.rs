@@ -80,7 +80,7 @@ pub async fn main(
     let mut api_ = api_startup.lock().await;
     let _ = api_
         .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
-        .await;
+        .await?;
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
@@ -371,7 +371,7 @@ impl Api {
         let _ = match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
+                    .provision_device(self.settings.provisioning.clone(), false)
                     .await?
             }
             ReprovisionTrigger::Api => {
@@ -506,8 +506,16 @@ impl UpdateConfig for Api {
     type Error = Error;
 
     async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
+        // Abort if config update fails. Identity Service config updates may require reprovisioning
+        // with IoT Hub and updating Hub identities. If reprovisioning fails, IS cannot fall back on
+        // the old config because the old config may no longer be valid (e.g. the user created a new
+        // IoT Hub and deleted the old one). So, IS will abort and the user will need to fix the config
+        // and restart IS.
         self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
             .await
+            .expect("failed to reprovision");
+
+        Ok(())
     }
 }
 

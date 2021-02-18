@@ -69,8 +69,11 @@ pub fn start_watcher<TApi>(
                 }
             };
 
-            let mut api_ = api.lock().await;
-            let _ = api_.update_config(new_config).await;
+            let mut api = api.lock().await;
+
+            if let Err(err) = api.update_config(new_config).await {
+                log::warn!("Config update failed. Error: {}", err);
+            }
         }
     });
 }
