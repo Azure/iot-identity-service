@@ -208,11 +208,9 @@ fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
                     .decode_utf8()
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-                typed_headers::Credentials::basic(&username, &password)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+                headers::Authorization::basic(&username, &password)
             }
-            None => typed_headers::Credentials::basic(&username, "")
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+            None => headers::Authorization::basic(&username, ""),
         };
         proxy.set_authorization(credentials);
     }
