@@ -103,6 +103,7 @@ pub struct Api {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -150,6 +151,9 @@ impl Api {
             tpm_client
         };
 
+        let proxy_uri = http_common::get_proxy_uri(None)
+            .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
         let id_manager = identity::IdentityManager::new(
             settings.homedir.clone(),
             key_client.clone(),
@@ -157,6 +161,7 @@ impl Api {
             cert_client.clone(),
             tpm_client.clone(),
             None,
+            proxy_uri.clone(),
         );
 
         Ok(Api {
@@ -170,6 +175,7 @@ impl Api {
             key_engine,
             cert_client,
             tpm_client,
+            proxy_uri,
         })
     }
 
