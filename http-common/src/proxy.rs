@@ -2,9 +2,9 @@
 
 use std::env;
 use std::future::Future;
-use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::{io, io::IoSlice};
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -41,6 +41,24 @@ where
         match &mut *self {
             MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_write(ctx, buf),
             MaybeProxyStream::Proxy(s) => Pin::new(s).poll_write(ctx, buf),
+        }
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<Result<usize, io::Error>> {
+        match &mut *self {
+            MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_write_vectored(cx, bufs),
+            MaybeProxyStream::Proxy(s) => Pin::new(s).poll_write_vectored(cx, bufs),
+        }
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        match self {
+            MaybeProxyStream::NoProxy(s) => s.is_write_vectored(),
+            MaybeProxyStream::Proxy(s) => s.is_write_vectored(),
         }
     }
 
@@ -151,40 +169,30 @@ where
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        let poll_status = match self {
-            MaybeProxyConnector::NoProxy(https_connector) => https_connector
+        match self {
+            MaybeProxyConnector::NoProxy(c) => c
                 .poll_ready(cx)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
-            MaybeProxyConnector::Proxy(proxy_connector) => proxy_connector.poll_ready(cx),
-        };
-
-        match poll_status {
-            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-            Poll::Ready(Err(e)) => Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e))),
-            Poll::Pending => Poll::Pending,
+            MaybeProxyConnector::Proxy(c) => c.poll_ready(cx),
         }
     }
 
     fn call(&mut self, req: http::uri::Uri) -> Self::Future {
         match self {
-            MaybeProxyConnector::NoProxy(https_connector) => {
-                let mut https_connector_clone = https_connector.clone();
-                Box::pin(async move {
-                    let stream = https_connector_clone
-                        .call(req)
+            MaybeProxyConnector::NoProxy(c) => {
+                let stream = c.call(req);
+                Box::pin(async {
+                    let stream = stream
                         .await
                         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
                     Ok(MaybeProxyStream::NoProxy(stream))
                 })
             }
-            MaybeProxyConnector::Proxy(proxy_connector) => {
-                let mut proxy_connector_clone = proxy_connector.clone();
-                Box::pin(async move {
-                    let stream = proxy_connector_clone
-                        .call(req)
-                        .await
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            MaybeProxyConnector::Proxy(c) => {
+                let stream = c.call(req);
+                Box::pin(async {
+                    let stream = stream.await?;
 
                     Ok(MaybeProxyStream::Proxy(stream))
                 })

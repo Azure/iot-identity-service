@@ -115,7 +115,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
- "base64 0.13.0",
+ "base64",
  "config-common",
  "foreign-types-shared",
  "futures-util",
@@ -161,8 +161,8 @@ dependencies = [
  "aziot-key-client-async",
  "aziot-key-common",
  "aziot-tpm-client-async",
- "base64 0.13.0",
- "bytes 1.0.1",
+ "base64",
+ "bytes",
  "chrono",
  "http",
  "http-common",
@@ -188,8 +188,8 @@ dependencies = [
  "aziot-key-common",
  "aziot-tpm-client-async",
  "aziot-tpm-common",
- "base64 0.13.0",
- "bytes 1.0.1",
+ "base64",
+ "bytes",
  "chrono",
  "futures-util",
  "http",
@@ -217,7 +217,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-tpm-client-async",
  "aziot-tpm-common",
- "base64 0.13.0",
+ "base64",
  "chrono",
  "futures-util",
  "http",
@@ -354,7 +354,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-client",
  "aziot-key-common",
- "base64 0.13.0",
+ "base64",
  "foreign-types-shared",
  "log",
  "openssl",
@@ -406,7 +406,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-keyd-config",
- "base64 0.13.0",
+ "base64",
  "config-common",
  "futures-util",
  "http",
@@ -545,9 +545,9 @@ dependencies = [
  "aziot-keys-common",
  "aziot-tpmd-config",
  "aziotctl-common",
- "base64 0.13.0",
+ "base64",
  "byte-unit",
- "bytes 1.0.1",
+ "bytes",
  "chrono",
  "colored",
  "derive_more",
@@ -614,12 +614,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
-
-[[package]]
-name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
@@ -680,12 +674,6 @@ name = "byteorder"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
-
-[[package]]
-name = "bytes"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
 
 [[package]]
 name = "bytes"
@@ -1164,9 +1152,9 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62689dc57c7456e69712607ffcbd0aa1dfcccf9af73727e9b25bc1825375cac3"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "bitflags",
- "bytes 1.0.1",
+ "bytes",
  "headers-core",
  "http",
  "mime",
@@ -1223,7 +1211,7 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7245cd7449cc792608c3c8a9eaf69bd4eabbabf802713748fd739c98b82f0747"
 dependencies = [
- "bytes 1.0.1",
+ "bytes",
  "fnv",
  "itoa",
 ]
@@ -1234,7 +1222,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2861bd27ee074e5ee891e8b539837a9430012e249d7f0ca2d795650f579c1994"
 dependencies = [
- "bytes 1.0.1",
+ "bytes",
  "http",
 ]
 
@@ -1243,7 +1231,7 @@ name = "http-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "base64 0.13.0",
+ "base64",
  "futures-util",
  "headers",
  "http",
@@ -1258,7 +1246,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "typed-headers",
  "url",
 ]
 
@@ -1286,7 +1273,7 @@ version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8e946c2b1349055e0b72ae281b238baf1a3ea7307c7e9f9d64673bdd9c26ac7"
 dependencies = [
- "bytes 1.0.1",
+ "bytes",
  "futures-channel",
  "futures-core",
  "futures-util",
@@ -1326,7 +1313,7 @@ name = "hyper-proxy"
 version = "0.8.0"
 source = "git+https://github.com/Azure/hyper-proxy.git#1d30a8826ddb78f75bfc3e3ae1369ec1d502a928"
 dependencies = [
- "bytes 1.0.1",
+ "bytes",
  "futures",
  "headers",
  "http",
@@ -1388,7 +1375,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
- "base64 0.13.0",
+ "base64",
  "chrono",
  "foreign-types-shared",
  "http-common",
@@ -2275,7 +2262,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8190d04c665ea9e6b6a0dc45523ade572c088d2e6566244c1122671dbf4ae3a"
 dependencies = [
  "autocfg",
- "bytes 1.0.1",
+ "bytes",
  "libc",
  "memchr",
  "mio 0.7.7",
@@ -2353,19 +2340,6 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
-
-[[package]]
-name = "typed-headers"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3179a61e9eccceead5f1574fd173cf2e162ac42638b9bf214c6ad0baf7efa24a"
-dependencies = [
- "base64 0.11.0",
- "bytes 0.5.6",
- "chrono",
- "http",
- "mime",
-]
 
 [[package]]
 name = "typenum"
