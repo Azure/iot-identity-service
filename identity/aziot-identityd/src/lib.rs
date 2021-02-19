@@ -370,8 +370,10 @@ impl Api {
 
         let _ = match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
+                // For now, skip reprovisioning if there's a valid backup. This means config file
+                // updates will only reconcile identities.
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), false)
+                    .provision_device(self.settings.provisioning.clone(), true)
                     .await?
             }
             ReprovisionTrigger::Api => {
@@ -506,11 +508,9 @@ impl UpdateConfig for Api {
     type Error = Error;
 
     async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
-        // Abort if config update fails. Identity Service config updates may require reprovisioning
-        // with IoT Hub and updating Hub identities. If reprovisioning fails, IS cannot fall back on
-        // the old config because the old config may no longer be valid (e.g. the user created a new
-        // IoT Hub and deleted the old one). So, IS will abort and the user will need to fix the config
-        // and restart IS.
+        // Abort if update fails; i.e. if reconciling identities fails. This may happen if there's
+        // an error in the config or IoT Hub. The user will have to fix the config or IoT Hub and
+        // restart IS.
         self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
             .await
             .expect("failed to reprovision");
