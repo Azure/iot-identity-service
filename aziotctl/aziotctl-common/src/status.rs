@@ -51,7 +51,7 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
         let name = program_name();
         println!();
         println!();
-        println!("Note: inactive services are considered OK, while inactive sockets are considered failed. This is because services will be inactive if not in use.");
+        println!("Note: inactive services with active sockets are considered OK, while inactive sockets or services with no sockets to start them are considered failed. This is because services can be inactive if not in use.");
         println!("For more detailed logs, use the `{} system logs` command. If the logs do not contain enough information, consider setting debug logs using `{} system set-log-level`.", name, name);
     } else {
         println!("Ok");
@@ -124,8 +124,13 @@ struct ServiceStatus<'a> {
 
 impl<'a> ServiceStatus<'a> {
     fn ok(&self) -> bool {
-        // If status is not failed and there are no sockets that are not ok
-        !matches!(self.service_status, Status::Failed(_)) && !self.sockets.iter().any(|s| !s.ok())
+        if self.sockets.is_empty() {
+            self.service_status == Status::Active
+        } else {
+            // If status is not failed and there are no sockets that are not ok
+            !matches!(self.service_status, Status::Failed(_))
+                && !self.sockets.iter().any(|s| !s.ok())
+        }
     }
 }
 
