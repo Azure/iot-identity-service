@@ -514,14 +514,8 @@ impl UpdateConfig for Api {
     type Error = Error;
 
     async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
-        // Abort if update fails; i.e. if reconciling identities fails. This may happen if there's
-        // an error in the config or IoT Hub. The user will have to fix the config or IoT Hub and
-        // restart IS.
         self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
             .await
-            .expect("failed to reprovision");
-
-        Ok(())
     }
 }
 
