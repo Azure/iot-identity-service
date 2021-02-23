@@ -79,7 +79,6 @@ and at the end you would have these files under `~/src/iot-identity-service/pack
 ```
 centos7/amd64/aziot-identity-service-1.1.0-0.src.rpm
 centos7/amd64/aziot-identity-service-1.1.0-0.x86_64.rpm
-centos7/amd64/aziot-identity-service-debuginfo-1.1.0-0.x86_64.rpm
 centos7/amd64/aziot-identity-service-devel-1.1.0-0.x86_64.rpm
 ```
 
@@ -87,7 +86,6 @@ These files in order are:
 
 1. The source package. This contains the contents of this repository but pre-processed for CentOS 7-specific customizations. The other packages were built from this package.
 1. The binary package. This is the package a user would install on their device.
-1. The debug symbols package. A developer would need this package to debug coredumps generated from services in the corresponding binary package.
 1. A devel package containing the `aziot-keys.h` C header, which contains the API definitions of `libaziot_keys.so`. A user would install this package if they wanted to make their own implementation of `libaziot_keys.so`. It's not needed for a production device.
 
 

@@ -9,6 +9,7 @@ lazy_static::lazy_static! {
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     cert_id: String,
+    user: libc::uid_t,
 }
 
 #[async_trait::async_trait]
@@ -23,7 +24,7 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-        _extensions: &http::Extensions,
+        extensions: &http::Extensions,
     ) -> Option<Self> {
         let captures = URI_REGEX.captures(path)?;
 
@@ -32,9 +33,12 @@ impl http_common::server::Route for Route {
             .decode_utf8()
             .ok()?;
 
+        let uid = extensions.get::<libc::uid_t>().copied()?;
+
         Some(Route {
             api: service.api.clone(),
             cert_id: cert_id.into_owned(),
+            user: uid,
         })
     }
 
@@ -47,7 +51,7 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        if let Err(err) = api.delete_cert(&self.cert_id) {
+        if let Err(err) = api.delete_cert(&self.cert_id, self.user) {
             return Err(super::to_http_error(&err));
         }
 
@@ -83,7 +87,7 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        match api.import_cert(&self.cert_id, &body.pem.0) {
+        match api.import_cert(&self.cert_id, &body.pem.0, self.user) {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
         };

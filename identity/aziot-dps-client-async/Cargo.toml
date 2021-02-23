@@ -13,7 +13,6 @@ chrono = "0.4"
 futures-util = "0.3"
 http = "0.2"
 hyper = "0.14"
-hyper-openssl = "0.9"
 log = "0.4"
 openssl = "0.10"
 percent-encoding = "2"
@@ -28,5 +27,5 @@ aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common = { path = "../../tpm/aziot-tpm-common" }
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }

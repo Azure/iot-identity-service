@@ -2,10 +2,30 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::let_unit_value,
+    clippy::module_name_repetitions,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::type_complexity,
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
+)]
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+
+mod restart;
+mod set_log_level;
+mod status;
+mod system_logs;
+
+pub use restart::restart;
+pub use set_log_level::set_log_level;
+pub use status::get_status;
+pub use system_logs::get_system_logs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResultsSerializable {
@@ -57,3 +77,35 @@ pub struct CheckerMetaSerializable {
 
 /// Keys are section names
 pub type CheckListOutput = BTreeMap<String, Vec<CheckerMetaSerializable>>;
+
+pub struct ServiceDefinition {
+    pub service: &'static str,
+    pub sockets: &'static [&'static str],
+}
+
+// Note, the ordering is important, since the first service is considered the root and will be started by the restart command.
+pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
+    &ServiceDefinition {
+        service: "aziot-identityd.service",
+        sockets: &["aziot-identityd.socket"],
+    },
+    &ServiceDefinition {
+        service: "aziot-keyd.service",
+        sockets: &["aziot-keyd.socket"],
+    },
+    &ServiceDefinition {
+        service: "aziot-certd.service",
+        sockets: &["aziot-certd.socket"],
+    },
+    &ServiceDefinition {
+        service: "aziot-tpmd.service",
+        sockets: &["aziot-tpmd.socket"],
+    },
+];
+
+pub fn program_name() -> String {
+    std::env::args_os()
+        .next()
+        .and_then(|arg| arg.into_string().ok())
+        .unwrap_or_else(|| "<current program>".to_owned())
+}

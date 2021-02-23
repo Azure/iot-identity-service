@@ -96,6 +96,7 @@ openssl req \
     -x509 \
     -newkey rsa:4096 -keyout device-id-root.key.pem -nodes \
     -out device-id-root.pem \
+    -subj '/CN=device-id-root' \
     -days 365
 
 # Upload root CA to IoT Hub
@@ -127,8 +128,6 @@ echo "$verification_code"
 
 # Generate CSR for verification cert and sign it
 # with the root CA to get the verification cert.
-#
-# Set CN to `$verificationCode` (printed above) when prompted.
 rm -f \
     device-id-root-verify.key.pem \
     device-id-root-verify.csr \
@@ -136,6 +135,7 @@ rm -f \
 openssl req \
     -newkey rsa:2048 -keyout device-id-root-verify.key.pem -nodes \
     -out device-id-root-verify.csr \
+    -subj "/CN=$verification_code" \
     -days 1
 openssl x509 -req \
     -in device-id-root-verify.csr \
@@ -176,6 +176,7 @@ rm -f \
 openssl req \
     -newkey rsa:2048 -keyout device-id.key.pem -nodes \
     -out device-id.csr \
+    -subj "/CN=$IOT_DEVICE_ID" \
     -days 1
 openssl x509 -req \
     -in device-id.csr \
