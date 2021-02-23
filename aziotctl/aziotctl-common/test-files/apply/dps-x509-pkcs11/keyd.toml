@@ -7,5 +7,5 @@ pkcs11_lib_path = "/usr/lib/libmypkcs11.so"
 device-id = "pkcs11:slot-id=0;object=device%2Did?pin-value=1234"
 
 [[principal]]
-uid = 1001
+uid = 5557
 keys = ["aziot_identityd_master_id", "device-id"]

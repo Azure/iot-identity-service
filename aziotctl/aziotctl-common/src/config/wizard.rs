@@ -26,14 +26,14 @@ pub struct RunOutput {
 /// Returns the KS/CS/IS configs, and optionally the contents of a new /var/secrets/aziot/keyd/device-id file to hold the device ID symmetric key.
 pub fn run(
     stdin: &mut impl Reader,
-    aziotcs_user: nix::unistd::Uid,
-    aziotid_user: nix::unistd::Uid,
+    aziotcs_uid: nix::unistd::Uid,
+    aziotid_uid: nix::unistd::Uid,
 ) -> anyhow::Result<RunOutput> {
     let hostname = crate::hostname()?;
 
     // Authorization of IS with KS.
     let mut aziotid_keys = aziot_keyd_config::Principal {
-        uid: aziotid_user.as_raw(),
+        uid: aziotid_uid.as_raw(),
         keys: vec!["aziot_identityd_master_id".to_owned()],
     };
 
@@ -171,7 +171,7 @@ pub fn run(
 
     // Authorization of CS with KS.
     let mut aziotcs_keys = aziot_keyd_config::Principal {
-        uid: aziotcs_user.as_raw(),
+        uid: aziotcs_uid.as_raw(),
         keys: vec![],
     };
 
@@ -283,7 +283,7 @@ pub fn run(
 
     // Authorization of IS with CS.
     let mut aziotid_certs = aziot_certd_config::Principal {
-        uid: aziotid_user.as_raw(),
+        uid: aziotid_uid.as_raw(),
         certs: vec![],
     };
 
@@ -964,8 +964,8 @@ mod tests {
                 };
 
             // Set arbitrary UIDs for the aziotcs and aziotks user. The UIDs of the test output must match these.
-            let aziotcs_user = nix::unistd::Uid::from_raw(1000);
-            let aziotid_user = nix::unistd::Uid::from_raw(1001);
+            let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
+            let aziotid_uid = nix::unistd::Uid::from_raw(5557);
 
             let super::RunOutput {
                 keyd_config: actual_keyd_config,
@@ -973,7 +973,7 @@ mod tests {
                 identityd_config: actual_identityd_config,
                 tpmd_config: actual_tpmd_config,
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
-            } = super::run(&mut input, aziotcs_user, aziotid_user).unwrap();
+            } = super::run(&mut input, aziotcs_uid, aziotid_uid).unwrap();
 
             let actual_keyd_config = toml::to_vec(&actual_keyd_config)
                 .expect("could not serialize actual aziot-keyd config");

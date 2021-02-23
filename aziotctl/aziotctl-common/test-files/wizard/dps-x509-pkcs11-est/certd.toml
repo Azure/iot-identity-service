@@ -19,5 +19,5 @@ est-id = "file:///var/secrets/est-id.pem"
 est-server-ca = "file:///var/secrets/est-id-ca.pem"
 
 [[principal]]
-uid = 1001
+uid = 5557
 certs = ["device-id"]

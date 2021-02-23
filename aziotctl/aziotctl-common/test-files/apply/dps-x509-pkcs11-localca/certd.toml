@@ -11,5 +11,5 @@ common_name = "my-device"
 local-ca = "file:///var/secrets/local-ca.pem"
 
 [[principal]]
-uid = 1001
+uid = 5557
 certs = ["device-id"]

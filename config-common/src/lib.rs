@@ -11,6 +11,7 @@
 mod error;
 pub use crate::error::Error;
 
+#[cfg(feature = "watcher")]
 pub mod watcher;
 
 pub fn read_config<TConfig>(

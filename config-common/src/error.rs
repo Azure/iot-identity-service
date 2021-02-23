@@ -2,7 +2,10 @@
 
 #[derive(Debug)]
 pub enum Error {
-    ReadConfig(Option<std::path::PathBuf>, Box<dyn std::error::Error>),
+    ReadConfig(
+        Option<std::path::PathBuf>,
+        Box<dyn std::error::Error + Send + Sync>,
+    ),
 }
 
 impl std::fmt::Display for Error {

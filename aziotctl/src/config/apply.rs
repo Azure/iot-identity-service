@@ -1,7 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-//! This subcommand takes the specific super-config file, converts it into the individual services' config files,
+//! This subcommand takes the super-config file, converts it into the individual services' config files,
 //! writes those files, and restarts the services.
+//!
+//! Note:
+//!
+//! Inline provisioning symmetric keys are saved to `/var/secrets/aziot/keyd/device-id` in order to be preloaded into the KS.
+//! This command creates the directory structure and ACLs the directory and the file to the KS user.
 
 use anyhow::{anyhow, Context};
 
@@ -75,7 +80,7 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
     let identityd_config =
         toml::to_vec(&identityd_config).context("could not serialize aziot-identityd config")?;
     let tpmd_config =
-        toml::to_vec(&tpmd_config).context("could not serialize aziot-certd config")?;
+        toml::to_vec(&tpmd_config).context("could not serialize aziot-tpmd config")?;
 
     if let Some(preloaded_device_id_pk_bytes) = preloaded_device_id_pk_bytes {
         println!("Note: Symmetric key will be written to /var/secrets/aziot/keyd/device-id");
@@ -117,7 +122,7 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
         0o0600,
     )?;
 
-    println!("aziot-identity-service has been configured successfully!");
+    println!("Azure IoT Identity Service has been configured successfully!");
 
     // TODO: `aziotctl system restart`
 

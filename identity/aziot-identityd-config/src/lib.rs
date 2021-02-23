@@ -12,16 +12,17 @@ pub struct Settings {
 
     pub homedir: std::path::PathBuf,
 
+    pub provisioning: Provisioning,
+
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub principal: Vec<Principal>,
-
-    pub provisioning: Provisioning,
 
     /// Only configurable in debug builds for the sake of tests.
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub localid: Option<LocalId>,
 }
 
