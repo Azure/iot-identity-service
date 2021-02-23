@@ -80,7 +80,7 @@ pub async fn main(
     let mut api_ = api_startup.lock().await;
     let _ = api_
         .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
-        .await;
+        .await?;
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
@@ -376,6 +376,8 @@ impl Api {
 
         let _ = match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
+                // For now, skip reprovisioning if there's a valid backup. This means config file
+                // updates will only reconcile identities.
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), true)
                     .await?
