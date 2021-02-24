@@ -1,6 +1,6 @@
 5
 0ab1234C5D6
-my-symmkey-devices
+my-device
 1
 /usr/lib/libmypkcs11.so
 pkcs11:slot-id=0?pin-value=1234
