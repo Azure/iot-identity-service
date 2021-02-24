@@ -2,7 +2,7 @@
 # Hostname
 # ==============================================================================
 #
-# Comment out the next line to override the default hostname of this device.
+# Uncomment the next line to override the default hostname of this device.
 #
 # hostname = "my-device"
 
@@ -11,7 +11,7 @@
 # Provisioning
 # ==============================================================================
 #
-# Comment out one block and replace the stub values with yours.
+# Uncomment one block and replace the stub values with yours.
 
 
 ## Manual provisioning with connection string
