@@ -24,22 +24,24 @@ pub fn start_watcher<TApi>(
     // since the message is resent to file change receiver using a blocking send.
     // When the number of messages is set to 1, then main thread appears to block.
     let (file_changed_tx, mut file_changed_rx) = tokio::sync::mpsc::channel(2);
-    
+
     let config_path_clone = config_path.clone();
     let config_directory_path_clone = config_directory_path.clone();
+
     // Start file change listener that asynchronously updates service config.
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
-            let new_config = match crate::read_config(&config_path_clone, &config_directory_path_clone) {
-                Ok(config) => config,
-                Err(err) => {
-                    log::warn!(
+            let new_config =
+                match crate::read_config(&config_path_clone, &config_directory_path_clone) {
+                    Ok(config) => config,
+                    Err(err) => {
+                        log::warn!(
                         "Detected config file update, but new config failed to parse. Error: {}",
                         err
                     );
-                    continue;
-                }
-            };
+                        continue;
+                    }
+                };
 
             let mut api = api.lock().await;
 
@@ -48,7 +50,7 @@ pub fn start_watcher<TApi>(
             }
         }
     });
-    
+
     // Start file watcher using blocking channel.
     std::thread::spawn({
         move || {
