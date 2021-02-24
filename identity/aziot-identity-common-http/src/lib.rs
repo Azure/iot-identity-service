@@ -6,12 +6,14 @@
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2020_09_01,
+    V2020_12_10,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             ApiVersion::V2020_09_01 => "2020-09-01",
+            ApiVersion::V2020_12_10 => "2020-12-10",
         })
     }
 }
@@ -22,6 +24,7 @@ impl std::str::FromStr for ApiVersion {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "2020-09-01" => Ok(ApiVersion::V2020_09_01),
+            "2020-12-10" => Ok(ApiVersion::V2020_12_10),
             _ => Err(()),
         }
     }
@@ -108,5 +111,18 @@ pub mod reprovision_device {
     pub struct Request {
         #[serde(rename = "type")]
         pub id_type: String,
+    }
+}
+
+pub mod get_aad_identity {
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        // #[serde(rename = "type")]
+        // pub id_type: String,
+    }
+
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Response {
+        pub token: String,
     }
 }
