@@ -28,7 +28,7 @@ pub fn start_watcher<TApi>(
     let config_path_clone = config_path.clone();
     let config_directory_path_clone = config_directory_path.clone();
 
-    // Start file change listener that asynchronously updates service config.
+    // Start file change listener that asynchronously reads and updates service config.
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
             let new_config =
