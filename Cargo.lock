@@ -460,6 +460,7 @@ name = "aziot-keys-common"
 version = "0.1.0"
 dependencies = [
  "pkcs11",
+ "serde",
  "url",
 ]
 
@@ -550,7 +551,7 @@ dependencies = [
  "bytes",
  "chrono",
  "colored",
- "derive_more",
+ "config-common",
  "erased-serde",
  "http-common",
  "hyper",
@@ -560,7 +561,6 @@ dependencies = [
  "mini-sntp",
  "nix",
  "openssl",
- "rustyline",
  "serde",
  "serde_json",
  "structopt",
@@ -575,9 +575,22 @@ name = "aziotctl-common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "aziot-certd-config",
+ "aziot-identityd-config",
+ "aziot-keyd-config",
+ "aziot-keys-common",
+ "aziot-tpmd-config",
+ "base64",
+ "bytes",
+ "derive_more",
+ "http-common",
  "log",
+ "nix",
+ "rustyline",
  "serde",
  "serde_json",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -753,7 +766,6 @@ name = "config-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "backtrace",
  "futures-util",
  "log",
  "notify",

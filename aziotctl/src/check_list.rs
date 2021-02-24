@@ -7,7 +7,7 @@ use aziotctl_common::CheckListOutput;
 
 #[derive(StructOpt, Copy, Clone)]
 #[structopt(about = "List the checks that are run for 'aziotctl check'")]
-pub struct CheckListOptions {
+pub struct Options {
     /// Output format. One of "text" or "json".
     #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
     output: OutputFormat,
@@ -31,7 +31,7 @@ impl std::str::FromStr for OutputFormat {
     }
 }
 
-pub fn check_list(cfg: CheckListOptions) -> Result<()> {
+pub fn check_list(cfg: Options) -> Result<()> {
     let checks = crate::internal::check::all_checks();
 
     match cfg.output {

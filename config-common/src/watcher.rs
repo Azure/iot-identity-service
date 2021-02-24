@@ -32,7 +32,7 @@ pub fn start_watcher<TApi>(
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
             let new_config =
-                match crate::read_config(&config_path_clone, &config_directory_path_clone) {
+                match crate::read_config(&config_path_clone, Some(&config_directory_path_clone)) {
                     Ok(config) => config,
                     Err(err) => {
                         log::warn!(
@@ -67,9 +67,11 @@ pub fn start_watcher<TApi>(
                     .expect("Watching config directory path should not fail.");
             }
 
-            file_watcher
-                .watch(config_path, notify::RecursiveMode::NonRecursive)
-                .expect("Watching config file should not fail.");
+            if config_path.exists() {
+                file_watcher
+                    .watch(config_path, notify::RecursiveMode::NonRecursive)
+                    .expect("Watching config file should not fail.");
+            }
 
             loop {
                 let _ = file_watcher_rx.recv();
