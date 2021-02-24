@@ -23,6 +23,35 @@ pub fn get_hostname() -> Result<String> {
     }
 }
 
+pub async fn load_cert_from_disk(cert_path: impl AsRef<Path>) -> Result<openssl::x509::X509> {
+    let cert_path = cert_path.as_ref();
+
+    let file_ctx = format!("operation on file {}", cert_path.display());
+
+    let mut file = match fs::File::open(cert_path).await {
+        Ok(f) => f,
+        Err(e) => {
+            return Err(e)
+                .context(file_ctx)
+                .context("Could not open cert file.")
+        }
+    };
+
+    let mut pem = Vec::new();
+    if let Err(e) = file.read_to_end(&mut pem).await {
+        return Err(e)
+            .context(file_ctx)
+            .context("Could not read cert file.");
+    }
+
+    let mut cert = openssl::x509::X509::stack_from_pem(&pem)?;
+    let cert = cert
+        .pop()
+        .ok_or_else(|| anyhow!("could not parse {} as a valid .pem", cert_path.display()))?;
+
+    Ok(cert)
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct CertificateValidity {
     pub(crate) cert_name: String,
@@ -49,30 +78,7 @@ impl CertificateValidity {
             Ok(chrono::DateTime::<chrono::Utc>::from_utc(time, chrono::Utc))
         }
 
-        let cert_path = cert_path.as_ref();
-
-        let file_ctx = format!("operation on file {}", cert_path.display());
-
-        let mut file = match fs::File::open(cert_path).await {
-            Ok(f) => f,
-            Err(e) => {
-                return Err(e)
-                    .context(file_ctx)
-                    .context("Could not open cert file.")
-            }
-        };
-
-        let mut pem = Vec::new();
-        if let Err(e) = file.read_to_end(&mut pem).await {
-            return Err(e)
-                .context(file_ctx)
-                .context("Could not read cert file.");
-        }
-
-        let cert = openssl::x509::X509::stack_from_pem(&pem)?;
-        let cert = cert
-            .get(0)
-            .ok_or_else(|| anyhow!("could not parse {} as a valid .pem", cert_path.display()))?;
+        let cert = load_cert_from_disk(cert_path).await?;
 
         let not_after = parse_openssl_time(cert.not_after())?;
         let not_before = parse_openssl_time(cert.not_before())?;

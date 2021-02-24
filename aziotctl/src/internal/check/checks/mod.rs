@@ -22,6 +22,7 @@ mod host_connect_dps_endpoint;
 mod host_connect_iothub;
 mod host_local_time;
 mod hostname;
+mod registration_id_cert_cn_match;
 mod well_formed_configs;
 
 pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
@@ -36,6 +37,9 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.push(Box::new(host_local_time::HostLocalTime::default()));
             v.extend(cert_expiry::cert_expirations());
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
+            v.push(Box::new(
+                registration_id_cert_cn_match::RegistrationIdCertCnMatch::default(),
+            ));
             v
         }),
         ("Connectivity checks", {
