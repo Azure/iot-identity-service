@@ -33,6 +33,7 @@ aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
 aziotctl-common = { path = "./aziotctl-common" }
+config-common = { path = "../config-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
 mini-sntp = { path = "../mini-sntp" }
 

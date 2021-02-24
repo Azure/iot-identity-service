@@ -553,6 +553,7 @@ dependencies = [
  "bytes",
  "chrono",
  "colored",
+ "config-common",
  "erased-serde",
  "http-common",
  "hyper",

@@ -59,7 +59,7 @@ pub fn start_watcher<TApi>(
     // Start file change listener that asynchronously updates service config.
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
-            let new_config = match crate::read_config(&config_path, &config_directory_path) {
+            let new_config = match crate::read_config(&config_path, Some(&config_directory_path)) {
                 Ok(config) => config,
                 Err(err) => {
                     log::warn!(

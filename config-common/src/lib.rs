@@ -16,7 +16,7 @@ pub mod watcher;
 
 pub fn read_config<TConfig>(
     config_path: &std::path::Path,
-    config_directory_path: &std::path::Path,
+    config_directory_path: Option<&std::path::Path>,
 ) -> Result<TConfig, Error>
 where
     TConfig: serde::de::DeserializeOwned,
@@ -35,46 +35,49 @@ where
         }
     };
 
-    match std::fs::read_dir(config_directory_path) {
-        Ok(entries) => {
-            let mut patch_paths = vec![];
-            for entry in entries {
-                let entry = entry.map_err(|err| {
-                    Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
-                })?;
+    if let Some(config_directory_path) = config_directory_path {
+        match std::fs::read_dir(config_directory_path) {
+            Ok(entries) => {
+                let mut patch_paths = vec![];
+                for entry in entries {
+                    let entry = entry.map_err(|err| {
+                        Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
+                    })?;
 
-                let entry_file_type = entry.file_type().map_err(|err| {
-                    Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
-                })?;
-                if !entry_file_type.is_file() {
-                    continue;
+                    let entry_file_type = entry.file_type().map_err(|err| {
+                        Error::ReadConfig(Some(config_directory_path.to_owned()), Box::new(err))
+                    })?;
+                    if !entry_file_type.is_file() {
+                        continue;
+                    }
+
+                    let patch_path = entry.path();
+                    if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some("toml") {
+                        continue;
+                    }
+
+                    patch_paths.push(patch_path);
                 }
+                patch_paths.sort();
 
-                let patch_path = entry.path();
-                if patch_path.extension().and_then(std::ffi::OsStr::to_str) != Some("toml") {
-                    continue;
+                for patch_path in patch_paths {
+                    let patch = std::fs::read(&patch_path).map_err(|err| {
+                        Error::ReadConfig(Some(patch_path.clone()), Box::new(err))
+                    })?;
+                    let patch: toml::Value = toml::from_slice(&patch)
+                        .map_err(|err| Error::ReadConfig(Some(patch_path), Box::new(err)))?;
+                    merge_toml(&mut config, patch);
                 }
-
-                patch_paths.push(patch_path);
             }
-            patch_paths.sort();
 
-            for patch_path in patch_paths {
-                let patch = std::fs::read(&patch_path)
-                    .map_err(|err| Error::ReadConfig(Some(patch_path.clone()), Box::new(err)))?;
-                let patch: toml::Value = toml::from_slice(&patch)
-                    .map_err(|err| Error::ReadConfig(Some(patch_path), Box::new(err)))?;
-                merge_toml(&mut config, patch);
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+
+            Err(err) => {
+                return Err(Error::ReadConfig(
+                    Some(config_directory_path.to_owned()),
+                    Box::new(err),
+                ))
             }
-        }
-
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
-
-        Err(err) => {
-            return Err(Error::ReadConfig(
-                Some(config_directory_path.to_owned()),
-                Box::new(err),
-            ))
         }
     }
 
