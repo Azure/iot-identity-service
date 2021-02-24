@@ -47,11 +47,11 @@ enum Options {
     Config(config::Options),
 
     /// Check for common config and deployment issues.
-    Check(check::CheckOptions),
+    Check(check::Options),
 
     /// List the checks that are run for 'aziotctl check'
-    CheckList(check_list::CheckListOptions),
+    CheckList(check_list::Options),
 
     /// Use system helper commands
-    System(system::SystemOptions),
+    System(system::Options),
 }

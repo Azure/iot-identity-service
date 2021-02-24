@@ -5,5 +5,5 @@ homedir_path = "/var/lib/aziot/keyd"
 device-id = "file:///var/secrets/aziot/keyd/device-id"
 
 [[principal]]
-uid = 5557
+uid = 5556
 keys = ["aziot_identityd_master_id", "device-id"]

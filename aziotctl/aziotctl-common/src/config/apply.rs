@@ -475,7 +475,7 @@ mod tests {
                 };
 
             let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
-            let aziotid_uid = nix::unistd::Uid::from_raw(5557);
+            let aziotid_uid = nix::unistd::Uid::from_raw(5556);
 
             let super::RunOutput {
                 keyd_config: actual_keyd_config,

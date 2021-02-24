@@ -7,7 +7,7 @@ pkcs11_lib_path = "/usr/lib/libmypkcs11.so"
 est-bootstrap-id = "pkcs11:slot-id=0;object=est%2Dbootstrap%2Did?pin-value=1234"
 
 [[principal]]
-uid = 5557
+uid = 5556
 keys = ["aziot_identityd_master_id", "device-id"]
 
 [[principal]]

@@ -965,7 +965,7 @@ mod tests {
 
             // Set arbitrary UIDs for the aziotcs and aziotks user. The UIDs of the test output must match these.
             let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
-            let aziotid_uid = nix::unistd::Uid::from_raw(5557);
+            let aziotid_uid = nix::unistd::Uid::from_raw(5556);
 
             let super::RunOutput {
                 keyd_config: actual_keyd_config,
