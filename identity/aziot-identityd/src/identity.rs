@@ -19,6 +19,7 @@ pub struct IdentityManager {
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl IdentityManager {
@@ -29,6 +30,7 @@ impl IdentityManager {
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
         iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+        proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
             locks: Default::default(),
@@ -38,6 +40,7 @@ impl IdentityManager {
             cert_client,
             tpm_client,
             iot_hub_device, //set by Server over futures channel
+            proxy_uri,
         }
     }
 
@@ -64,6 +67,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
                 let new_module = client
                     .create_module(&*module_id, None, None)
@@ -128,6 +132,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
                 let curr_module = client
                     .get_module(&*module_id)
@@ -207,6 +212,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
                 let module = client
                     .get_module(&*module_id)
@@ -248,6 +254,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
 
                 let response = client.get_modules().await.map_err(Error::HubClient)?;
@@ -288,6 +295,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
                 client
                     .delete_module(&*module_id)
@@ -489,6 +497,7 @@ impl IdentityManager {
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
+                    self.proxy_uri.clone(),
                 );
 
                 let device = match attestation {
