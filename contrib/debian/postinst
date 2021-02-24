@@ -26,7 +26,12 @@ case "$1" in
 		chown aziottpm:aziottpm /etc/aziot/tpmd/config.toml.default
 		chown root:root /etc/aziot/config.toml.template
 		for f in \
-			/etc/aziot/{cert,identity,key,tpm}d/config.toml.default /etc/aziot/config.toml.template; do
+			/etc/aziot/certd/config.toml.default \
+			/etc/aziot/identityd/config.toml.default \
+			/etc/aziot/keyd/config.toml.default \
+			/etc/aziot/tpmd/config.toml.default \
+			/etc/aziot/config.toml.template
+		do
 			chmod 0400 "$f"
 		done
 
@@ -43,7 +48,12 @@ case "$1" in
 			chown aziottpm:aziottpm /var/lib/aziot/tpmd
 		fi
 
-		for d in /var/lib/aziot/{cert,identity,key,tpm}d; do
+		for d in \
+			/var/lib/aziot/certd \
+			/var/lib/aziot/identityd \
+			/var/lib/aziot/keyd \
+			/var/lib/aziot/tpmd
+		do
 			if [ -d "$d" ]; then
 				chmod 0700 "$d"
 			fi
