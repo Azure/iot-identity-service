@@ -74,8 +74,25 @@ pub fn start_watcher<TApi>(
             }
 
             loop {
-                let _ = file_watcher_rx.recv();
-                let _ = file_changed_tx.blocking_send(());
+                let event = file_watcher_rx.recv();
+                log::debug!("Incoming file watcher event: {:?}", &event);
+
+                if let Ok(event) = event {
+                    match event {
+                        notify::DebouncedEvent::NoticeWrite(_)
+                        | notify::DebouncedEvent::NoticeRemove(_)
+                        | notify::DebouncedEvent::Rescan
+                        | notify::DebouncedEvent::Error(_, _) => {}
+
+                        notify::DebouncedEvent::Create(_)
+                        | notify::DebouncedEvent::Write(_)
+                        | notify::DebouncedEvent::Chmod(_)
+                        | notify::DebouncedEvent::Remove(_)
+                        | notify::DebouncedEvent::Rename(_, _) => {
+                            let _ = file_changed_tx.blocking_send(());
+                        }
+                    };
+                }
             }
         }
     });
