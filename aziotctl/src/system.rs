@@ -8,7 +8,7 @@ use structopt::StructOpt;
 use aziotctl_common::{get_status, get_system_logs, restart, set_log_level, SERVICE_DEFINITIONS};
 
 #[derive(StructOpt)]
-pub enum SystemOptions {
+pub enum Options {
     Restart(RestartOptions),
     Status(StatusOptions),
     Logs(LogsOptions),
@@ -38,12 +38,12 @@ pub struct LogLevelOptions {
     log_level: log::Level,
 }
 
-pub fn system(options: SystemOptions) -> Result<()> {
+pub fn system(options: Options) -> Result<()> {
     match options {
-        SystemOptions::Restart(_) => restart(SERVICE_DEFINITIONS),
-        SystemOptions::Status(_) => get_status(SERVICE_DEFINITIONS),
-        SystemOptions::Logs(opts) => logs(&opts),
-        SystemOptions::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, opts.log_level),
+        Options::Restart(_) => restart(SERVICE_DEFINITIONS),
+        Options::Status(_) => get_status(SERVICE_DEFINITIONS),
+        Options::Logs(opts) => logs(&opts),
+        Options::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, opts.log_level),
     }
 }
 

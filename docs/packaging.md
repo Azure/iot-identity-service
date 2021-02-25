@@ -305,7 +305,7 @@ The IS+KS+CS+TPMS components can still be installed as a standalone package on d
 ```sh
 apt install aziot-identity-service
 
-aziotctl init
+aziotctl config wizard
 ```
 
-After installing the package, run `aziotctl init` to interactively set up the configuration with minimal information like the device provisioning method.
+After installing the package, run `aziotctl config wizard` to interactively set up the configuration with minimal information like the device provisioning method.

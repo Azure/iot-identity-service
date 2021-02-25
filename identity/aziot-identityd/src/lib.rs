@@ -497,12 +497,11 @@ impl Api {
         });
         self.authenticator = authenticator;
         self.local_identities = local_modules;
+        self.settings = settings;
 
         let _ = self
             .reprovision_device(auth::AuthId::LocalRoot, trigger)
             .await?;
-
-        self.settings = settings;
 
         Ok(())
     }

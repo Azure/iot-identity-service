@@ -190,7 +190,7 @@ where
     let config_directory_path: std::path::PathBuf = std::env::var_os(config_directory_env_var)
         .map_or_else(|| config_directory_default.into(), Into::into);
 
-    let config: TConfig = config_common::read_config(&config_path, &config_directory_path)
+    let config: TConfig = config_common::read_config(&config_path, Some(&config_directory_path))
         .map_err(|err| ErrorKind::ReadConfig(Box::new(err)))?;
 
     let (connector, server) = main(config, config_path, config_directory_path)

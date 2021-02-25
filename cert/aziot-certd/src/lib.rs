@@ -298,6 +298,9 @@ fn create_cert<'a>(
             let x509 = if issuer_id == id {
                 // Issuer is the same as the cert being created, which means the caller wants the cert to be self-signed.
 
+                x509.set_issuer_name(x509_req.subject_name())
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
                 x509.sign(&issuer_private_key, openssl::hash::MessageDigest::sha256())
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
@@ -811,10 +814,24 @@ fn get_cert_inner(
     preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
-    let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
-        .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
-    let bytes = load_inner(&path)?;
-    Ok(bytes)
+    match preloaded_certs.get(id) {
+        Some(PreloadedCert::Uri(_)) | None => {
+            let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
+            let bytes = load_inner(&path)?;
+            Ok(bytes)
+        }
+
+        Some(PreloadedCert::Ids(ids)) => {
+            let mut result = vec![];
+            for id in ids {
+                if let Some(bytes) = get_cert_inner(homedir_path, preloaded_certs, id)? {
+                    result.extend_from_slice(&bytes);
+                }
+            }
+            Ok((!result.is_empty()).then(|| result))
+        }
+    }
 }
 
 fn principal_to_map(

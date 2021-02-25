@@ -1,4 +1,0 @@
-6
-0ab1234C5D6
-my-symmkey-devices
-2

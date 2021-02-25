@@ -12,16 +12,17 @@ pub struct Settings {
 
     pub homedir: std::path::PathBuf,
 
+    pub provisioning: Provisioning,
+
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub principal: Vec<Principal>,
-
-    pub provisioning: Provisioning,
 
     /// Only configurable in debug builds for the sake of tests.
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub localid: Option<LocalId>,
 }
 
@@ -88,7 +89,7 @@ pub enum DpsAttestationMethod {
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
     // This type used to have the `provisioning` field before the `always_reprovision_on_startup` field. It doesn't matter much except that the fields are
-    // serialized in the order of definition when generating a new config via `aziotctl init`, and it would've been nice to serialize
+    // serialized in the order of definition when generating a new config via `aziotctl config wizard`, and it would've been nice to serialize
     // the `provisioning` value before the `always_reprovision_on_startup` value.
     //
     // Unfortunately the TOML serializer needs "values" (like `always_reprovision_on_startup`) to come before "tables" (like `provisioning`),
