@@ -39,6 +39,10 @@ impl CertsPreloaded {
     ) -> Result<CheckResult> {
         let preloaded_certs = &unwrap_or_skip!(&cache.cfg.certd).preloaded_certs;
 
+        // TODO: Report errors for all certs in a single invocation of `check` rather than one at a time.
+        // (Concatenate the messages into one big string? Change the checker framework to support
+        // `Vec<Error>` ? Something else?)
+
         let mut visited: BTreeMap<_, _> = Default::default();
 
         for id in preloaded_certs.keys() {
