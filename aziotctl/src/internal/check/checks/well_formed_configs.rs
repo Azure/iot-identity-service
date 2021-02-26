@@ -26,8 +26,8 @@ struct WellFormedKeydConfig {}
 impl Checker for WellFormedKeydConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "keyd-config-toml-well-formed",
-            description: "keyd config toml file is well-formed",
+            id: "keyd-config-well-formed",
+            description: "keyd configuration is well-formed",
         }
     }
 
@@ -57,8 +57,8 @@ struct WellFormedCertdConfig {}
 impl Checker for WellFormedCertdConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "certd-config-toml-well-formed",
-            description: "certd config toml file is well-formed",
+            id: "certd-config-well-formed",
+            description: "certd configuration is well-formed",
         }
     }
 
@@ -88,8 +88,8 @@ struct WellFormedTpmdConfig {}
 impl Checker for WellFormedTpmdConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "tpmd-config-toml-well-formed",
-            description: "tpmd config toml file is well-formed",
+            id: "tpmd-config-well-formed",
+            description: "tpmd configuration is well-formed",
         }
     }
 
@@ -120,8 +120,8 @@ struct WellFormedIdentitydConfig {}
 impl Checker for WellFormedIdentitydConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "identityd-config-toml-well-formed",
-            description: "identityd config toml file is well-formed",
+            id: "identityd-config-well-formed",
+            description: "identityd configuration is well-formed",
         }
     }
 
