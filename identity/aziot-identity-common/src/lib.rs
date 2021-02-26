@@ -22,6 +22,8 @@ pub enum Identity {
 pub struct AzureIoTSpec {
     #[serde(rename = "hubName")]
     pub hub_name: String,
+    #[serde(rename = "gatewayHost")]
+    pub gateway_host: String,
     #[serde(rename = "deviceId")]
     pub device_id: DeviceId,
     #[serde(rename = "moduleId", skip_serializing_if = "Option::is_none")]
@@ -140,6 +142,8 @@ pub enum ProvisioningStatus {
 #[derive(Clone)]
 pub struct IoTHubDevice {
     pub iothub_hostname: String,
+
+    pub local_gateway_hostname: String,
 
     pub device_id: String,
 

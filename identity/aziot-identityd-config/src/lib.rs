@@ -100,6 +100,8 @@ pub struct Provisioning {
     #[serde(default)]
     pub always_reprovision_on_startup: bool,
 
+    pub local_gateway_hostname: Option<String>,
+
     #[serde(flatten)]
     pub provisioning: ProvisioningType,
 }
