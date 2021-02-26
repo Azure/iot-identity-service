@@ -115,7 +115,7 @@ pub fn run(
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.parse().expect("hard-coded endpoint must parse successfully"),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
@@ -132,7 +132,7 @@ pub fn run(
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.parse().expect("hard-coded endpoint must parse successfully"),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::X509 {
                         registration_id,
@@ -150,7 +150,7 @@ pub fn run(
 
             (
                 aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.to_owned(),
+                    global_endpoint: super::DPS_GLOBAL_ENDPOINT.parse().expect("hard-coded endpoint must parse successfully"),
                     scope_id,
                     attestation: aziot_identityd_config::DpsAttestationMethod::Tpm {
                         registration_id,

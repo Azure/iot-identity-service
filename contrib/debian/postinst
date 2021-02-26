@@ -29,11 +29,11 @@ case "$1" in
 			/etc/aziot/certd/config.toml.default \
 			/etc/aziot/identityd/config.toml.default \
 			/etc/aziot/keyd/config.toml.default \
-			/etc/aziot/tpmd/config.toml.default \
-			/etc/aziot/config.toml.template
+			/etc/aziot/tpmd/config.toml.default
 		do
 			chmod 0400 "$f"
 		done
+		chmod 0600 /etc/aziot/config.toml.template
 
 		if [ -d /var/lib/aziot/certd ]; then
 			chown aziotcs:aziotcs /var/lib/aziot/certd

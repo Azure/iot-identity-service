@@ -40,7 +40,7 @@ homedir = "/var/lib/aziot/identityd"
 
 # [provisioning]
 # "source" = "dps"
-# "global_endpoint" = "https://global.azure-devices-provisioning.net"
+# "global_endpoint" = "https://global.azure-devices-provisioning.net/"
 # "scope_id" = "<ADD DPS SCOPE ID HERE>"
 
 # [provisioning.attestation]

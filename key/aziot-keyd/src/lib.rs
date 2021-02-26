@@ -630,15 +630,14 @@ fn key_id_to_handle(
 fn principal_to_map(
     principal: Vec<Principal>,
 ) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
-    principal
-        .into_iter()
-        .map(|principal| {
-            let keys = principal
-                .keys
-                .into_iter()
-                .map(|key| wildmatch::WildMatch::new(&key))
-                .collect();
-            (principal.uid, keys)
-        })
-        .collect()
+    let mut result: std::collections::BTreeMap<_, Vec<_>> = Default::default();
+
+    for Principal { uid, keys } in principal {
+        result
+            .entry(uid)
+            .or_default()
+            .extend(keys.into_iter().map(|key| wildmatch::WildMatch::new(&key)));
+    }
+
+    result
 }

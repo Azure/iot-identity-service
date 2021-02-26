@@ -114,7 +114,7 @@ pub enum ProvisioningType {
         authentication: ManualAuthMethod,
     },
     Dps {
-        global_endpoint: String,
+        global_endpoint: url::Url,
         scope_id: String,
         attestation: DpsAttestationMethod,
     },
