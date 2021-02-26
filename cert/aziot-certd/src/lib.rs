@@ -837,15 +837,15 @@ fn get_cert_inner(
 fn principal_to_map(
     principal: Vec<Principal>,
 ) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
-    principal
-        .into_iter()
-        .map(|principal| {
-            let certs = principal
-                .certs
+    let mut result: std::collections::BTreeMap<_, Vec<_>> = Default::default();
+
+    for Principal { uid, certs } in principal {
+        result.entry(uid).or_default().extend(
+            certs
                 .into_iter()
-                .map(|cert| wildmatch::WildMatch::new(&cert))
-                .collect();
-            (principal.uid, certs)
-        })
-        .collect()
+                .map(|cert| wildmatch::WildMatch::new(&cert)),
+        );
+    }
+
+    result
 }
