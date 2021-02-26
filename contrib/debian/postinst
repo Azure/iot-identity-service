@@ -33,7 +33,7 @@ case "$1" in
 		do
 			chmod 0400 "$f"
 		done
-		chmod 0700 /etc/aziot/config.toml.template
+		chmod 0600 /etc/aziot/config.toml.template
 
 		if [ -d /var/lib/aziot/certd ]; then
 			chown aziotcs:aziotcs /var/lib/aziot/certd
