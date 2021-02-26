@@ -62,13 +62,13 @@ In addition, the script also needs the `PACKAGE_VERSION` and `PACKAGE_RELEASE` e
 
 Finally, the script expects the source directory to be at `/src`, and will create the packages under `/src/packages`.
 
-For an example to put it all together, let's say you want to build the CentOS 7 package for `x86_64`, with version 1.1.0 and release 0, ie the package version is `1.1.0-0`. Let's say your clone of this repository is at `~/src/iot-identity-service`. You would run:
+For an example to put it all together, let's say you want to build the CentOS 7 package for `x86_64`, with version 1.2.0 and release 0, ie the package version is `1.2.0-0`. Let's say your clone of this repository is at `~/src/iot-identity-service`. You would run:
 
 ```sh
 docker run -it --rm \
 	-v "$(realpath ~/src/iot-identity-service):/src" \
 	-e 'ARCH=amd64' \
-	-e 'PACKAGE_VERSION=1.1.0' \
+	-e 'PACKAGE_VERSION=1.2.0' \
 	-e 'PACKAGE_RELEASE=0' \
 	centos:7 \
 	'/src/ci/package.sh'
@@ -77,9 +77,9 @@ docker run -it --rm \
 and at the end you would have these files under `~/src/iot-identity-service/packages`:
 
 ```
-centos7/amd64/aziot-identity-service-1.1.0-0.src.rpm
-centos7/amd64/aziot-identity-service-1.1.0-0.x86_64.rpm
-centos7/amd64/aziot-identity-service-devel-1.1.0-0.x86_64.rpm
+centos7/amd64/aziot-identity-service-1.2.0-0.src.rpm
+centos7/amd64/aziot-identity-service-1.2.0-0.x86_64.rpm
+centos7/amd64/aziot-identity-service-devel-1.2.0-0.x86_64.rpm
 ```
 
 These files in order are:
@@ -89,13 +89,13 @@ These files in order are:
 1. A devel package containing the `aziot-keys.h` C header, which contains the API definitions of `libaziot_keys.so`. A user would install this package if they wanted to make their own implementation of `libaziot_keys.so`. It's not needed for a production device.
 
 
-For another example, let's say you want to build the Debian 10 package for ARM32, with version 1.1.0 and revision 0, ie the package version is `1.1.0-0`. You would run:
+For another example, let's say you want to build the Debian 10 package for ARM32, with version `1.2.0` and revision 0, ie the package version is `1.2.0-0`. You would run:
 
 ```sh
 docker run -it --rm \
 	-v "$(realpath ~/src/iot-identity-service):/src" \
 	-e 'ARCH=arm32v7' \
-	-e 'PACKAGE_VERSION=1.1.0' \
+	-e 'PACKAGE_VERSION=1.2.0' \
 	-e 'PACKAGE_RELEASE=0' \
 	debian:10-slim \
 	'/src/ci/package.sh'
@@ -104,11 +104,11 @@ docker run -it --rm \
 and at the end you would have these files under `~/src/iot-identity-service/packages`:
 
 ```
-aziot-identity-service_1.1.0-0_armhf.deb
-aziot-identity-service_1.1.0-0.debian.tar.xz
-aziot-identity-service_1.1.0-0.dsc
-aziot-identity-service_1.1.0.orig.tar.gz
-aziot-identity-service-dbgsym_1.1.0-0_armhf.deb
+aziot-identity-service_1.2.0-0_armhf.deb
+aziot-identity-service_1.2.0-0.debian.tar.xz
+aziot-identity-service_1.2.0-0.dsc
+aziot-identity-service_1.2.0.orig.tar.gz
+aziot-identity-service-dbgsym_1.2.0-0_armhf.deb
 ```
 
 The first file is the binary package, the second through fourth file together constitute the source package, and the fifth is the debug symbols package. The meanings are the same as the CentOS example. Note that there is no `-dev` package equivalent of the CentOS `-devel` package; the C header is included in the binary package.
