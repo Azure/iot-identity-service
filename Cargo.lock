@@ -302,6 +302,7 @@ dependencies = [
  "libc",
  "serde",
  "toml",
+ "url",
 ]
 
 [[package]]

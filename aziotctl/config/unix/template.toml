@@ -55,7 +55,7 @@
 ## DPS provisioning with symmetric key
 # [provisioning]
 # source = "dps"
-# global_endpoint = "https://global.azure-devices-provisioning.net"
+# global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
 # 
 # [provisioning.attestation]
@@ -70,7 +70,7 @@
 ## DPS provisioning with X.509 certificate
 # [provisioning]
 # source = "dps"
-# global_endpoint = "https://global.azure-devices-provisioning.net"
+# global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
 # 
 # [provisioning.attestation]
@@ -88,7 +88,7 @@
 ## DPS provisioning with TPM
 # [provisioning]
 # source = "dps"
-# global_endpoint = "https://global.azure-devices-provisioning.net"
+# global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
 # 
 # [provisioning.attestation]

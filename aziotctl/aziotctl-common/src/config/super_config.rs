@@ -68,7 +68,7 @@ pub enum ProvisioningType {
     },
 
     Dps {
-        global_endpoint: String,
+        global_endpoint: Url,
         id_scope: String,
         attestation: DpsAttestationMethod,
     },

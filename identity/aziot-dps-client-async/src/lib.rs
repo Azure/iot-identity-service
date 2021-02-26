@@ -47,7 +47,7 @@ pub enum DpsAuthKind {
 }
 
 pub struct Client {
-    global_endpoint: String,
+    global_endpoint: url::Url,
     scope_id: String,
 
     key_client: Arc<aziot_key_client_async::Client>,
@@ -60,7 +60,7 @@ pub struct Client {
 impl Client {
     #[must_use]
     pub fn new(
-        global_endpoint: &str,
+        global_endpoint: &url::Url,
         scope_id: &str,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -69,7 +69,7 @@ impl Client {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         Client {
-            global_endpoint: global_endpoint.to_owned(),
+            global_endpoint: global_endpoint.clone(),
             scope_id: scope_id.to_owned(),
 
             key_client,
