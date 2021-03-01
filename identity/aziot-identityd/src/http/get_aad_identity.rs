@@ -42,7 +42,14 @@ impl http_common::server::Route for Route {
         self,
         _body: Option<Self::PostBody>,
     ) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
-        let token = "test 2".to_owned();
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
+
+        let token = match api.get_aad_token().await {
+            Ok(v) => v,
+            Err(err) => return Err(super::to_http_error(&err)),
+        };
+
         let res = aziot_identity_common_http::get_aad_identity::Response { token };
         Ok((hyper::StatusCode::OK, Some(res)))
     }

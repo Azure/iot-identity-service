@@ -5,6 +5,7 @@ pub enum Error {
     Authentication,
     Authorization,
     DeviceNotFound,
+    AADClient(std::io::Error),
     DPSClient(std::io::Error),
     HubClient(std::io::Error),
     KeyClient(std::io::Error),
@@ -28,6 +29,7 @@ impl std::fmt::Display for Error {
             Error::Authentication => f.write_str("authentication error"),
             Error::Authorization => f.write_str("authorization error"),
             Error::DeviceNotFound => f.write_str("device identity not found"),
+            Error::AADClient(_) => f.write_str("AAD client error"),
             Error::DPSClient(_) => f.write_str("DPS client error"),
             Error::HubClient(_) => f.write_str("Hub client error"),
             Error::KeyClient(_) => f.write_str("Key client error"),
@@ -47,7 +49,10 @@ impl std::error::Error for Error {
             | Error::Authorization
             | Error::DeviceNotFound
             | Error::ModuleNotFound => None,
-            Error::DPSClient(err) | Error::HubClient(err) | Error::KeyClient(err) => Some(err),
+            Error::AADClient(err)
+            | Error::DPSClient(err)
+            | Error::HubClient(err)
+            | Error::KeyClient(err) => Some(err),
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
         }

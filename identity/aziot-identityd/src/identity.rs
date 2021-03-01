@@ -792,6 +792,26 @@ impl IdentityManager {
 
         Ok(())
     }
+
+    pub async fn get_aad_token(&self) -> Result<String, Error> {
+        let device = if let Some(device) = &self.iot_hub_device {
+            device.clone()
+        } else {
+            return Err(Error::DeviceNotFound);
+        };
+
+        let client = aziot_aad_client_async::Client::new(
+            device,
+            self.key_client.clone(),
+            self.key_engine.clone(),
+            self.cert_client.clone(),
+            self.tpm_client.clone(),
+            self.proxy_uri.clone(),
+        );
+
+        let token = client.get_token().await.map_err(Error::AADClient)?;
+        Ok(token)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]

@@ -79,6 +79,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "aziot-aad-client-async"
+version = "0.1.0"
+dependencies = [
+ "aziot-cert-client-async",
+ "aziot-cert-common-http",
+ "aziot-cloud-client-async-common",
+ "aziot-identity-common",
+ "aziot-key-client-async",
+ "aziot-key-common",
+ "aziot-tpm-client-async",
+ "aziot-tpm-common",
+ "base64",
+ "chrono",
+ "futures-util",
+ "http",
+ "http-common",
+ "hyper",
+ "hyper-openssl",
+ "log",
+ "openssl",
+ "openssl2",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "aziot-cert-client-async"
 version = "0.1.0"
 dependencies = [
@@ -260,6 +288,7 @@ name = "aziot-identityd"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "aziot-aad-client-async",
  "aziot-cert-client-async",
  "aziot-cert-common-http",
  "aziot-dps-client-async",

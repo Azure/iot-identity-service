@@ -506,6 +506,11 @@ impl Api {
 
         Ok(())
     }
+
+    async fn get_aad_token(&mut self) -> Result<String, Error> {
+        let token = self.id_manager.get_aad_token().await?;
+        Ok(token)
+    }
 }
 
 #[async_trait]
