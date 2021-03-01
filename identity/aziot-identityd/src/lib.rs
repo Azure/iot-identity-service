@@ -567,6 +567,11 @@ pub(crate) fn create_csr(
         let extended_key_usage = extended_key_usage.build()?;
         extensions.push(extended_key_usage)?;
 
+        let mut subject_alternate_name = openssl::x509::extension::SubjectAlternativeName::new();
+        subject_alternate_name.uri("4a8017fa-2012-4595-8329-b35e5ef5bdd7");
+        let subject_alternate_name = subject_alternate_name.build()?;
+        extensions.push(subject_alternate_name)?;
+
         csr.add_extensions(&extensions)?;
     }
 
