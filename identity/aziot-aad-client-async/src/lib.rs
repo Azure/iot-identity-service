@@ -52,21 +52,31 @@ impl Client {
 
 impl Client {
     pub async fn get_token(&self) -> Result<String, std::io::Error> {
-        let uri = format!("/getformat");
+        let access_token_provider_uri = "mtlsauth.windows-ppe.net";
+        let tenant_id = "c92dd71d-c78b-49e0-8c86-1f6b5301a825";
+        let azure_resource_scope = "https://ppe.cognitiveservices.azure.com/.default";
+        let app_id = "7b69073c-ca57-403d-b649-dc1ee28bdb16";
+        let device_id = "";
 
-        // let body = aziot_identity_common::hub::Module {
-        //     module_id: module_id.into(),
-        //     managed_by,
-        //     device_id: self.device.device_id.clone(),
-        //     generation_id: None,
-        //     authentication: authentication_type,
-        // };
+        let uri = format!(
+            "https://{}/{}/oauth2/v2.0/token?debugmodeflight=true",
+            access_token_provider_uri, tenant_id
+        );
 
-        // let res: aziot_identity_common::hub::Module = self
-        //     .request(&self.device, http::Method::PUT, &uri, Some(&body), false)
-        //     .await?;
+        let body = AAD_Request {
+            grant_type: "sub_mlts",
+            scope: azure_resource_scope,
+            client_id: app_id,
+            external_device_id: device_id,
+        };
 
-        Ok(uri)
+        println!("\n\n\nGetting token.\nUri: {}\nBody:{:#?}", uri, body);
+
+        let res: AAD_Response = self
+            .request(http::Method::POST, &uri, Some(&body), false)
+            .await?;
+
+        Ok(res.access_token)
     }
 
     async fn request<TRequest, TResponse>(
@@ -201,4 +211,18 @@ impl Client {
 pub struct Error {
     #[serde(alias = "Message")]
     pub message: std::borrow::Cow<'static, str>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct AAD_Request<'a> {
+    pub grant_type: &'a str,
+    pub scope: &'a str,
+    pub client_id: &'a str,
+    pub external_device_id: &'a str,
+}
+
+
+#[derive(Debug, serde::Deserialize)]
+pub struct AAD_Response {
+    pub access_token: String,
 }
