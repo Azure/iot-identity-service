@@ -40,15 +40,10 @@ impl http_common::server::Route for Route {
     type PostResponse = aziot_identity_common_http::get_aad_identity::Response;
     async fn post(
         self,
-        body: Option<Self::PostBody>,
+        _body: Option<Self::PostBody>,
     ) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
-        let body = body.ok_or_else(|| http_common::server::Error {
-            status_code: http::StatusCode::BAD_REQUEST,
-            message: "missing request body".into(),
-        })?;
-
-        let token = "test".to_owned();
-        let res = aziot_identity_common_http::get_aad_identity::Response { identity };
+        let token = "test 2".to_owned();
+        let res = aziot_identity_common_http::get_aad_identity::Response { token };
         Ok((hyper::StatusCode::OK, Some(res)))
     }
 

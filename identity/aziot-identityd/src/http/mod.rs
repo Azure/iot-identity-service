@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 mod create_or_list_module_identity;
+mod get_aad_identity;
 mod get_caller_identity;
 mod get_device_identity;
 mod get_trust_bundle;
@@ -22,6 +23,7 @@ http_common::make_service! {
         get_trust_bundle::Route,
         get_update_or_delete_module_identity::Route,
         reprovision_device::Route,
+        get_aad_identity::Route,
     ],
 }
 

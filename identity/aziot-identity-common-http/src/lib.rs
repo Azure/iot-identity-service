@@ -117,8 +117,8 @@ pub mod reprovision_device {
 pub mod get_aad_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {
-        // #[serde(rename = "type")]
-        // pub id_type: String,
+        // #[serde(rename = "test")]
+        // pub test: String,
     }
 
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
