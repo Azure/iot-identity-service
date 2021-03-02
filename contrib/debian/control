@@ -12,7 +12,7 @@ Vcs-Git: https://github.com/azure/iot-identity-service
 Package: aziot-identity-service
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: iotedge
+Conflicts: iotedge, libiothsm-std
 Description: Azure IoT Identity Service and related services
  This package contains the Azure IoT device runtime, comprised of the following services:
  .
