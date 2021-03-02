@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 backtrace = "0.3"
-env_logger = "0.8"
 hyper = "0.14"
 log = "0.4"
 serde = "1"

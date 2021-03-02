@@ -441,7 +441,6 @@ name = "aziot-keys"
 version = "0.1.0"
 dependencies = [
  "aziot-keys-common",
- "env_logger",
  "foreign-types-shared",
  "hex",
  "hmac",
@@ -607,7 +606,6 @@ dependencies = [
  "aziot-tpmd",
  "backtrace",
  "config-common",
- "env_logger",
  "http-common",
  "hyper",
  "log",
