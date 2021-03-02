@@ -255,6 +255,8 @@ fn create_cert<'a>(
                     subject_name = &common_name;
                 }
             }
+            let not_after = openssl::asn1::Asn1Time::days_from_now(expiry_days)
+                .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
             let mut x509 = openssl::x509::X509::builder()
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -267,11 +269,6 @@ fn create_cert<'a>(
 
             x509.set_not_before(
                 &*openssl::asn1::Asn1Time::days_from_now(0)
-                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?,
-            )
-            .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-            x509.set_not_after(
-                &*openssl::asn1::Asn1Time::days_from_now(expiry_days)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?,
             )
             .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -297,6 +294,9 @@ fn create_cert<'a>(
 
             let x509 = if issuer_id == id {
                 // Issuer is the same as the cert being created, which means the caller wants the cert to be self-signed.
+
+                x509.set_not_after(&not_after)
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                 x509.set_issuer_name(x509_req.subject_name())
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -330,6 +330,16 @@ fn create_cert<'a>(
                     .ok_or_else(|| Error::invalid_parameter("issuer.certId", "invalid issuer"))?;
 
                 x509.set_issuer_name(issuer_x509.subject_name())
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
+                // Cap x509.not_after to issuer_x509.not_after
+                let issuer_not_after = issuer_x509.not_after();
+                let not_after = if issuer_not_after < not_after {
+                    issuer_not_after
+                } else {
+                    &not_after
+                };
+                x509.set_not_after(not_after)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                 x509.sign(&issuer_private_key, openssl::hash::MessageDigest::sha256())
