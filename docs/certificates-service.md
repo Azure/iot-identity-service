@@ -10,6 +10,10 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 `POST /certificates?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Request
 
 ```json
@@ -39,6 +43,10 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 `PUT /certificates/{certId}?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Request
 
 ```json
@@ -61,6 +69,10 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 `GET /certificates/{certId}?api-version=2020-09-01`
 
+#### Authentication
+
+Not required.
+
 #### Response
 
 ```json
@@ -75,8 +87,39 @@ Note: For both requests and responses, the PEM string can contain multiple certi
 
 `DELETE /certificates/{certId}?api-version=2020-09-01`
 
+#### Authentication
+
+Required. See [API authentication](#api-authentication).
+
 #### Response
 
 HTTP 204 No Content
 
 ---
+
+## API authentication
+
+APIs that modify certificates require the caller to authenticate with CS. Allowed callers are listed in the CS config directory, `/etc/aziot/certd/config.d`.
+
+Each file in the CS config directory should list allowed Unix user IDs (UIDs) and the certificates that those users may access. The file name does not matter, but files must have the extension `.toml`. Only files directly under the config directory are parsed (i.e. the config directory is not searched recursively).
+
+For example, `/etc/aziot/certd/config.d/example.toml`:
+```toml
+# Each user should be listed as a [[principal]]
+# This principal grants user 1000 write access to the 'example1' and 'example2' certificates.
+[[principal]]
+uid = 1000
+certs = ["example1", "example2"]
+
+# Wildcards may also be used for certificate IDs.
+# This principal grants user 1001 access to all certificate IDs beginning with 'example'.
+#
+# Supported wildcards are:
+#  * (placeholder for any characters)
+#  ? (placeholder for a single character)
+[[principal]]
+uid = 1001
+certs = ["example*"]
+```
+
+In addition, all users added as principals must be in the `aziotcs` group.

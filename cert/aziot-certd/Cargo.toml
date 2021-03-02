@@ -16,6 +16,7 @@ http = "0.2"
 hyper = "0.14"
 hyper-openssl = "0.9"
 lazy_static = "1"
+libc = "0.2"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
@@ -24,6 +25,7 @@ regex = "1"
 serde = "1"
 serde_json = "1"
 url = "2"
+wildmatch = "1"
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-certd-config = { path = "../aziot-certd-config" }
@@ -31,6 +33,7 @@ aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common", features = ["tokio1"] }
 openssl2 = { path = "../../openssl2" }
 

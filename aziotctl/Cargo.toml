@@ -16,7 +16,9 @@ derive_more = "0.99.11"
 erased-serde = "0.3.12"
 hyper = "0.14"
 hyper-openssl = "0.9"
+libc = "0.2"
 nix = "0.18"
+log = "0.4"
 openssl = "0.10"
 rustyline = "6"
 serde = { version = "1", features = ["derive"] }
@@ -32,7 +34,7 @@ aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
-aziotctl-check-common = { path = "./aziotctl-check-common" }
+aziotctl-common = { path = "./aziotctl-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
 mini-sntp = { path = "../mini-sntp" }
 

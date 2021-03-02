@@ -60,6 +60,7 @@ pub enum InternalError {
     BadSettings(std::io::Error),
     CreateCertificate(Box<dyn std::error::Error + Send + Sync>),
     CreateHomeDir(std::io::Error),
+    InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     InvalidUri(http::uri::InvalidUri),
     LoadKeyOpensslEngine(openssl2::Error),
     LoadDeviceInfo(std::io::Error),
@@ -78,6 +79,7 @@ impl std::fmt::Display for InternalError {
             InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
             InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
             InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
+            InternalError::InvalidProxyUri(_) => f.write_str("invalid proxy uri"),
             InternalError::InvalidUri(_) => f.write_str("invalid resource uri"),
             InternalError::LoadKeyOpensslEngine(_) => {
                 f.write_str("could not load aziot-key-openssl-engine")
@@ -109,6 +111,7 @@ impl std::error::Error for InternalError {
             InternalError::BadSettings(err) => Some(err),
             InternalError::CreateCertificate(err) => Some(&**err),
             InternalError::CreateHomeDir(err) => Some(err),
+            InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::InvalidUri(err) => Some(err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
             InternalError::LoadDeviceInfo(err) => Some(err),

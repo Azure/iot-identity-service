@@ -334,6 +334,42 @@ trap "
         --tags "$resource_tag"
     echo 'Created IoT Hub' >&2
 
+    # Only create a DPS if running DPS tests
+    case "$test_name" in
+        dps-*)
+            echo 'Creating DPS...' >&2
+            dps_result="$(
+                az iot dps create \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --name "$common_resource_name" \
+                    --tags "$resource_tag"
+            )"
+            dps_scope_id="$(<<< "$dps_result" jq '.properties.idScope' -r)"
+            dps_resource_id="$(<<< "$dps_result" jq '.id' -r)"
+
+            az iot dps linked-hub create \
+                --resource-group "$AZURE_RESOURCE_GROUP_NAME" --dps-name "$common_resource_name" \
+                --connection-string "$(
+                    az iot hub connection-string show \
+                        --resource-group "$AZURE_RESOURCE_GROUP_NAME" --hub-name "$common_resource_name" \
+                        --query 'connectionString' --output tsv
+                )" \
+                --location "$(
+                    az iot hub show \
+                        --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$common_resource_name" \
+                        --query 'location' --output tsv
+                )"
+
+            # `az iot dps linked-hub create` deletes the tags on the DPS that
+            # were set by `az iot dps create` for some unknown reason, so we
+            # need to tag it again.
+            >/dev/null az resource tag \
+                --ids "$dps_resource_id" \
+                --tags "$resource_tag"
+
+            echo 'Created DPS' >&2
+            ;;
+    esac
 
     case "$test_name" in
         'manual-symmetric-key')
@@ -402,7 +438,7 @@ EOF
                 -newkey rsa:2048 -keyout device-id.key.pem -nodes \
                 -out device-id.csr \
                 -days 1 \
-                -subj="/CN=aziot_device_id_cert_e2e_test"
+                -subj="/CN=$common_resource_name"
             openssl x509 -req \
                 -in device-id.csr \
                 -CA device-id-root.pem -CAkey device-id-root.key.pem \
@@ -454,6 +490,182 @@ device_id = "$iot_device_id"
 method = "x509"
 identity_cert = "device-id"
 identity_pk = "device-id"
+EOF
+
+            echo 'Generated config files' >&2
+            ;;
+
+        'dps-symmetric-key')
+            echo 'Creating symmetric key enrollment group in DPS...' >&2
+            dps_symmetric_key="$(
+                az iot dps enrollment-group create \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --dps-name "$common_resource_name" \
+                    --enrollment-id "$common_resource_name" \
+                    --iot-hub-host-name "$common_resource_name.azure-devices.net" \
+                    --query 'attestation.symmetricKey.primaryKey' --output tsv
+            )"
+            echo 'Created symmetric key enrollment group in DPS.' >&2
+
+            echo 'Deriving individual device key...' >&2
+            keybytes="$(echo "$dps_symmetric_key" | base64 --decode | xxd -p -u -c 1000)"
+            derived_device_key="$(echo -n $common_resource_name | openssl sha256 -mac HMAC -macopt hexkey:$keybytes -binary | base64 -w 0)"
+
+            echo 'Generating config files...' >&2
+
+            >keyd.toml cat <<-EOF
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+device-id = "file:///var/secrets/aziot/keyd/device-id"
+EOF
+
+            >certd.toml cat <<-EOF
+homedir_path = "/var/lib/aziot/certd"
+
+[cert_issuance]
+
+[preloaded_certs]
+EOF
+
+            >identityd.toml cat <<-EOF
+hostname = "$common_resource_name"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+always_reprovision_on_startup = true
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net"
+scope_id = "$dps_scope_id"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "$common_resource_name"
+symmetric_key = "device-id"
+EOF
+
+            >device-id base64 -d <<< "$derived_device_key"
+
+            echo 'Generated config files' >&2
+            ;;
+
+        'dps-x509')
+            echo 'Creating self-signed root CA' >&2
+            openssl req \
+                -new \
+                -x509 \
+                -newkey rsa:4096 -keyout device-id-root.key.pem -nodes \
+                -subj "/CN=aziot_root_ca_cert_e2e_test" \
+                -days 30 \
+                -sha256 \
+                -out device-id-root.pem
+
+            echo 'Uploading root CA to DPS...' >&2
+            az iot dps certificate create \
+                --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                --dps-name "$common_resource_name" \
+                --certificate-name "$common_resource_name" \
+                --path device-id-root.pem
+            echo 'Uploaded root CA to DPS' >&2
+
+            echo 'Fetching first etag for verification code request...' >&2
+            etag="$(
+                az iot dps certificate show \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --dps-name "$common_resource_name" \
+                    --certificate-name "$common_resource_name" \
+                    --query etag --output tsv
+            )"
+
+            echo 'Generating verification code and saving new etag...' >&2
+            cloud_certificate="$(
+                az iot dps certificate generate-verification-code \
+                    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                    --dps-name "$common_resource_name" \
+                    --certificate-name "$common_resource_name" \
+                    --etag "$etag"
+            )"
+            etag="$(<<< "$cloud_certificate" jq '.etag' -r)"
+            verification_code="$(<<< "$cloud_certificate" jq '.properties.verificationCode' -r)"
+
+            echo 'Generating CSR for verification cert and signing it with the root CA to get the verification cert.' >&2
+            openssl req \
+                -newkey rsa:2048 -keyout device-id-root-verify.key.pem -nodes \
+                -out device-id-root-verify.csr \
+                -days 1 \
+                -subj "/CN=${verification_code}"
+
+            openssl x509 -req \
+                -in device-id-root-verify.csr \
+                -CA device-id-root.pem -CAkey device-id-root.key.pem \
+                -out device-id-root-verify.pem \
+                -days 365 -CAcreateserial
+
+            echo 'Uploading verification cert to DPS...' >&2
+            az iot dps certificate verify \
+                --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                --dps-name "$common_resource_name" \
+                --certificate-name "$common_resource_name" \
+                --path device-id-root-verify.pem \
+                --etag "$etag"
+            echo 'Uploaded verification cert to DPS' >&2
+
+            echo 'Creating x509 enrollment group in DPS...' >&2
+            az iot dps enrollment-group create \
+                --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+                --dps-name "$common_resource_name" \
+                --enrollment-id "$common_resource_name" \
+                --ca-name "$common_resource_name" \
+                --iot-hub-host-name "$common_resource_name.azure-devices.net"
+            echo 'Created x509 enrollment group in DPS.' >&2
+
+            echo 'Generating CSR for device ID cert and signing it with the root CA to get the device id cert.' >&2
+            openssl req \
+                -newkey rsa:2048 -keyout device-id.key.pem -nodes \
+                -out device-id.csr \
+                -days 1 \
+                -subj="/CN=$common_resource_name"
+            openssl x509 -req \
+                -in device-id.csr \
+                -CA device-id-root.pem -CAkey device-id-root.key.pem \
+                -out device-id.pem \
+                -days 365 -CAcreateserial
+
+            echo 'Generating config files...' >&2
+
+            >keyd.toml cat <<-EOF
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+device-id = "file:///var/secrets/aziot/keyd/device-id.key.pem"
+EOF
+
+            >certd.toml cat <<-EOF
+homedir_path = "/var/lib/aziot/certd"
+
+[cert_issuance]
+
+[preloaded_certs]
+device-id = "file:///var/secrets/aziot/certd/device-id.pem"
+EOF
+
+            >identityd.toml cat <<-EOF
+hostname = "$common_resource_name"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+always_reprovision_on_startup = true
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net"
+scope_id = "$dps_scope_id"
+
+[provisioning.attestation]
+method = "x509"
+identity_cert = "device-id"
+identity_pk = "device-id"
+registration_id = "$common_resource_name"
 EOF
 
             echo 'Generated config files' >&2
@@ -663,6 +875,15 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
     sudo usermod -aG aziotid aziot
+
+    >/tmp/principals.toml cat <<-EOF
+[[principal]]
+uid = $(id -u aziotid)
+keys = ["aziot_identityd_master_id", "device-id"]
+EOF
+    sudo mv /tmp/principals.toml /etc/aziot/keyd/config.d/principals.toml
+    sudo chown aziotks:aziotks /etc/aziot/keyd/config.d/principals.toml
+    sudo chmod 0600 /etc/aziot/keyd/config.d/principals.toml
 
     sudo mkdir -p /var/secrets/aziot/certd
     sudo chown aziotcs:aziotcs /var/secrets/aziot/certd

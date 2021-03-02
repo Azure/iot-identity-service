@@ -12,6 +12,7 @@ futures-util = "0.3"
 http = "0.2"
 hyper = "0.14"
 lazy_static = "1"
+libc = "0.2"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
@@ -20,8 +21,10 @@ regex = "1"
 serde = "1"
 serde_json = "1"
 url = "2"
+wildmatch = "1"
 
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-keyd-config = { path = "../aziot-keyd-config" }
+config-common = { path = "../../config-common" }
 http-common = { path = "../../http-common", features = ["tokio1"] }

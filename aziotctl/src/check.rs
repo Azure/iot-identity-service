@@ -8,7 +8,7 @@ use anyhow::Result;
 use colored::Colorize;
 use structopt::StructOpt;
 
-use aziotctl_check_common::{
+use aziotctl_common::{
     CheckOutputSerializable, CheckOutputSerializableStreaming, CheckResultSerializable,
     CheckResultsSerializable,
 };

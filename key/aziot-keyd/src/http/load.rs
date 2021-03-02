@@ -10,6 +10,7 @@ pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
     type_: String,
     key_id: String,
+    user: libc::uid_t,
 }
 
 #[async_trait::async_trait]
@@ -24,7 +25,7 @@ impl http_common::server::Route for Route {
         service: &Self::Service,
         path: &str,
         _query: &[(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)],
-        _extensions: &http::Extensions,
+        extensions: &http::Extensions,
     ) -> Option<Self> {
         let captures = URI_REGEX.captures(path)?;
 
@@ -38,10 +39,13 @@ impl http_common::server::Route for Route {
             .decode_utf8()
             .ok()?;
 
+        let uid = extensions.get::<libc::uid_t>().copied()?;
+
         Some(Route {
             api: service.api.clone(),
             type_: type_.into_owned(),
             key_id: key_id.into_owned(),
+            user: uid,
         })
     }
 
@@ -54,11 +58,11 @@ impl http_common::server::Route for Route {
         let api = &mut *api;
 
         let handle = match &*self.type_ {
-            "keypair" => match api.load_key_pair(&self.key_id) {
+            "keypair" => match api.load_key_pair(&self.key_id, self.user) {
                 Ok(handle) => handle,
                 Err(err) => return Err(super::to_http_error(&err)),
             },
-            "key" => match api.load_key(&self.key_id) {
+            "key" => match api.load_key(&self.key_id, self.user) {
                 Ok(handle) => handle,
                 Err(err) => return Err(super::to_http_error(&err)),
             },
