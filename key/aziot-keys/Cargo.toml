@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
+env_logger = "0.8"
 foreign-types-shared = "0.1"
 hex = "0.4"
 hmac = "0.8"
@@ -21,6 +22,7 @@ sha2 = "0.9"
 url = "2"
 
 aziot-keys-common = { path = "../aziot-keys-common" }
+logger = { path = "../../logger" }
 openssl2 = { path = "../../openssl2" }
 openssl-sys2 = { path = "../../openssl-sys2" }
 pkcs11 = { path = "../../pkcs11/pkcs11" }

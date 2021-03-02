@@ -19,3 +19,4 @@ aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
 config-common = { path = "../config-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
+logger = { path = "../logger" }

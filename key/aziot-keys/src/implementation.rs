@@ -17,6 +17,10 @@ pub(crate) unsafe fn get_function_list(
     version: crate::AZIOT_KEYS_VERSION,
     pfunction_list: *mut *const crate::AZIOT_KEYS_FUNCTION_LIST,
 ) -> crate::AZIOT_KEYS_RC {
+    // Ignore the error from `try_init`. The error indicates a global logger was already set,
+    // which is because `get_function_list` is being called a second time. That's fine.
+    let _ = logger::try_init();
+
     crate::r#catch(|| {
         static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0: crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 =
             crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
