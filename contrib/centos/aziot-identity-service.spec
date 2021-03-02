@@ -174,6 +174,8 @@ fi
 %attr(400, aziottpm, aziottpm) %{_sysconfdir}/aziot/tpmd/config.toml.default
 %attr(700, aziottpm, aziottpm) %dir %{_sysconfdir}/aziot/tpmd/config.d
 
+%attr(600, root, root) %{_sysconfdir}/aziot/config.toml.template
+
 # Home directories
 %attr(-, aziotcs, aziotcs) %dir /var/lib/aziot/certd
 %attr(-, aziotid, aziotid) %dir /var/lib/aziot/identityd

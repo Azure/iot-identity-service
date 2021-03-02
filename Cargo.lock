@@ -302,6 +302,7 @@ dependencies = [
  "libc",
  "serde",
  "toml",
+ "url",
 ]
 
 [[package]]
@@ -460,6 +461,7 @@ name = "aziot-keys-common"
 version = "0.1.0"
 dependencies = [
  "pkcs11",
+ "serde",
  "url",
 ]
 
@@ -538,6 +540,7 @@ name = "aziotctl"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "async-trait",
  "aziot-certd-config",
  "aziot-identityd-config",
@@ -550,7 +553,7 @@ dependencies = [
  "bytes",
  "chrono",
  "colored",
- "derive_more",
+ "config-common",
  "erased-serde",
  "http-common",
  "hyper",
@@ -560,7 +563,6 @@ dependencies = [
  "mini-sntp",
  "nix",
  "openssl",
- "rustyline",
  "serde",
  "serde_json",
  "structopt",
@@ -575,9 +577,22 @@ name = "aziotctl-common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "aziot-certd-config",
+ "aziot-identityd-config",
+ "aziot-keyd-config",
+ "aziot-keys-common",
+ "aziot-tpmd-config",
+ "base64",
+ "bytes",
+ "derive_more",
+ "http-common",
  "log",
+ "nix",
+ "rustyline",
  "serde",
  "serde_json",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -753,7 +768,6 @@ name = "config-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "backtrace",
  "futures-util",
  "log",
  "notify",
@@ -1246,6 +1260,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -1310,8 +1325,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-proxy"
-version = "0.8.0"
-source = "git+https://github.com/Azure/hyper-proxy.git#1d30a8826ddb78f75bfc3e3ae1369ec1d502a928"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9617035cdc5cbfcf18d9ed5e28eef45a5612d2ce11fc3be9952bdc626b984399"
 dependencies = [
  "bytes",
  "futures",
@@ -2322,8 +2338,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7d40a22fd029e33300d8d89a5cc8ffce18bb7c587662f54629e94c9de5487f3"
 dependencies = [
  "cfg-if 1.0.0",
+ "log",
  "pin-project-lite",
+ "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8a9bd1db7706f2373a190b0d067146caa39350c486f3d455b0e33b431f94c07"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

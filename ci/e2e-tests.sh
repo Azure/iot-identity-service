@@ -536,7 +536,7 @@ homedir = "/var/lib/aziot/identityd"
 [provisioning]
 always_reprovision_on_startup = true
 source = "dps"
-global_endpoint = "https://global.azure-devices-provisioning.net"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"
 
 [provisioning.attestation]
@@ -658,7 +658,7 @@ homedir = "/var/lib/aziot/identityd"
 [provisioning]
 always_reprovision_on_startup = true
 source = "dps"
-global_endpoint = "https://global.azure-devices-provisioning.net"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"
 
 [provisioning.attestation]

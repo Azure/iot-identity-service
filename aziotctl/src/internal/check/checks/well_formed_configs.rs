@@ -1,13 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use serde::Serialize;
-use tokio::fs;
-use tokio::io;
-use tokio::io::AsyncReadExt;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
+use std::io;
 use std::path::Path;
 
 pub fn well_formed_configs() -> impl Iterator<Item = Box<dyn Checker>> {
@@ -28,18 +26,24 @@ struct WellFormedKeydConfig {}
 impl Checker for WellFormedKeydConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "keyd-config-toml-well-formed",
-            description: "keyd config toml file is well-formed",
+            id: "keyd-config-well-formed",
+            description: "keyd configuration is well-formed",
         }
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        let daemon_cfg =
-            match load_daemon_cfg("keyd", Path::new("/etc/aziot/keyd/config.toml"), shared).await {
-                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
-                Err(e) => return CheckResult::Failed(e),
-            };
+        let daemon_cfg = match load_daemon_cfg(
+            "keyd",
+            Path::new("/etc/aziot/keyd/config.toml"),
+            Some(Path::new("/etc/aziot/keyd/config.d")),
+            shared,
+        )
+        .await
+        {
+            Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Err(e) => return CheckResult::Failed(e),
+        };
 
         cache.cfg.keyd = Some(daemon_cfg);
         CheckResult::Ok
@@ -53,19 +57,24 @@ struct WellFormedCertdConfig {}
 impl Checker for WellFormedCertdConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "certd-config-toml-well-formed",
-            description: "certd config toml file is well-formed",
+            id: "certd-config-well-formed",
+            description: "certd configuration is well-formed",
         }
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        let daemon_cfg =
-            match load_daemon_cfg("certd", Path::new("/etc/aziot/certd/config.toml"), shared).await
-            {
-                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
-                Err(e) => return CheckResult::Failed(e),
-            };
+        let daemon_cfg = match load_daemon_cfg(
+            "certd",
+            Path::new("/etc/aziot/certd/config.toml"),
+            Some(Path::new("/etc/aziot/certd/config.d")),
+            shared,
+        )
+        .await
+        {
+            Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Err(e) => return CheckResult::Failed(e),
+        };
 
         cache.cfg.certd = Some(daemon_cfg);
         CheckResult::Ok
@@ -79,18 +88,24 @@ struct WellFormedTpmdConfig {}
 impl Checker for WellFormedTpmdConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "tpmd-config-toml-well-formed",
-            description: "tpmd config toml file is well-formed",
+            id: "tpmd-config-well-formed",
+            description: "tpmd configuration is well-formed",
         }
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        let daemon_cfg =
-            match load_daemon_cfg("tpmd", Path::new("/etc/aziot/tpmd/config.toml"), shared).await {
-                Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-                Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
-                Err(e) => return CheckResult::Failed(e),
-            };
+        let daemon_cfg = match load_daemon_cfg(
+            "tpmd",
+            Path::new("/etc/aziot/tpmd/config.toml"),
+            Some(Path::new("/etc/aziot/tpmd/config.d")),
+            shared,
+        )
+        .await
+        {
+            Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
+            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Err(e) => return CheckResult::Failed(e),
+        };
 
         cache.cfg.tpmd = Some(daemon_cfg);
         CheckResult::Ok
@@ -105,8 +120,8 @@ struct WellFormedIdentitydConfig {}
 impl Checker for WellFormedIdentitydConfig {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
-            id: "identityd-config-toml-well-formed",
-            description: "identityd config toml file is well-formed",
+            id: "identityd-config-well-formed",
+            description: "identityd configuration is well-formed",
         }
     }
 
@@ -114,6 +129,7 @@ impl Checker for WellFormedIdentitydConfig {
         let daemon_cfg: aziot_identityd_config::Settings = match load_daemon_cfg(
             "identityd",
             Path::new("/etc/aziot/identityd/config.toml"),
+            Some(Path::new("/etc/aziot/identityd/config.d")),
             shared,
         )
         .await
@@ -135,6 +151,7 @@ impl Checker for WellFormedIdentitydConfig {
         match load_daemon_cfg::<aziot_identityd_config::Settings>(
             "identityd_prev",
             Path::new("/var/lib/aziot/identityd/prev_state"),
+            None,
             shared,
         )
         .await
@@ -158,42 +175,52 @@ enum DaemonCfg<T> {
 
 async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     daemon: &str,
-    path: &Path,
+    config_path: &Path,
+    config_directory_path: Option<&Path>,
     shared: &CheckerShared,
 ) -> Result<DaemonCfg<T>> {
-    let file_ctx = format!("error in file {}", path.display());
-
-    let mut file = match fs::File::open(path).await {
-        Ok(f) => f,
-        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            return Ok(DaemonCfg::PermissionDenied(
-                Error::from(e)
-                    .context(file_ctx)
-                    .context("Could not open file. You might need to run this command as root."),
-            ));
-        }
-        Err(e) => return Err(e).context(file_ctx).context("Could not open file."),
-    };
-
-    let mut data = Vec::new();
-    if let Err(e) = file.read_to_end(&mut data).await {
-        return Err(e).context(file_ctx).context("Could not read file.");
-    }
-
-    let daemon_cfg = match toml::from_slice(&data) {
+    let daemon_cfg = match config_common::read_config(config_path, config_directory_path) {
         Ok(daemon_cfg) => daemon_cfg,
-        Err(e) => {
-            let message = if shared.cfg.verbose {
-                format!(
-                    "{}'s configuration file is not well-formed.\n\
-                     Note: In case of syntax errors, the error may not be exactly at the reported line number and position.",
-                    daemon,
-                )
-            } else {
-                format!("{}'s configuration file is not well-formed.", daemon)
-            };
-            return Err(e).context(file_ctx).context(message);
-        }
+
+        Err(config_common::Error::ReadConfig(path, err)) => match err.downcast_ref::<io::Error>() {
+            Some(err) if err.kind() == io::ErrorKind::PermissionDenied => {
+                if let Some(path) = path {
+                    return Ok(DaemonCfg::PermissionDenied(
+                        anyhow::anyhow!("{}", err)
+                            .context(format!("error in file {}", path.display()))
+                            .context(
+                                "Could not open file. You might need to run this command as root.",
+                            ),
+                    ));
+                }
+
+                return Ok(DaemonCfg::PermissionDenied(
+                    anyhow::anyhow!("{}", err).context(
+                        "Could not open file. You might need to run this command as root.",
+                    ),
+                ));
+            }
+
+            _ => {
+                let message = if shared.cfg.verbose {
+                    format!(
+                        "{}'s configuration is not well-formed.\n\
+                        Note: In case of syntax errors, the error may not be exactly at the reported line number and position.",
+                        daemon,
+                    )
+                } else {
+                    format!("{}'s configuration file is not well-formed.", daemon)
+                };
+
+                if let Some(path) = path {
+                    return Err(anyhow::anyhow!("{}", err)
+                        .context(format!("error in file {}", path.display()))
+                        .context(message));
+                }
+
+                return Err(anyhow::anyhow!("{}", err).context(message));
+            }
+        },
     };
 
     Ok(DaemonCfg::Cfg(daemon_cfg))

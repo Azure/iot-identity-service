@@ -84,7 +84,7 @@ pub struct EstAuth {
 }
 
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,

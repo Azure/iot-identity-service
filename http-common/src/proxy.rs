@@ -100,10 +100,24 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
         proxy_uri: Option<hyper::Uri>,
         identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
     ) -> io::Result<Self> {
-        let https_connector = match identity.clone() {
-            None => hyper_openssl::HttpsConnector::new()?,
-            Some(identity) => {
-                let tls_connector = identity_to_tls_connector(identity)?;
+        let https_connector = match &identity {
+            Some((key, certs)) => {
+                let tls_connector = identity_to_tls_connector(key, certs)?;
+
+                let mut http_connector = hyper::client::HttpConnector::new();
+                http_connector.enforce_http(false);
+                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
+            }
+            None => {
+                // TODO: This disables HTTP/2 by explicitly setting the ALPN to "http/1.1"
+                // This is needed for nested Edge where IS talks to Edge Hub, because
+                // Edge Hub supports HTTP/2.
+                //
+                // The proper fix for this would be to enable HTTP/2 in the hyper client,
+                // but that didn't work for some reason and needs investigation.
+                let mut tls_connector =
+                    openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
+                tls_connector.set_alpn_protos(b"\x08http/1.1")?;
 
                 let mut http_connector = hyper::client::HttpConnector::new();
                 http_connector.enforce_http(false);
@@ -115,10 +129,10 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
             let proxy = uri_to_proxy(proxy_uri)?;
             let proxy_connector = match identity {
                 None => hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?,
-                Some(identity) => {
+                Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
-                    let proxy_tls_connector = identity_to_tls_connector(identity)?;
+                    let proxy_tls_connector = identity_to_tls_connector(&key, &certs)?;
 
                     let mut proxy_connector =
                         hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
@@ -134,13 +148,12 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
 }
 
 fn identity_to_tls_connector(
-    identity: (openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>),
+    key: &openssl::pkey::PKey<openssl::pkey::Private>,
+    certs: &[u8],
 ) -> io::Result<openssl::ssl::SslConnectorBuilder> {
-    let (key, certs) = identity;
-
     let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
-    let mut device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+    let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
     let client_cert = device_id_certs
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "device identity cert not found"))?;
@@ -148,10 +161,18 @@ fn identity_to_tls_connector(
     tls_connector.set_certificate(&client_cert)?;
 
     for cert in device_id_certs {
-        tls_connector.add_extra_chain_cert(cert.clone())?;
+        tls_connector.add_extra_chain_cert(cert)?;
     }
 
-    tls_connector.set_private_key(&key)?;
+    tls_connector.set_private_key(key)?;
+
+    // TODO: This disables HTTP/2 by explicitly setting the ALPN to "http/1.1"
+    // This is needed for nested Edge where IS talks to Edge Hub, because
+    // Edge Hub supports HTTP/2.
+    //
+    // The proper fix for this would be to enable HTTP/2 in the hyper client,
+    // but that didn't work for some reason and needs investigation.
+    tls_connector.set_alpn_protos(b"\x08http/1.1")?;
 
     Ok(tls_connector)
 }

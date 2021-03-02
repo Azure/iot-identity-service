@@ -6,6 +6,7 @@ edition = "2018"
 
 
 [dependencies]
+serde = { version = "1", optional = true }
 url = "2"
 
 pkcs11 = { path = "../../pkcs11/pkcs11" }

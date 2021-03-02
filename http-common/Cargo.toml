@@ -12,7 +12,7 @@ headers = { version = "0.3", optional = true }
 http = "0.2"
 hyper = { version = "0.14", features = ["client", "http1", "server", "tcp"], optional = true }
 hyper-openssl = { version = "0.9", optional = true }
-hyper-proxy = { git = "https://github.com/Azure/hyper-proxy.git", features = ["openssl-tls"], default-features = false, optional = true }
+hyper-proxy = { version = "0.9", features = ["openssl-tls"], default-features = false, optional = true }
 libc = "0.2"
 log = "0.4"
 nix = "0.18"
@@ -21,6 +21,7 @@ percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["net", "rt-multi-thread"], optional = true }
+tracing = { version = "0.1", features = ["log"] }
 url = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
