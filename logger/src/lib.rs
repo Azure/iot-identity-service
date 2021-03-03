@@ -1,8 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
 const LOG_LEVEL_ENV_VAR: &str = "AZIOT_LOG";
 
-pub(crate) fn init() {
+pub fn try_init() -> Result<(), log::SetLoggerError> {
     env_logger::Builder::new()
         .format(|fmt, record| {
             use std::io::Write;
@@ -39,7 +43,7 @@ pub(crate) fn init() {
         })
         .filter_level(log::LevelFilter::Info)
         .parse_env(LOG_LEVEL_ENV_VAR)
-        .init();
+        .try_init()
 }
 
 fn to_syslog_level(level: log::Level) -> i8 {
