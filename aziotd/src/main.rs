@@ -10,13 +10,13 @@
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
 
 mod error;
-mod logging;
 
 use error::{Error, ErrorKind};
 
 #[tokio::main]
 async fn main() {
-    logging::init();
+    logger::try_init()
+        .expect("cannot fail to initialize global logger from the process entrypoint");
 
     if let Err(err) = main_inner().await {
         log::error!("{}", err.0);
