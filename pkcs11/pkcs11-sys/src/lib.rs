@@ -177,6 +177,11 @@ pub const CKF_TOKEN_INITIALIZED: CK_TOKEN_INFO_FLAGS = CK_TOKEN_INFO_FLAGS(0x000
 
 // CK_FUNCTION_LIST
 
+// Note: The spec requires these to all be non-null; unimplemented functions must still exist
+// and return `CKR_FUNCTION_NOT_SUPPORTED`. But `fn`s being `NULL` in Rust is UB, so to be safe
+// against implementations that do decide to use `NULL` we interpret the functions as `Option<fn>` instead.
+// Note that `Option<fn>` is FFI-safe, because it's guaranteed to have the same size as `fn`,
+// which in turn is because the `NULL` value is a niche for `None`.
 #[repr(C)]
 pub struct CK_FUNCTION_LIST {
     pub version: CK_VERSION,

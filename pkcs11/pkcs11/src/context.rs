@@ -82,19 +82,39 @@ impl Context {
                     "C_GetFunctionList succeeded but function list is still NULL".into(),
                 ));
             }
-            let version = (*function_list).version;
-            if version.major != 2 || version.minor < 1 {
-                // We require 2.20 or higher. However opensc-pkcs11spy self-reports as v2.11 in the initial CK_FUNCTION_LIST version,
-                // and at least one smartcard vendor's library self-reports as v2.01 in the initial CK_FUNCTION_LIST version.
-                // Both of these report the real version in the C_GetInfo call (in opensc-pkcs11spy's case, it forwards C_GetInfo to
-                // the underlying PKCS#11 library), so we check the result of that later.
+
+            let version = {
+                // We don't know if `*function_list` is actually a valid `CK_FUNCTION_LIST` yet,
+                // because we need to look at its `.version` first.
                 //
-                // So the check here is a more lax v2.01 check.
-                return Err(LoadContextError::UnsupportedPkcs11Version {
-                    expected: pkcs11_sys::CK_VERSION { major: 2, minor: 1 },
-                    actual: version,
-                });
-            }
+                // Miri considers it UB to read the `.version` from a `CK_FUNCTION_LIST` pointer directly
+                // in case the pointee is smaller than a `CK_FUNCTION_LIST`, even if the pointee still has
+                // `version` as its first field. Miri considers it safe if we cast the pointer to
+                // the `version` field's type first and dereference just that.
+                //
+                // Note that C requires there to be no padding before the first field of a struct,
+                // so this cast is valid in that regard.
+
+                let version = function_list as *const pkcs11_sys::CK_VERSION;
+                let version = *version;
+                if version.major != 2 || version.minor < 1 {
+                    // We require 2.20 or higher. However opensc-pkcs11spy self-reports as v2.11 in the initial `CK_FUNCTION_LIST` version,
+                    // and at least one smartcard vendor's library self-reports as v2.01 in the initial `CK_FUNCTION_LIST` version.
+                    // Both of these report the real version in the `C_GetInfo` call (in opensc-pkcs11spy's case, it forwards `C_GetInfo` to
+                    // the underlying PKCS#11 library), so we check the result of that later.
+                    //
+                    // Here the check here is a more lax v2.01 check, just to be sure that the pointer we have
+                    // is to a `CK_FUNCTION_LIST` with the same structure that we expect. All PKCS#11 2.x versions
+                    // have the same `CK_FUNCTION_LIST` structure with the same fields, so even if the final version from `C_GetInfo`
+                    // turns out to be lower than 2.20, the `function_list` pointer is valid.
+                    return Err(LoadContextError::UnsupportedPkcs11Version {
+                        expected: pkcs11_sys::CK_VERSION { major: 2, minor: 1 },
+                        actual: version,
+                    });
+                }
+
+                version
+            };
 
             let C_CloseSession = (*function_list)
                 .C_CloseSession
@@ -165,7 +185,6 @@ impl Context {
                 .C_VerifyInit
                 .ok_or(LoadContextError::MissingFunction("C_VerifyInit"))?;
 
-            // Do initialization as the very last thing, so that if it succeeds we're guaranteed to call the corresponding C_Finalize
             let C_Initialize = (*function_list)
                 .C_Initialize
                 .ok_or(LoadContextError::MissingFunction("C_Initialize"))?;
@@ -182,6 +201,8 @@ impl Context {
                 return Err(LoadContextError::InitializeFailed(result));
             }
 
+            // Now that `C_Initialize` has succeeded, create the `Context` value before doing anything else,
+            // so that its `Drop` will run `C_Finalize` in case anything else fails later.
             let context = Context {
                 sessions: Default::default(),
 
