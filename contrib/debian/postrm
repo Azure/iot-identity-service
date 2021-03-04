@@ -24,11 +24,7 @@ case "$1" in
 			fi
 		fi
 
-		directories=("/run/aziot" "/var/secrets/aziot")
-
-		for dir in "${directories[@]}"; do
-			rm -rf "$dir"
-		done
+		rm -rf /run/aziot
 
 		# Delete aziot-identity-service users.
 		users=("aziotid" "aziotcs" "aziotks" "aziottpm")
