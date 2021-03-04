@@ -2,7 +2,7 @@
 
 The Identity Service (IS), Keys Service (KS), Certificates Service (CS) and TPM Service (TPMS) are stand-alone components that can be used on Linux-based Azure IoT devices to ease the process of provisioning the device with Azure, to allow modules on the device to securely and cooperatively connect to IoT Hub using module identities, and to provide common cryptographic services to modules like HSM-backed keys and CA-issued certificates.
 
-On Azure IoT Edge devices, these services form the backbone of the Azure IoT Edge service - the Azure IoT Edge service relies on the Identity Service to provision the Edge device identity and Edge module identities in Azure, to provide the CA certificate used for module server certificates like Edge Hub's, and so on.
+On Azure IoT Edge devices, these services form the backbone of the Azure IoT Edge service - the Azure IoT Edge service relies on the Identity Service to provision the Edge device identity and Edge module identities in Azure, to provide the CA certificate used for module server certificates like Edge Hub's, and so on. For more in-depth discussion of the IoT Edge package, refer to its documentation on ["Packaging".](https://github.com/Azure/iotedge/blob/master/doc/packaging.md)
 
 These components ship in the `aziot-identity-service` package. This document describes the contents of this package and how to install and configure it.
 
@@ -31,7 +31,7 @@ The `aziotctl` CLI tool is used to manage and interact with the services.
 The service binaries are installed under the distribution's "libexec" directory, since they're executables that are not intended to be directly invoked by a user and thus do not to be in `PATH`. Furthermore, all the services are compiled into a single binary `/usr/libexec/aziot/aziotd`, and the individual service binaries are just
 differently-named symlinks to this `aziotd` binary. This saves space since a lot of code in the services is statically linked and can be shared. The `aziotd` binary looks at its `argv[0]` to determine which service it's being asked to run as.
 
-`/usr/lib/libaziot_keys.so` is a library used by the KS for pluggable cryptographic key storage. It exposes a simple C API and is designed to be replacable by the user if they need to. However the implementation shipped by default is already quite versatile, since it supports both filesystem keys as well as all HSMs with PKCS#11 libraries, so we don't expect users to need to replace it.
+`/usr/lib/libaziot_keys.so` is a library used by the KS for pluggable cryptographic key storage. It exposes a simple C API and is designed to be replaceable by the user if they need to. However the implementation shipped by default is already quite versatile, since it supports both filesystem keys as well as all HSMs with PKCS#11 libraries, so we don't expect users to need to replace it.
 
 `/usr/lib/engines-1.1/aziot_keys.so` is an OpenSSL engine that can be used for mTLS when the client certificate's private key is backed by the KS. See ["Openssl engine internals"](openssl-engine-internals.md) for details.
 
@@ -131,7 +131,7 @@ For example, if you have a module process, the process needs to interact with th
 
 ## Package dependencies
 
-The binaries and libraries shipped in this package only depend on OpenSSL.
+The binaries and libraries shipped in this package only depend on OpenSSL (v1.0 on CentOS 7, v1.1 on other supported distributions).
 
 If you plan to use a PKCS#11 library with KS to store your cryptographic keys in an HSM or TPM, you will need to install this library and its dependencies in accordance with your HSM manufacturer.
 
