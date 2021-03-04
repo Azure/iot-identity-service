@@ -1,5 +1,7 @@
 # TPM Service
 
+_Note:_ At this time, the TPM service should be considered an internal implementation detail of the identity-service, and is not directly accessible by host modules. This documentation is provided as a developer aide.
+
 ## API
 
 The HTTP API mirrors the underlying `aziot-tpm-sys` API:
@@ -78,13 +80,21 @@ The TPMS is made up of the following crates:
 
     This is the main TPMS crate. It implements the HTTP server and REST API on-top of the aziot-tpm crate.
 
+- aziot-tpmd-config
+
+    Type definitions for tpmd's configuration.
+
 - aziot-tpm-sys
 
     Rust bindings to an in-tree C library that implements low level TPM operations. This crate is a strict subset of the existing `hsm-sys` crate + `azure-iot-hsm-c` libraries, with all non-TPM related functionality stripped out.
 
 - aziot-tpm-rs
 
-    Idiomatic Rust interface around aziot-tpm-sys, handling all low-level `unsafe` invariants required when calling into aziot-tpm-sys.
+    An idiomatic Rust interface around aziot-tpm-sys, encapsulating all low-level `unsafe` invariants required when calling into aziot-tpm-sys.
+
+- aziot-tpm-common
+
+    Common types shared across all TPMS crates.
 
 - aziot-tpm-client-async
 

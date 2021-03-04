@@ -373,6 +373,10 @@ The KS is made up of the following crates:
 
     This is the main KS crate. It implements the HTTP server and REST API.
 
+- aziot-keyd-config
+
+    Type definitions for keyd's configuration.
+
 - aziot-keys
 
     libaziot-keys is a dynamic library that implements key storage and crypto operations. The REST API exported by KS maps nearly one-to-one with the C API exposed by libaziot-keys.
