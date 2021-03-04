@@ -1,5 +1,0 @@
-4
-0ab1234C5D6
-my-device
-YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGVudGl0eS1zZXJ2aWNlfGF6aW90LWlkZW50aXR5LXNlcg==
-2
