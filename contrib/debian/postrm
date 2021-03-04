@@ -24,17 +24,7 @@ case "$1" in
 
 		# Delete directories used by aziot-identity-service.
 		# Home directories are not deleted here; they will be deleted with their user.
-		if [ -d /etc/aziot ]; then
-			rm -rf /etc/aziot/identityd
-			rm -rf /etc/aziot/certd
-			rm -rf /etc/aziot/keyd
-			rm -rf /etc/aziot/tpmd
-
-			if [ -z "$(ls -A /etc/aziot)" ]; then
-				rm -rf /etc/aziot
-			fi
-		fi
-
+		rm -rf /etc/aziot
 		rm -rf /run/aziot
 
 		# Delete aziot-identity-service users.
