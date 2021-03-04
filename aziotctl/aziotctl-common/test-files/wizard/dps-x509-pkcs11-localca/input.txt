@@ -1,9 +1,0 @@
-5
-0ab1234C5D6
-my-device
-1
-/usr/lib/libmypkcs11.so
-pkcs11:slot-id=0?pin-value=1234
-2
-pkcs11:slot-id=0;object=local-ca?pin-value=1234
-/var/secrets/local-ca.pem

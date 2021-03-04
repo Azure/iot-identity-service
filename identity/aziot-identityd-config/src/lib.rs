@@ -89,7 +89,7 @@ pub enum DpsAttestationMethod {
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
     // This type used to have the `provisioning` field before the `always_reprovision_on_startup` field. It doesn't matter much except that the fields are
-    // serialized in the order of definition when generating a new config via `aziotctl config wizard`, and it would've been nice to serialize
+    // serialized in the order of definition when generating a new config via `aziotctl config apply`, and it would've been nice to serialize
     // the `provisioning` value before the `always_reprovision_on_startup` value.
     //
     // Unfortunately the TOML serializer needs "values" (like `always_reprovision_on_startup`) to come before "tables" (like `provisioning`),

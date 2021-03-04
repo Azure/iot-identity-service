@@ -4,9 +4,6 @@ use anyhow::Context;
 
 pub mod apply;
 pub mod super_config;
-pub mod wizard;
-
-const DPS_GLOBAL_ENDPOINT: &str = "https://global.azure-devices-provisioning.net";
 
 const AZIOT_KEYD_HOMEDIR_PATH: &str = "/var/lib/aziot/keyd";
 const AZIOT_CERTD_HOMEDIR_PATH: &str = "/var/lib/aziot/certd";
@@ -23,9 +20,6 @@ const EST_ID_ID: &str = "est-id";
 
 /// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server for the initial bootstrap.
 const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
-
-/// The ID used for the CA cert that is used to validate the EST server's server cert.
-const EST_SERVER_CA_ID: &str = "est-server-ca";
 
 pub fn create_dir_all(
     path: &(impl AsRef<std::path::Path> + ?Sized),

@@ -8,10 +8,8 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.34"
 base64 = "0.13"
-derive_more = "0.99.11"
 log = "0.4"
 nix = "0.18"
-rustyline = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.59"
 url = { version = "2", features = ["serde"] }
