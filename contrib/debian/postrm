@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# postrm script for aziot-identity-service
+#
+# see: dh_installdeb(1)
+
+set -e
+
+case "$1" in
+	purge)
+		systemctl daemon-reload
+
+		# Delete directories used by aziot-identity-service.
+		# Home directories are not deleted here; they will be deleted with their user.
+		if [ -d /etc/aziot ]; then
+			services=("identityd" "certd" "keyd" "tpmd")
+
+			for service in "${services[@]}"; do
+				rm -rf "/etc/aziot/${service}"
+			done
+
+			if [ -z "$(ls -A /etc/aziot)" ]; then
+				rm -rf /etc/aziot
+			fi
+		fi
+
+		directories=("/run/aziot" "/var/secrets/aziot")
+
+		for dir in "${directories[@]}"; do
+			rm -rf "$dir"
+		done
+
+		# Delete aziot-identity-service users.
+		users=("aziotid" "aziotcs" "aziotks" "aziottpm")
+
+		for user in "${users[@]}"; do
+			/usr/sbin/userdel "$user"
+		done
+
+		if [ -d /var/lib/aziot ] && [ -z "$(ls -A /var/lib/aziot)" ]; then
+			rm -rf /var/lib/aziot
+		fi
+		;;
+	remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+		;;
+	*)
+		>&2 echo "postrm called with unknown argument '$1'"
+		exit 1
+		;;
+esac
