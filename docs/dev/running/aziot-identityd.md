@@ -12,6 +12,11 @@ homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
 
+[endpoints] # only available when running debug builds
+aziot_certd = "unix:///run/aziot/certd.sock"
+aziot_identityd = "unix:///run/aziot/identityd.sock"
+aziot_keyd = "unix:///run/aziot/keyd.sock"
+aziot_tpmd = "unix:///run/aziot/tpmd.sock"
 ```
 
 Example principal file in config directory:
