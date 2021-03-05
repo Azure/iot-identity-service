@@ -20,6 +20,7 @@ pub struct IdentityManager {
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     proxy_uri: Option<hyper::Uri>,
+    aad_id: Option<String>,
 }
 
 impl IdentityManager {
@@ -31,6 +32,7 @@ impl IdentityManager {
         tpm_client: Arc<aziot_tpm_client_async::Client>,
         iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
         proxy_uri: Option<hyper::Uri>,
+        aad_id: Option<String>,
     ) -> Self {
         IdentityManager {
             locks: Default::default(),
@@ -41,6 +43,7 @@ impl IdentityManager {
             tpm_client,
             iot_hub_device, //set by Server over futures channel
             proxy_uri,
+            aad_id,
         }
     }
 
@@ -674,10 +677,11 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
+            let aad_id: Option<&str> = self.aad_id.as_deref();
             let result = async {
-                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+                let csr = create_csr(&subject, &public_key, &private_key, None, aad_id).map_err(
+                    |err| Error::Internal(InternalError::CreateCertificate(Box::new(err))),
+                )?;
 
                 let _ = self
                     .cert_client

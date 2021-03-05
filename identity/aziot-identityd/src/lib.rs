@@ -162,6 +162,7 @@ impl Api {
             tpm_client.clone(),
             None,
             proxy_uri.clone(),
+            settings.aadidentity.clone(),
         );
 
         Ok(Api {
@@ -454,7 +455,7 @@ impl Api {
                 "{}.{}.{}",
                 module_id, self.settings.hostname, localid.domain
             );
-            let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
+            let csr = create_csr(&subject, &public_key, &private_key, Some(attributes), None)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
@@ -529,10 +530,9 @@ pub(crate) fn create_csr(
     public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
     private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
     attributes: Option<aziot_identity_common::LocalIdAttr>,
+    aad_id: Option<&str>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
     let mut csr = openssl::x509::X509Req::builder()?;
-    println!("\n\n\nMaking CSR!\n\n\n");
-
     csr.set_version(2)?;
 
     let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> =
@@ -570,9 +570,10 @@ pub(crate) fn create_csr(
     extensions.push(extended_key_usage)?;
 
     // SAN
-    {
+    if let Some(aad_id) = aad_id {
+        println!("\nDebugging: Creating cert with aad id {}\n", aad_id);
         let mut subject_alternate_name = openssl::x509::extension::SubjectAlternativeName::new();
-        subject_alternate_name.email("cb2fefd9-95e9-4f75-9e8f-8c2ea5bf18db");
+        subject_alternate_name.email(aad_id);
         let subject_alternate_name = subject_alternate_name.build(&csr.x509v3_context(None))?;
         extensions.push(subject_alternate_name)?;
     }

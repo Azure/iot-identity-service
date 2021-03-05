@@ -10,6 +10,8 @@ mod check;
 pub struct Settings {
     pub hostname: String,
 
+    pub aadidentity: Option<String>,
+
     pub homedir: std::path::PathBuf,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
