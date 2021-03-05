@@ -90,11 +90,10 @@ impl Tpm {
         // ensure that `aziot_tpm_init` is only called once
         INIT_C_LIB.call_once(|| unsafe {
             INIT_RESULT = {
-                let log_level = match log::max_level() {
-                    l if l <= log::Level::Error => LOG_LVL_ERROR,
-                    l if l <= log::Level::Info => LOG_LVL_INFO,
-                    l if l <= log::Level::Debug => LOG_LVL_DEBUG,
-                    _ => LOG_LVL_INFO,
+                let log_level = match log::max_level().to_level().unwrap_or(log::Level::Info) {
+                    log::Level::Error | log::Level::Warn => LOG_LVL_ERROR,
+                    log::Level::Info => LOG_LVL_INFO,
+                    log::Level::Debug | log::Level::Trace => LOG_LVL_DEBUG,
                 };
 
                 let result = aziot_tpm_init(log_level) as isize;
