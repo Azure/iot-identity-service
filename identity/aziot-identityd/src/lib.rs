@@ -531,49 +531,52 @@ pub(crate) fn create_csr(
     attributes: Option<aziot_identity_common::LocalIdAttr>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
     let mut csr = openssl::x509::X509Req::builder()?;
+    println!("\n\n\nMaking CSR!\n\n\n");
 
-    csr.set_version(0)?;
+    csr.set_version(2)?;
+
+    let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> =
+        openssl::stack::Stack::new()?;
+
+    // basicConstraints = critical, CA:FALSE
+    let basic_constraints = openssl::x509::extension::BasicConstraints::new()
+        .critical()
+        .build()?;
+    extensions.push(basic_constraints)?;
+
+    // keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+    let key_usage = openssl::x509::extension::KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .non_repudiation()
+        .key_encipherment()
+        .build()?;
+    extensions.push(key_usage)?;
+
+    // extendedKeyUsage = critical, clientAuth
+    // Always set (even for servers) because it's required for EST client certificate renewal.
+    let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
+    extended_key_usage.critical();
+    extended_key_usage.client_auth();
 
     if let Some(attr) = attributes {
-        let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> =
-            openssl::stack::Stack::new()?;
-
-        // basicConstraints = critical, CA:FALSE
-        let basic_constraints = openssl::x509::extension::BasicConstraints::new()
-            .critical()
-            .build()?;
-        extensions.push(basic_constraints)?;
-
-        // keyUsage = digitalSignature, nonRepudiation, keyEncipherment
-        let key_usage = openssl::x509::extension::KeyUsage::new()
-            .critical()
-            .digital_signature()
-            .non_repudiation()
-            .key_encipherment()
-            .build()?;
-        extensions.push(key_usage)?;
-
-        // extendedKeyUsage = critical, clientAuth
-        // Always set (even for servers) because it's required for EST client certificate renewal.
-        let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
-        extended_key_usage.critical();
-        extended_key_usage.client_auth();
-
         if attr == aziot_identity_common::LocalIdAttr::Server {
             // extendedKeyUsage = serverAuth (in addition to clientAuth)
             extended_key_usage.server_auth();
         }
-
-        let extended_key_usage = extended_key_usage.build()?;
-        extensions.push(extended_key_usage)?;
-
-        let mut subject_alternate_name = openssl::x509::extension::SubjectAlternativeName::new();
-        subject_alternate_name.uri("4a8017fa-2012-4595-8329-b35e5ef5bdd7");
-        let subject_alternate_name = subject_alternate_name.build()?;
-        extensions.push(subject_alternate_name)?;
-
-        csr.add_extensions(&extensions)?;
     }
+
+    let extended_key_usage = extended_key_usage.build()?;
+    extensions.push(extended_key_usage)?;
+
+    // SAN
+    {
+        let mut subject_alternate_name = openssl::x509::extension::SubjectAlternativeName::new();
+        subject_alternate_name.email("cb2fefd9-95e9-4f75-9e8f-8c2ea5bf18db");
+        let subject_alternate_name = subject_alternate_name.build(&csr.x509v3_context(None))?;
+        extensions.push(subject_alternate_name)?;
+    }
+    csr.add_extensions(&extensions)?;
 
     let mut subject_name = openssl::x509::X509Name::builder()?;
     subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
