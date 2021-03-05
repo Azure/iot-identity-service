@@ -20,7 +20,7 @@ extern "C" {
  *
  * @return  On success 0 on. Non-zero on failure
  */
-int aziot_tpm_init();
+int aziot_tpm_init(int log_level);
 
 typedef void* AZIOT_TPM_HANDLE;
 
