@@ -1,58 +1,28 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use http_common::MaybeProxyConnector;
+
 pub(crate) async fn create_cert(
     csr: Vec<u8>,
     url: &url::Url,
     basic_auth: Option<(&str, &str)>,
     client_cert: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
     trusted_certs: Vec<openssl::x509::X509>,
+    proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, crate::Error> {
-    let mut tls_connector = openssl::ssl::SslConnector::builder(
-        openssl::ssl::SslMethod::tls_client(),
-    )
-    .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
-
-    {
-        let cert_store = tls_connector.cert_store_mut();
-        for trusted_cert in trusted_certs {
-            cert_store.add_cert(trusted_cert).map_err(|err| {
-                crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-            })?;
-        }
-    }
-
-    if let Some((certs, private_key)) = client_cert {
-        tls_connector.set_private_key(private_key).map_err(|err| {
+    let proxy_connector = match client_cert {
+        Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
+            proxy_uri,
+            Some((device_id_private_key.to_owned(), device_id_certs.into())),
+            &trusted_certs,
+        )
+        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?,
+        None => MaybeProxyConnector::new(proxy_uri, None, &[]).map_err(|err| {
             crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?;
+        })?,
+    };
 
-        let certs = openssl::x509::X509::stack_from_pem(certs).map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?;
-        let mut certs = certs.into_iter();
-        let client_cert = certs.next().ok_or_else(|| {
-            crate::Error::Internal(crate::InternalError::CreateCert("no client cert".into()))
-        })?;
-        tls_connector.set_certificate(&client_cert).map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?;
-        for chain_cert in certs {
-            tls_connector
-                .add_extra_chain_cert(chain_cert)
-                .map_err(|err| {
-                    crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-                })?;
-        }
-    }
-
-    let mut http_connector = hyper::client::HttpConnector::new();
-    http_connector.enforce_http(false);
-    let tls_connector =
-        hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector).map_err(
-            |err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))),
-        )?;
-
-    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(tls_connector);
+    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(proxy_connector);
 
     let (simple_enroll_uri, ca_certs_uri) = {
         let mut uri = url.to_string();
@@ -110,7 +80,9 @@ pub(crate) async fn create_cert(
 }
 
 async fn get_pkcs7_response(
-    client: &hyper::Client<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+    client: &hyper::Client<
+        MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
+    >,
     request: Result<hyper::Request<hyper::Body>, http::Error>,
 ) -> Result<Vec<u8>, crate::Error> {
     let request = request

@@ -52,7 +52,7 @@ pub async fn get_sas_connector(
 
     let token = format!("SharedAccessSignature {}", token);
 
-    let proxy_connector = MaybeProxyConnector::new(proxy_uri, None)?;
+    let proxy_connector = MaybeProxyConnector::new(proxy_uri, None, &[])?;
     Ok((proxy_connector, token))
 }
 
@@ -75,8 +75,11 @@ pub async fn get_x509_connector(
 
     let device_id_certs = cert_client.get_cert(&identity_cert).await?;
 
-    let proxy_connector =
-        MaybeProxyConnector::new(proxy_uri, Some((device_id_private_key, device_id_certs)))?;
+    let proxy_connector = MaybeProxyConnector::new(
+        proxy_uri,
+        Some((device_id_private_key, device_id_certs)),
+        &[],
+    )?;
     Ok(proxy_connector)
 }
 

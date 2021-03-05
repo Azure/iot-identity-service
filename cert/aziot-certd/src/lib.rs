@@ -57,6 +57,9 @@ pub async fn main(
         let key_engine = aziot_key_openssl_engine::load(key_client.clone())
             .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
+        let proxy_uri = http_common::get_proxy_uri(None)
+            .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
         Api {
             homedir_path,
             cert_issuance,
@@ -65,6 +68,7 @@ pub async fn main(
 
             key_client,
             key_engine,
+            proxy_uri,
         }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
@@ -84,6 +88,7 @@ struct Api {
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -480,6 +485,7 @@ fn create_cert<'a>(
                                     auth_basic,
                                     Some((&identity_cert, &identity_private_key)),
                                     trusted_certs_x509,
+                                    api.proxy_uri.clone(),
                                 )
                                 .await?;
 
@@ -705,6 +711,7 @@ fn create_cert<'a>(
                                                 &bootstrap_identity_private_key,
                                             )),
                                             trusted_certs_x509,
+                                            api.proxy_uri.clone(),
                                         )
                                         .await?;
 
@@ -751,6 +758,7 @@ fn create_cert<'a>(
                             auth_basic,
                             None,
                             trusted_certs_x509,
+                            api.proxy_uri.clone(),
                         )
                         .await?;
 

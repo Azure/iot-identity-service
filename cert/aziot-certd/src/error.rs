@@ -50,6 +50,7 @@ pub enum InternalError {
     CreateCert(Box<dyn std::error::Error + Send + Sync>),
     DeleteFile(std::io::Error),
     GetPath(Box<dyn std::error::Error + Send + Sync>),
+    InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     LoadKeyOpensslEngine(openssl2::Error),
     ReadFile(std::io::Error),
 }
@@ -62,6 +63,7 @@ impl std::fmt::Display for InternalError {
             InternalError::GetPath(_) => {
                 f.write_str("could not get file path corresponding to cert ID")
             }
+            InternalError::InvalidProxyUri(_) => f.write_str("invalid proxy uri"),
             InternalError::LoadKeyOpensslEngine(_) => {
                 f.write_str("could not load aziot-key-openssl-engine")
             }
@@ -77,6 +79,7 @@ impl std::error::Error for InternalError {
             InternalError::CreateCert(err) => Some(&**err),
             InternalError::DeleteFile(err) => Some(err),
             InternalError::GetPath(err) => Some(&**err),
+            InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
             InternalError::ReadFile(err) => Some(err),
         }
