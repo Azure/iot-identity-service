@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use aziot_cloud_client_async_common::{get_sas_connector, get_x509_connector};
+use aziot_cloud_client_async_common::get_x509_connector;
 
 pub const IOT_HUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
@@ -25,7 +25,6 @@ pub struct Client {
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
-    tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
 }
 
@@ -36,7 +35,6 @@ impl Client {
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
-        tpm_client: Arc<aziot_tpm_client_async::Client>,
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         Client {
@@ -44,7 +42,6 @@ impl Client {
             key_client,
             key_engine,
             cert_client,
-            tpm_client,
             proxy_uri,
         }
     }
@@ -71,20 +68,8 @@ impl Client {
             access_token_provider_uri, tenant_id
         );
 
-        // let body = AADRequest {
-        //     grant_type: "sub_mtls",
-        //     scope: azure_resource_scope,
-        //     client_id: app_id,
-        //     external_device_id: device_id,
-        // };
-
-        // println!("\n\n\nGetting token.\nUri: {}\nBody:{:#?}", uri, body);
-
         let res: AADResponse = self.request(http::Method::POST, &uri, Some(params)).await?;
-        //::<(), AADResponse>
         Ok(res.access_token)
-
-        // Ok("eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InZQVWt1UGdUTFd6WkNETzhocVZGOUVxdXN6byIsImtpZCI6InZQVWt1UGdUTFd6WkNETzhocVZGOUVxdXN6byJ9.eyJhdWQiOiJodHRwczovL3BwZS5jb2duaXRpdmVzZXJ2aWNlcy5henVyZS5jb20iLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLXBwZS5uZXQvZjM1YmY1ZmEtNzk3Ny00NDdjLWExYWYtNGM0NTdiYWQ3ZDdlLyIsImlhdCI6MTYxNDYyMTIwMCwibmJmIjoxNjE0NjIxMjAwLCJleHAiOjE2MTQ2MjUxMDAsImFpbyI6IkUyTmdZRGdsVi9weFNYVnA5aC9IU2FaWGxsVk5BZ0E9IiwiYXBwaWQiOiJmYjZiNDZlNS0wOGM5LTRiOWYtYmQ0Zi05YzUzY2QwMzQ3YTUiLCJhcHBpZGFjciI6IjIiLCJkZXZpY2VpZCI6Ijk0YmUzM2Y1LWE5ZmMtNDZjMi1iMDA3LWVhYTEzZTA3M2Q5YiIsImlkcCI6Imh0dHBzOi8vc3RzLndpbmRvd3MtcHBlLm5ldC9mMzViZjVmYS03OTc3LTQ0N2MtYTFhZi00YzQ1N2JhZDdkN2UvIiwiaXBhZGRyIjoiMTMxLjEwNy4xNjAuNjgiLCJvaWQiOiJjYjhjMjk2MS00YWFiLTQyNTEtODQ5Mi0wZjBmZDU5M2Y1ZDkiLCJyaCI6IjAuQUFBQS12VmI4M2Q1ZkVTaHIweEZlNjE5ZnVWR2FfdkpDSjlMdlUtY1U4MERSNlVCQUFBLiIsInN1YiI6Ijk0YmUzM2Y1LWE5ZmMtNDZjMi1iMDA3LWVhYTEzZTA3M2Q5YiIsInRpZCI6ImYzNWJmNWZhLTc5NzctNDQ3Yy1hMWFmLTRjNDU3YmFkN2Q3ZSIsInV0aSI6IkVaQTlhMkMwQmttU0JqRlJKMWNQQUEiLCJ2ZXIiOiIxLjAifQ.U2ozTu4qj4LGD_Y-e7N13g_noE5lyWelAyb6OkLJmdf9GZp0FUI41ZPmIk0KaPjFXUR2KICSrzfqG0VNkwh515m-QI9UEBN8xrm0X5FO1JP2N90ft5VJpSyGRJAoNKXab_g0OOAsDiOxfqs7B_0tqJTKXuTdFaP8SsybYrLXlRXm0YMOdX0R_UnDXe6dyUQkRVrQvLdI8HlqucPCUic43zdUqZ9oM4vIvOkxa7MUx9XY0kdQ5T2lQv-6udIbt8L4RrvQmMm8H2oM5PwLifrOjvSOlQ_RDkjEsHML3B6W4uoYtlMEX18FU6m0qVhN3UDdB9aQvU0PBkkGty5YIBAOoA".to_owned())
     }
 
     async fn request<TResponse>(
@@ -121,7 +106,7 @@ impl Client {
         let req = req.expect("cannot fail to create hyper request");
 
         let connector = match self.device.credentials.clone() {
-            aziot_identity_common::Credentials::SharedPrivateKey(key) => {
+            aziot_identity_common::Credentials::SharedPrivateKey(_) => {
                 return Err(std::io::Error::from(std::io::ErrorKind::Other)); //TODO: Do Error stuff
             }
             aziot_identity_common::Credentials::Tpm => {

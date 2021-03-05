@@ -809,7 +809,6 @@ impl IdentityManager {
             self.key_client.clone(),
             self.key_engine.clone(),
             self.cert_client.clone(),
-            self.tpm_client.clone(),
             self.proxy_uri.clone(),
         );
 
