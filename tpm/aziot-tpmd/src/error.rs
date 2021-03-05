@@ -28,7 +28,7 @@ pub enum InternalError {
     InitTpm(aziot_tpm::Error),
     GetTpmKeys(aziot_tpm::Error),
     SignWithAuthKey(aziot_tpm::Error),
-    ActivateAuthKey(aziot_tpm::Error),
+    ImportAuthKey(aziot_tpm::Error),
 }
 
 impl std::fmt::Display for InternalError {
@@ -36,7 +36,7 @@ impl std::fmt::Display for InternalError {
         match self {
             InternalError::ReadConfig(_) => f.write_str("could not read config"),
             InternalError::InitTpm(_) => f.write_str("could not initialize TPM"),
-            InternalError::ActivateAuthKey(_) => f.write_str("could not activate with auth key"),
+            InternalError::ImportAuthKey(_) => f.write_str("could not import auth key"),
             InternalError::GetTpmKeys(_) => f.write_str("could not get TPM keys"),
             InternalError::SignWithAuthKey(_) => f.write_str("could not sign with auth key"),
         }
@@ -49,7 +49,7 @@ impl std::error::Error for InternalError {
         match self {
             InternalError::ReadConfig(err) => Some(&**err),
             InternalError::InitTpm(err) => Some(err),
-            InternalError::ActivateAuthKey(err) => Some(err),
+            InternalError::ImportAuthKey(err) => Some(err),
             InternalError::GetTpmKeys(err) => Some(err),
             InternalError::SignWithAuthKey(err) => Some(err),
         }
