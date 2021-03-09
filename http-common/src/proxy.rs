@@ -98,31 +98,29 @@ pub enum MaybeProxyConnector<C> {
 impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
     pub fn new(
         proxy_uri: Option<hyper::Uri>,
-        identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
+        identity: Option<(&openssl::pkey::PKey<openssl::pkey::Private>, &Vec<u8>)>,
+        trusted_certs: &[openssl::x509::X509],
     ) -> io::Result<Self> {
-        let https_connector = match &identity {
-            Some((key, certs)) => {
-                let tls_connector = identity_to_tls_connector(key, certs)?;
+        let https_connector = if let Some((key, certs)) = identity {
+            let tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
-                let mut http_connector = hyper::client::HttpConnector::new();
-                http_connector.enforce_http(false);
-                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
-            }
-            None => {
-                // TODO: This disables HTTP/2 by explicitly setting the ALPN to "http/1.1"
-                // This is needed for nested Edge where IS talks to Edge Hub, because
-                // Edge Hub supports HTTP/2.
-                //
-                // The proper fix for this would be to enable HTTP/2 in the hyper client,
-                // but that didn't work for some reason and needs investigation.
-                let mut tls_connector =
-                    openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
-                tls_connector.set_alpn_protos(b"\x08http/1.1")?;
+            let mut http_connector = hyper::client::HttpConnector::new();
+            http_connector.enforce_http(false);
+            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
+        } else {
+            // TODO: This disables HTTP/2 by explicitly setting the ALPN to "http/1.1"
+            // This is needed for nested Edge where IS talks to Edge Hub, because
+            // Edge Hub supports HTTP/2.
+            //
+            // The proper fix for this would be to enable HTTP/2 in the hyper client,
+            // but that didn't work for some reason and needs investigation.
+            let mut tls_connector =
+                openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
+            tls_connector.set_alpn_protos(b"\x08http/1.1")?;
 
-                let mut http_connector = hyper::client::HttpConnector::new();
-                http_connector.enforce_http(false);
-                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
-            }
+            let mut http_connector = hyper::client::HttpConnector::new();
+            http_connector.enforce_http(false);
+            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
         };
 
         if let Some(proxy_uri) = proxy_uri {
@@ -132,7 +130,7 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
                 Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
-                    let proxy_tls_connector = identity_to_tls_connector(&key, &certs)?;
+                    let proxy_tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
                     let mut proxy_connector =
                         hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
@@ -150,8 +148,14 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
 fn identity_to_tls_connector(
     key: &openssl::pkey::PKey<openssl::pkey::Private>,
     certs: &[u8],
+    trusted_certs: &[openssl::x509::X509],
 ) -> io::Result<openssl::ssl::SslConnectorBuilder> {
     let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
+
+    let cert_store = tls_connector.cert_store_mut();
+    for trusted_cert in trusted_certs {
+        cert_store.add_cert(trusted_cert.clone())?;
+    }
 
     let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
     let client_cert = device_id_certs
