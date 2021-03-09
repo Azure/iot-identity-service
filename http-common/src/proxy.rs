@@ -130,8 +130,7 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
                 Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
-                    let proxy_tls_connector =
-                        identity_to_tls_connector(key, certs, trusted_certs)?;
+                    let proxy_tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
                     let mut proxy_connector =
                         hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
