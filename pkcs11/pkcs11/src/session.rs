@@ -517,7 +517,7 @@ impl std::fmt::Display for GenerateKeyError {
             GenerateKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
             GenerateKeyError::GenerateKeyDidNotReturnHandle =>
                 f.write_str("could not generate key pair: C_GenerateKey succeeded but key handle is still CK_INVALID_HANDLE"),
-            GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key pair: C_GenerateKey failed with {}", result),
+            GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key: C_GenerateKey failed with {}", result),
             GenerateKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
             GenerateKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }

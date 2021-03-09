@@ -45,6 +45,7 @@ Follow the steps corresponding to your hardware:
         ```sh
         # Path of the PKCS#11 library
         export PKCS11_LIB_PATH='/usr/local/lib/libtpm2_pkcs11.so'
+        # export PKCS11_LIB_PATH='/usr/lib/arm-linux-gnueabihf/pkcs11/libtpm2_pkcs11.so'
 
         # Variables to identify and log in to the PKCS#11 token
         TOKEN='Key pairs'
