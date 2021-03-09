@@ -85,7 +85,7 @@ where
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
             MaybeProxyStream::NoProxy(stream) => stream.connected(),
-            MaybeProxyStream::Proxy(stream) => stream.connected().proxy(true),
+            MaybeProxyStream::Proxy(stream) => stream.connected(),
         }
     }
 }
