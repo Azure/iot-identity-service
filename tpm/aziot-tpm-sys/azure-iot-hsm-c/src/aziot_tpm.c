@@ -10,8 +10,8 @@
 #include "aziot_tpm.h"
 #include "hsm_client_tpm_device.h"
 
-int aziot_tpm_init() {
-    return hsm_client_tpm_init();
+int aziot_tpm_init(int log_level) {
+    return hsm_client_tpm_init(log_level);
 }
 
 AZIOT_TPM_HANDLE aziot_tpm_create() {

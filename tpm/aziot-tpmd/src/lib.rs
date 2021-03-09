@@ -69,6 +69,6 @@ impl Api {
     pub fn import_auth_key(&mut self, key: &[u8]) -> Result<(), Error> {
         self.tpm
             .import_auth_key(key)
-            .map_err(|e| Error::Internal(InternalError::SignWithAuthKey(e)))
+            .map_err(|e| Error::Internal(InternalError::ImportAuthKey(e)))
     }
 }
