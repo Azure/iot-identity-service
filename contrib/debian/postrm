@@ -22,20 +22,22 @@ case "$1" in
 	purge)
 		systemctl daemon-reload
 
+		# Kill all processes running under aziot-identity-service users.
+		killall -SIGKILL -u aziotid || true
+		killall -SIGKILL -u aziotcs || true
+		killall -SIGKILL -u aziotks || true
+		killall -SIGKILL -u aziottpm || true
+
 		# Delete directories used by aziot-identity-service.
-		# Home directories are not deleted here; they will be deleted with their user.
 		rm -rf /etc/aziot
 		rm -rf /run/aziot
+		rm -rf /var/lib/aziot
 
 		# Delete aziot-identity-service users.
 		/usr/sbin/userdel aziotid
 		/usr/sbin/userdel aziotcs
 		/usr/sbin/userdel aziotks
 		/usr/sbin/userdel aziottpm
-
-		if [ -d /var/lib/aziot ] && [ -z "$(ls -A /var/lib/aziot)" ]; then
-			rm -rf /var/lib/aziot
-		fi
 		;;
 	remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
 		;;
