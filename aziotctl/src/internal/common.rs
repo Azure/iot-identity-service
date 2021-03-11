@@ -72,12 +72,16 @@ impl CertificateValidity {
     }
 }
 
-pub async fn resolve_and_tls_handshake(endpoint: hyper::Uri, hostname_display: &str) -> Result<()> {
+pub async fn resolve_and_tls_handshake(
+    endpoint: hyper::Uri,
+    hostname_display: &str,
+    proxy_uri: Option<hyper::Uri>,
+) -> Result<()> {
     use hyper::service::Service;
 
     // we don't actually care about the stream that gets returned. All we care about
     // is whether or not the TLS handshake was successful
-    let _ = hyper_openssl::HttpsConnector::new()
+    let _ = http_common::MaybeProxyConnector::new(proxy_uri, None, &[])
         .with_context(|| {
             anyhow!(
                 "Could not connect to {} : could not create TLS connector",

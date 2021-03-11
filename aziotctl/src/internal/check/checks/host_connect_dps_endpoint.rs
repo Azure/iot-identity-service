@@ -32,7 +32,7 @@ impl Checker for HostConnectDpsEndpoint {
 impl HostConnectDpsEndpoint {
     async fn inner_execute(
         &mut self,
-        _shared: &CheckerShared,
+        shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
@@ -64,8 +64,12 @@ impl HostConnectDpsEndpoint {
                 )
             })?;
 
-        // TODO: add proxy support once is supported in identityd
-        crate::internal::common::resolve_and_tls_handshake(dps_endpoint, dps_hostname).await?;
+        crate::internal::common::resolve_and_tls_handshake(
+            dps_endpoint,
+            dps_hostname,
+            shared.cfg.proxy_uri.clone(),
+        )
+        .await?;
 
         Ok(CheckResult::Ok)
     }
