@@ -159,14 +159,6 @@ fn identity_to_tls_connector(
 
     tls_connector.set_private_key(key)?;
 
-    // TODO: This disables HTTP/2 by explicitly setting the ALPN to "http/1.1"
-    // This is needed for nested Edge where IS talks to Edge Hub, because
-    // Edge Hub supports HTTP/2.
-    //
-    // The proper fix for this would be to enable HTTP/2 in the hyper client,
-    // but that didn't work for some reason and needs investigation.
-    tls_connector.set_alpn_protos(b"\x08http/1.1")?;
-
     Ok(tls_connector)
 }
 

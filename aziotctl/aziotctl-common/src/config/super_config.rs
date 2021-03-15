@@ -5,8 +5,6 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-// TODO: Move this to aziotctl-common
-
 /// This is the config stored in `/etc/aziot/config.toml`
 ///
 /// It is an amalgam of the individual services' configs, with some tweaks:
