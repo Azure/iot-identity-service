@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
+pub mod check_last_modified;
 pub mod config;
 mod restart;
 mod set_log_level;
