@@ -25,7 +25,7 @@ impl Checker for UpToDateConfigs {
             InternalCheckResult::Ok => CheckResult::Ok,
             InternalCheckResult::Ignored => CheckResult::Ignored,
             InternalCheckResult::Warning(message) => CheckResult::Warning(anyhow!(message)),
-            InternalCheckResult::Failed(error) => CheckResult::Failed(error.into())
+            InternalCheckResult::Failed(error) => CheckResult::Failed(error.into()),
         }
     }
 }
