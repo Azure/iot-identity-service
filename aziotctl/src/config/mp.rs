@@ -24,7 +24,7 @@ pub(crate) struct Options {
     out_config_file: std::path::PathBuf,
 
     /// Overwrite the new configuration file if it already exists
-    #[structopt(short = "f", long, value_name = "FILE")]
+    #[structopt(short = "f", long)]
     force: bool,
 }
 
