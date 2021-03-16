@@ -33,8 +33,9 @@ pub fn check_last_modified(services: &[&str]) -> CheckResult {
         if !service_config.exists() {
             return CheckResult::Warning(format!(
                 "{} does not exist.\n\
-                Did you run 'iotedge config apply'?",
-                service_config.display()
+                Did you run '{} config apply'?",
+                service_config.display(),
+                super::program_name()
             ));
         }
 
@@ -50,9 +51,10 @@ pub fn check_last_modified(services: &[&str]) -> CheckResult {
         if config_last_modified > service_config_last_modified {
             return CheckResult::Warning(format!(
                 "{} was modified after {}'s config\n\
-                You must run 'iotedge config apply' to update {}'s config with the latest config.toml",
+                You must run '{} config apply' to update {}'s config with the latest config.toml",
                 config.display(),
                 service,
+                super::program_name(),
                 service
             ));
         }
