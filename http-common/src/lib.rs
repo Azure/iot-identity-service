@@ -26,6 +26,9 @@ mod proxy;
 #[cfg(feature = "tokio1")]
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
+mod request;
+pub use request::{request, request_no_content};
+
 pub mod server;
 
 #[cfg(feature = "tokio1")]
