@@ -389,7 +389,10 @@ impl Api {
                 backup_file.push("device_info");
 
                 if let Err(err) = std::fs::remove_file(backup_file) {
-                    log::warn!("Failed to clear device state before reprovisioning: {}", err);
+                    log::warn!(
+                        "Failed to clear device state before reprovisioning: {}",
+                        err
+                    );
                 }
 
                 self.id_manager
