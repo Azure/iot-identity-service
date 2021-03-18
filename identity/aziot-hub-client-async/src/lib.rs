@@ -276,7 +276,6 @@ impl Client {
         let body = hyper::body::to_bytes(body)
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        log::debug!("IoTHub response body {:?}", body);
 
         let res: TResponse = match res_status_code {
             hyper::StatusCode::OK | hyper::StatusCode::CREATED => {
