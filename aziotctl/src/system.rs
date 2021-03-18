@@ -46,7 +46,7 @@ pub struct LogLevelOptions {
 pub struct ReprovisionOptions {
     #[structopt(
         value_name = "Identity Service URI",
-        long = "--uri",
+        long,
         default_value = "unix:///var/run/aziot/identityd.sock"
     )]
     uri: url::Url,
