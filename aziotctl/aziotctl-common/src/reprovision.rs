@@ -16,8 +16,6 @@ pub async fn reprovision(uri: &url::Url) -> Result<()> {
             Ok(())
         }
 
-        Err(err) => {
-            return Err(anyhow!("Failed to reprovision: {}", err));
-        }
+        Err(err) => Err(anyhow!("Failed to reprovision: {}", err)),
     }
 }
