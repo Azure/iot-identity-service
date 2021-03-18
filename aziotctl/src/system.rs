@@ -44,10 +44,11 @@ pub struct LogLevelOptions {
 #[derive(StructOpt)]
 #[structopt(about = "Reprovision device with IoT Hub")]
 pub struct ReprovisionOptions {
+    #[cfg(debug_assertions)]
     #[structopt(
         value_name = "Identity Service URI",
         long,
-        default_value = "unix:///var/run/aziot/identityd.sock"
+        default_value = "unix:///run/aziot/identityd.sock"
     )]
     uri: url::Url,
 }
@@ -58,7 +59,18 @@ pub async fn system(options: Options) -> Result<()> {
         Options::Status(_) => get_status(SERVICE_DEFINITIONS),
         Options::Logs(opts) => logs(&opts),
         Options::SetLogLevel(opts) => set_log_level(SERVICE_DEFINITIONS, opts.log_level),
+
+        #[cfg(debug_assertions)]
         Options::Reprovision(opts) => reprovision(&opts.uri).await,
+
+        #[cfg(not(debug_assertions))]
+        Options::Reprovision(_) => {
+            reprovision(
+                &url::Url::parse("unix:///run/aziot/identityd.sock")
+                    .expect("hard-coded URI should parse"),
+            )
+            .await
+        }
     }
 }
 
