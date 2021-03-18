@@ -40,7 +40,7 @@ pub enum DpsAuthKind {
     Tpm,
     /// Used as part of a recursive call within `request`
     #[doc(hidden)]
-    TpmPostChallenge,
+    TpmDpsNonce,
 }
 
 pub struct Client {
@@ -158,7 +158,7 @@ impl Client {
             .await;
         };
 
-        if matches!(auth_kind, DpsAuthKind::TpmPostChallenge { .. }) {
+        if matches!(auth_kind, DpsAuthKind::TpmDpsNonce { .. }) {
             // import the returned authentication key into the TPM
             let auth_key = res
                 .registration_state
@@ -188,7 +188,7 @@ impl Client {
     // TPM provisioning has special 2-step challenge/response flow which is
     // basically identical to the symmetric key flow, except that the TPM client
     // is used instead of the key client. To keep things DRY, a recursive call
-    // is used, passing `DpsAuthKind::TpmPostChallenge` as the auth kind.
+    // is used, passing `DpsAuthKind::TpmDpsNonce` as the auth kind.
     #[async_recursion::async_recursion]
     async fn request<TRequest, TResponse>(
         &self,
@@ -242,7 +242,7 @@ impl Client {
                     .append(hyper::header::AUTHORIZATION, authorization_header_value);
                 connector
             }
-            DpsAuthKind::TpmPostChallenge => {
+            DpsAuthKind::TpmDpsNonce => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
                 let (connector, token) = get_sas_connector(
                     &audience,
@@ -343,7 +343,7 @@ impl Client {
                     .await?;
 
                 // update auth method, and recurse
-                *auth_kind = DpsAuthKind::TpmPostChallenge;
+                *auth_kind = DpsAuthKind::TpmDpsNonce;
                 return self
                     .request(registration_id, method, resource_uri, auth_kind, orig_body)
                     .await;
