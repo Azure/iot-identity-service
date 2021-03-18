@@ -4,7 +4,8 @@ use anyhow::{Error, Result};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
-
+use nix::unistd::{Gid, Group, Uid, User};
+use std::fs;
 use std::io;
 use std::path::Path;
 
@@ -34,6 +35,7 @@ impl Checker for WellFormedKeydConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "keyd",
+            "aziotks",
             Path::new("/etc/aziot/keyd/config.toml"),
             Some(Path::new("/etc/aziot/keyd/config.d")),
             shared,
@@ -41,7 +43,10 @@ impl Checker for WellFormedKeydConfig {
         .await
         {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Ok(DaemonCfg::PermissionDenied(e))
+            | Ok(DaemonCfg::IncorrectPermissions(e))
+            | Ok(DaemonCfg::IncorrectGroupId(e))
+            | Ok(DaemonCfg::IncorrectUserID(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
         };
 
@@ -65,6 +70,7 @@ impl Checker for WellFormedCertdConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "certd",
+            "aziotcs",
             Path::new("/etc/aziot/certd/config.toml"),
             Some(Path::new("/etc/aziot/certd/config.d")),
             shared,
@@ -72,7 +78,10 @@ impl Checker for WellFormedCertdConfig {
         .await
         {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Ok(DaemonCfg::PermissionDenied(e))
+            | Ok(DaemonCfg::IncorrectPermissions(e))
+            | Ok(DaemonCfg::IncorrectGroupId(e))
+            | Ok(DaemonCfg::IncorrectUserID(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
         };
 
@@ -96,6 +105,7 @@ impl Checker for WellFormedTpmdConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "tpmd",
+            "aziottpm",
             Path::new("/etc/aziot/tpmd/config.toml"),
             Some(Path::new("/etc/aziot/tpmd/config.d")),
             shared,
@@ -103,7 +113,10 @@ impl Checker for WellFormedTpmdConfig {
         .await
         {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Ok(DaemonCfg::PermissionDenied(e))
+            | Ok(DaemonCfg::IncorrectPermissions(e))
+            | Ok(DaemonCfg::IncorrectGroupId(e))
+            | Ok(DaemonCfg::IncorrectUserID(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
         };
 
@@ -128,6 +141,7 @@ impl Checker for WellFormedIdentitydConfig {
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg: aziot_identityd_config::Settings = match load_daemon_cfg(
             "identityd",
+            "aziotid",
             Path::new("/etc/aziot/identityd/config.toml"),
             Some(Path::new("/etc/aziot/identityd/config.d")),
             shared,
@@ -135,7 +149,10 @@ impl Checker for WellFormedIdentitydConfig {
         .await
         {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
-            Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
+            Ok(DaemonCfg::PermissionDenied(e))
+            | Ok(DaemonCfg::IncorrectPermissions(e))
+            | Ok(DaemonCfg::IncorrectGroupId(e))
+            | Ok(DaemonCfg::IncorrectUserID(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
         };
 
@@ -150,6 +167,7 @@ impl Checker for WellFormedIdentitydConfig {
         // it's okay if it doesn't exist yet.
         match load_daemon_cfg::<aziot_identityd_config::Settings>(
             "identityd_prev",
+            "aziotid",
             Path::new("/var/lib/aziot/identityd/prev_state"),
             None,
             shared,
@@ -161,7 +179,7 @@ impl Checker for WellFormedIdentitydConfig {
                     cache.cfg.identityd_prev = Some(daemon_cfg);
                 }
             }
-            Ok(DaemonCfg::PermissionDenied(_)) | Err(_) => {}
+            Ok(_) | Err(_) => {}
         };
 
         CheckResult::Ok
@@ -171,14 +189,71 @@ impl Checker for WellFormedIdentitydConfig {
 enum DaemonCfg<T> {
     Cfg(T),
     PermissionDenied(Error),
+    IncorrectPermissions(Error),
+    IncorrectGroupId(Error),
+    IncorrectUserID(Error),
 }
 
 async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     daemon: &str,
+    uid: &str,
     config_path: &Path,
     config_directory_path: Option<&Path>,
     shared: &CheckerShared,
 ) -> Result<DaemonCfg<T>> {
+    use std::os::linux::fs::MetadataExt;
+    if let Ok(metadata) = fs::metadata(config_path) {
+        if !metadata.permissions().readonly() {
+            return Ok(DaemonCfg::IncorrectPermissions(anyhow::anyhow!(
+                "The file {} must be read only. Please run 'sudo chmod 0444 {}'",
+                config_path.to_string_lossy(),
+                config_path.to_string_lossy()
+            )));
+        }
+
+        let user = match User::from_uid(Uid::from_raw(metadata.st_uid())) {
+            Ok(Some(user)) => user.name,
+            Err(_) | Ok(None) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Could not find user assigned to {}",
+                    config_path.to_string_lossy()
+                )))
+            }
+        };
+
+        let group = match Group::from_gid(Gid::from_raw(metadata.st_gid())) {
+            Ok(Some(group)) => group.name,
+            Err(_) | Ok(None) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Could not find user group assigned to {}.",
+                    config_path.to_string_lossy()
+                )))
+            }
+        };
+
+        if !user.eq(uid) {
+            return Ok(DaemonCfg::IncorrectUserID(anyhow::anyhow!(
+                "The file {} has user {}, expected {}. Please run 'sudo chown {} {}'",
+                config_path.to_string_lossy(),
+                user,
+                uid,
+                uid,
+                config_path.to_string_lossy()
+            )));
+        }
+
+        if !group.eq(uid) {
+            return Ok(DaemonCfg::IncorrectGroupId(anyhow::anyhow!(
+                "The file {} has group {}, expected {}. Please run 'sudo chgrp {} {}' ",
+                config_path.to_string_lossy(),
+                group,
+                uid,
+                uid,
+                config_path.to_string_lossy()
+            )));
+        }
+    }
+
     let daemon_cfg = match config_common::read_config(config_path, config_directory_path) {
         Ok(daemon_cfg) => daemon_cfg,
 
