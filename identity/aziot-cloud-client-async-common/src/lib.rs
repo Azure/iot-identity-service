@@ -11,7 +11,7 @@ use http_common::MaybeProxyConnector;
 pub const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 /// `key_client` must be either an `aziot_key_client_async::Client` or an `aziot_tpm_client_async::Client`.
-pub async fn get_sas_connector<K: KeyClient>(
+pub async fn get_sas_connector<K>(
     audience: &str,
     key_handle: K::KeyHandle,
     key_client: &K,
@@ -20,7 +20,10 @@ pub async fn get_sas_connector<K: KeyClient>(
 ) -> io::Result<(
     MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     String,
-)> {
+)>
+where
+    K: KeyClient,
+{
     let token = {
         let expiry = chrono::Utc::now()
             + chrono::Duration::from_std(std::time::Duration::from_secs(30))
@@ -117,8 +120,7 @@ impl KeyClient for aziot_key_client_async::Client {
 
 #[async_trait::async_trait]
 impl KeyClient for aziot_tpm_client_async::Client {
-    // At the moment, we only store a single key in the TPM, so there isn't any
-    // need for distinct key handles.
+    // We only store a single key in the TPM, so there isn't any need for distinct key handles.
     type KeyHandle = ();
 
     async fn sign_with_key(&self, _key_handle: &(), data: &[u8]) -> io::Result<Vec<u8>> {
