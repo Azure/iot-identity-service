@@ -11,18 +11,16 @@ use http_common::MaybeProxyConnector;
 pub const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 /// `key_client` must be either an `aziot_key_client_async::Client` or an `aziot_tpm_client_async::Client`.
-pub async fn get_sas_connector(
+pub async fn get_sas_connector<K: KeyClient>(
     audience: &str,
-    key_handle: impl AsRef<[u8]>,
-    key_client: &impl KeyClient,
+    key_handle: K::KeyHandle,
+    key_client: &K,
     proxy_uri: Option<hyper::Uri>,
     is_tpm_registration: bool,
 ) -> io::Result<(
     MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     String,
 )> {
-    let key_handle = key_client.insert_key(key_handle.as_ref()).await?;
-
     let token = {
         let expiry = chrono::Utc::now()
             + chrono::Duration::from_std(std::time::Duration::from_secs(30))
@@ -95,7 +93,6 @@ mod private {
 pub trait KeyClient: private::Sealed {
     type KeyHandle;
 
-    async fn insert_key(&self, key_handle: &[u8]) -> io::Result<Self::KeyHandle>;
     async fn sign_with_key(&self, key_handle: &Self::KeyHandle, data: &[u8])
         -> io::Result<Vec<u8>>;
 }
@@ -103,19 +100,6 @@ pub trait KeyClient: private::Sealed {
 #[async_trait::async_trait]
 impl KeyClient for aziot_key_client_async::Client {
     type KeyHandle = aziot_key_common::KeyHandle;
-
-    async fn insert_key(&self, key: &[u8]) -> io::Result<Self::KeyHandle> {
-        // HACK: the key server expects key handles to be strings, while the TPM
-        // server does not. The lowest common denominator between the two is
-        // `&[u8]`, so that's what the generic interface uses.
-        //
-        // as such, we expect this conversion to never fail.
-        self.load_key(
-            std::str::from_utf8(key)
-                .expect("aziot_key_client_async::Client::load_key expects UTF-8 keys"),
-        )
-        .await
-    }
 
     async fn sign_with_key(
         &self,
@@ -133,11 +117,9 @@ impl KeyClient for aziot_key_client_async::Client {
 
 #[async_trait::async_trait]
 impl KeyClient for aziot_tpm_client_async::Client {
+    // At the moment, we only store a single key in the TPM, so there isn't any
+    // need for distinct key handles.
     type KeyHandle = ();
-
-    async fn insert_key(&self, key: &[u8]) -> io::Result<Self::KeyHandle> {
-        self.import_auth_key(key).await
-    }
 
     async fn sign_with_key(&self, _key_handle: &(), data: &[u8]) -> io::Result<Vec<u8>> {
         self.sign_with_auth_key(data).await
