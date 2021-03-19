@@ -2,13 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate,
-    clippy::similar_names
-)]
+#![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
 #[derive(Debug)]
 pub struct Client {
@@ -35,18 +29,19 @@ impl Client {
             preferred_algorithms: preferred_algorithms.map(ToOwned::to_owned),
         };
 
-        let res: aziot_key_common_http::create_key_pair_if_not_exists::Response = request(
-            &self.inner,
-            http::Method::POST,
-            &format!("http://foo/keypair?api-version={}", self.api_version),
-            Some(&body),
-        )
-        .await?;
+        let res: aziot_key_common_http::create_key_pair_if_not_exists::Response =
+            http_common::request(
+                &self.inner,
+                http::Method::POST,
+                &format!("http://foo/keypair?api-version={}", self.api_version),
+                Some(&body),
+            )
+            .await?;
         Ok(res.handle)
     }
 
     pub async fn load_key_pair(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
-        let res: aziot_key_common_http::load::Response = request::<(), _>(
+        let res: aziot_key_common_http::load::Response = http_common::request::<(), _>(
             &self.inner,
             http::Method::GET,
             &format!(
@@ -72,20 +67,21 @@ impl Client {
             key_handle: handle.clone(),
         };
 
-        let res: aziot_key_common_http::get_key_pair_public_parameter::Response = request(
-            &self.inner,
-            http::Method::POST,
-            &format!(
-                "http://foo/parameters/{}?api-version={}",
-                percent_encoding::percent_encode(
-                    parameter_name.as_bytes(),
-                    http_common::PATH_SEGMENT_ENCODE_SET
+        let res: aziot_key_common_http::get_key_pair_public_parameter::Response =
+            http_common::request(
+                &self.inner,
+                http::Method::POST,
+                &format!(
+                    "http://foo/parameters/{}?api-version={}",
+                    percent_encoding::percent_encode(
+                        parameter_name.as_bytes(),
+                        http_common::PATH_SEGMENT_ENCODE_SET
+                    ),
+                    self.api_version,
                 ),
-                self.api_version,
-            ),
-            Some(&body),
-        )
-        .await?;
+                Some(&body),
+            )
+            .await?;
         Ok(res.value)
     }
 
@@ -112,7 +108,7 @@ impl Client {
             }
         };
 
-        let res: aziot_key_common_http::create_key_if_not_exists::Response = request(
+        let res: aziot_key_common_http::create_key_if_not_exists::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!("http://foo/key?api-version={}", self.api_version),
@@ -123,7 +119,7 @@ impl Client {
     }
 
     pub async fn load_key(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
-        let res: aziot_key_common_http::load::Response = request::<(), _>(
+        let res: aziot_key_common_http::load::Response = http_common::request::<(), _>(
             &self.inner,
             http::Method::GET,
             &format!(
@@ -150,7 +146,7 @@ impl Client {
             derivation_data: http_common::ByteString(derivation_data.to_owned()),
         };
 
-        let res: aziot_key_common_http::create_derived_key::Response = request(
+        let res: aziot_key_common_http::create_derived_key::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!("http://foo/derivedkey?api-version={}", self.api_version),
@@ -168,7 +164,7 @@ impl Client {
             handle: handle.clone(),
         };
 
-        let res: aziot_key_common_http::export_derived_key::Response = request(
+        let res: aziot_key_common_http::export_derived_key::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!(
@@ -204,7 +200,7 @@ impl Client {
             },
         };
 
-        let res: aziot_key_common_http::sign::Response = request(
+        let res: aziot_key_common_http::sign::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!("http://foo/sign?api-version={}", self.api_version),
@@ -242,7 +238,7 @@ impl Client {
             plaintext: http_common::ByteString(plaintext.to_owned()),
         };
 
-        let res: aziot_key_common_http::encrypt::Response = request(
+        let res: aziot_key_common_http::encrypt::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!("http://foo/encrypt?api-version={}", self.api_version),
@@ -280,7 +276,7 @@ impl Client {
             ciphertext: http_common::ByteString(ciphertext.to_owned()),
         };
 
-        let res: aziot_key_common_http::decrypt::Response = request(
+        let res: aziot_key_common_http::decrypt::Response = http_common::request(
             &self.inner,
             http::Method::POST,
             &format!("http://foo/decrypt?api-version={}", self.api_version),
@@ -290,92 +286,4 @@ impl Client {
         let plaintext = res.plaintext.0;
         Ok(plaintext)
     }
-}
-
-async fn request<TRequest, TResponse>(
-    client: &hyper::Client<http_common::Connector, hyper::Body>,
-    method: http::Method,
-    uri: &str,
-    body: Option<&TRequest>,
-) -> std::io::Result<TResponse>
-where
-    TRequest: serde::Serialize,
-    TResponse: serde::de::DeserializeOwned,
-{
-    let req = hyper::Request::builder().method(method).uri(uri);
-    // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
-    //
-    // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
-    #[allow(clippy::option_if_let_else)]
-    let req = if let Some(body) = body {
-        let body = serde_json::to_vec(body)
-            .expect("serializing request body to JSON cannot fail")
-            .into();
-        req.header(hyper::header::CONTENT_TYPE, "application/json")
-            .body(body)
-    } else {
-        req.body(Default::default())
-    };
-    let req = req.expect("cannot fail to create hyper request");
-
-    let res = client
-        .request(req)
-        .await
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-    let (
-        http::response::Parts {
-            status: res_status_code,
-            headers,
-            ..
-        },
-        body,
-    ) = res.into_parts();
-
-    let mut is_json = false;
-    for (header_name, header_value) in headers {
-        if header_name == Some(hyper::header::CONTENT_TYPE) {
-            let value = header_value
-                .to_str()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            if value == "application/json" {
-                is_json = true;
-            }
-        }
-    }
-
-    if !is_json {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "malformed HTTP response",
-        ));
-    }
-
-    let body = hyper::body::to_bytes(body)
-        .await
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-
-    let res: TResponse = match res_status_code {
-        hyper::StatusCode::OK => {
-            let res = serde_json::from_slice(&body)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            res
-        }
-
-        res_status_code
-            if res_status_code.is_client_error() || res_status_code.is_server_error() =>
-        {
-            let res: http_common::ErrorBody<'static> = serde_json::from_slice(&body)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
-        }
-
-        _ => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "malformed HTTP response",
-            ))
-        }
-    };
-    Ok(res)
 }
