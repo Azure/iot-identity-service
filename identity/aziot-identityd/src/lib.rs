@@ -403,10 +403,7 @@ impl Api {
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(
-                        self.settings.provisioning.clone(),
-                        true,
-                    )
+                    .provision_device(self.settings.provisioning.clone(), true)
                     .await?
             }
         };

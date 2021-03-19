@@ -56,9 +56,7 @@ pub fn run(
     };
 
     let provisioning = {
-        let super_config::Provisioning {
-            provisioning,
-        } = provisioning;
+        let super_config::Provisioning { provisioning } = provisioning;
 
         let provisioning = match provisioning {
             super_config::ProvisioningType::Manual {
@@ -209,9 +207,7 @@ pub fn run(
             super_config::ProvisioningType::None => aziot_identityd_config::ProvisioningType::None,
         };
 
-        aziot_identityd_config::Provisioning {
-            provisioning,
-        }
+        aziot_identityd_config::Provisioning { provisioning }
     };
 
     let identityd_config = aziot_identityd_config::Settings {
