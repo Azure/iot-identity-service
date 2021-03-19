@@ -121,7 +121,13 @@ impl HostConnectIotHub {
             &iothub_hostname,
             shared.cfg.proxy_uri.clone(),
         )
-        .await?;
+        .await.map_err( |e| if iothub_hostname.ends_with(".azure-devices.net") {
+            e
+        }else
+        {
+            e.context("Make sure the parent device is reachable using 'curl https://parenthostname'. Make sure the the trust bundle has been added to the trusted store: sudo cp <path>/azure-iot-test-only.root.ca.cert.pem /usr/local/share/ca-certificates/azure-iot-test-only.root.ca.cert.pem.crt
+            sudo update-ca-certificates")
+        })?;
 
         Ok(CheckResult::Ok)
     }
