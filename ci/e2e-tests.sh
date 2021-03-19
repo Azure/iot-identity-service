@@ -407,7 +407,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "manual"
 iothub_hostname = "$common_resource_name.azure-devices.net"
 device_id = "$iot_device_id"
@@ -481,7 +480,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "manual"
 iothub_hostname = "$common_resource_name.azure-devices.net"
 device_id = "$iot_device_id"
@@ -534,7 +532,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"
@@ -656,7 +653,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"

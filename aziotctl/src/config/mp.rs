@@ -56,7 +56,6 @@ To reconfigure IoT Identity Service, run:
         hostname: None,
 
         provisioning: common_config::super_config::Provisioning {
-            always_reprovision_on_startup: false,
             provisioning: common_config::super_config::ProvisioningType::Manual {
                 inner: common_config::super_config::ManualProvisioning::ConnectionString {
                     connection_string,

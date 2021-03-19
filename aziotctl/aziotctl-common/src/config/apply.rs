@@ -57,7 +57,6 @@ pub fn run(
 
     let provisioning = {
         let super_config::Provisioning {
-            always_reprovision_on_startup,
             provisioning,
         } = provisioning;
 
@@ -211,7 +210,6 @@ pub fn run(
         };
 
         aziot_identityd_config::Provisioning {
-            always_reprovision_on_startup,
             provisioning,
         }
     };
