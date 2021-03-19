@@ -116,10 +116,16 @@ impl HostConnectIotHub {
             .parse::<hyper::Uri>()
             .context("Invalid URL specified in provisioning.iothub_hostname")?;
 
+        let proxy = if self.port_number == 443 {
+            shared.cfg.proxy_uri.clone()
+        } else {
+            None
+        };
+
         crate::internal::common::resolve_and_tls_handshake(
             iothub_hostname_url,
             &iothub_hostname,
-            shared.cfg.proxy_uri.clone(),
+            proxy,
         )
         .await?;
 
