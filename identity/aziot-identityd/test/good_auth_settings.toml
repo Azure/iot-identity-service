@@ -25,7 +25,6 @@ idtype = ["module", "local"]
 uid = 1003
 
 [provisioning]
-always_reprovision_on_startup = false
 source = "manual"
 iothub_hostname = "hubname"
 device_id = "deviceid"

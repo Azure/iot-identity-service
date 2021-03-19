@@ -383,16 +383,27 @@ impl Api {
                     .await?
             }
             ReprovisionTrigger::Api => {
+                // Clear the backed up device state before reprovisioning.
+                // If this fails, log a warning but continue with reprovisioning.
+                let mut backup_file = self.settings.homedir.clone();
+                backup_file.push("device_info");
+
+                if let Err(err) = std::fs::remove_file(backup_file) {
+                    if err.kind() != std::io::ErrorKind::NotFound {
+                        log::warn!(
+                            "Failed to clear device state before reprovisioning: {}",
+                            err
+                        );
+                    }
+                }
+
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), false)
                     .await?
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(
-                        self.settings.provisioning.clone(),
-                        !self.settings.provisioning.always_reprovision_on_startup,
-                    )
+                    .provision_device(self.settings.provisioning.clone(), true)
                     .await?
             }
         };
