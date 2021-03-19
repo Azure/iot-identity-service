@@ -90,8 +90,6 @@ dependencies = [
  "http-common",
  "hyper",
  "percent-encoding",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -236,6 +234,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aziot-identity-client-async"
+version = "0.1.0"
+dependencies = [
+ "aziot-identity-common-http",
+ "http",
+ "http-common",
+ "hyper",
+]
+
+[[package]]
 name = "aziot-identity-common"
 version = "0.1.0"
 dependencies = [
@@ -330,8 +338,6 @@ dependencies = [
  "http-common",
  "hyper",
  "percent-encoding",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -485,9 +491,6 @@ dependencies = [
  "http",
  "http-common",
  "hyper",
- "percent-encoding",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -581,6 +584,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "aziot-certd-config",
+ "aziot-identity-client-async",
+ "aziot-identity-common-http",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",
