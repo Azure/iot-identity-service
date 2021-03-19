@@ -308,10 +308,6 @@ impl Client {
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-        // Unlike IoT Hub, DPS responses don't contain any potentially sensitive
-        // credential info, so it's safe to log these bodies.
-        log::debug!("DPS response body {:?}", body);
-
         let res: TResponse = match status {
             hyper::StatusCode::OK | hyper::StatusCode::ACCEPTED => {
                 if !is_json {
