@@ -185,10 +185,6 @@ impl Client {
         Ok(res)
     }
 
-    // TPM provisioning has special 2-step challenge/response flow which is
-    // basically identical to the symmetric key flow, except that the TPM client
-    // is used instead of the key client. To keep things DRY, a recursive call
-    // is used, passing `DpsAuthKind::TpmDpsNonce` as the auth kind.
     #[async_recursion::async_recursion]
     async fn request<TRequest, TResponse>(
         &self,
@@ -331,6 +327,14 @@ impl Client {
                 let reg_result: model::TpmRegistrationResult = serde_json::from_slice(&body)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
+                // TPM provisioning has special 2-step challenge/response flow, as detailed at
+                // https://docs.microsoft.com/en-us/azure/iot-dps/concepts-tpm-attestation#detailed-attestation-process
+                //
+                // To keep the code DRY, a "psuedo" DpsAuthKind::TpmDpsNonce type is introduced
+                // that is used as part of a recursive call to `request`, which will handle the
+                // second-stage of the TPM provisioning flow after the auth key (provided by DPS)
+                // has been imported into the TPM.
+
                 self.tpm_client
                     .import_auth_key(
                         base64::decode(reg_result.authentication_key)
@@ -338,7 +342,6 @@ impl Client {
                     )
                     .await?;
 
-                // update auth method, and recurse
                 *auth_kind = DpsAuthKind::TpmDpsNonce;
                 return self
                     .request(registration_id, method, resource_uri, auth_kind, orig_body)
