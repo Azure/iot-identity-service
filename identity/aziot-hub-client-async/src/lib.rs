@@ -191,9 +191,10 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
+                let key_handle = self.key_client.load_key(&key).await?;
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    &key,
+                    key_handle,
                     &*self.key_client,
                     self.proxy_uri.clone(),
                     false,
@@ -213,7 +214,7 @@ impl Client {
                 );
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    "",
+                    (),
                     &*self.tpm_client,
                     self.proxy_uri.clone(),
                     false,
@@ -346,9 +347,10 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
+                let key_handle = self.key_client.load_key(&key).await?;
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    &key,
+                    key_handle,
                     &*self.key_client,
                     self.proxy_uri.clone(),
                     false,
@@ -368,7 +370,7 @@ impl Client {
                 );
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    "",
+                    (),
                     &*self.tpm_client,
                     self.proxy_uri.clone(),
                     false,
