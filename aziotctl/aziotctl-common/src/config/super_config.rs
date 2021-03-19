@@ -49,9 +49,6 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Provisioning {
-    #[serde(default)]
-    pub always_reprovision_on_startup: bool,
-
     #[serde(flatten)]
     pub provisioning: ProvisioningType,
 }
