@@ -2,12 +2,10 @@
 
 use std::ffi::{OsStr, OsString};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use structopt::StructOpt;
 
-use aziotctl_common::{
-    get_status, get_system_logs, reprovision, restart, set_log_level, SERVICE_DEFINITIONS,
-};
+use aziotctl_common::{get_status, get_system_logs, restart, set_log_level, SERVICE_DEFINITIONS};
 
 #[derive(StructOpt)]
 pub enum Options {
@@ -79,4 +77,22 @@ fn logs(options: &LogsOptions) -> Result<()> {
     let args: Vec<&OsStr> = options.args.iter().map(AsRef::as_ref).collect();
 
     get_system_logs(&services, &args)
+}
+
+async fn reprovision(uri: &url::Url) -> Result<()> {
+    let connector =
+        http_common::Connector::new(uri).map_err(|err| anyhow!("Invalid URI {}: {}", uri, err))?;
+    let client = aziot_identity_client_async::Client::new(
+        aziot_identity_common_http::ApiVersion::V2020_09_01,
+        connector,
+    );
+
+    match client.reprovision().await {
+        Ok(_) => {
+            println!("Successfully reprovisioned with IoT Hub.");
+            Ok(())
+        }
+
+        Err(err) => Err(anyhow!("Failed to reprovision: {}", err)),
+    }
 }
