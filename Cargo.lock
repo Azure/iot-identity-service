@@ -549,6 +549,8 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "aziot-certd-config",
+ "aziot-identity-client-async",
+ "aziot-identity-common-http",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",
@@ -584,8 +586,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "aziot-certd-config",
- "aziot-identity-client-async",
- "aziot-identity-common-http",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",

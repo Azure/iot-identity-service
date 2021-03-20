@@ -16,8 +16,6 @@ url = { version = "2", features = ["serde"] }
 
 aziot-certd-config = { path = "../../cert/aziot-certd-config" }
 aziot-identityd-config = { path = "../../identity/aziot-identityd-config" }
-aziot-identity-client-async = { path = "../../identity/aziot-identity-client-async" }
-aziot-identity-common-http = { path = "../../identity/aziot-identity-common-http" }
 aziot-keyd-config = { path = "../../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../../key/aziot-keys-common", features = ["serde"] }
 aziot-tpmd-config = { path = "../../tpm/aziot-tpmd-config" }

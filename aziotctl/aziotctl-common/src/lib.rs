@@ -20,13 +20,11 @@ use serde::{Deserialize, Serialize};
 
 pub mod check_last_modified;
 pub mod config;
-mod reprovision;
 mod restart;
 mod set_log_level;
 mod status;
 mod system_logs;
 
-pub use reprovision::reprovision;
 pub use restart::restart;
 pub use set_log_level::set_log_level;
 pub use status::get_status;
