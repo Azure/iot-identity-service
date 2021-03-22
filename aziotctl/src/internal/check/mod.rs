@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -97,15 +99,16 @@ pub trait Checker: erased_serde::Serialize {
 erased_serde::serialize_trait_object!(Checker);
 
 /// Container for any cached data shared between different checks.
+#[derive(Default)]
 pub struct CheckerCache {
     pub cfg: DaemonConfigs,
+    certs: BTreeMap<String, openssl::x509::X509>,
+    private_keys: BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
 }
 
 impl CheckerCache {
     pub fn new() -> CheckerCache {
-        CheckerCache {
-            cfg: DaemonConfigs::default(),
-        }
+        Default::default()
     }
 }
 
