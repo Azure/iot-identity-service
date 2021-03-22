@@ -423,10 +423,14 @@ impl Api {
                     ReprovisionTrigger::Startup | ReprovisionTrigger::ConfigurationFileUpdate => {
                         log::info!("Could not reconcile Identities with current device data. Reprovisioning.");
 
-                        self.id_manager.provision_device(self.settings.provisioning.clone(), false).await?;
+                        self.id_manager
+                            .provision_device(self.settings.provisioning.clone(), false)
+                            .await?;
                         log::info!("Successfully reprovisioned.");
 
-                        self.id_manager.reconcile_hub_identities(self.settings.clone()).await?;
+                        self.id_manager
+                            .reconcile_hub_identities(self.settings.clone())
+                            .await?;
                     }
 
                     // Don't attempt to reprovision if this function was called by the reprovision API.
