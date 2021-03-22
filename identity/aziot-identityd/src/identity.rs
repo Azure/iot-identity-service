@@ -516,7 +516,11 @@ impl IdentityManager {
                             self.get_backup_provisioning_info(credential.clone())?;
 
                         if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
+                            let backup_device =
+                                backup_device.expect("backup device cannot be none");
+                            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+
+                            backup_device
                         } else {
                             let operation = dps_client
                                 .register(&registration_id, &dps_auth_kind)
@@ -551,7 +555,11 @@ impl IdentityManager {
                             self.get_backup_provisioning_info(credential.clone())?;
 
                         if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
+                            let backup_device =
+                                backup_device.expect("backup device cannot be none");
+                            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+
+                            backup_device
                         } else {
                             let operation = dps_client
                                 .register(&registration_id, &dps_auth_kind)
@@ -569,7 +577,11 @@ impl IdentityManager {
                             self.get_backup_provisioning_info(credential.clone())?;
 
                         if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
+                            let backup_device =
+                                backup_device.expect("backup device cannot be none");
+                            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+
+                            backup_device
                         } else {
                             let operation = dps_client
                                 .register(&registration_id, &dps_auth_kind)
