@@ -47,10 +47,14 @@ impl ReadCerts {
                 .await
                 .with_context(|| format!("could not load cert with ID {:?}", id))?;
 
-            // PEM blob might have multiple certs, but we only care about the first one,
-            // so we use `openssl::x509::X509::from_pem` instead of `stack_from_pem`
-            let cert = openssl::x509::X509::from_pem(&cert)
-                .with_context(|| format!("could not load cert with ID {:?}", id))?;
+            // PEM blob might have multiple certs, but we only care about the first one.
+            // However we still use `openssl::x509::X509::stack_from_pem` so that all the certs in the PEM
+            // are parsed and thus verified to be correct.
+            let cert = openssl::x509::X509::stack_from_pem(&cert)
+                .with_context(|| format!("could not load cert with ID {:?}", id))?
+                .into_iter()
+                .next()
+                .with_context(|| format!("could not load cert with ID {:?}: cert is empty", id))?;
 
             cache.certs.insert(id.clone(), cert);
         }
