@@ -162,7 +162,7 @@ impl Api {
             tpm_client.clone(),
             None,
             proxy_uri.clone(),
-            settings.aadidentity.clone(),
+            settings.aad_identity.clone(),
         );
 
         Ok(Api {
@@ -508,8 +508,13 @@ impl Api {
         Ok(())
     }
 
-    async fn get_aad_token(&mut self) -> Result<String, Error> {
-        let token = self.id_manager.get_aad_token().await?;
+    async fn get_aad_token(
+        &mut self,
+        tenant: &str,
+        scope: &str,
+        app_id: &str,
+    ) -> Result<String, Error> {
+        let token = self.id_manager.get_aad_token(tenant, scope, app_id).await?;
         Ok(token)
     }
 }

@@ -689,7 +689,7 @@ fn run_inner(
     let identityd_config = {
         aziot_identityd_config::Settings {
             hostname,
-            aadidentity: None,
+            aad_identity: None,
             homedir: AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
             principal: vec![],
             provisioning: aziot_identityd_config::Provisioning {

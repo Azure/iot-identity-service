@@ -26,6 +26,7 @@ pub struct Client {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
+    aad_device_id: String,
 }
 
 impl Client {
@@ -36,6 +37,7 @@ impl Client {
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
         proxy_uri: Option<hyper::Uri>,
+        aad_device_id: String,
     ) -> Self {
         Client {
             device,
@@ -43,29 +45,35 @@ impl Client {
             key_engine,
             cert_client,
             proxy_uri,
+            aad_device_id,
         }
     }
 }
 
 impl Client {
-    pub async fn get_token(&self) -> Result<String, std::io::Error> {
+    pub async fn get_token(
+        &self,
+        tenant: &str,
+        scope: &str,
+        app_id: &str,
+    ) -> Result<String, std::io::Error> {
         let access_token_provider_uri = "mtlsauth.windows-ppe.net";
-        let tenant_id = "f35bf5fa-7977-447c-a1af-4c457bad7d7e";
-        let azure_resource_scope = "https://ppe.cognitiveservices.azure.com/.default";
-        let app_id = "fb6b46e5-08c9-4b9f-bd4f-9c53cd0347a5";
-        let device_id = "cb2fefd9-95e9-4f75-9e8f-8c2ea5bf18db";
+        // let tenant = "f35bf5fa-7977-447c-a1af-4c457bad7d7e";
+        // let scope = "https://ppe.cognitiveservices.azure.com/.default";
+        // let app_id = "fb6b46e5-08c9-4b9f-bd4f-9c53cd0347a5";
+        // let aad_device_id = "cb2fefd9-95e9-4f75-9e8f-8c2ea5bf18db";
 
         let params: String = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("grant_type", "sub_mtls")
-            .append_pair("scope", azure_resource_scope)
+            .append_pair("scope", scope)
             .append_pair("client_id", app_id)
-            .append_pair("external_device_id", device_id)
+            .append_pair("external_device_id", &self.aad_device_id)
             .append_pair("debugmodeflight", "true")
             .finish();
 
         let uri = format!(
             "https://{}/{}/oauth2/v2.0/token",
-            access_token_provider_uri, tenant_id
+            access_token_provider_uri, tenant
         );
 
         let res: AADResponse = self.request(http::Method::POST, &uri, Some(params)).await?;
@@ -116,8 +124,6 @@ impl Client {
                 identity_cert,
                 identity_pk,
             } => {
-                // let identity_cert = "aad-id";
-                // let identity_pk = "aad-id";
                 get_x509_connector(
                     &identity_cert,
                     &identity_pk,
@@ -132,7 +138,6 @@ impl Client {
 
         let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
         log::debug!("AAD request {:?}", req);
-        println!("AAD request {:?}", req);
         let res = client
             .request(req)
             .await
@@ -166,7 +171,6 @@ impl Client {
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         log::debug!("AAD response body {:?}", body);
-        println!("AAD response body {:?}", body);
 
         let res: TResponse = match res_status_code {
             hyper::StatusCode::OK | hyper::StatusCode::CREATED => {

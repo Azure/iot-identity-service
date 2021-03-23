@@ -10,7 +10,7 @@ mod check;
 pub struct Settings {
     pub hostname: String,
 
-    pub aadidentity: Option<String>,
+    pub aad_identity: Option<String>,
 
     pub homedir: std::path::PathBuf,
 
