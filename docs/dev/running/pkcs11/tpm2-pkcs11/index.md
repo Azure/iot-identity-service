@@ -167,7 +167,10 @@ wait $(jobs -pr)
     sudo chown "$(id -u):$(id -g)" /opt/tpm2-pkcs11
     sudo chmod 0700 /opt/tpm2-pkcs11
 
+    # --enable-debug=!yes is needed to disable assert() in
+    # CKR_FUNCTION_NOT_SUPPORTED-returning unimplemented functions.
     ./configure \
+        --enable-debug=info \
         --enable-esapi-session-manage-flags \
         --with-storedir=/opt/tpm2-pkcs11
     make "-j$(nproc)"

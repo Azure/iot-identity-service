@@ -1,9 +1,0 @@
-3
-example.azure-devices.net
-my-device
-1
-/usr/lib/libmypkcs11.so
-pkcs11:slot-id=0?pin-value=1234
-1
-pkcs11:slot-id=0;object=device-id?pin-value=1234
-/var/secrets/device-id.pem

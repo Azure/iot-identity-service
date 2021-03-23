@@ -17,7 +17,7 @@ License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: aziot-identity-service-%{version}-%{release}.tar.gz
 
-Conflicts: iotedge
+Conflicts: iotedge, libiothsm-std
 
 BuildRequires: clang
 BuildRequires: gcc

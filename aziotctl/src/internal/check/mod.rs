@@ -30,6 +30,10 @@ pub struct CheckerCfg {
     /// If using manual provisioning, this does not need to be specified.
     #[structopt(long, value_name = "IOTHUB_HOSTNAME")]
     pub iothub_hostname: Option<String>,
+
+    /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
+    #[structopt(long, value_name = "PROXY_URI")]
+    pub proxy_uri: Option<hyper::Uri>,
 }
 
 pub struct CheckerShared {

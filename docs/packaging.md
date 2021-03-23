@@ -1,155 +1,86 @@
 # Packaging
 
-The Identity Service (IS), Keys Service (KS) and Certificates Service (CS) have been explicitly designed to not be Azure IoT Edge-specific; they can be used on non-Edge Azure IoT devices also. To this end, we want to cleanly separate these components from existing association with IoT Edge in the form of hosting it in a separate source repository and shipping it as a separate package. Furthermore, the existing IoT Edge daemon will be renamed (`iotedged` -> `aziot-edged`) and modified to depend on these new components for provisioning the device, managing module identities, and managing cryptographic keys and certificates. `aziot-edged`'s only responsibility will be to act as a Module Runtime (MR) for containerized Edge modules.
+The Identity Service (IS), Keys Service (KS), Certificates Service (CS) and TPM Service (TPMS) are stand-alone components that can be used on Linux-based Azure IoT devices to ease the process of provisioning the device with Azure, to allow modules on the device to securely and cooperatively connect to IoT Hub using module identities, and to provide common cryptographic services to modules like HSM-backed keys and CA-issued certificates.
 
-Because of these large-scale changes, we plan to make the current `iotedge` Linux package into a long-term servicing (LTS) release. The new components (IS/KS/CS), along with the refactoring for an `aziot-edged` with smaller responsibilities, will be shipped in two new lines of packages:
+On Azure IoT Edge devices, these services form the backbone of the Azure IoT Edge service - the Azure IoT Edge service relies on the Identity Service to provision the Edge device identity and Edge module identities in Azure, to provide the CA certificate used for module server certificates like Edge Hub's, and so on. For more in-depth discussion of the IoT Edge package, refer to its documentation on ["Packaging".](https://github.com/Azure/iotedge/blob/master/doc/packaging.md)
 
-- `aziot-identity-service`: This package contains the IS, KS and CS components.
-
-- `aziot-edge`: This package contains the MR component needed to deploy dockerized Edge modules. It will have a dependency on the `aziot-identity-service` package, and on the Moby runtime package.
-
-A detailed comparison of the contents of the packages is below.
+These components ship in the `aziot-identity-service` package. This document describes the contents of this package and how to install and configure it.
 
 
-<table>
-<thead>
-<th>Item</th>
-<th><code>iotedge</code> + <code>libiothsm-std</code></th>
-<th><code>aziot-identity-service</code></th>
-<th><code>aziot-edge</code></th>
-</thead>
-<tbody>
-<tr>
-<td>Source repository</td>
-<td><code>https://github.com/Azure/iotedge</code></td>
-<td><code>https://github.com/Azure/iot-identity-service</code></td>
-<td><code>https://github.com/Azure/iotedge</code></td>
-</tr>
-<tr>
-<td>Binaries and libraries</td>
-<td>
-
-```
-/usr/
-├── bin/
-│   ├── iotedge
-│   └── iotedged
-└── lib/
-    └── libiothsm.so
-```
-
-The `iotedge` CLI tool is used to interact with the `iotedged` service.
-</td>
-<td>
+## Binaries and libraries
 
 ```
 /usr/
 ├── bin/
 │   └── aziotctl
 ├── lib/
-│   └── libaziot_keys.so
+│   ├── libaziot_keys.so
+│   └── engines-1.1/
+│   │   └── aziot_keys.so
 └── libexec/
     └── aziot/
-        ├── aziot-certd
-        ├── aziot-identityd
-        └── aziot-keyd
+        ├── aziotd
+        ├── aziot-certd -> aziotd
+        ├── aziot-identityd -> aziotd
+        ├── aziot-keyd -> aziotd
+        └── aziot-tpmd -> aziotd
 ```
 
-The `aziotctl` CLI tool is used to interact with the `aziot-*` services.
+The `aziotctl` CLI tool is used to manage and interact with the services.
 
-(The `aziot-*` service binaries are installed under the "libexec" directory, meant for executables that are not intended to be directly invoked by a user.)
-</td>
-<td>
+The service binaries are installed under the distribution's "libexec" directory, since they're executables that are not intended to be directly invoked by a user and thus do not to be in `PATH`. Furthermore, all the services are compiled into a single binary `/usr/libexec/aziot/aziotd`, and the individual service binaries are just
+differently-named symlinks to this `aziotd` binary. This saves space since a lot of code in the services is statically linked and can be shared. The `aziotd` binary looks at its `argv[0]` to determine which service it's being asked to run as.
 
-```
-/usr/
-├── bin/
-│   └── iotedge
-└── libexec/
-    └── aziot/
-        └── aziot-edged
-```
+`/usr/lib/libaziot_keys.so` is a library used by the KS for pluggable cryptographic key storage. It exposes a simple C API and is designed to be replaceable by the user if they need to. However the implementation shipped by default is already quite versatile, since it supports both filesystem keys as well as all HSMs with PKCS#11 libraries, so we don't expect users to need to replace it.
 
-The `iotedge` CLI tool is used to interact with the `aziot-edged` service.
-</td>
-</tr>
-<tr>
-<td>Config files</td>
-<td>
+`/usr/lib/engines-1.1/aziot_keys.so` is an OpenSSL engine that can be used for mTLS when the client certificate's private key is backed by the KS. See ["Openssl engine internals"](openssl-engine-internals.md) for details.
 
-```
-/etc/
-└── iotedge/
-    └── config.yaml
-```
-</td>
-<td>
+
+## Config files
+
 
 ```
 /etc/aziot/
+├── config.toml.template
 ├── certd/
-│   └── config.toml
+│   ├── config.d/
+│   └── config.toml.default
 ├── identityd/
-│   └── config.toml
-└── keyd/
-    └── config.toml
+│   ├── config.d/
+│   └── config.toml.default
+├── keyd/
+│   ├── config.d/
+│   └── config.toml.default
+└── tpmd/
+    ├── config.d/
+    └── config.toml.default
 ```
 
-Note that the configuration is now in TOML format.
-</td>
-<td>
+The services read the following files for their configuration:
+- `config.toml` in the service directory. Eg `/etc/aziot/certd/config.toml`
+- Any `*.toml` files in the service's `config.d` directory. Eg `/etc/aziot/certd/config.d/50-overrides.toml`
 
-```
-/etc/aziot/
-└── edged/
-    └── config.yaml
-```
+All files found in this way are unioned. The `config.toml` is considered first, then the files in `config.d` in alphabetical order. If the same setting is specified in two config files, the setting in the file considered second overrides the setting in the file considered first.
 
-Note that the configuration is still in YAML format, but reduced in scope.
-</td>
-</tr>
-<tr>
-<td>API socket files</td>
-<td>
+Every service has a corresponding `config.toml.default` file that indicates the default settings for that service if no config file is provided.
 
-```
-/var/run/
-└── iotedge/
-    ├── mgmt.sock
-    └── workload.sock
-```
-</td>
-<td>
+However, we expect the user to primarily configure the services via the "super-config" file. A template of this file is installed at `/etc/aziot/config.toml.template`. The easiest way for the user to configure all services is to copy this template to a new file, say `/etc/aziot/config.toml`, edit it, then "apply" the contents of the file to all the services with `sudo aziotctl config apply`.
+
+This is explained in more detail in the ["Installing and configuring the package"](#installing-and-configuring-the-package) section below.
+
+
+## Service endpoint socket files
 
 ```
 /run/aziot/
 ├── certd.sock
 ├── identityd.sock
-└── keyd.sock
+├── keyd.sock
+└── tpmd.sock
 ```
-</td>
-<td>
 
-```
-/run/aziot/
-└── edged/
-    ├── mgmt.sock
-    └── workload.sock
-```
-</td>
-</tr>
-<tr>
-<td>Systemd service and socket files</td>
-<td>
 
-```
-/usr/lib/systemd/system/
-├── iotedge.service
-├── iotedge.socket
-└── iotedge.mgmt.socket
-```
-</td>
-<td>
+## Systemd service and socket units
 
 ```
 /usr/lib/systemd/system/
@@ -158,154 +89,74 @@ Note that the configuration is still in YAML format, but reduced in scope.
 ├── aziot-identityd.service
 ├── aziot-identityd.socket
 ├── aziot-keyd.service
-└── aziot-keyd.socket
+├── aziot-keyd.socket
+├── aziot-tpmd.service
+└── aziot-tpmd.socket
 ```
-</td>
-<td>
 
-```
-/usr/lib/systemd/system/
-├── aziot-edged.service
-├── aziot-edged.mgmt.socket
-└── aziot-edged.workload.socket
-```
-</td>
-</tr>
-<tr>
-<td>Unix groups (used to ACL the service sockets)</td>
-<td>
+Note that the `.socket` units will start up the corresponding `.service` units automatically if something attempts to connect to the corresponding socket file. For this reason, the default state is to `aziot-certd.service`, `aziot-keyd.service` and `aziot-tpmd.service` stopped, and only enable their `.socket`s to start up automatically on boot. Both `aziot-identityd.service` and `aziot-identityd.socket` should be enabled to start up on boot, however, so that the device always provisions itself.
 
-`iotedge` - The `iotedge.mgmt.sock` socket
 
-</td>
-<td>
+## Unix users and groups
 
-- `aziotcs` - The CS socket
-- `aziotid` - The IS socket
-- `aziotks` - The KS socket
-</td>
-<td>
+CS: `aziotcs`
 
-`iotedge` - The MR management socket
-</td>
-</tr>
-<tr>
-<td>Home directories</td>
-<td>
+IS: `aziotid`
 
-```
-/var/lib/iotedge/
-└── hsm/
-    ├── certs/
-    ├── cert_keys/
-    └── enc_keys/
-```
-</td>
-<td>
+KS: `aziotks`
+
+TPMS: `aziottpm`
+
+Each service runs as the corresponding user. Each user belongs to a group of the same name, and the service's endpoint socket file is owned by its user and group. Therefore, in order for a process to communicate with a service, the process's user must be added to the service's group to be able to connect to the endpoint socket file.
+
+For example, if you have a module process, the process needs to interact with the IS to get its module identity, with the KS to be able to use its module identity key to create a SAS token or for mTLS, and with the CS in order to use its module identity certificate for mTLS. So you should add the user that your module runs as to the `aziotid`, `aziotks` and `aziotcs` groups.
+
+
+## Home directories
 
 ```
 /var/lib/aziot/
 ├── certd/
 │   └── certs/
 ├── identityd/
-└── keyd/
-    └── keys/
+├── keyd/
+│   └── keys/
+└── tpmd/
 ```
-</td>
-<td>
 
-```
-/var/lib/aziot/
-└── edged/
-```
-</td>
-</tr>
-<tr>
-<td>Package dependencies</td>
-<td>
+`/var/lib/aziot/certd/certs` stores any certificates imported or generated by CS.
 
-- `moby-engine`
-- `openssl`
-</td>
-<td>
-
-- `openssl`
-</td>
-<td>
-
-- `aziot-identity-service`
-- `moby-engine`
-- `openssl`
-</td>
-</tr>
-</tbody>
-</table>
+`/var/lib/aziot/keyd/keys` stores any keys imported or generated by KS that could not be stored in an HSM via PKCS#11. (This is the case if the HSM doesn't support that particular kind of key, or if KS was not configured to use PKCS#11 at all.)
 
 
-## Installation procedure for IoT Edge (`aziot-edge`)
+## Package dependencies
+
+The binaries and libraries shipped in this package only depend on OpenSSL (v1.0 on CentOS 7, v1.1 on other supported distributions).
+
+If you plan to use a PKCS#11 library with KS to store your cryptographic keys in an HSM or TPM, you will need to install this library and its dependencies in accordance with your HSM manufacturer.
+
+
+# Installing and configuring the package
+
+As mentioned above, the `aziot-identity-service` package ships with the template of a "super-config", at `/etc/aziot/config.toml/template`. The easiest way for the user to configure all services is to copy this template to a new file, say `/etc/aziot/config.toml`, edit it, then "apply" the contents of the file to all the services with `sudo aziotctl config apply`.
+
+This file is called the "super-config" because it is an amalgamation of all the configurations of the individual services, with some simplifications. Since most use cases would require the user to keep all the service configs in sync with each other, this approach of having a single "super-config" helps make it easier and reduce errors.
+
+For example, if the user wanted to configure their device to use DPS provisioning with X.509 attestation, they would have to configure the certificate's private key as a preloaded key file URI in the KS config, the certificate as a preloaded cert file URI in the CS config, and the provisioning method in IS to use those private key and certificate via their IDs. With the super-config, they are instead able to configure provisioning to use those key and cert file URIs directly. `aziotctl config apply` does the job of converting the "super-config" into the individual services' configs, which includes synthesizing IDs for the key and cert and hooking them all up correctly.
+
+Therefore, the easiest way to install and configure the package is:
 
 ```sh
-apt install aziot-edge
+# Install the package
+sudo apt install aziot-identity-service
 
-iotedge init
+# Copy the config template into a new empty config.
+sudo cp /etc/aziot/config.toml.template /etc/aziot/config.toml
+
+# Edit the new empty config and fill in your provisioning information,
+# plus anything else you want to customize. See comments in the file for details.
+sudo $EDITOR /etc/aziot/config.toml
+
+# Apply the new config to all the services and restart them as necessary.
+sudo aziotctl config apply
 ```
-
-After installing the `aziot-edge` package, run `iotedge init` to interactively set up the configuration. It performs the initialization for both the IS+KS+CS+TPMS components installed by the `aziot-identity-service` package and the MR component installed by the `aziot-edge` package.
-
-If the config files already exist, `iotedge init` will fail instead of overwriting them. Using `iotedge init --force` will force it to overwrite them.
-
-## Updating from `iotedge` to `aziot-edge`
-
-```sh
-apt remove iotedge libiothsm-std
-
-apt install aziot-edge
-
-iotedge init
-```
-
-The user must remove the existing `iotedge` and `libiothsm-std` packages before installing the `aziot-edge` package (or even the `aziot-identity-service` package). We do not want a situation where the services from both packages are running at the same time. They would step over each other trying to provision the device and manage Docker modules. We enforce mutual exclusivity between the packages by having them conflict with each other so that the distribution's package manager does not allow them both to be installed at the same time.
-
-The `iotedge init` automatically detects when the configuration of the old IoT Edge installation is available and prompts whether to create the new configuration based on the old. Agreeing to import the old configuation does not remove it.
-
-### Configuration
-
-Alternatively, a non-interactive initialization that attempts to import the old configuration from `iotedge` can be done using the `import` subcommand.
-
-```sh
-iotedge init import
-```
-
-- Device provisioning method is parsed from `iotedge/config.yaml` and translated into the provisioning information in `identityd/config.toml`, `keyd/config.toml`, `certd/config.toml`, `tpmd/config.toml` and `edged/config.yaml`. For example, in case of manual-symmetric-key provisioning, the SAS key will be imported as a preloaded key in `keyd/config.toml`, and `identityd/config.toml` will be updated to use manual provisioning with a reference to the key ID.
-
-- User-provided certificates like device ID, device CA and trust bundle, and their corresponding private key files, will be added as preloaded keys and certs in `keyd/config.toml` and `certd/config.toml`. The files themselves will not be moved, because they are managed by the user rather than belonging in our services' directories.
-
-  This assumes that Microsoft's implementation of `libiothsm-std` is being used where the certs and keys are stored as files on disk. This is a reasonable assumption since there are no external Edge customers that have written their own `libiothsm-std` implementations which store keys and certs differently.
-
-- The master identity key and master encryption key are two symmetric keys dynamically generated by `iotedged` for internal use. They will not me be imported into the new services.
-
-  Note that this means Edge Agent, Edge Hub and other modules will not be able to decrypt any data when running against the new services that they previously encrypted using the workload API with the old service. This is not a problem for Edge Agent and Edge Hub, in the sense that they ignore the undecryptable data and start with empty storage, so they recover at the cost of data loss.
-
-- Certs like workload CA and module server certs that are created dynamically by `iotedged`, and can be regenerated trivially without any problems, will not be imported into the new services.
-
-### Downgrading
-
-The old configuration from `iotedge` is not removed from its location by any of the above actions; therefore, downgrading from the new package to the old one simply involves uninstalling the `aziot-edge` and `aziot-identity-service` packages, then reinstalling the `iotedge` package.
-
-```sh
-sudo apt remove aziot-edge aziot-identity-service
-
-sudo apt install iotedge
-```
-
-## Installation procedure for non-IoT Edge (`aziot-identity-service` only)
-
-The IS+KS+CS+TPMS components can still be installed as a standalone package on devices where IoT Edge will **not** be used. They enable an application to provision a device, manage module identities, and manage cryptographic keys and certificates.
-
-```sh
-apt install aziot-identity-service
-
-aziotctl config wizard
-```
-
-After installing the package, run `aziotctl config wizard` to interactively set up the configuration with minimal information like the device provisioning method.

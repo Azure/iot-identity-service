@@ -15,7 +15,12 @@ use aziotctl_common::config as common_config;
 #[derive(structopt::StructOpt)]
 pub(crate) struct Options {
     /// The path of the config file.
-    #[structopt(long, value_name = "CONFIG", default_value = "/etc/aziot/config.toml")]
+    #[structopt(
+        short = "-c",
+        long,
+        value_name = "CONFIG",
+        default_value = "/etc/aziot/config.toml"
+    )]
     config: std::path::PathBuf,
 }
 

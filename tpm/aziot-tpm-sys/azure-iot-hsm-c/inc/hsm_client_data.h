@@ -15,7 +15,7 @@ extern "C" {
 
 /** @file */
 
-int hsm_client_tpm_init();
+int hsm_client_tpm_init(int log_level);
 
 typedef void* HSM_CLIENT_HANDLE;
 

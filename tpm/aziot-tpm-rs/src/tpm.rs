@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use aziot_tpm_sys::{
     aziot_tpm_create, aziot_tpm_destroy, aziot_tpm_free_buffer, aziot_tpm_get_keys,
     aziot_tpm_import_auth_key, aziot_tpm_init, aziot_tpm_sign_with_auth_key, AZIOT_TPM_HANDLE,
+    LOG_LVL_DEBUG, LOG_LVL_ERROR, LOG_LVL_INFO,
 };
 
 use crate::Error;
@@ -89,7 +90,13 @@ impl Tpm {
         // ensure that `aziot_tpm_init` is only called once
         INIT_C_LIB.call_once(|| unsafe {
             INIT_RESULT = {
-                let result = aziot_tpm_init() as isize;
+                let log_level = match log::max_level().to_level().unwrap_or(log::Level::Info) {
+                    log::Level::Error | log::Level::Warn => LOG_LVL_ERROR,
+                    log::Level::Info => LOG_LVL_INFO,
+                    log::Level::Debug | log::Level::Trace => LOG_LVL_DEBUG,
+                };
+
+                let result = aziot_tpm_init(log_level) as isize;
                 if result == 0 {
                     Some(Ok(()))
                 } else {

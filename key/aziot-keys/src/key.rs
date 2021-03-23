@@ -548,6 +548,9 @@ fn create_inner(
                         match result {
                             Ok(_) => return Ok(()),
 
+                            Err(pkcs11::GenerateKeyError::GenerateKeyFailed(
+                                pkcs11_sys::CKR_FUNCTION_NOT_SUPPORTED,
+                            )) |
                             // Some PKCS#11 implementations like Cryptoauthlib don't support `C_GenerateKey(CKM_GENERIC_SECRET_KEY_GEN)`
                             Err(pkcs11::GenerateKeyError::GenerateKeyFailed(
                                 pkcs11_sys::CKR_MECHANISM_INVALID,

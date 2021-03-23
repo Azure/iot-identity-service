@@ -414,7 +414,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
 #### Response
 
 ```
-200 Ok
+204 No Content
 ```
 
 ---
