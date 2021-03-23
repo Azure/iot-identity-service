@@ -28,7 +28,7 @@ impl Checker for DaemonRunningKeyd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_keyd;
@@ -38,7 +38,10 @@ impl Checker for DaemonRunningKeyd {
             .with_context(|| anyhow!("Could not connect to keyd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.keyd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -56,7 +59,7 @@ impl Checker for DaemonRunningCertd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_certd;
@@ -66,7 +69,10 @@ impl Checker for DaemonRunningCertd {
             .with_context(|| anyhow!("Could not connect to certd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.certd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -127,7 +133,10 @@ impl Checker for DaemonRunningTpmd {
             .with_context(|| anyhow!("Could not connect to tpmd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.tpmd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -145,7 +154,7 @@ impl Checker for DaemonRunningIdentityd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_identityd;
@@ -155,7 +164,10 @@ impl Checker for DaemonRunningIdentityd {
             .with_context(|| anyhow!("Could not connect to identityd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.identityd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }

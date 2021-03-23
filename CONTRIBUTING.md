@@ -73,6 +73,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
     1. `clippy::similar_names`: This lint fires for a pair of idents that the lint's heuristic determines are named too similarly, and thus the programmer could easily confuse one with the other. It tends to fire for short idents like `req` and `res`. However, using such short idents instead of full words like `request` and `response` is fairly common in Rust code. For example, iterators are usually called `iter`, callbacks with an obvious usage are usually called `f`, and so on.
 
+    1. `clippy::struct_excessive_bools`: This lint fires for a struct that has more than three `bool` fields, because it assumes the struct is representing a state machine where only one `bool` will be `true` at any time, and wants an `enum` to be used instead. This is overly presumptuous of it.
+
     1. `clippy::too_many_lines`: This lint fires when a function has more lines of code than its heuristic thinks is acceptable. However this is subjective. Sometimes a function does one thing and needs many lines to do it, and it would not be suitable to split it into multiple smaller functions that are only called from the single parent caller.
 
     1. `clippy::type_complexity`: This lint fires when a type has more characters than its heuristic thinks is acceptable. This is subjective just like `clippy::too_many_lines`. It is not necessarily appropriate to make new type aliases for parts of the original type if they're only going to be used once.
