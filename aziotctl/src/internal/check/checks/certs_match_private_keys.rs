@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Result};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -31,17 +31,29 @@ impl CertsMatchPrivateKeys {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
+        let mut err_aggregated = String::new();
+
         for (id, private_key) in &cache.private_keys {
             if let Some(cert) = cache.certs.get(id) {
                 unsafe {
-                    openssl2::openssl_returns_1(openssl_sys2::X509_check_private_key(
+                    let result = openssl2::openssl_returns_1(openssl_sys2::X509_check_private_key(
                         foreign_types_shared::ForeignType::as_ptr(cert),
                         foreign_types_shared::ForeignType::as_ptr(private_key),
-                    )).with_context(|| format!("preloaded cert with ID {:?} does not match preloaded private key with ID {:?}", id, id))?;
+                    ));
+                    if result.is_err() {
+                        if !err_aggregated.is_empty() {
+                            err_aggregated.push('\n');
+                        }
+                        err_aggregated.push_str(&format!("preloaded cert with ID {:?} does not match preloaded private key with ID {:?}", id, id));
+                    }
                 }
             }
         }
 
-        Ok(CheckResult::Ok)
+        if err_aggregated.is_empty() {
+            Ok(CheckResult::Ok)
+        } else {
+            Err(anyhow!("{}", err_aggregated))
+        }
     }
 }

@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -52,6 +52,8 @@ impl ReadKeyPairs {
             key_engine
         };
 
+        let mut err_aggregated = String::new();
+
         for id in preloaded_keys.keys() {
             // We don't know whether `id` is a symmetric or asymmetric key,
             // and the `load_key_pair` error doesn't tell us whether it failed because it's a symmetric key
@@ -68,15 +70,31 @@ impl ReadKeyPairs {
                 continue;
             };
 
-            let key_handle = std::ffi::CString::new(key_handle.0)
-                .context("internal error: key handle is malformed")?;
-            let key = key_engine.load_private_key(&key_handle).with_context(|| {
-                format!("could not load preloaded private key with ID {:?}", id)
-            })?;
-
-            cache.private_keys.insert(id.clone(), key);
+            let key = || {
+                let key_handle = std::ffi::CString::new(key_handle.0)
+                    .context("internal error: key handle is malformed")?;
+                let key = key_engine.load_private_key(&key_handle).with_context(|| {
+                    format!("could not load preloaded private key with ID {:?}", id)
+                })?;
+                Ok::<_, anyhow::Error>(key)
+            };
+            match key() {
+                Ok(key) => {
+                    cache.private_keys.insert(id.clone(), key);
+                }
+                Err(err) => {
+                    if !err_aggregated.is_empty() {
+                        err_aggregated.push('\n');
+                    }
+                    err_aggregated.push_str(&format!("{:?}", err));
+                }
+            }
         }
 
-        Ok(CheckResult::Ok)
+        if err_aggregated.is_empty() {
+            Ok(CheckResult::Ok)
+        } else {
+            Err(anyhow!("{}", err_aggregated))
+        }
     }
 }

@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -41,24 +41,44 @@ impl ReadCerts {
             aziot_certd.clone(),
         );
 
+        let mut err_aggregated = String::new();
+
         for id in preloaded_certs.keys() {
-            let cert = cert_client
-                .get_cert(id)
-                .await
-                .with_context(|| format!("could not load cert with ID {:?}", id))?;
+            let cert = || async {
+                let cert = cert_client
+                    .get_cert(id)
+                    .await
+                    .with_context(|| format!("could not load cert with ID {:?}", id))?;
 
-            // PEM blob might have multiple certs, but we only care about the first one.
-            // However we still use `openssl::x509::X509::stack_from_pem` so that all the certs in the PEM
-            // are parsed and thus verified to be correct.
-            let cert = openssl::x509::X509::stack_from_pem(&cert)
-                .with_context(|| format!("could not load cert with ID {:?}", id))?
-                .into_iter()
-                .next()
-                .with_context(|| format!("could not load cert with ID {:?}: cert is empty", id))?;
-
-            cache.certs.insert(id.clone(), cert);
+                // PEM blob might have multiple certs, but we only care about the first one.
+                // However we still use `openssl::x509::X509::stack_from_pem` so that all the certs in the PEM
+                // are parsed and thus verified to be correct.
+                let cert = openssl::x509::X509::stack_from_pem(&cert)
+                    .with_context(|| format!("could not load cert with ID {:?}", id))?
+                    .into_iter()
+                    .next()
+                    .with_context(|| {
+                        format!("could not load cert with ID {:?}: cert is empty", id)
+                    })?;
+                Ok::<_, anyhow::Error>(cert)
+            };
+            match cert().await {
+                Ok(cert) => {
+                    cache.certs.insert(id.clone(), cert);
+                }
+                Err(err) => {
+                    if !err_aggregated.is_empty() {
+                        err_aggregated.push('\n');
+                    }
+                    err_aggregated.push_str(&format!("{:?}", err));
+                }
+            }
         }
 
-        Ok(CheckResult::Ok)
+        if err_aggregated.is_empty() {
+            Ok(CheckResult::Ok)
+        } else {
+            Err(anyhow!("{}", err_aggregated))
+        }
     }
 }
