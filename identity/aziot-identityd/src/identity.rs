@@ -471,25 +471,6 @@ impl IdentityManager {
                 scope_id,
                 attestation,
             } => {
-                async fn operation_to_iot_hub_device(
-                    credentials: aziot_identity_common::Credentials,
-                    operation: aziot_dps_client_async::model::RegistrationOperationStatus,
-                ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-                    let status = operation.status;
-                    assert!(!status.eq_ignore_ascii_case("assigning"));
-
-                    let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-                    let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-                    let device_id = state.device_id.get_or_insert("".into());
-                    let device = aziot_identity_common::IoTHubDevice {
-                        iothub_hostname: iothub_hostname.clone(),
-                        device_id: device_id.clone(),
-                        credentials,
-                    };
-
-                    Ok(device)
-                }
-
                 let dps_client = aziot_dps_client_async::Client::new(
                     &global_endpoint,
                     &scope_id,
@@ -500,7 +481,7 @@ impl IdentityManager {
                     self.proxy_uri.clone(),
                 );
 
-                let device = match attestation {
+                let (dps_auth_kind, registration_id, credentials) = match attestation {
                     config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,
@@ -508,23 +489,10 @@ impl IdentityManager {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
                             sas_key: symmetric_key.clone(),
                         };
-                        let credential = aziot_identity_common::Credentials::SharedPrivateKey(
-                            symmetric_key.clone(),
-                        );
+                        let credentials =
+                            aziot_identity_common::Credentials::SharedPrivateKey(symmetric_key);
 
-                        let backup_device =
-                            self.get_backup_provisioning_info(credential.clone())?;
-
-                        if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
-                        } else {
-                            let operation = dps_client
-                                .register(&registration_id, &dps_auth_kind)
-                                .await
-                                .map_err(Error::DPSClient)?;
-
-                            operation_to_iot_hub_device(credential, operation).await?
-                        }
+                        (dps_auth_kind, registration_id, credentials)
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
@@ -542,44 +510,31 @@ impl IdentityManager {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
-                        let credential = aziot_identity_common::Credentials::X509 {
+                        let credentials = aziot_identity_common::Credentials::X509 {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
 
-                        let backup_device =
-                            self.get_backup_provisioning_info(credential.clone())?;
-
-                        if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
-                        } else {
-                            let operation = dps_client
-                                .register(&registration_id, &dps_auth_kind)
-                                .await
-                                .map_err(Error::DPSClient)?;
-
-                            operation_to_iot_hub_device(credential, operation).await?
-                        }
+                        (dps_auth_kind, registration_id, credentials)
                     }
                     config::DpsAttestationMethod::Tpm { registration_id } => {
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
-                        let credential = aziot_identity_common::Credentials::Tpm;
+                        let credentials = aziot_identity_common::Credentials::Tpm;
 
-                        let backup_device =
-                            self.get_backup_provisioning_info(credential.clone())?;
-
-                        if skip_if_backup_is_valid && backup_device.is_some() {
-                            backup_device.expect("backup device cannot be none")
-                        } else {
-                            let operation = dps_client
-                                .register(&registration_id, &dps_auth_kind)
-                                .await
-                                .map_err(Error::DPSClient)?;
-
-                            operation_to_iot_hub_device(credential, operation).await?
-                        }
+                        (dps_auth_kind, registration_id, credentials)
                     }
                 };
+
+                let device = self
+                    .dps_provision(
+                        skip_if_backup_is_valid,
+                        dps_client,
+                        dps_auth_kind,
+                        registration_id,
+                        credentials,
+                    )
+                    .await?;
+
                 self.set_device(&device);
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
@@ -589,6 +544,43 @@ impl IdentityManager {
                 aziot_identity_common::ProvisioningStatus::Unprovisioned
             }
         };
+        Ok(device)
+    }
+
+    async fn dps_provision(
+        &self,
+        skip_if_backup_is_valid: bool,
+        dps_client: aziot_dps_client_async::Client,
+        dps_auth_kind: aziot_dps_client_async::DpsAuthKind,
+        registration_id: String,
+        credentials: aziot_identity_common::Credentials,
+    ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+        let backup_device = self.get_backup_provisioning_info(credentials.clone())?;
+
+        if skip_if_backup_is_valid && backup_device.is_some() {
+            let backup_device = backup_device.expect("backup device cannot be none");
+            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+
+            return Ok(backup_device);
+        }
+
+        let operation = dps_client
+            .register(&registration_id, &dps_auth_kind)
+            .await
+            .map_err(Error::DPSClient)?;
+
+        let status = operation.status;
+        assert!(!status.eq_ignore_ascii_case("assigning"));
+
+        let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+        let iothub_hostname = state.assigned_hub.get_or_insert("".into());
+        let device_id = state.device_id.get_or_insert("".into());
+        let device = aziot_identity_common::IoTHubDevice {
+            iothub_hostname: iothub_hostname.clone(),
+            device_id: device_id.clone(),
+            credentials,
+        };
+
         Ok(device)
     }
 
