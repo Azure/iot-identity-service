@@ -102,6 +102,8 @@ erased_serde::serialize_trait_object!(Checker);
 #[derive(Default)]
 pub struct CheckerCache {
     pub cfg: DaemonConfigs,
+    certd_running: Option<()>,
+    keyd_running: Option<()>,
     certs: BTreeMap<String, openssl::x509::X509>,
     private_keys: BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
 }

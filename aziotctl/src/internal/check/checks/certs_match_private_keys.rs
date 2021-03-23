@@ -31,6 +31,9 @@ impl CertsMatchPrivateKeys {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
+        let () = unwrap_or_skip!(&cache.certd_running);
+        let () = unwrap_or_skip!(&cache.keyd_running);
+
         let mut err_aggregated = String::new();
 
         for (id, private_key) in &cache.private_keys {

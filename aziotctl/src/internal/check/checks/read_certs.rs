@@ -35,6 +35,7 @@ impl ReadCerts {
             preloaded_certs,
             ..
         } = unwrap_or_skip!(&cache.cfg.certd);
+        let () = unwrap_or_skip!(&cache.certd_running);
 
         let cert_client = aziot_cert_client_async::Client::new(
             aziot_cert_common_http::ApiVersion::V2020_09_01,

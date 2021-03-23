@@ -41,6 +41,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.push(Box::new(host_local_time::HostLocalTime::default()));
             v.extend(cert_expiry::cert_expirations());
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
+            v.extend(daemons_running::daemons_running());
             v.push(Box::new(read_certs::ReadCerts::default()));
             v.push(Box::new(read_key_pairs::ReadKeyPairs::default()));
             v.push(Box::new(
@@ -51,7 +52,6 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         ("Connectivity checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(host_connect_iothub::host_connect_iothub_checks());
-            v.extend(daemons_running::daemons_running());
             v.push(Box::new(
                 host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
             ));
