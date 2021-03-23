@@ -35,7 +35,10 @@ impl ReadKeyPairs {
             preloaded_keys,
             ..
         } = unwrap_or_skip!(&cache.cfg.keyd);
-        let () = unwrap_or_skip!(&cache.keyd_running);
+
+        if !cache.daemons_running.keyd {
+            return Ok(CheckResult::Skipped);
+        }
 
         let key_client = aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2020_09_01,

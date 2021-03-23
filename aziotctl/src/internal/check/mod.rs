@@ -102,8 +102,7 @@ erased_serde::serialize_trait_object!(Checker);
 #[derive(Default)]
 pub struct CheckerCache {
     pub cfg: DaemonConfigs,
-    certd_running: Option<()>,
-    keyd_running: Option<()>,
+    daemons_running: DaemonsRunning,
     certs: BTreeMap<String, openssl::x509::X509>,
     private_keys: BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
 }
@@ -122,4 +121,12 @@ pub struct DaemonConfigs {
     pub tpmd: Option<aziot_tpmd_config::Config>,
     pub identityd: Option<aziot_identityd_config::Settings>,
     pub identityd_prev: Option<aziot_identityd_config::Settings>,
+}
+
+#[derive(Default)]
+struct DaemonsRunning {
+    certd: bool,
+    identityd: bool,
+    keyd: bool,
+    tpmd: bool,
 }

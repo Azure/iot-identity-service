@@ -31,8 +31,9 @@ impl CertsMatchPrivateKeys {
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
-        let () = unwrap_or_skip!(&cache.certd_running);
-        let () = unwrap_or_skip!(&cache.keyd_running);
+        if !cache.daemons_running.certd || !cache.daemons_running.keyd {
+            return Ok(CheckResult::Skipped);
+        }
 
         let mut err_aggregated = String::new();
 

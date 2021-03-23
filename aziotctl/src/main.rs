@@ -8,6 +8,7 @@
     clippy::let_unit_value,
     clippy::module_name_repetitions,
     clippy::similar_names,
+    clippy::struct_excessive_bools,
     clippy::too_many_lines,
     clippy::type_complexity
 )]
