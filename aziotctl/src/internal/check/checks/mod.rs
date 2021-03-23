@@ -22,6 +22,7 @@ mod host_connect_dps_endpoint;
 mod host_connect_iothub;
 mod host_local_time;
 mod hostname;
+mod up_to_date_configs;
 mod well_formed_configs;
 
 pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
@@ -30,6 +31,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         ("Configuration checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(well_formed_configs::well_formed_configs());
+            v.push(Box::new(up_to_date_configs::UpToDateConfigs::default()));
             v.push(Box::new(hostname::Hostname::default()));
             // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
             // v.push(Box::new(aziotd_version::AziotdVersion::default()));

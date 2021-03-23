@@ -17,7 +17,7 @@ License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: aziot-identity-service-%{version}-%{release}.tar.gz
 
-Conflicts: iotedge
+Conflicts: iotedge, libiothsm-std
 
 BuildRequires: clang
 BuildRequires: gcc
@@ -173,6 +173,8 @@ fi
 
 %attr(400, aziottpm, aziottpm) %{_sysconfdir}/aziot/tpmd/config.toml.default
 %attr(700, aziottpm, aziottpm) %dir %{_sysconfdir}/aziot/tpmd/config.d
+
+%attr(600, root, root) %{_sysconfdir}/aziot/config.toml.template
 
 # Home directories
 %attr(-, aziotcs, aziotcs) %dir /var/lib/aziot/certd

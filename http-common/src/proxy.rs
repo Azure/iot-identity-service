@@ -8,14 +8,14 @@ use std::{io, io::IoSlice};
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-pub enum MaybeProxyStream<C> {
-    NoProxy(C),
-    Proxy(hyper_proxy::ProxyStream<C>),
+pub enum MaybeProxyStream<S> {
+    NoProxy(S),
+    Proxy(hyper_proxy::ProxyStream<S>),
 }
 
-impl<C> AsyncRead for MaybeProxyStream<C>
+impl<S> AsyncRead for MaybeProxyStream<S>
 where
-    C: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -29,9 +29,9 @@ where
     }
 }
 
-impl<C> AsyncWrite for MaybeProxyStream<C>
+impl<S> AsyncWrite for MaybeProxyStream<S>
 where
-    C: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -77,14 +77,15 @@ where
     }
 }
 
-impl<C> hyper::client::connect::Connection for MaybeProxyStream<C>
+impl<S> hyper::client::connect::Connection for MaybeProxyStream<S>
 where
-    C: AsyncRead + AsyncWrite + Unpin,
+    S: hyper::client::connect::Connection,
+    hyper_proxy::ProxyStream<S>: hyper::client::connect::Connection,
 {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
-            MaybeProxyStream::NoProxy(_) => hyper::client::connect::Connected::new(),
-            MaybeProxyStream::Proxy(_) => hyper::client::connect::Connected::new().proxy(true),
+            MaybeProxyStream::NoProxy(stream) => stream.connected(),
+            MaybeProxyStream::Proxy(stream) => stream.connected(),
         }
     }
 }
@@ -98,27 +99,27 @@ pub enum MaybeProxyConnector<C> {
 impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
     pub fn new(
         proxy_uri: Option<hyper::Uri>,
-        identity: Option<(openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>)>,
+        identity: Option<(&openssl::pkey::PKeyRef<openssl::pkey::Private>, &[u8])>,
+        trusted_certs: &[openssl::x509::X509],
     ) -> io::Result<Self> {
-        let https_connector = match identity.clone() {
-            None => hyper_openssl::HttpsConnector::new()?,
-            Some(identity) => {
-                let tls_connector = identity_to_tls_connector(identity)?;
+        let https_connector = if let Some((key, certs)) = identity {
+            let tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
-                let mut http_connector = hyper::client::HttpConnector::new();
-                http_connector.enforce_http(false);
-                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
-            }
+            let mut http_connector = hyper::client::HttpConnector::new();
+            http_connector.enforce_http(false);
+            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
+        } else {
+            hyper_openssl::HttpsConnector::new()?
         };
 
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
             let proxy_connector = match identity {
                 None => hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?,
-                Some(identity) => {
+                Some((key, certs)) => {
                     // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
                     //          to create two copies of it.
-                    let proxy_tls_connector = identity_to_tls_connector(identity)?;
+                    let proxy_tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
                     let mut proxy_connector =
                         hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
@@ -134,13 +135,18 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
 }
 
 fn identity_to_tls_connector(
-    identity: (openssl::pkey::PKey<openssl::pkey::Private>, Vec<u8>),
+    key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
+    certs: &[u8],
+    trusted_certs: &[openssl::x509::X509],
 ) -> io::Result<openssl::ssl::SslConnectorBuilder> {
-    let (key, certs) = identity;
-
     let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
 
-    let mut device_id_certs = openssl::x509::X509::stack_from_pem(&certs)?.into_iter();
+    let cert_store = tls_connector.cert_store_mut();
+    for trusted_cert in trusted_certs {
+        cert_store.add_cert(trusted_cert.clone())?;
+    }
+
+    let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
     let client_cert = device_id_certs
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "device identity cert not found"))?;
@@ -148,10 +154,10 @@ fn identity_to_tls_connector(
     tls_connector.set_certificate(&client_cert)?;
 
     for cert in device_id_certs {
-        tls_connector.add_extra_chain_cert(cert.clone())?;
+        tls_connector.add_extra_chain_cert(cert)?;
     }
 
-    tls_connector.set_private_key(&key)?;
+    tls_connector.set_private_key(key)?;
 
     Ok(tls_connector)
 }

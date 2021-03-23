@@ -57,6 +57,9 @@ pub async fn main(
         let key_engine = aziot_key_openssl_engine::load(key_client.clone())
             .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
+        let proxy_uri = http_common::get_proxy_uri(None)
+            .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
+
         Api {
             homedir_path,
             cert_issuance,
@@ -65,6 +68,7 @@ pub async fn main(
 
             key_client,
             key_engine,
+            proxy_uri,
         }
     };
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
@@ -84,6 +88,7 @@ struct Api {
 
     key_client: std::sync::Arc<aziot_key_client::Client>,
     key_engine: openssl2::FunctionalEngine,
+    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -255,6 +260,8 @@ fn create_cert<'a>(
                     subject_name = &common_name;
                 }
             }
+            let not_after = openssl::asn1::Asn1Time::days_from_now(expiry_days)
+                .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
             let mut x509 = openssl::x509::X509::builder()
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -267,11 +274,6 @@ fn create_cert<'a>(
 
             x509.set_not_before(
                 &*openssl::asn1::Asn1Time::days_from_now(0)
-                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?,
-            )
-            .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-            x509.set_not_after(
-                &*openssl::asn1::Asn1Time::days_from_now(expiry_days)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?,
             )
             .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -297,6 +299,12 @@ fn create_cert<'a>(
 
             let x509 = if issuer_id == id {
                 // Issuer is the same as the cert being created, which means the caller wants the cert to be self-signed.
+
+                x509.set_not_after(&not_after)
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
+                x509.set_issuer_name(x509_req.subject_name())
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                 x509.sign(&issuer_private_key, openssl::hash::MessageDigest::sha256())
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -327,6 +335,16 @@ fn create_cert<'a>(
                     .ok_or_else(|| Error::invalid_parameter("issuer.certId", "invalid issuer"))?;
 
                 x509.set_issuer_name(issuer_x509.subject_name())
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
+                // Cap x509.not_after to issuer_x509.not_after
+                let issuer_not_after = issuer_x509.not_after();
+                let not_after = if issuer_not_after < not_after {
+                    issuer_not_after
+                } else {
+                    &not_after
+                };
+                x509.set_not_after(not_after)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                 x509.sign(&issuer_private_key, openssl::hash::MessageDigest::sha256())
@@ -467,6 +485,7 @@ fn create_cert<'a>(
                                     auth_basic,
                                     Some((&identity_cert, &identity_private_key)),
                                     trusted_certs_x509,
+                                    api.proxy_uri.clone(),
                                 )
                                 .await?;
 
@@ -692,6 +711,7 @@ fn create_cert<'a>(
                                                 &bootstrap_identity_private_key,
                                             )),
                                             trusted_certs_x509,
+                                            api.proxy_uri.clone(),
                                         )
                                         .await?;
 
@@ -738,6 +758,7 @@ fn create_cert<'a>(
                             auth_basic,
                             None,
                             trusted_certs_x509,
+                            api.proxy_uri.clone(),
                         )
                         .await?;
 
@@ -811,24 +832,38 @@ fn get_cert_inner(
     preloaded_certs: &std::collections::BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
-    let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
-        .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
-    let bytes = load_inner(&path)?;
-    Ok(bytes)
+    match preloaded_certs.get(id) {
+        Some(PreloadedCert::Uri(_)) | None => {
+            let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
+            let bytes = load_inner(&path)?;
+            Ok(bytes)
+        }
+
+        Some(PreloadedCert::Ids(ids)) => {
+            let mut result = vec![];
+            for id in ids {
+                if let Some(bytes) = get_cert_inner(homedir_path, preloaded_certs, id)? {
+                    result.extend_from_slice(&bytes);
+                }
+            }
+            Ok((!result.is_empty()).then(|| result))
+        }
+    }
 }
 
 fn principal_to_map(
     principal: Vec<Principal>,
 ) -> std::collections::BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>> {
-    principal
-        .into_iter()
-        .map(|principal| {
-            let certs = principal
-                .certs
+    let mut result: std::collections::BTreeMap<_, Vec<_>> = Default::default();
+
+    for Principal { uid, certs } in principal {
+        result.entry(uid).or_default().extend(
+            certs
                 .into_iter()
-                .map(|cert| wildmatch::WildMatch::new(&cert))
-                .collect();
-            (principal.uid, certs)
-        })
-        .collect()
+                .map(|cert| wildmatch::WildMatch::new(&cert)),
+        );
+    }
+
+    result
 }

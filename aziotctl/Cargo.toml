@@ -7,12 +7,12 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.34"
+async-recursion = "0.3.1"
 async-trait = "0.1.42"
 base64 = "0.13"
 byte-unit = "4.0.9"
 chrono = { version = "0.4", features = ["serde"] }
 colored = "2.0.0"
-derive_more = "0.99.11"
 erased-serde = "0.3.12"
 hyper = "0.14"
 hyper-openssl = "0.9"
@@ -20,7 +20,6 @@ libc = "0.2"
 nix = "0.18"
 log = "0.4"
 openssl = "0.10"
-rustyline = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.59"
 structopt = "0.3"
@@ -30,11 +29,14 @@ toml = "0.5"
 url = "2"
 
 aziot-certd-config = { path = "../cert/aziot-certd-config" }
+aziot-identity-client-async = { path = "../identity/aziot-identity-client-async" }
+aziot-identity-common-http = { path = "../identity/aziot-identity-common-http" }
 aziot-identityd-config = { path = "../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
 aziotctl-common = { path = "./aziotctl-common" }
+config-common = { path = "../config-common" }
 http-common = { path = "../http-common", features = ["tokio1"] }
 mini-sntp = { path = "../mini-sntp" }
 

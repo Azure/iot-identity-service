@@ -11,8 +11,12 @@ use std::os::raw::{c_int, c_uchar, c_void};
 
 pub type AZIOT_TPM_HANDLE = *mut c_void;
 
+pub const LOG_LVL_DEBUG: c_int = 0;
+pub const LOG_LVL_INFO: c_int = 1;
+pub const LOG_LVL_ERROR: c_int = 2;
+
 extern "C" {
-    pub fn aziot_tpm_init() -> c_int;
+    pub fn aziot_tpm_init(log_level: c_int) -> c_int;
     pub fn aziot_tpm_deinit();
 
     pub fn aziot_tpm_create() -> AZIOT_TPM_HANDLE;

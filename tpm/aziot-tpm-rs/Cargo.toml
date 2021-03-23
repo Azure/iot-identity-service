@@ -8,3 +8,4 @@ edition = "2018"
 aziot-tpm-sys = { path = "../aziot-tpm-sys"}
 
 lazy_static = "1.4"
+log = "0.4"

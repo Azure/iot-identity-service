@@ -19,7 +19,7 @@ get_package() {
         return
     fi
 
-    # The download-artifact does not have a way to download artifacts from other workflows.
+    # The download-artifact action does not have a way to download artifacts from other workflows.
     # Ref: https://github.com/actions/download-artifact/issues/3
     #
     # So instead we use the GitHub API ourselves.
@@ -41,12 +41,12 @@ get_package() {
     # Get workflow runs for this branch and pick the latest one (the first one).
     # From that, get the artifacts URL.
     #
-    # Ref: https://docs.github.com/en/free-pro-team@latest/rest/reference/actions#list-workflow-runs
+    # Ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
     echo "Getting latest workflow run's artifacts URL..." >&2
     artifacts_url="$(
         github_curl -L \
             -H 'accept: application/vnd.github.v3+json' \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=$BRANCH&event=push&status=success" |
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
             jq -r '.workflow_runs[0].artifacts_url'
     )"
     if [ "$artifacts_url" = 'null' ]; then
@@ -407,7 +407,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "manual"
 iothub_hostname = "$common_resource_name.azure-devices.net"
 device_id = "$iot_device_id"
@@ -481,7 +480,6 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "manual"
 iothub_hostname = "$common_resource_name.azure-devices.net"
 device_id = "$iot_device_id"
@@ -534,9 +532,8 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "dps"
-global_endpoint = "https://global.azure-devices-provisioning.net"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"
 
 [provisioning.attestation]
@@ -656,9 +653,8 @@ hostname = "$common_resource_name"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
-always_reprovision_on_startup = true
 source = "dps"
-global_endpoint = "https://global.azure-devices-provisioning.net"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
 scope_id = "$dps_scope_id"
 
 [provisioning.attestation]

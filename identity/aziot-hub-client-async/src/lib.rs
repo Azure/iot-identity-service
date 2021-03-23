@@ -191,9 +191,10 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
+                let key_handle = self.key_client.load_key(&key).await?;
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    &key,
+                    key_handle,
                     &*self.key_client,
                     self.proxy_uri.clone(),
                     false,
@@ -213,7 +214,7 @@ impl Client {
                 );
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    "",
+                    (),
                     &*self.tpm_client,
                     self.proxy_uri.clone(),
                     false,
@@ -243,7 +244,6 @@ impl Client {
         };
 
         let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
-        log::debug!("IoTHub request {:?}", req);
 
         let res = client
             .request(req)
@@ -276,7 +276,6 @@ impl Client {
         let body = hyper::body::to_bytes(body)
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        log::debug!("IoTHub response body {:?}", body);
 
         let res: TResponse = match res_status_code {
             hyper::StatusCode::OK | hyper::StatusCode::CREATED => {
@@ -348,9 +347,10 @@ impl Client {
                     "{}/devices/{}",
                     hub_device.iothub_hostname, hub_device.device_id
                 );
+                let key_handle = self.key_client.load_key(&key).await?;
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    &key,
+                    key_handle,
                     &*self.key_client,
                     self.proxy_uri.clone(),
                     false,
@@ -370,7 +370,7 @@ impl Client {
                 );
                 let (connector, token) = get_sas_connector(
                     &audience,
-                    "",
+                    (),
                     &*self.tpm_client,
                     self.proxy_uri.clone(),
                     false,

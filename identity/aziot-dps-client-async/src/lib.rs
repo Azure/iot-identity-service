@@ -40,14 +40,11 @@ pub enum DpsAuthKind {
     Tpm,
     /// Used as part of a recursive call within `request`
     #[doc(hidden)]
-    TpmWithAuth {
-        // base64 encoded
-        auth_key: String,
-    },
+    TpmDpsNonce,
 }
 
 pub struct Client {
-    global_endpoint: String,
+    global_endpoint: url::Url,
     scope_id: String,
 
     key_client: Arc<aziot_key_client_async::Client>,
@@ -60,7 +57,7 @@ pub struct Client {
 impl Client {
     #[must_use]
     pub fn new(
-        global_endpoint: &str,
+        global_endpoint: &url::Url,
         scope_id: &str,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -69,7 +66,7 @@ impl Client {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         Client {
-            global_endpoint: global_endpoint.to_owned(),
+            global_endpoint: global_endpoint.clone(),
             scope_id: scope_id.to_owned(),
 
             key_client,
@@ -86,7 +83,7 @@ impl Client {
         auth_kind: &DpsAuthKind,
     ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
         let resource_uri = format!(
-            "/{}/registrations/{}/register?api-version=2018-11-01",
+            "{}/registrations/{}/register?api-version=2018-11-01",
             self.scope_id, registration_id
         );
 
@@ -126,7 +123,7 @@ impl Client {
 
         // spin until the registration has completed successfully
         let resource_uri = format!(
-            "/{}/registrations/{}/operations/{}?api-version=2018-11-01",
+            "{}/registrations/{}/operations/{}?api-version=2018-11-01",
             self.scope_id, registration_id, res.operation_id
         );
 
@@ -161,7 +158,7 @@ impl Client {
             .await;
         };
 
-        if matches!(auth_kind, DpsAuthKind::TpmWithAuth { .. }) {
+        if matches!(auth_kind, DpsAuthKind::TpmDpsNonce { .. }) {
             // import the returned authentication key into the TPM
             let auth_key = res
                 .registration_state
@@ -188,10 +185,6 @@ impl Client {
         Ok(res)
     }
 
-    // TPM provisioning has special 2-step challenge/response flow which is
-    // basically identical to the symmetric key flow, except that the TPM client
-    // is used instead of the key client. To keep things DRY, a recursive call
-    // is used, passing `DpsAuthKind::TpmWithAuth` as the auth kind.
     #[async_recursion::async_recursion]
     async fn request<TRequest, TResponse>(
         &self,
@@ -226,31 +219,35 @@ impl Client {
 
         let connector = match &auth_kind {
             DpsAuthKind::Tpm => {
-                http_common::MaybeProxyConnector::new(self.proxy_uri.clone(), None)?
+                http_common::MaybeProxyConnector::new(self.proxy_uri.clone(), None, &[])?
             }
-            DpsAuthKind::SymmetricKey { sas_key: key }
-            | DpsAuthKind::TpmWithAuth { auth_key: key } => {
+            DpsAuthKind::SymmetricKey { sas_key: key } => {
                 let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-                let (connector, token) = if matches!(auth_kind, DpsAuthKind::SymmetricKey { .. }) {
-                    get_sas_connector(
-                        &audience,
-                        &key,
-                        &*self.key_client,
-                        self.proxy_uri.clone(),
-                        false,
-                    )
-                    .await?
-                } else {
-                    get_sas_connector(
-                        &audience,
-                        &base64::decode(key)
-                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-                        &*self.tpm_client,
-                        self.proxy_uri.clone(),
-                        true,
-                    )
-                    .await?
-                };
+                let key_handle = self.key_client.load_key(key).await?;
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    key_handle,
+                    &*self.key_client,
+                    self.proxy_uri.clone(),
+                    false,
+                )
+                .await?;
+                let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                req.headers_mut()
+                    .append(hyper::header::AUTHORIZATION, authorization_header_value);
+                connector
+            }
+            DpsAuthKind::TpmDpsNonce => {
+                let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
+                let (connector, token) = get_sas_connector(
+                    &audience,
+                    (),
+                    &*self.tpm_client,
+                    self.proxy_uri.clone(),
+                    true,
+                )
+                .await?;
 
                 let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -306,7 +303,6 @@ impl Client {
         let body = hyper::body::to_bytes(body)
             .await
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        log::debug!("DPS response body {:?}", body);
 
         let res: TResponse = match status {
             hyper::StatusCode::OK | hyper::StatusCode::ACCEPTED => {
@@ -331,11 +327,22 @@ impl Client {
                 let reg_result: model::TpmRegistrationResult = serde_json::from_slice(&body)
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-                // update auth method
-                *auth_kind = DpsAuthKind::TpmWithAuth {
-                    auth_key: reg_result.authentication_key,
-                };
+                // TPM provisioning has special 2-step challenge/response flow, as detailed at
+                // https://docs.microsoft.com/en-us/azure/iot-dps/concepts-tpm-attestation#detailed-attestation-process
+                //
+                // To keep the code DRY, a "psuedo" DpsAuthKind::TpmDpsNonce type is introduced
+                // that is used as part of a recursive call to `request`, which will handle the
+                // second-stage of the TPM provisioning flow after the auth key (provided by DPS)
+                // has been imported into the TPM.
 
+                self.tpm_client
+                    .import_auth_key(
+                        base64::decode(reg_result.authentication_key)
+                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                    )
+                    .await?;
+
+                *auth_kind = DpsAuthKind::TpmDpsNonce;
                 return self
                     .request(registration_id, method, resource_uri, auth_kind, orig_body)
                     .await;

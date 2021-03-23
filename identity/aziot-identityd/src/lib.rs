@@ -384,16 +384,27 @@ impl Api {
                     .await?
             }
             ReprovisionTrigger::Api => {
+                // Clear the backed up device state before reprovisioning.
+                // If this fails, log a warning but continue with reprovisioning.
+                let mut backup_file = self.settings.homedir.clone();
+                backup_file.push("device_info");
+
+                if let Err(err) = std::fs::remove_file(backup_file) {
+                    if err.kind() != std::io::ErrorKind::NotFound {
+                        log::warn!(
+                            "Failed to clear device state before reprovisioning: {}",
+                            err
+                        );
+                    }
+                }
+
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), false)
                     .await?
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(
-                        self.settings.provisioning.clone(),
-                        !self.settings.provisioning.always_reprovision_on_startup,
-                    )
+                    .provision_device(self.settings.provisioning.clone(), true)
                     .await?
             }
         };
@@ -402,10 +413,37 @@ impl Api {
 
         log::info!("Identity reconciliation started. Reason: {:?}", trigger);
 
-        let _ = self
+        if let Err(err) = self
             .id_manager
             .reconcile_hub_identities(self.settings.clone())
-            .await?;
+            .await
+        {
+            // For Hub client errors only, attempt to reprovision with Hub and retry reconciliation.
+            match err {
+                Error::HubClient(_) => match trigger {
+                    ReprovisionTrigger::Startup | ReprovisionTrigger::ConfigurationFileUpdate => {
+                        log::info!("Could not reconcile Identities with current device data. Reprovisioning.");
+
+                        self.id_manager
+                            .provision_device(self.settings.provisioning.clone(), false)
+                            .await?;
+                        log::info!("Successfully reprovisioned.");
+
+                        self.id_manager
+                            .reconcile_hub_identities(self.settings.clone())
+                            .await?;
+                    }
+
+                    // Don't attempt to reprovision if this function was called by the reprovision API.
+                    // The reprovision API provided a fresh reprovision, so failing to reconcile in this
+                    // scenario should not be retried.
+                    ReprovisionTrigger::Api => {
+                        return Err(err);
+                    }
+                },
+                _ => return Err(err),
+            }
+        }
 
         log::info!("Identity reconciliation complete.");
 
@@ -498,12 +536,11 @@ impl Api {
         });
         self.authenticator = authenticator;
         self.local_identities = local_modules;
+        self.settings = settings;
 
         let _ = self
             .reprovision_device(auth::AuthId::LocalRoot, trigger)
             .await?;
-
-        self.settings = settings;
 
         Ok(())
     }

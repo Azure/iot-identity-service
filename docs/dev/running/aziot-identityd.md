@@ -12,10 +12,11 @@ homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
 
-[endpoints]
+[endpoints] # only available when running debug builds
 aziot_certd = "unix:///run/aziot/certd.sock"
 aziot_identityd = "unix:///run/aziot/identityd.sock"
 aziot_keyd = "unix:///run/aziot/keyd.sock"
+aziot_tpmd = "unix:///run/aziot/tpmd.sock"
 ```
 
 Example principal file in config directory:
@@ -35,17 +36,19 @@ idtype = "module"
 
     Depending on the provisioning `source` type, one of `[provisioning.attestation]` (for `dps` source) or `[provisioning.authentication]` (for `manual` source) subsections must be provided.
 
-- `[endpoints]` - This section defines endpoints for the services. For this service, there are three endpoints:
+- (debug builds only) `[endpoints]` - This section defines custom endpoints for the services. For this service, there are four endpoints:
 
     - The `aziot_keyd` value denotes the endpoint that the `aziot-keyd` service is accepting connections on (the same value as its own `endpoints.aziot_keyd` config)
 
     - The `aziot_certd` value denotes the endpoint that the `aziot-certd` service is accepting connections on (the same value as its own `endpoints.aziot_certd` config)
 
+    - The `aziot_tpmd` value denotes the endpoint that the `aziot-tpmd` service is accepting connections on (the same value as its own `endpoints.aziot_tpmd` config)
+
     - The `aziot_identityd` value denotes the endpoint that this service will accept connections on.
 
     Endpoints can be `unix` URIs where the URI contains a path of a UDS socket, `http` URIs with a host (and optional port).
 
-    Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (same as the example above) are used.
+    Note that the `[endpoints]` section is only parsed in debug builds, since it's only meant to be overridden for testing and development. For production, the section is ignored and the hard-coded defaults (`unix:///run/aziot/<service>.sock`) are used.
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
@@ -76,7 +79,7 @@ The `[provisioning.attestation]` section is configured in one of following ways,
 
     [provisioning.attestation]
     "method" = "x509"
-    "registration_id" = "<ADD DPS REGISTRATION ID HERE>" # Optional for X.509 attestation
+    "registration_id" = "<ADD DPS REGISTRATION ID HERE>"
     "identity_cert" = "device-id" # Pre-loaded Certificate Service ID
     "identity_pk" = "device-id" # Pre-loaded Key Service ID
     ```

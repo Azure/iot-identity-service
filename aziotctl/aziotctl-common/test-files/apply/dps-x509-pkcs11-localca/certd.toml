@@ -1,0 +1,15 @@
+homedir_path = "/var/lib/aziot/certd"
+[cert_issuance.local_ca]
+cert = "local-ca"
+pk = "local-ca"
+
+[cert_issuance.device-id]
+method = "local_ca"
+common_name = "my-device"
+
+[preloaded_certs]
+local-ca = "file:///var/secrets/local-ca.pem"
+
+[[principal]]
+uid = 5556
+certs = ["device-id"]

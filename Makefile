@@ -215,7 +215,13 @@ dist:
 
 	# Copy source files
 	cp -R \
-		./aziotctl ./aziotd ./cert ./config-common ./http-common ./identity ./iotedged ./key ./mini-sntp ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 ./tpm \
+		./config-common ./http-common ./logger ./openssl-build ./openssl-sys2 ./openssl2 ./pkcs11 \
+		./aziotctl ./aziotd ./mini-sntp \
+		./cert \
+		./identity \
+		./key \
+		./tpm \
+		./iotedged \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
@@ -327,6 +333,8 @@ install-common:
 
 	$(INSTALL_DATA) -D tpm/aziot-tpmd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.toml.default
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(sysconfdir)/aziot/tpmd/config.d
+
+	$(INSTALL_DATA) -D aziotctl/config/unix/template.toml $(DESTDIR)$(sysconfdir)/aziot/config.toml.template
 
 	# Home directories
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/certd

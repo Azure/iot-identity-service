@@ -116,9 +116,18 @@ impl HostConnectIotHub {
             .parse::<hyper::Uri>()
             .context("Invalid URL specified in provisioning.iothub_hostname")?;
 
-        // TODO: add proxy support once is supported in identityd
-        crate::internal::common::resolve_and_tls_handshake(iothub_hostname_url, &iothub_hostname)
-            .await?;
+        let proxy = if self.port_number == 443 {
+            shared.cfg.proxy_uri.clone()
+        } else {
+            None
+        };
+
+        crate::internal::common::resolve_and_tls_handshake(
+            iothub_hostname_url,
+            &iothub_hostname,
+            proxy,
+        )
+        .await?;
 
         Ok(CheckResult::Ok)
     }

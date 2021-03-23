@@ -19,7 +19,7 @@ use crate::internal::check::{
 
 #[derive(StructOpt)]
 #[structopt(about = "Check for common config and deployment issues")]
-pub struct CheckOptions {
+pub struct Options {
     /// Space-separated list of check IDs. The checks listed here will not be run.
     /// See 'aziotctl check-list' for details of all checks.
     #[structopt(
@@ -68,7 +68,7 @@ impl FromStr for OutputFormat {
     }
 }
 
-pub async fn check(mut cfg: CheckOptions) -> Result<()> {
+pub async fn check(mut cfg: Options) -> Result<()> {
     // manually pass verbosity down to the checker-specific configuration
     cfg.checker_cfg.verbose = cfg.verbose;
     let cfg = cfg; // freeze cfg

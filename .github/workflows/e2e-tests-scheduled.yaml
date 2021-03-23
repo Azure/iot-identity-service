@@ -22,7 +22,7 @@ jobs:
       matrix:
         branch:
         - 'main'
-
+        - 'release/1.2'
         os:
         - 'centos:7'
         - 'debian:9'
@@ -34,6 +34,8 @@ jobs:
         - 'manual-x509'
         - 'dps-symmetric-key'
         - 'dps-x509'
+
+      max-parallel: 10
 
     steps:
     - uses: 'actions/checkout@v1'

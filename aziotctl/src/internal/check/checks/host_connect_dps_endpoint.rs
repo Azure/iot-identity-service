@@ -2,12 +2,13 @@
 
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
+use url::Url;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 #[derive(Serialize, Default)]
 pub struct HostConnectDpsEndpoint {
-    dps_endpoint: Option<String>,
+    dps_endpoint: Option<Url>,
     dps_hostname: Option<String>,
     proxy: Option<String>,
 }
@@ -31,7 +32,7 @@ impl Checker for HostConnectDpsEndpoint {
 impl HostConnectDpsEndpoint {
     async fn inner_execute(
         &mut self,
-        _shared: &CheckerShared,
+        shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
@@ -48,20 +49,27 @@ impl HostConnectDpsEndpoint {
 
         self.dps_endpoint = Some(dps_endpoint.clone());
 
+        let dps_hostname = dps_endpoint.host_str().ok_or_else(|| {
+            anyhow!("URL specified in provisioning.global_endpoint does not have a host")
+        })?;
+        self.dps_hostname = Some(dps_hostname.to_owned());
+
         let dps_endpoint = dps_endpoint
+            .to_string()
             .parse::<hyper::Uri>()
-            .context("Invalid URL specified in provisioning.global_endpoint")?;
+            .with_context(|| {
+                format!(
+                    "url::Url {:?} could not be parsed as hyper::Uri",
+                    dps_endpoint
+                )
+            })?;
 
-        let dps_hostname = dps_endpoint
-            .host()
-            .ok_or_else(|| {
-                anyhow!("URL specified in provisioning.global_endpoint does not have a host")
-            })?
-            .to_owned();
-        self.dps_hostname = Some(dps_hostname.clone());
-
-        // TODO: add proxy support once is supported in identityd
-        crate::internal::common::resolve_and_tls_handshake(dps_endpoint, &dps_hostname).await?;
+        crate::internal::common::resolve_and_tls_handshake(
+            dps_endpoint,
+            dps_hostname,
+            shared.cfg.proxy_uri.clone(),
+        )
+        .await?;
 
         Ok(CheckResult::Ok)
     }

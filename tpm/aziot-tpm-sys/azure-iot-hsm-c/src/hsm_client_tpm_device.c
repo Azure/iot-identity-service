@@ -501,10 +501,9 @@ void hsm_client_tpm_free_buffer(void* buffer)
     }
 }
 
-int hsm_client_tpm_init(void)
+int hsm_client_tpm_init(int log_level)
 {
-    log_init(LVL_INFO);
-
+    log_init(log_level);
     return 0;
 }
 

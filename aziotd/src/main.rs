@@ -10,13 +10,13 @@
 #![allow(clippy::default_trait_access, clippy::let_unit_value)]
 
 mod error;
-mod logging;
 
 use error::{Error, ErrorKind};
 
 #[tokio::main]
 async fn main() {
-    logging::init();
+    logger::try_init()
+        .expect("cannot fail to initialize global logger from the process entrypoint");
 
     if let Err(err) = main_inner().await {
         log::error!("{}", err.0);
@@ -190,7 +190,7 @@ where
     let config_directory_path: std::path::PathBuf = std::env::var_os(config_directory_env_var)
         .map_or_else(|| config_directory_default.into(), Into::into);
 
-    let config: TConfig = config_common::read_config(&config_path, &config_directory_path)
+    let config: TConfig = config_common::read_config(&config_path, Some(&config_directory_path))
         .map_err(|err| ErrorKind::ReadConfig(Box::new(err)))?;
 
     let (connector, server) = main(config, config_path, config_directory_path)

@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/sh
 # preinst script for aziot-identity-service
 #
 # see: dh_installdeb(1)
