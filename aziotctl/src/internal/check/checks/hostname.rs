@@ -3,6 +3,8 @@
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 
+use aziotctl_common::{check_length_for_local_issuer, is_rfc_1035_valid};
+
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 #[derive(Serialize, Default)]
@@ -57,22 +59,27 @@ impl Hostname {
         //
         // Instead, we punt on this check and assume that everything's fine if config_hostname is identical to the device hostname,
         // or starts with it.
-        if config_hostname != &machine_hostname
-            && !config_hostname.starts_with(&format!("{}.", machine_hostname))
         {
-            return Err(anyhow!(
-                "identityd.toml has hostname {} but device reports hostname {}.\n\
-                 Hostname in identityd.toml must either be identical to the device hostname \
-                 or be a fully-qualified domain name that has the device hostname as the first component.",
-                config_hostname, machine_hostname,
-            ));
+            let config_hostname = config_hostname.to_lowercase();
+            let machine_hostname = machine_hostname.to_lowercase();
+
+            if config_hostname != machine_hostname
+                && !config_hostname.starts_with(&format!("{}.", machine_hostname))
+            {
+                return Err(anyhow!(
+                    "identityd config has hostname {} but device reports hostname {}.\n\
+                    Hostname in identityd config must either be identical to the device hostname \
+                    or be a fully-qualified domain name that has the device hostname as the first component.",
+                    config_hostname, machine_hostname,
+                ));
+            }
         }
 
         // Some software like the IoT Hub SDKs for downstream clients require the device hostname to follow RFC 1035.
         // For example, the IoT Hub C# SDK cannot connect to a hostname that contains an `_`.
         if !is_rfc_1035_valid(config_hostname) {
             return Ok(CheckResult::Warning(anyhow!(
-                "identityd.toml has hostname {} which does not comply with RFC 1035.\n\
+                "identityd config has hostname {} which does not comply with RFC 1035.\n\
                  \n\
                  - Hostname must be between 1 and 255 octets inclusive.\n\
                  - Each label in the hostname (component separated by \".\") must be between 1 and 63 octets inclusive.\n\
@@ -86,115 +93,11 @@ impl Hostname {
 
         if !check_length_for_local_issuer(config_hostname) {
             return Ok(CheckResult::Warning(anyhow!(
-                "identityd.toml hostname {} is too long to be used as a certificate issuer",
+                "identityd config hostname {} is too long to be used as a certificate issuer",
                 config_hostname,
             )));
         }
 
         Ok(CheckResult::Ok)
-    }
-}
-
-/// DEVNOTE: duplicated from `iotedge/src/check/hostname_checks_common`
-fn is_rfc_1035_valid(name: &str) -> bool {
-    if name.is_empty() || name.len() > 255 {
-        return false;
-    }
-
-    let mut labels = name.split('.');
-
-    let all_labels_valid = labels.all(|label| {
-        if label.len() > 63 {
-            return false;
-        }
-
-        let first_char = match label.chars().next() {
-            Some(c) => c,
-            None => return false,
-        };
-        if !first_char.is_ascii_alphabetic() {
-            return false;
-        }
-
-        if label
-            .chars()
-            .any(|c| !c.is_ascii_alphanumeric() && c != '-')
-        {
-            return false;
-        }
-
-        let last_char = label
-            .chars()
-            .last()
-            .expect("label has at least one character");
-        if !last_char.is_ascii_alphanumeric() {
-            return false;
-        }
-
-        true
-    });
-    if !all_labels_valid {
-        return false;
-    }
-
-    true
-}
-
-/// DEVNOTE: duplicated from `iotedge/src/check/hostname_checks_common`
-fn check_length_for_local_issuer(name: &str) -> bool {
-    if name.is_empty() || name.len() > 64 {
-        return false;
-    }
-
-    true
-}
-
-/// DEVNOTE: duplicated from `iotedge/src/check/hostname_checks_common`
-#[cfg(test)]
-mod tests {
-    use super::check_length_for_local_issuer;
-    use super::is_rfc_1035_valid;
-
-    #[test]
-    fn test_check_length_for_local_issuer() {
-        let longest_valid_label = "a".repeat(64);
-        assert!(check_length_for_local_issuer(&longest_valid_label));
-
-        let invalid_label = "a".repeat(65);
-        assert!(!check_length_for_local_issuer(&invalid_label));
-    }
-
-    #[test]
-    fn test_is_rfc_1035_valid() {
-        let longest_valid_label = "a".repeat(63);
-        let longest_valid_name = format!(
-            "{label}.{label}.{label}.{label_rest}",
-            label = longest_valid_label,
-            label_rest = "a".repeat(255 - 63 * 3 - 3)
-        );
-        assert_eq!(longest_valid_name.len(), 255);
-
-        assert!(is_rfc_1035_valid("foobar"));
-        assert!(is_rfc_1035_valid("foobar.baz"));
-        assert!(is_rfc_1035_valid(&longest_valid_label));
-        assert!(is_rfc_1035_valid(&format!(
-            "{label}.{label}.{label}",
-            label = longest_valid_label
-        )));
-        assert!(is_rfc_1035_valid(&longest_valid_name));
-        assert!(is_rfc_1035_valid("xn--v9ju72g90p.com"));
-        assert!(is_rfc_1035_valid("xn--a-kz6a.xn--b-kn6b.xn--c-ibu"));
-
-        assert!(is_rfc_1035_valid("FOOBAR"));
-        assert!(is_rfc_1035_valid("FOOBAR.BAZ"));
-        assert!(is_rfc_1035_valid("FoObAr01.bAz"));
-
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_label)));
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_name)));
-        assert!(!is_rfc_1035_valid("01.org"));
-        assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}"));
-        assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}.com"));
-        assert!(!is_rfc_1035_valid("a\u{4eca}.b\u{65e5}.c\u{306f}"));
-        assert!(!is_rfc_1035_valid("FoObAr01.bAz-"));
     }
 }
