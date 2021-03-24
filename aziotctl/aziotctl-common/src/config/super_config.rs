@@ -26,13 +26,11 @@ use url::Url;
 pub struct Config {
     pub hostname: Option<String>,
 
-    // DEVNOTE: ideally, this would be called `local_gateway_hostname`, to match
-    // the terminology used across the rest of the aziot codebase.
-    // Unfortunately, this config struct ends up getting #[serde(flatten)]'d
-    // into the iotedge super config, and since there's no _easy_ way to do
-    // field renaming as part of that operation, one of the two codebases needs
-    // to have a naming inconsistency.
-    pub parent_hostname: Option<String>,
+    // DEVNOTE: since this config is `#[serde(flatten)]`'d as part of the
+    // iotedge super_config, we add the `parent_hostname` alias so that the same
+    // field can be used in multiple semantic contexts.
+    #[serde(alias = "parent_hostname")]
+    pub local_gateway_hostname: Option<String>,
 
     pub provisioning: Provisioning,
 
