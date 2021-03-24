@@ -21,6 +21,7 @@ pub fn run(
 ) -> anyhow::Result<RunOutput> {
     let super_config::Config {
         hostname,
+        parent_hostname,
         provisioning,
         localid,
         mut aziot_keys,
@@ -207,7 +208,10 @@ pub fn run(
             super_config::ProvisioningType::None => aziot_identityd_config::ProvisioningType::None,
         };
 
-        aziot_identityd_config::Provisioning { provisioning }
+        aziot_identityd_config::Provisioning {
+            provisioning,
+            local_gateway_hostname: parent_hostname,
+        }
     };
 
     let identityd_config = aziot_identityd_config::Settings {
