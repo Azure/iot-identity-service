@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::io::{self, Write};
 use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::{stop, ServiceDefinition};
+use crate::{print_command_error, stop, ServiceDefinition};
 
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
     // stop all services
@@ -35,15 +34,4 @@ fn start(name: &str) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn print_command_error(result: &std::process::Output) {
-    eprintln!("systemctl exited with non-zero status code.");
-    eprintln!("stdout:");
-    eprintln!("=======");
-    io::stdout().write_all(&result.stdout).unwrap();
-    eprintln!("stderr:");
-    eprintln!("=======");
-    io::stdout().write_all(&result.stderr).unwrap();
-    eprintln!();
 }
