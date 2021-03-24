@@ -6,6 +6,14 @@
 #
 # hostname = "my-device"
 
+# ==============================================================================
+# Parent hostname
+# ==============================================================================
+#
+# If this is a Nested Edge device, uncomment the next line to set the
+# parent hostname of this device.
+#
+# parent_hostname = "my-parent-device"
 
 # ==============================================================================
 # Provisioning
