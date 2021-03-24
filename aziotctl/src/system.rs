@@ -24,7 +24,7 @@ pub enum Options {
 pub struct RestartOptions {}
 
 #[derive(StructOpt)]
-#[structopt(about = "Restart the services")]
+#[structopt(about = "Stop the services")]
 pub struct StopOptions {}
 
 #[derive(StructOpt)]
