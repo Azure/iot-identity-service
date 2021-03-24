@@ -291,17 +291,24 @@ pub async fn check(mut cfg: Options) -> Result<()> {
     }
 
     let top_level_additional_info = {
-        let iothub_hostname = check_cache.cfg.identityd.and_then(|s| {
-            use aziot_identityd_config::ProvisioningType;
-            match s.provisioning.provisioning {
-                ProvisioningType::Manual {
-                    iothub_hostname, ..
-                } => Some(iothub_hostname),
-                _ => None,
+        let (iothub_hostname, local_gateway_hostname) = match check_cache.cfg.identityd {
+            Some(s) => {
+                use aziot_identityd_config::ProvisioningType;
+                let iothub_hostname = match s.provisioning.provisioning {
+                    ProvisioningType::Manual {
+                        iothub_hostname, ..
+                    } => Some(iothub_hostname),
+                    _ => None,
+                };
+                (iothub_hostname, s.provisioning.local_gateway_hostname)
             }
-        });
+            None => (None, None),
+        };
 
-        serde_json::to_value(&AdditionalInfo::new(iothub_hostname))?
+        serde_json::to_value(&AdditionalInfo::new(
+            iothub_hostname,
+            local_gateway_hostname,
+        ))?
     };
 
     match cfg.output {

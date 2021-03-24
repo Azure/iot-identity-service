@@ -26,6 +26,12 @@ use url::Url;
 pub struct Config {
     pub hostname: Option<String>,
 
+    // DEVNOTE: since this config is `#[serde(flatten)]`'d as part of the
+    // iotedge super_config, we add the `parent_hostname` alias so that the same
+    // field can be used in multiple semantic contexts.
+    #[serde(alias = "parent_hostname")]
+    pub local_gateway_hostname: Option<String>,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,

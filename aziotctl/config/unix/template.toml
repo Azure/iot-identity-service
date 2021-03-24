@@ -6,6 +6,14 @@
 #
 # hostname = "my-device"
 
+# ==============================================================================
+# Local Gateway Hostname
+# ==============================================================================
+#
+# If this device is running in a nested deployment, uncomment the next line to
+# set the local gateway hostname of this device.
+#
+# local_gateway_hostname = "my-parent-device"
 
 # ==============================================================================
 # Provisioning

@@ -100,6 +100,7 @@ impl IdentityManager {
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
                         hub_name: device.iothub_hostname.clone(),
+                        gateway_host: device.local_gateway_hostname.clone(),
                         device_id: aziot_identity_common::DeviceId(response.device_id),
                         module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
                         gen_id: response.generation_id.map(aziot_identity_common::GenId),
@@ -165,6 +166,7 @@ impl IdentityManager {
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
                         hub_name: device.iothub_hostname.clone(),
+                        gateway_host: device.local_gateway_hostname.clone(),
                         device_id: aziot_identity_common::DeviceId(response.device_id),
                         module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
                         gen_id: response.generation_id.map(aziot_identity_common::GenId),
@@ -183,6 +185,7 @@ impl IdentityManager {
             Some(device) => Ok(aziot_identity_common::Identity::Aziot(
                 aziot_identity_common::AzureIoTSpec {
                     hub_name: device.iothub_hostname.clone(),
+                    gateway_host: device.local_gateway_hostname.clone(),
                     device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
                     module_id: None,
                     gen_id: None,
@@ -229,6 +232,7 @@ impl IdentityManager {
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
                         hub_name: device.iothub_hostname.clone(),
+                        gateway_host: device.local_gateway_hostname.clone(),
                         device_id: aziot_identity_common::DeviceId(module.device_id),
                         module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
                         gen_id: module.generation_id.map(aziot_identity_common::GenId),
@@ -265,6 +269,7 @@ impl IdentityManager {
                         aziot_identity_common::Identity::Aziot(
                             aziot_identity_common::AzureIoTSpec {
                                 hub_name: device.iothub_hostname.clone(),
+                                gateway_host: device.local_gateway_hostname.clone(),
                                 device_id: aziot_identity_common::DeviceId(module.device_id),
                                 module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
                                 gen_id: module.generation_id.map(aziot_identity_common::GenId),
@@ -459,6 +464,10 @@ impl IdentityManager {
                     }
                 };
                 let device = aziot_identity_common::IoTHubDevice {
+                    local_gateway_hostname: provisioning
+                        .local_gateway_hostname
+                        .clone()
+                        .unwrap_or_else(|| iothub_hostname.clone()),
                     iothub_hostname,
                     device_id,
                     credentials,
@@ -532,6 +541,7 @@ impl IdentityManager {
                         dps_auth_kind,
                         registration_id,
                         credentials,
+                        provisioning.local_gateway_hostname,
                     )
                     .await?;
 
@@ -554,6 +564,7 @@ impl IdentityManager {
         dps_auth_kind: aziot_dps_client_async::DpsAuthKind,
         registration_id: String,
         credentials: aziot_identity_common::Credentials,
+        local_gateway_hostname: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone())?;
 
@@ -576,6 +587,8 @@ impl IdentityManager {
         let iothub_hostname = state.assigned_hub.get_or_insert("".into());
         let device_id = state.device_id.get_or_insert("".into());
         let device = aziot_identity_common::IoTHubDevice {
+            local_gateway_hostname: local_gateway_hostname
+                .unwrap_or_else(|| iothub_hostname.clone()),
             iothub_hostname: iothub_hostname.clone(),
             device_id: device_id.clone(),
             credentials,
@@ -598,6 +611,7 @@ impl IdentityManager {
             match prev_hub_device_info {
                 Some(device_info) => {
                     let device = aziot_identity_common::IoTHubDevice {
+                        local_gateway_hostname: device_info.local_gateway_hostname,
                         iothub_hostname: device_info.hub_name,
                         device_id: device_info.device_id,
                         credentials,
@@ -714,6 +728,7 @@ impl IdentityManager {
 
                 let curr_hub_device_info = HubDeviceInfo {
                     hub_name: device.iothub_hostname.clone(),
+                    local_gateway_hostname: device.local_gateway_hostname.clone(),
                     device_id: device.device_id.clone(),
                 };
 
@@ -789,6 +804,8 @@ impl IdentityManager {
 #[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 pub struct HubDeviceInfo {
     pub hub_name: String,
+
+    pub local_gateway_hostname: String,
 
     pub device_id: String,
 }
