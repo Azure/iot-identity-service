@@ -14,6 +14,7 @@
 )]
 
 use std::collections::BTreeMap;
+use std::io::{self, Write};
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
@@ -23,11 +24,13 @@ pub mod config;
 mod restart;
 mod set_log_level;
 mod status;
+mod stop;
 mod system_logs;
 
 pub use restart::restart;
 pub use set_log_level::set_log_level;
 pub use status::get_status;
+pub use stop::stop;
 pub use system_logs::get_system_logs;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,6 +180,17 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
     }
 
     true
+}
+
+fn print_command_error(result: &std::process::Output) {
+    eprintln!("systemctl exited with non-zero status code.");
+    eprintln!("stdout:");
+    eprintln!("=======");
+    io::stdout().write_all(&result.stdout).unwrap();
+    eprintln!("stderr:");
+    eprintln!("=======");
+    io::stdout().write_all(&result.stderr).unwrap();
+    eprintln!();
 }
 
 #[cfg(test)]
