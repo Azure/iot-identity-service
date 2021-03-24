@@ -23,11 +23,13 @@ pub mod config;
 mod restart;
 mod set_log_level;
 mod status;
+mod stop;
 mod system_logs;
 
 pub use restart::restart;
 pub use set_log_level::set_log_level;
 pub use status::get_status;
+pub use stop::stop;
 pub use system_logs::get_system_logs;
 
 #[derive(Debug, Serialize, Deserialize)]
