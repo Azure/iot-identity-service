@@ -7,13 +7,13 @@
 # hostname = "my-device"
 
 # ==============================================================================
-# Parent hostname
+# Local Gateway Hostname
 # ==============================================================================
 #
-# If this is a Nested Edge device, uncomment the next line to set the
-# parent hostname of this device.
+# If this device is running in a nested deployment, uncomment the next line to
+# set the local gateway hostname of this device.
 #
-# parent_hostname = "my-parent-device"
+# local_gateway_hostname = "my-parent-device"
 
 # ==============================================================================
 # Provisioning
