@@ -25,7 +25,7 @@ impl Client {
         let res: aziot_tpm_common_http::get_tpm_keys::Response = http_common::request(
             &self.inner,
             http::Method::GET,
-            &format!("http://foo/get_tpm_keys?api-version={}", self.api_version),
+            &format!("http://tpmd.sock/get_tpm_keys?api-version={}", self.api_version),
             Some(&body),
         )
         .await?;
@@ -44,7 +44,7 @@ impl Client {
             &self.inner,
             http::Method::POST,
             &format!(
-                "http://foo/import_auth_key?api-version={}",
+                "http://tpmd.sock/import_auth_key?api-version={}",
                 self.api_version
             ),
             Some(&body),
@@ -63,7 +63,7 @@ impl Client {
             &self.inner,
             http::Method::POST,
             &format!(
-                "http://foo/sign_with_auth_key?api-version={}",
+                "http://tpmd.sock/sign_with_auth_key?api-version={}",
                 self.api_version
             ),
             Some(&body),
