@@ -149,7 +149,10 @@ impl Client {
         let res: aziot_key_common_http::create_derived_key::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://keyd.sock/derivedkey?api-version={}", self.api_version),
+            &format!(
+                "http://keyd.sock/derivedkey?api-version={}",
+                self.api_version
+            ),
             Some(&body),
         )
         .await?;

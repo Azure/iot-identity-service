@@ -43,7 +43,10 @@ impl Client {
         let res: aziot_cert_common_http::get_cert::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://certd.sock/certificates?api-version={}", self.api_version),
+            &format!(
+                "http://certd.sock/certificates?api-version={}",
+                self.api_version
+            ),
             Some(&body),
         )
         .await?;

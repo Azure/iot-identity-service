@@ -25,7 +25,10 @@ impl Client {
         let res: aziot_tpm_common_http::get_tpm_keys::Response = http_common::request(
             &self.inner,
             http::Method::GET,
-            &format!("http://tpmd.sock/get_tpm_keys?api-version={}", self.api_version),
+            &format!(
+                "http://tpmd.sock/get_tpm_keys?api-version={}",
+                self.api_version
+            ),
             Some(&body),
         )
         .await?;
