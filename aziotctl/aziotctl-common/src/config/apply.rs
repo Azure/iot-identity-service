@@ -524,4 +524,29 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    #[should_panic(expected = "DPS provisioning is not supported in nested mode")]
+    fn dps_not_supported_in_nested() {
+        let super_config = r#"
+parent_hostname = "device.hostname"
+
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+id_scope = "0ab1234C5D6"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "my-device"
+symmetric_key = { value = "YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGVudGl0eS1zZXJ2aWNlfGF6aW90LWlkZW50aXR5LXNlcg==" }
+        
+"#;
+        let super_config: super_config::Config = toml::from_str(super_config).unwrap();
+
+        let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
+        let aziotid_uid = nix::unistd::Uid::from_raw(5556);
+
+        super::run(super_config, aziotcs_uid, aziotid_uid).unwrap();
+    }
 }
