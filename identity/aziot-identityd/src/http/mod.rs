@@ -56,6 +56,7 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
         },
 
         crate::error::Error::DPSClient(_)
+        | crate::error::Error::DPSNotSupportedInNestedMode
         | crate::error::Error::HubClient(_)
         | crate::error::Error::KeyClient(_) => http_common::server::Error {
             status_code: hyper::StatusCode::NOT_FOUND,

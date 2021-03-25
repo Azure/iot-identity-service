@@ -144,6 +144,10 @@ pub fn run(
                 id_scope,
                 attestation,
             } => {
+                if local_gateway_hostname.is_some() {
+                    return Err(anyhow!("DPS provisioning is not supported in nested mode"));
+                }
+
                 let attestation = match attestation {
                     super_config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
