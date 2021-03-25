@@ -320,8 +320,7 @@ pub(crate) unsafe fn encrypt(
             ));
         }
 
-        let parameters = parameters as *const crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS;
-        let parameters = &*parameters;
+        let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
 
         let iv = std::slice::from_raw_parts(parameters.iv, parameters.iv_len);
         let aad = std::slice::from_raw_parts(parameters.aad, parameters.aad_len);
@@ -398,8 +397,7 @@ pub(crate) unsafe fn decrypt(
             ));
         }
 
-        let parameters = parameters as *const crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS;
-        let parameters = &*parameters;
+        let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
 
         let iv = std::slice::from_raw_parts(parameters.iv, parameters.iv_len);
         let aad = std::slice::from_raw_parts(parameters.aad, parameters.aad_len);
@@ -605,8 +603,7 @@ unsafe fn derive_key_for_sign(
         ));
     }
 
-    let parameters = parameters as *const crate::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS;
-    let parameters = &*parameters;
+    let parameters = &*parameters.cast::<crate::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS>();
 
     let signature = derive_key_common(
         key,
@@ -637,8 +634,7 @@ unsafe fn derive_key_for_encrypt(
         ));
     }
 
-    let parameters = parameters as *const crate::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS;
-    let parameters = &*parameters;
+    let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS>();
 
     let signature = derive_key_common(
         key,

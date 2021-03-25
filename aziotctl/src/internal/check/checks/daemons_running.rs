@@ -6,13 +6,12 @@ use serde::Serialize;
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 pub fn daemons_running() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(DaemonRunningKeyd {}));
-    v.push(Box::new(DaemonRunningCertd {}));
-    v.push(Box::new(DaemonRunningTpmd {}));
-    v.push(Box::new(DaemonRunningIdentityd {}));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(DaemonRunningKeyd {}),
+        Box::new(DaemonRunningCertd {}),
+        Box::new(DaemonRunningTpmd {}),
+        Box::new(DaemonRunningIdentityd {}),
+    ];
     v.into_iter()
 }
 

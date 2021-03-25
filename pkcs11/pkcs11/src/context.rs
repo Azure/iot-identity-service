@@ -56,9 +56,9 @@ pub struct Context {
 impl Context {
     /// Load the PKCS#11 library at the specified path and create a context.
     pub fn load(lib_path: std::path::PathBuf) -> Result<std::sync::Arc<Self>, LoadContextError> {
-        Ok(weak_cache_get_or_insert(&CONTEXTS, lib_path, |lib_path| {
-            Ok(Context::load_inner(lib_path)?)
-        })?)
+        weak_cache_get_or_insert(&CONTEXTS, lib_path, |lib_path| {
+            Context::load_inner(lib_path)
+        })
     }
 
     fn load_inner(lib_path: &std::path::Path) -> Result<Self, LoadContextError> {
@@ -95,7 +95,7 @@ impl Context {
                 // Note that C requires there to be no padding before the first field of a struct,
                 // so this cast is valid in that regard.
 
-                let version = function_list as *const pkcs11_sys::CK_VERSION;
+                let version = function_list.cast::<pkcs11_sys::CK_VERSION>();
                 let version = *version;
                 if version.major != 2 || version.minor < 1 {
                     // We require 2.20 or higher. However opensc-pkcs11spy self-reports as v2.11 in the initial `CK_FUNCTION_LIST` version,
@@ -520,11 +520,9 @@ impl Context {
     ) -> Result<std::sync::Arc<crate::Session>, OpenSessionError> {
         let this = self.clone();
 
-        Ok(weak_cache_get_or_insert(
-            &self.sessions,
-            slot_id,
-            |slot_id| Ok(this.open_session_inner(*slot_id, pin)?),
-        )?)
+        weak_cache_get_or_insert(&self.sessions, slot_id, |slot_id| {
+            this.open_session_inner(*slot_id, pin)
+        })
     }
 
     fn open_session_inner(
@@ -603,7 +601,7 @@ unsafe extern "C" fn create_mutex(ppMutex: pkcs11_sys::CK_VOID_PTR_PTR) -> pkcs1
     };
     let mutex = Box::new(mutex);
     let mutex = Box::into_raw(mutex);
-    *ppMutex = mutex as _;
+    *ppMutex = mutex.cast();
     pkcs11_sys::CKR_OK
 }
 
@@ -612,7 +610,7 @@ unsafe extern "C" fn destroy_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sy
         return pkcs11_sys::CKR_MUTEX_BAD;
     }
 
-    let mut mutex: Box<Mutex> = Box::from_raw(pMutex as _);
+    let mut mutex: Box<Mutex> = Box::from_raw(pMutex.cast());
     drop(mutex.guard.take());
     drop(mutex);
     pkcs11_sys::CKR_OK
@@ -623,7 +621,7 @@ unsafe extern "C" fn lock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::
         return pkcs11_sys::CKR_MUTEX_BAD;
     }
 
-    let mutex: &mut Mutex = &mut *(pMutex as *mut _);
+    let mutex: &mut Mutex = &mut *pMutex.cast();
     let guard = match mutex.inner.lock() {
         Ok(guard) => guard,
         Err(_) => return pkcs11_sys::CKR_GENERAL_ERROR,
@@ -638,7 +636,7 @@ unsafe extern "C" fn unlock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys
         return pkcs11_sys::CKR_MUTEX_BAD;
     }
 
-    let mutex: &mut Mutex = &mut *(pMutex as *mut _);
+    let mutex: &mut Mutex = &mut *pMutex.cast();
     if mutex.guard.take().is_none() {
         return pkcs11_sys::CKR_MUTEX_NOT_LOCKED;
     }

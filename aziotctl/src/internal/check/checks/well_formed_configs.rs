@@ -9,13 +9,12 @@ use std::io;
 use std::path::Path;
 
 pub fn well_formed_configs() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(WellFormedKeydConfig {}));
-    v.push(Box::new(WellFormedCertdConfig {}));
-    v.push(Box::new(WellFormedTpmdConfig {}));
-    v.push(Box::new(WellFormedIdentitydConfig {}));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(WellFormedKeydConfig {}),
+        Box::new(WellFormedCertdConfig {}),
+        Box::new(WellFormedTpmdConfig {}),
+        Box::new(WellFormedIdentitydConfig {}),
+    ];
     v.into_iter()
 }
 
