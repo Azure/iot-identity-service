@@ -480,6 +480,10 @@ impl IdentityManager {
                 scope_id,
                 attestation,
             } => {
+                if provisioning.local_gateway_hostname.is_some() {
+                    return Err(Error::DpsNotSupportedInNestedMode);
+                }
+
                 let dps_client = aziot_dps_client_async::Client::new(
                     &global_endpoint,
                     &scope_id,
@@ -578,7 +582,7 @@ impl IdentityManager {
         let operation = dps_client
             .register(&registration_id, &dps_auth_kind)
             .await
-            .map_err(Error::DPSClient)?;
+            .map_err(Error::DpsClient)?;
 
         let status = operation.status;
         assert!(!status.eq_ignore_ascii_case("assigning"));

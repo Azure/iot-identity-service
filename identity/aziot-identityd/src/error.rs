@@ -5,7 +5,8 @@ pub enum Error {
     Authentication,
     Authorization,
     DeviceNotFound,
-    DPSClient(std::io::Error),
+    DpsClient(std::io::Error),
+    DpsNotSupportedInNestedMode,
     HubClient(std::io::Error),
     KeyClient(std::io::Error),
     ModuleNotFound,
@@ -28,7 +29,10 @@ impl std::fmt::Display for Error {
             Error::Authentication => f.write_str("authentication error"),
             Error::Authorization => f.write_str("authorization error"),
             Error::DeviceNotFound => f.write_str("device identity not found"),
-            Error::DPSClient(_) => f.write_str("DPS client error"),
+            Error::DpsClient(_) => f.write_str("DPS client error"),
+            Error::DpsNotSupportedInNestedMode => {
+                f.write_str("DPS provisioning is not supported in nested mode")
+            }
             Error::HubClient(_) => f.write_str("Hub client error"),
             Error::KeyClient(_) => f.write_str("Key client error"),
             Error::ModuleNotFound => f.write_str("module identity not found"),
@@ -46,8 +50,9 @@ impl std::error::Error for Error {
             Error::Authentication
             | Error::Authorization
             | Error::DeviceNotFound
+            | Error::DpsNotSupportedInNestedMode
             | Error::ModuleNotFound => None,
-            Error::DPSClient(err) | Error::HubClient(err) | Error::KeyClient(err) => Some(err),
+            Error::DpsClient(err) | Error::HubClient(err) | Error::KeyClient(err) => Some(err),
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
         }

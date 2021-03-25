@@ -46,8 +46,9 @@ pub(crate) unsafe fn get_function_list(
             crate::AZIOT_KEYS_VERSION_2_0_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() =
-                    &AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 as *const _ as *const _;
+                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_0_0_0
+                    as *const crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0)
+                    .cast();
                 Ok(())
             }
 

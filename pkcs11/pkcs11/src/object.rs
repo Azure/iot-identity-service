@@ -86,7 +86,7 @@ impl Object<()> {
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: &params as *const _ as _,
+                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
                 ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
                     .expect("usize -> CK_ULONG"),
             };
@@ -127,7 +127,7 @@ impl Object<()> {
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: &params as *const _ as _,
+                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
                 ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
                     .expect("usize -> CK_ULONG"),
             };
@@ -175,7 +175,7 @@ impl Object<openssl::ec::EcKey<openssl::pkey::Public>> {
             )?;
             let point = openssl_sys2::d2i_ASN1_OCTET_STRING(
                 std::ptr::null_mut(),
-                &mut (point.as_ptr() as _),
+                &mut point.as_ptr().cast(),
                 std::convert::TryInto::try_into(point.len()).expect("usize -> c_long"),
             );
             if point.is_null() {
@@ -610,7 +610,7 @@ unsafe fn get_attribute_value_byte_buf<T>(
         std::convert::TryInto::try_into(attribute.ulValueLen)
             .expect("CK_ULONG -> usize")
     ];
-    attribute.pValue = buf.as_mut_ptr() as _;
+    attribute.pValue = buf.as_mut_ptr().cast();
 
     let result = C_GetAttributeValue(session.handle, object.handle, &mut attribute, 1);
     if result != pkcs11_sys::CKR_OK {
