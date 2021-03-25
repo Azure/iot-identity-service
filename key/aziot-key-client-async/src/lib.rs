@@ -33,7 +33,7 @@ impl Client {
             http_common::request(
                 &self.inner,
                 http::Method::POST,
-                &format!("http://foo/keypair?api-version={}", self.api_version),
+                &format!("http://keyd.sock/keypair?api-version={}", self.api_version),
                 Some(&body),
             )
             .await?;
@@ -45,7 +45,7 @@ impl Client {
             &self.inner,
             http::Method::GET,
             &format!(
-                "http://foo/keypair/{}?api-version={}",
+                "http://keyd.sock/keypair/{}?api-version={}",
                 percent_encoding::percent_encode(
                     id.as_bytes(),
                     http_common::PATH_SEGMENT_ENCODE_SET
@@ -72,7 +72,7 @@ impl Client {
                 &self.inner,
                 http::Method::POST,
                 &format!(
-                    "http://foo/parameters/{}?api-version={}",
+                    "http://keyd.sock/parameters/{}?api-version={}",
                     percent_encoding::percent_encode(
                         parameter_name.as_bytes(),
                         http_common::PATH_SEGMENT_ENCODE_SET
@@ -111,7 +111,7 @@ impl Client {
         let res: aziot_key_common_http::create_key_if_not_exists::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/key?api-version={}", self.api_version),
+            &format!("http://keyd.sock/key?api-version={}", self.api_version),
             Some(&body),
         )
         .await?;
@@ -123,7 +123,7 @@ impl Client {
             &self.inner,
             http::Method::GET,
             &format!(
-                "http://foo/key/{}?api-version={}",
+                "http://keyd.sock/key/{}?api-version={}",
                 percent_encoding::percent_encode(
                     id.as_bytes(),
                     http_common::PATH_SEGMENT_ENCODE_SET
@@ -149,7 +149,10 @@ impl Client {
         let res: aziot_key_common_http::create_derived_key::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/derivedkey?api-version={}", self.api_version),
+            &format!(
+                "http://keyd.sock/derivedkey?api-version={}",
+                self.api_version
+            ),
             Some(&body),
         )
         .await?;
@@ -168,7 +171,7 @@ impl Client {
             &self.inner,
             http::Method::POST,
             &format!(
-                "http://foo/derivedkey/export?api-version={}",
+                "http://keyd.sock/derivedkey/export?api-version={}",
                 self.api_version
             ),
             Some(&body),
@@ -203,7 +206,7 @@ impl Client {
         let res: aziot_key_common_http::sign::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/sign?api-version={}", self.api_version),
+            &format!("http://keyd.sock/sign?api-version={}", self.api_version),
             Some(&body),
         )
         .await?;
@@ -241,7 +244,7 @@ impl Client {
         let res: aziot_key_common_http::encrypt::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/encrypt?api-version={}", self.api_version),
+            &format!("http://keyd.sock/encrypt?api-version={}", self.api_version),
             Some(&body),
         )
         .await?;
@@ -279,7 +282,7 @@ impl Client {
         let res: aziot_key_common_http::decrypt::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/decrypt?api-version={}", self.api_version),
+            &format!("http://keyd.sock/decrypt?api-version={}", self.api_version),
             Some(&body),
         )
         .await?;

@@ -32,7 +32,7 @@ impl Checker for DaemonRunningKeyd {
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_keyd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("keyd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to keyd on {}", connector));
 
@@ -63,7 +63,7 @@ impl Checker for DaemonRunningCertd {
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_certd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("certd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to certd on {}", connector));
 
@@ -127,7 +127,7 @@ impl Checker for DaemonRunningTpmd {
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_tpmd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("tpmd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to tpmd on {}", connector));
 
@@ -158,7 +158,7 @@ impl Checker for DaemonRunningIdentityd {
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_identityd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("identityd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to identityd on {}", connector));
 

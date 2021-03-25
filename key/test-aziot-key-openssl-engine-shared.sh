@@ -84,7 +84,7 @@ sleep 1
 ca_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"ca\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://foo/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2020-09-01' |
     jq -er '.keyHandle'
 )"
 echo "CA key: $ca_key_handle"
@@ -101,7 +101,7 @@ echo "CA key: $ca_key_handle"
 server_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"server\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://foo/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2020-09-01' |
     jq -er '.keyHandle'
 )"
 echo "Server key: $server_key_handle"
@@ -119,7 +119,7 @@ echo "Server key: $server_key_handle"
 client_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"client\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://foo/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2020-09-01' |
     jq -er '.keyHandle'
 )"
 echo "Client key: $client_key_handle"
