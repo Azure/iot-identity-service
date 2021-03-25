@@ -15,11 +15,6 @@ pub(crate) use checks::all_checks;
 // NOTE: this struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
-    // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
-    // /// Sets the expected version of the iotedged binary. Defaults to the value
-    // /// contained in <http://aka.ms/latest-iotedge-stable>
-    // expected_iotedged_version: String,
-    //
     /// Sets the NTP server to use when checking host local time.
     #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
@@ -36,6 +31,11 @@ pub struct CheckerCfg {
     /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
     #[structopt(long, value_name = "PROXY_URI")]
     pub proxy_uri: Option<hyper::Uri>,
+
+    /// If set, the check compares the installed package version to this string.
+    /// Otherwise, the version is fetched from <http://aka.ms/latest-aziot-stable-non-lts>
+    #[structopt(long, value_name = "VERSION")]
+    pub expected_aziot_version: Option<String>,
 }
 
 pub struct CheckerShared {

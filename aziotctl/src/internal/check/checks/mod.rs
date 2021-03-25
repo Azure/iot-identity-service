@@ -15,6 +15,7 @@ macro_rules! unwrap_or_skip {
     }};
 }
 
+mod aziot_version;
 mod cert_expiry;
 mod certs_match_private_keys;
 mod certs_preloaded;
@@ -36,8 +37,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.extend(well_formed_configs::well_formed_configs());
             v.push(Box::new(up_to_date_configs::UpToDateConfigs::default()));
             v.push(Box::new(hostname::Hostname::default()));
-            // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
-            // v.push(Box::new(aziotd_version::AziotdVersion::default()));
+            v.push(Box::new(aziot_version::AziotVersion::default()));
             v.push(Box::new(host_local_time::HostLocalTime::default()));
             v.extend(cert_expiry::cert_expirations());
             v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
