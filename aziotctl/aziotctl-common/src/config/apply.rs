@@ -529,7 +529,7 @@ mod tests {
     #[should_panic(expected = "DPS provisioning is not supported in nested mode")]
     fn dps_not_supported_in_nested() {
         let super_config = r#"
-parent_hostname = "device.hostname"
+local_gateway_hostname = "device.hostname"
 
 [provisioning]
 source = "dps"
