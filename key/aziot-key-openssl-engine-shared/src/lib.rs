@@ -3,7 +3,7 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
-	clippy::doc_markdown, // clippy wants "IoT" in a code fence
+    clippy::doc_markdown, // clippy wants "IoT" in a code fence
 )]
 
 //! This crate wraps the openssl engine of the aziot-key-openssl-engine crate into a cdylib that can be loaded as a dynamic engine.

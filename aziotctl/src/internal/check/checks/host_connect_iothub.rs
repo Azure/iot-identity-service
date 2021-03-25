@@ -6,24 +6,23 @@ use serde::Serialize;
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 pub fn host_connect_iothub_checks() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-amqp",
-        "host can connect to and perform TLS handshake with iothub AMQP port",
-        5671,
-    )));
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-https",
-        "host can connect to and perform TLS handshake with iothub HTTPS / WebSockets port",
-        443,
-    )));
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-mqtt",
-        "host can connect to and perform TLS handshake with iothub MQTT port",
-        8883,
-    )));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-amqp",
+            "host can connect to and perform TLS handshake with iothub AMQP port",
+            5671,
+        )),
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-https",
+            "host can connect to and perform TLS handshake with iothub HTTPS / WebSockets port",
+            443,
+        )),
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-mqtt",
+            "host can connect to and perform TLS handshake with iothub MQTT port",
+            8883,
+        )),
+    ];
     v.into_iter()
 }
 

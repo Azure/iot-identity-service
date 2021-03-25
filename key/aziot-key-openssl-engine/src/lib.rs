@@ -3,11 +3,11 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
-	clippy::doc_markdown, // clippy wants "IoT" in a code fence
-	clippy::let_and_return,
-	clippy::missing_errors_doc,
-	clippy::shadow_unrelated,
-	clippy::use_self,
+    clippy::doc_markdown, // clippy wants "IoT" in a code fence
+    clippy::let_and_return,
+    clippy::missing_errors_doc,
+    clippy::shadow_unrelated,
+    clippy::use_self,
 )]
 
 //! This crate implements a custom openssl engine that implements the openssl engine and key methods API

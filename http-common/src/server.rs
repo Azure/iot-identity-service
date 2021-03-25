@@ -331,13 +331,13 @@ mod test_server {
 
     #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
     enum ApiVersion {
-        FAKE,
+        Fake,
     }
 
     impl std::fmt::Display for ApiVersion {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str(match self {
-                ApiVersion::FAKE => "fake",
+                ApiVersion::Fake => "fake",
             })
         }
     }
@@ -347,7 +347,7 @@ mod test_server {
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             match s {
-                "fake" => Ok(ApiVersion::FAKE),
+                "fake" => Ok(ApiVersion::Fake),
                 _ => Err(()),
             }
         }

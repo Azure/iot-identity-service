@@ -4,8 +4,14 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::must_use_candidate, clippy::too_many_lines)]
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+#![allow(
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    clippy::must_use_candidate,
+    clippy::too_many_lines,
+    clippy::upper_case_acronyms
+)]
 
 use std::os::raw::{c_int, c_uchar, c_void};
 
