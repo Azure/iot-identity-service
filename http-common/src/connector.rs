@@ -191,9 +191,8 @@ impl Connector {
     fn to_url(&self) -> Result<url::Url, String> {
         match self {
             Connector::Tcp { host, port } => {
-                let mut url: url::Url = "http://foo"
-                    .parse()
-                    .expect("hard-coded URL parses successfully");
+                let url = format!("http://{}:{}", host, port);
+                let mut url: url::Url = url.parse().expect("hard-coded URL parses successfully");
                 url.set_host(Some(host))
                     .map_err(|err| format!("could not set host {:?}: {:?}", host, err))?;
                 if *port != 80 {
@@ -211,7 +210,7 @@ impl Connector {
                     )
                 })?;
 
-                let mut url: url::Url = "unix:///foo"
+                let mut url: url::Url = "unix:///unix-socket"
                     .parse()
                     .expect("hard-coded URL parses successfully");
                 url.set_path(socket_path);

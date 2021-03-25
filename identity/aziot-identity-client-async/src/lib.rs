@@ -28,7 +28,7 @@ impl Client {
             &self.inner,
             http::Method::POST,
             &format!(
-                "http://foo/identities/device/reprovision?api-version={}",
+                "http://identityd.sock/identities/device/reprovision?api-version={}",
                 self.api_version
             ),
             Some(&body),

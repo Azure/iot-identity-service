@@ -16,7 +16,7 @@ info:
 
 
 servers:
-- url: 'http://foo/'
+- url: 'http://keyd.sock/'
   description: |
     The server listens on a unix socket `/run/aziot/keyd.sock`
 

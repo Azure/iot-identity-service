@@ -943,7 +943,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
     device_identity=\"\$(
         sudo curl --unix-socket '/run/aziot/identityd.sock' \\
             -X POST -H 'content-type: application/json' --data-binary '{ \"type\": \"\" }' \\
-            'http://foo/identities/device?api-version=2020-09-01'
+            'http://identityd.sock/identities/device?api-version=2020-09-01'
     )\"
     printf 'Device identity: %s\n' \"\$device_identity\" >&2
 
@@ -962,7 +962,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
 
     module_identity=\"\$(
         curl --unix-socket '/run/aziot/identityd.sock' \\
-            'http://foo/identities/identity?api-version=2020-09-01'
+            'http://identityd.sock/identities/identity?api-version=2020-09-01'
     )\"
     printf '%s\n' \"\$module_identity\" >&2
 
