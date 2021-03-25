@@ -107,7 +107,7 @@ impl AziotVersion {
             return Ok(CheckResult::Warning(
                 anyhow!(
                     "Installed aziot-identity-service package has version {} but {} is the latest stable version available.\n\
-                    Please see https://aka.ms/iotedge-update-runtime for update instructions.",
+                    Please see https://aka.ms/aziot-update-runtime for update instructions.",
                     actual_version, expected_version,
                 ),
             ));
