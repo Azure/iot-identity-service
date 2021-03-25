@@ -121,7 +121,7 @@ impl Keys {
             // AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
             // so it will be correctly aligned already.
             #[allow(clippy::cast_ptr_alignment)]
-            let function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 = function_list as _;
+            let function_list = function_list.cast::<sys::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0>();
 
             let result = Keys::V2_0_0_0 {
                 set_parameter: (*function_list)
@@ -335,7 +335,8 @@ impl Keys {
                             keys_ok(get_key_pair_parameter(
                                 id.as_ptr(),
                                 sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
-                                &mut algorithm as *mut _ as _,
+                                (&mut algorithm as *mut sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE)
+                                    .cast(),
                                 &mut algorithm_len,
                             ))
                             .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
@@ -923,7 +924,8 @@ pub(crate) mod sys {
         unused,
         clippy::too_many_lines,
         clippy::unreadable_literal,
-        clippy::unseparated_literal_suffix
+        clippy::unseparated_literal_suffix,
+        clippy::upper_case_acronyms
     )]
 
     use openssl_sys::EVP_PKEY;

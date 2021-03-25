@@ -8,12 +8,11 @@ use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, Ch
 use crate::internal::common::CertificateValidity;
 
 pub fn cert_expirations() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(IdentityCert::default()));
-    v.push(Box::new(EstIdentityBootstrapCerts::default()));
-    v.push(Box::new(LocalCaCert::default()));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(IdentityCert::default()),
+        Box::new(EstIdentityBootstrapCerts::default()),
+        Box::new(LocalCaCert::default()),
+    ];
     v.into_iter()
 }
 

@@ -6,6 +6,7 @@
     non_camel_case_types,
     non_snake_case,
     clippy::must_use_candidate,
+    clippy::upper_case_acronyms,
     clippy::use_self
 )]
 

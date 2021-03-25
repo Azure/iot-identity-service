@@ -114,16 +114,9 @@ where
     //
     // We don't need to change the value inside `from_d`. We just need to bump the `Arc` refcount.
 
-    let ptr: *mut *const U = from_d as _;
+    let ptr = from_d.cast::<*const U>();
     if !ptr.is_null() {
-        let ex_data = std::sync::Arc::from_raw(*ptr);
-
-        // Bump the refcount ...
-        let ex_data_clone = ex_data.clone();
-
-        // ... and `forget` the two `Arc`s, so that they don't get dropped and decrease the refcount again.
-        std::mem::forget(ex_data);
-        std::mem::forget(ex_data_clone);
+        std::sync::Arc::increment_strong_count(ptr);
     }
 }
 
@@ -134,10 +127,9 @@ where
     let ex_index = <T as HasExData<U>>::index().as_raw();
     assert_eq!(idx, ex_index);
 
-    let ptr: *mut U = ptr as _;
+    let ptr = ptr.cast::<U>();
     if !ptr.is_null() {
-        let ex_data = std::sync::Arc::from_raw(ptr);
-        drop(ex_data);
+        std::sync::Arc::decrement_strong_count(ptr);
     }
 }
 
