@@ -26,6 +26,7 @@ mod host_local_time;
 mod hostname;
 mod read_certs;
 mod read_key_pairs;
+mod supported_platform;
 mod up_to_date_configs;
 mod well_formed_configs;
 
@@ -37,6 +38,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.extend(well_formed_configs::well_formed_configs());
             v.push(Box::new(up_to_date_configs::UpToDateConfigs::default()));
             v.push(Box::new(hostname::Hostname::default()));
+            v.push(Box::new(supported_platform::SupportedPlatform::default()));
             v.push(Box::new(aziot_version::AziotVersion::default()));
             v.push(Box::new(host_local_time::HostLocalTime::default()));
             v.extend(cert_expiry::cert_expirations());

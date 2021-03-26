@@ -580,6 +580,7 @@ dependencies = [
  "openssl",
  "openssl-sys2",
  "openssl2",
+ "os_info",
  "serde",
  "serde_json",
  "structopt",
@@ -1784,6 +1785,17 @@ dependencies = [
  "openssl-build",
  "openssl-sys",
  "openssl-sys2",
+]
+
+[[package]]
+name = "os_info"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2127a5da3c69035537febc04cd07008bb643653303b213a49b036d944531207"
+dependencies = [
+ "log",
+ "serde",
+ "winapi 0.3.9",
 ]
 
 [[package]]
