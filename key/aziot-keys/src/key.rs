@@ -270,18 +270,49 @@ pub(crate) unsafe fn verify(
 
 // Ciphertext is formatted as:
 //
-// - Encryption scheme version (1 byte); v1 == 0x01_u8
+// - Encryption scheme version (1 byte)
 // - Rest
 //
-// For v1 keys, the format of "Rest" is:
 //
-// - Tag
+// # v1 (0x01_u8)
+//
+// v1 keys are the format used by IoT Edge 1.1 and earlier. The format of "Rest" is:
+//
+// - Tag (16 bytes)
 // - Actual ciphertext (`len(plaintext)` rounded up by `len(block size)`)
 //
-// Filesystem keys use AES-256-GCM. PKCS#11 keys use AES-GCM with unspecified key length (chosen by the token).
 //
-// We choose `len(tag)` to be 16 bytes, the best value for AES-GCM.
-// For AES, `len(block size)` = 128 bits = 16 bytes.
+// # v2 (0x02_08)
+//
+// v2 keys are the format used by v1.2 and higher. The format of "Rest" is:
+//
+// - Actual ciphertext (`len(plaintext)` rounded up by `len(block size)`)
+// - Tag (16 bytes)
+//
+// This format is what is used by PKCS#11 [1], so we also use it for filesystem keys.
+// This way a filesystem key can be imported into a PKCS#11 device and
+// still be used to decrypt secrets that were encrypted when it was on the filesystem.
+//
+//
+// # Miscellaneous
+//
+// - Filesystem keys use AES-256-GCM. PKCS#11 keys use AES-GCM with unspecified key length (chosen by the token).
+//   For PKCS#11 keys that we generate, we try to generate an AES-256 key, then fall back to an AES-128 key
+//   if the library doesn't support AES-256; see `pkcs11::Session::generate_key`
+//
+// - For AES, `len(block size)` = 128 bits = 16 bytes.
+//
+// - `len(tag)` was chosen to be 16 bytes because that's the best modern value for AES-GCM.
+//
+// - Decrypting supports multiple versions, but encrypting new secrets always uses the latest version,
+//   since the version is an implementation detail and not controllable by the caller.
+//   So Edge modules running under edged can decrypt v1 secrets that were created by iotedged,
+//   but if they re-encrypt those secrets they'll get v2 secrets.
+//
+//
+// # Refs
+//
+// [1]: https://docs.oasis-open.org/pkcs11/pkcs11-curr/v2.40/pkcs11-curr-v2.40.html#_Toc370634467
 
 pub(crate) unsafe fn encrypt(
     locations: &[crate::implementation::Location],
@@ -335,7 +366,7 @@ pub(crate) unsafe fn encrypt(
             let mut ciphertext =
                 openssl::symm::encrypt_aead(cipher, &key, Some(iv), aad, plaintext, &mut tag)?;
 
-            ciphertext.insert(0, 0x01);
+            ciphertext.insert(0, 0x02);
             ciphertext.extend_from_slice(&tag);
             Ok((ciphertext.len(), ciphertext))
         }
@@ -345,7 +376,7 @@ pub(crate) unsafe fn encrypt(
             // because all AES ciphers have the same block size by definition.
             let mut ciphertext = vec![0_u8; 1 + plaintext.len() + cipher.block_size() + 16];
 
-            ciphertext[0] = 0x01;
+            ciphertext[0] = 0x02;
 
             let ciphertext_len = key
                 .encrypt(iv, aad, plaintext, &mut ciphertext[1..])
@@ -409,12 +440,6 @@ pub(crate) unsafe fn decrypt(
     let (&version, ciphertext) = ciphertext
         .split_first()
         .ok_or_else(|| crate::implementation::err_invalid_parameter("ciphertext", "malformed"))?;
-    if version != 0x01 {
-        return Err(crate::implementation::err_invalid_parameter(
-            "ciphertext",
-            format!("unknown version {:?}", version),
-        ));
-    }
 
     if ciphertext.len() < 16 {
         return Err(crate::implementation::err_invalid_parameter(
@@ -423,17 +448,44 @@ pub(crate) unsafe fn decrypt(
         ));
     }
 
-    let (ciphertext, tag) = ciphertext.split_at(ciphertext.len() - 16);
-
     match key {
         Key::FileSystem(key) => {
+            let (ciphertext, tag) = match version {
+                0x01 => {
+                    let (tag, ciphertext) = ciphertext.split_at(16);
+                    (ciphertext, tag)
+                }
+
+                0x02 => {
+                    ciphertext.split_at(ciphertext.len() - 16)
+                }
+
+                version => {
+                    return Err(crate::implementation::err_invalid_parameter(
+                        "ciphertext",
+                        format!("unknown version {:?}", version),
+                    ));
+                }
+            };
+
             let plaintext =
                 openssl::symm::decrypt_aead(cipher, &key, Some(iv), aad, ciphertext, tag)?;
             Ok((plaintext.len(), plaintext))
         }
 
         Key::Pkcs11(key) => {
-            let mut plaintext = vec![0_u8; ciphertext.len() - 1 - 16];
+            let ciphertext = match version {
+                0x02 => ciphertext,
+
+                version => {
+                    return Err(crate::implementation::err_invalid_parameter(
+                        "ciphertext",
+                        format!("unknown version {:?}", version),
+                    ));
+                }
+            };
+
+            let mut plaintext = vec![0_u8; ciphertext.len() - 16];
             let plaintext_len = key
                 .decrypt(iv, aad, ciphertext, &mut plaintext)
                 .map_err(crate::implementation::err_external)?;
