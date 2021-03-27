@@ -21,7 +21,7 @@ pub fn run(
 ) -> anyhow::Result<RunOutput> {
     let super_config::Config {
         hostname,
-        local_gateway_hostname,
+        parent_hostname,
         provisioning,
         localid,
         mut aziot_keys,
@@ -144,7 +144,7 @@ pub fn run(
                 id_scope,
                 attestation,
             } => {
-                if local_gateway_hostname.is_some() {
+                if parent_hostname.is_some() {
                     return Err(anyhow!("DPS provisioning is not supported in nested mode"));
                 }
 
@@ -214,7 +214,7 @@ pub fn run(
 
         aziot_identityd_config::Provisioning {
             provisioning,
-            local_gateway_hostname,
+            local_gateway_hostname: parent_hostname,
         }
     };
 
