@@ -456,9 +456,7 @@ pub(crate) unsafe fn decrypt(
                     (ciphertext, tag)
                 }
 
-                0x02 => {
-                    ciphertext.split_at(ciphertext.len() - 16)
-                }
+                0x02 => ciphertext.split_at(ciphertext.len() - 16),
 
                 version => {
                     return Err(crate::implementation::err_invalid_parameter(
