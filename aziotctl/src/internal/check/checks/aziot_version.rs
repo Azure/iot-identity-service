@@ -56,7 +56,9 @@ impl AziotVersion {
             let mut uri: hyper::Uri = "https://aka.ms/latest-aziot-stable-non-lts"
                 .parse()
                 .expect("hard-coded URI cannot fail to parse");
-            let LatestVersions { aziot_identity_service } = loop {
+            let LatestVersions {
+                aziot_identity_service,
+            } = loop {
                 let req = {
                     let mut req = hyper::Request::new(Default::default());
                     *req.uri_mut() = uri.clone();
