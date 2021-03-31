@@ -42,11 +42,11 @@ File {} already exists. Azure IoT Identity Service has already been configured.
 
 To have the configuration take effect, run:
 
-    aziotctl config apply
+    sudo aziotctl config apply
 
 To reconfigure IoT Identity Service, run:
 
-    aziotctl config mp --force
+    sudo aziotctl config mp --force
 ",
             out_config_file.display()
         ));
@@ -54,7 +54,7 @@ To reconfigure IoT Identity Service, run:
 
     let config = common_config::super_config::Config {
         hostname: None,
-        local_gateway_hostname: None,
+        parent_hostname: None,
 
         provisioning: common_config::super_config::Provisioning {
             provisioning: common_config::super_config::ProvisioningType::Manual {
@@ -92,7 +92,7 @@ To reconfigure IoT Identity Service, run:
     println!("To apply the new configuration to services, run:");
     println!();
     println!(
-        "    aziotctl config apply -c '{}'",
+        "    sudo aziotctl config apply -c '{}'",
         out_config_file.display()
     );
 

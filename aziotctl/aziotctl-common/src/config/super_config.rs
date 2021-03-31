@@ -26,11 +26,17 @@ use url::Url;
 pub struct Config {
     pub hostname: Option<String>,
 
-    // DEVNOTE: since this config is `#[serde(flatten)]`'d as part of the
-    // iotedge super_config, we add the `parent_hostname` alias so that the same
-    // field can be used in multiple semantic contexts.
-    #[serde(alias = "parent_hostname")]
-    pub local_gateway_hostname: Option<String>,
+    // DEVNOTE:
+    //
+    // This field is called local_gateway_hostname in the identity-service super-config and parent_hostname in the iotedge super-config.
+    // Since this super-config type is shared between the two, we use an alias to allow both names to work.
+    //
+    // Ideally this would be `#[serde(alias = "parent_hostname")] local_gateway_hostname: Option<String>`, but due to a serde bug [1]
+    // this does not work. So we have to do it the other way around.
+    //
+    // [1]: https://github.com/serde-rs/serde/issues/1976
+    #[serde(alias = "local_gateway_hostname")]
+    pub parent_hostname: Option<String>,
 
     pub provisioning: Provisioning,
 
