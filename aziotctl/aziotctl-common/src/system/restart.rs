@@ -4,7 +4,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::{print_command_error, stop, ServiceDefinition};
+use super::{print_command_error, stop, ServiceDefinition};
 
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
     // stop all services

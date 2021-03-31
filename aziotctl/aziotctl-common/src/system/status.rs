@@ -5,7 +5,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::{program_name, ServiceDefinition};
+use super::ServiceDefinition;
 
 pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
     let results: Vec<ServiceStatus<'_>> = processes
@@ -48,7 +48,7 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
             }
         }
 
-        let name = program_name();
+        let name = crate::program_name();
         println!();
         println!();
         println!("Note: inactive services with active sockets are considered OK, while inactive sockets or services with no sockets to start them are considered failed. This is because services can be inactive if not in use.");

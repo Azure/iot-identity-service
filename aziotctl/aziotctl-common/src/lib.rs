@@ -14,24 +14,13 @@
 )]
 
 use std::collections::BTreeMap;
-use std::io::{self, Write};
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
 pub mod check_last_modified;
 pub mod config;
-mod restart;
-mod set_log_level;
-mod status;
-mod stop;
-mod system_logs;
-
-pub use restart::restart;
-pub use set_log_level::set_log_level;
-pub use status::get_status;
-pub use stop::stop;
-pub use system_logs::get_system_logs;
+pub mod system;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResultsSerializable {
@@ -84,31 +73,6 @@ pub struct CheckerMetaSerializable {
 /// Keys are section names
 pub type CheckListOutput = BTreeMap<String, Vec<CheckerMetaSerializable>>;
 
-pub struct ServiceDefinition {
-    pub service: &'static str,
-    pub sockets: &'static [&'static str],
-}
-
-// Note, the ordering is important, since the first service is considered the root and will be started by the restart command.
-pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
-    &ServiceDefinition {
-        service: "aziot-identityd.service",
-        sockets: &["aziot-identityd.socket"],
-    },
-    &ServiceDefinition {
-        service: "aziot-keyd.service",
-        sockets: &["aziot-keyd.socket"],
-    },
-    &ServiceDefinition {
-        service: "aziot-certd.service",
-        sockets: &["aziot-certd.socket"],
-    },
-    &ServiceDefinition {
-        service: "aziot-tpmd.service",
-        sockets: &["aziot-tpmd.socket"],
-    },
-];
-
 pub fn hostname() -> anyhow::Result<String> {
     if cfg!(test) {
         Ok("my-device".to_owned())
@@ -121,13 +85,6 @@ pub fn hostname() -> anyhow::Result<String> {
             .context("could not get machine hostname")?;
         Ok(hostname.to_owned())
     }
-}
-
-pub fn program_name() -> String {
-    std::env::args_os()
-        .next()
-        .and_then(|arg| arg.into_string().ok())
-        .unwrap_or_else(|| "<current program>".to_owned())
 }
 
 pub fn check_length_for_local_issuer(hostname: &str) -> bool {
@@ -182,15 +139,11 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
     true
 }
 
-fn print_command_error(result: &std::process::Output) {
-    eprintln!("systemctl exited with non-zero status code.");
-    eprintln!("stdout:");
-    eprintln!("=======");
-    io::stdout().write_all(&result.stdout).unwrap();
-    eprintln!("stderr:");
-    eprintln!("=======");
-    io::stdout().write_all(&result.stderr).unwrap();
-    eprintln!();
+fn program_name() -> String {
+    std::env::args_os()
+        .next()
+        .and_then(|arg| arg.into_string().ok())
+        .unwrap_or_else(|| "<current program>".to_owned())
 }
 
 #[cfg(test)]
