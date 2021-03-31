@@ -386,7 +386,7 @@ impl Api {
                 // Clear the backed up device state before reprovisioning.
                 // If this fails, log a warning but continue with reprovisioning.
                 let mut backup_file = self.settings.homedir.clone();
-                backup_file.push("device_info");
+                backup_file.push(identity::DEVICE_BACKUP_LOCATION);
 
                 if let Err(err) = std::fs::remove_file(backup_file) {
                     if err.kind() != std::io::ErrorKind::NotFound {
@@ -537,9 +537,17 @@ impl Api {
         self.local_identities = local_modules;
         self.settings = settings;
 
-        let _ = self
+        // Attempt to re-provision the device. Failures need to be logged and the device should
+        // run offline.
+        if let Err(err) = self
             .reprovision_device(auth::AuthId::LocalRoot, trigger)
-            .await?;
+            .await
+        {
+            log::warn!(
+                "Failed to reprovisioning device. Running offline. Reprovisioning failure reason: {}. ",
+                err
+            );
+        }
 
         Ok(())
     }
