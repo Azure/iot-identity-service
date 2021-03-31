@@ -24,6 +24,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "auth": {
         "type": "sas",
@@ -41,6 +42,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec" :
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "auth": {
         "type": "x509",
@@ -58,6 +60,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -76,6 +79,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -101,6 +105,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "auth": {
         "type": "sas",
@@ -118,6 +123,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "spec" :
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "auth": {
         "type": "x509",
@@ -145,6 +151,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
       "spec":
       {
         "hubName": "myhub.net",
+        "gatewayHost": "parentdevice",
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
@@ -168,6 +175,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
       "spec":
       {
         "hubName": "myhub.net",
+        "gatewayHost": "parentdevice",
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
@@ -222,6 +230,7 @@ If `localIdOpts` is not specified, the default `{"type": "x509", "attributes": "
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -241,6 +250,7 @@ If `localIdOpts` is not specified, the default `{"type": "x509", "attributes": "
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -287,6 +297,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -306,6 +317,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -351,6 +363,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
@@ -370,6 +383,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
   "spec":
   {
     "hubName": "myhub.net",
+    "gatewayHost": "parentdevice",
     "deviceId": "device01",
     "moduleId": "module01",
     "genId": "12345",
