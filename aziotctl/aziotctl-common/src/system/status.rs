@@ -8,19 +8,19 @@ use anyhow::{Context, Result};
 use super::ServiceDefinition;
 
 pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
-    let results: Vec<ServiceStatus<'_>> = processes
+    let services: Vec<ServiceStatus<'_>> = processes
         .iter()
         .map(|process| -> Result<ServiceStatus<'_>> {
             Ok(ServiceStatus {
-                service_name: process.service,
-                service_status: read_status(process.service)?,
+                name: process.service,
+                state: State::from_systemctl(process.service)?,
                 sockets: process
                     .sockets
                     .iter()
                     .map(|socket| -> Result<SocketStatus<'_>> {
                         Ok(SocketStatus {
-                            socket_name: socket,
-                            socket_status: read_status(socket)?,
+                            name: socket,
+                            state: State::from_systemctl(socket)?,
                         })
                     })
                     .collect::<Result<Vec<SocketStatus<'_>>>>()?,
@@ -28,120 +28,132 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
         })
         .collect::<Result<Vec<ServiceStatus<'_>>>>()?;
 
-    if results.iter().any(|s| !s.ok()) {
-        for result in &results {
-            println!("{}: {}", result.service_name, result.service_status);
-            for socket in &result.sockets {
-                println!("{}: {}", socket.socket_name, socket.socket_status);
-            }
-            println!();
-        }
-
-        for result in results {
-            if let Status::Failed(_) = result.service_status {
-                print_logs(result.service_name, &result.service_status)?;
-            }
-            for socket in result.sockets {
-                if !socket.ok() {
-                    print_logs(socket.socket_name, &result.service_status)?;
-                }
-            }
-        }
-
-        let name = crate::program_name();
-        println!();
-        println!();
-        println!("Note: inactive services with active sockets are considered OK, while inactive sockets or services with no sockets to start them are considered failed. This is because services can be inactive if not in use.");
-        println!("For more detailed logs, use the `{} system logs` command. If the logs do not contain enough information, consider setting debug logs using `{} system set-log-level`.", name, name);
-    } else {
-        println!("Ok");
+    println!("System services:");
+    for service in &services {
+        println!(
+            "    {:24}{}",
+            format!(
+                "{}:",
+                service
+                    .name
+                    .strip_suffix(".service")
+                    .unwrap_or(service.name)
+            ),
+            service.state()
+        )
     }
 
-    Ok(())
-}
-
-fn read_status(process: &str) -> Result<Status> {
-    let result = Command::new("systemctl")
-        .args(&["is-active", process])
-        .output()
-        .context("Failed to call systemctl is-active")?;
-
-    let output = String::from_utf8_lossy(&result.stdout);
-
-    let result = match output.trim() {
-        "active" => Status::Active,
-        "inactive" => Status::Inactive,
-        _ => Status::Failed(format!(
-            "{} {}",
-            String::from_utf8_lossy(&result.stdout),
-            String::from_utf8_lossy(&result.stderr)
-        )),
-    };
-
-    Ok(result)
-}
-
-fn print_logs(process: &str, state: &Status) -> Result<()> {
-    println!(
-        "{} is in a bad state: {:?}. Printing the last 10 log lines.",
-        process, state,
-    );
-    Command::new("journalctl")
-        .args(&["-u", process, "--no-pager", "-e", "-n", "10"])
-        .spawn()
-        .context("Failed to spawn new process for printing logs")?
-        .wait()
-        .context("Failed to call journalctl")?;
     println!();
 
+    for service in services {
+        fn print_logs(process: &str, state: &State) -> Result<()> {
+            println!("{}: {}: Printing the last 10 log lines.", process, state);
+            Command::new("journalctl")
+                .args(&["-u", process, "--no-pager", "-e", "-n", "10"])
+                .spawn()
+                .context("Failed to spawn new process for printing logs")?
+                .wait()
+                .context("Failed to call journalctl")?;
+            println!();
+
+            Ok(())
+        }
+
+        if !matches!(service.state(), State::Failed(_)) {
+            continue;
+        }
+
+        println!(
+            "{} is in a bad state because:",
+            service
+                .name
+                .strip_suffix(".service")
+                .unwrap_or(service.name)
+        );
+
+        print_logs(service.name, &service.state)?;
+        for socket in service.sockets {
+            if !matches!(socket.state, State::Active) {
+                print_logs(socket.name, &socket.state)?;
+            }
+        }
+    }
+
+    let name = crate::program_name();
+    println!("Use '{} system logs' to check for non-fatal errors.", name);
+    println!(
+        "Use '{} check' to diagnose connectivity and configuration issues.",
+        name
+    );
+
     Ok(())
 }
 
-#[derive(PartialEq, Debug)]
-enum Status {
+#[derive(Clone, Debug)]
+enum State {
     Active,
-    Failed(String),
     Inactive,
+    Failed(String),
 }
 
-impl fmt::Display for Status {
+impl State {
+    fn from_systemctl(process: &str) -> Result<State> {
+        let result = Command::new("systemctl")
+            .args(&["is-active", process])
+            .output()
+            .context("Failed to call systemctl is-active")?;
+
+        let output = String::from_utf8_lossy(&result.stdout);
+
+        let result = match output.trim() {
+            "active" => State::Active,
+            "inactive" => State::Inactive,
+            _ => State::Failed(format!(
+                "{} {}",
+                String::from_utf8_lossy(&result.stdout).trim(),
+                String::from_utf8_lossy(&result.stderr).trim()
+            )),
+        };
+
+        Ok(result)
+    }
+}
+
+impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Status::Active => write!(f, "active"),
-            Status::Inactive => write!(f, "inactive"),
-            Status::Failed(message) => write!(f, "{}", message),
+            State::Active => write!(f, "Running"),
+            State::Inactive => write!(f, "Ready"),
+            State::Failed(msg) => write!(f, "Down - {}", msg),
         }
     }
 }
 
 #[derive(Debug)]
 struct ServiceStatus<'a> {
-    service_name: &'a str,
-    service_status: Status,
+    name: &'a str,
+    state: State,
 
     sockets: Vec<SocketStatus<'a>>,
 }
 
 impl<'a> ServiceStatus<'a> {
-    fn ok(&self) -> bool {
-        if self.sockets.is_empty() {
-            self.service_status == Status::Active
-        } else {
-            // If status is not failed and there are no sockets that are not ok
-            !matches!(self.service_status, Status::Failed(_))
-                && !self.sockets.iter().any(|s| !s.ok())
+    fn state(&self) -> State {
+        if matches!(self.state, State::Active)
+            && !self
+                .sockets
+                .iter()
+                .all(|socket| matches!(socket.state, State::Active))
+        {
+            return State::Failed("socket error".into());
         }
+
+        self.state.clone()
     }
 }
 
 #[derive(Debug)]
 struct SocketStatus<'a> {
-    socket_name: &'a str,
-    socket_status: Status,
-}
-
-impl<'a> SocketStatus<'a> {
-    fn ok(&self) -> bool {
-        self.socket_status == Status::Active
-    }
+    name: &'a str,
+    state: State,
 }
