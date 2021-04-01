@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aziot_identityd_config as config;
@@ -11,8 +11,11 @@ use crate::error::{Error, InternalError};
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
+const MODULE_BACKUP_LOCATION: &str = "modules";
+
+pub(crate) const DEVICE_BACKUP_LOCATION: &str = "device_info";
+
 pub struct IdentityManager {
-    locks: std::sync::Mutex<std::collections::BTreeMap<String, Arc<std::sync::Mutex<()>>>>,
     homedir_path: std::path::PathBuf,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
@@ -33,18 +36,22 @@ impl IdentityManager {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
-            locks: Default::default(),
             homedir_path,
             key_client,
             key_engine,
             cert_client,
             tpm_client,
-            iot_hub_device, //set by Server over futures channel
+            iot_hub_device,
             proxy_uri,
         }
     }
 
     pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
+        ModuleBackup::set_device(
+            &self.homedir_path,
+            &device.iothub_hostname,
+            &device.device_id,
+        );
         self.iot_hub_device = Some(device.clone());
     }
 
@@ -96,6 +103,20 @@ impl IdentityManager {
                     )
                     .await
                     .map_err(Error::HubClient)?;
+
+                ModuleBackup::set_module_backup(
+                    &self.homedir_path,
+                    &device.iothub_hostname,
+                    &device.device_id,
+                    &response.module_id,
+                    Some(aziot_identity_common::hub::Module {
+                        module_id: response.module_id.clone(),
+                        device_id: response.device_id.clone(),
+                        generation_id: response.generation_id.clone(),
+                        managed_by: response.managed_by.clone(),
+                        authentication: None,
+                    }),
+                );
 
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
@@ -163,6 +184,20 @@ impl IdentityManager {
                     .await
                     .map_err(Error::HubClient)?;
 
+                ModuleBackup::set_module_backup(
+                    &self.homedir_path,
+                    &device.iothub_hostname,
+                    &device.device_id,
+                    &response.module_id,
+                    Some(aziot_identity_common::hub::Module {
+                        module_id: response.module_id.clone(),
+                        device_id: response.device_id.clone(),
+                        generation_id: response.generation_id.clone(),
+                        managed_by: response.managed_by.clone(),
+                        authentication: None,
+                    }),
+                );
+
                 let identity =
                     aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
                         hub_name: device.iothub_hostname.clone(),
@@ -217,10 +252,53 @@ impl IdentityManager {
                     self.tpm_client.clone(),
                     self.proxy_uri.clone(),
                 );
-                let module = client
-                    .get_module(&*module_id)
-                    .await
-                    .map_err(Error::HubClient)?;
+                let module = {
+                    let result = client.get_module(&*module_id).await;
+
+                    match result {
+                        Ok(module) => {
+                            ModuleBackup::set_module_backup(
+                                &self.homedir_path,
+                                &device.iothub_hostname,
+                                &device.device_id,
+                                &module.module_id,
+                                Some(aziot_identity_common::hub::Module {
+                                    module_id: module.module_id.clone(),
+                                    device_id: module.device_id.clone(),
+                                    generation_id: module.generation_id.clone(),
+                                    managed_by: module.managed_by.clone(),
+                                    authentication: None,
+                                }),
+                            );
+
+                            module
+                        }
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::NotFound {
+                                ModuleBackup::set_module_backup(
+                                    &self.homedir_path,
+                                    &device.iothub_hostname,
+                                    &device.device_id,
+                                    &module_id,
+                                    None,
+                                );
+                                return Err(Error::HubClient(err));
+                            }
+
+                            let module = ModuleBackup::get_module_backup(
+                                &self.homedir_path,
+                                &device.iothub_hostname,
+                                &device.device_id,
+                                &module_id,
+                            );
+
+                            match module {
+                                Some(module) => module,
+                                None => return Err(Error::HubClient(err)),
+                            }
+                        }
+                    }
+                };
 
                 let master_id_key_handle = self.get_master_identity_key().await?;
                 let (primary_key_handle, _, _, _) = self
@@ -266,6 +344,20 @@ impl IdentityManager {
                 let identities = response
                     .into_iter()
                     .map(|module| {
+                        ModuleBackup::set_module_backup(
+                            &self.homedir_path,
+                            &device.iothub_hostname,
+                            &device.device_id,
+                            &module.module_id,
+                            Some(aziot_identity_common::hub::Module {
+                                module_id: module.module_id.clone(),
+                                device_id: module.device_id.clone(),
+                                generation_id: module.generation_id.clone(),
+                                managed_by: module.managed_by.clone(),
+                                authentication: None,
+                            }),
+                        );
+
                         aziot_identity_common::Identity::Aziot(
                             aziot_identity_common::AzureIoTSpec {
                                 hub_name: device.iothub_hostname.clone(),
@@ -302,10 +394,20 @@ impl IdentityManager {
                     self.tpm_client.clone(),
                     self.proxy_uri.clone(),
                 );
-                client
+                let () = client
                     .delete_module(&*module_id)
                     .await
-                    .map_err(Error::HubClient)
+                    .map_err(Error::HubClient)?;
+
+                ModuleBackup::set_module_backup(
+                    &self.homedir_path,
+                    &device.iothub_hostname,
+                    &device.device_id,
+                    &module_id,
+                    None,
+                );
+
+                Ok(())
             }
             None => Err(Error::DeviceNotFound),
         }
@@ -606,7 +708,7 @@ impl IdentityManager {
         credentials: aziot_identity_common::Credentials,
     ) -> Result<Option<aziot_identity_common::IoTHubDevice>, Error> {
         let mut prev_device_info_path = self.homedir_path.clone();
-        prev_device_info_path.push("device_info");
+        prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
         if prev_device_info_path.exists() {
             let prev_hub_device_info =
@@ -724,11 +826,14 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
+                // Encapsulate the device_info update along with "module_info" for offline store
+                // Make sure module_info is wiped when device_info is wiped
+
                 let mut prev_settings_path = self.homedir_path.clone();
                 prev_settings_path.push("prev_state");
 
                 let mut prev_device_info_path = self.homedir_path.clone();
-                prev_device_info_path.push("device_info");
+                prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
                 let curr_hub_device_info = HubDeviceInfo {
                     hub_name: device.iothub_hostname.clone(),
@@ -828,5 +933,151 @@ impl HubDeviceInfo {
 
     pub fn unprovisioned() -> String {
         "unprovisioned".to_owned()
+    }
+}
+
+pub struct ModuleBackup {}
+
+impl ModuleBackup {
+    pub fn set_device(homedir_path: &Path, iothub_hostname: &str, device_id: &str) {
+        let result = Self::get_device_path(homedir_path, iothub_hostname, device_id)
+            .map_err(|err| Error::Internal(InternalError::GetModulePath(err)))
+            .and_then(|path| {
+                if !path.exists() {
+                    // Clean old device module backups
+                    let mut old_modules_path = homedir_path.to_owned();
+                    old_modules_path.push(MODULE_BACKUP_LOCATION);
+
+                    // Best effort to remove old modules backup folder, in case permissions have been set
+                    // explictly on filesystem to prevent removal
+                    if let Err(err) = std::fs::remove_dir_all(old_modules_path) {
+                        if err.kind() != std::io::ErrorKind::NotFound {
+                            log::warn!("Failed to clear old module backup state: {}", err);
+                        }
+                    }
+
+                    // Create new device's module backup folder
+                    return std::fs::create_dir_all(&path)
+                        .map_err(|err| Error::Internal(InternalError::SaveModuleBackup(err)));
+                }
+
+                Ok(())
+            });
+
+        // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
+        if let Err(err) = result {
+            log::warn!(
+                "Failed to create module information backup state folder: {}",
+                err
+            );
+        }
+    }
+
+    pub fn set_module_backup(
+        homedir_path: &Path,
+        iothub_hostname: &str,
+        device_id: &str,
+        module_id: &str,
+        data: Option<aziot_identity_common::hub::Module>,
+    ) {
+        let result = match data {
+            Some(module) => {
+                let s = serde_json::to_string(&module).expect("serializing module cannot fail");
+                Self::get_module_path(homedir_path, iothub_hostname, device_id, module_id)
+                    .map_err(|err| Error::Internal(InternalError::GetModulePath(err)))
+                    .and_then(|path| {
+                        std::fs::write(path, s)
+                            .map_err(|err| Error::Internal(InternalError::SaveModuleBackup(err)))
+                    })
+            }
+            None => Self::get_module_path(homedir_path, iothub_hostname, device_id, module_id)
+                .map_err(|err| Error::Internal(InternalError::GetModulePath(err)))
+                .and_then(|path| match std::fs::remove_file(path) {
+                    Ok(()) => Ok(()),
+                    Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                    Err(err) => Err(Error::Internal(InternalError::SaveModuleBackup(err))),
+                }),
+        };
+
+        // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
+        if let Err(err) = result {
+            log::warn!("Failed to save module information backup state: {}", err);
+        }
+    }
+
+    pub fn get_module_backup(
+        homedir_path: &Path,
+        iothub_hostname: &str,
+        device_id: &str,
+        module_id: &str,
+    ) -> Option<aziot_identity_common::hub::Module> {
+        match Self::get_module_path(homedir_path, iothub_hostname, device_id, module_id) {
+            Ok(path) => match std::fs::read(path) {
+                Ok(module) => match serde_json::from_slice(&module) {
+                    Ok(s) => Some(s),
+                    Err(err) => {
+                        log::error!("Invalid input from backup file. Failure reason: {}", err);
+                        None
+                    }
+                },
+                Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => None,
+                Err(err) => {
+                    log::warn!("Could not read module backup file. Failure reason: {}", err);
+                    None
+                }
+            },
+            Err(err) => {
+                log::warn!(
+                    "Could not get module backup file path. Failure reason: {}",
+                    err
+                );
+                None
+            }
+        }
+    }
+
+    fn get_device_path(
+        homedir_path: &Path,
+        iothub_hostname: &str,
+        device_id: &str,
+    ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = homedir_path.to_owned();
+        path.push(MODULE_BACKUP_LOCATION);
+
+        let iothub_hostname_hash = openssl::hash::hash(
+            openssl::hash::MessageDigest::sha256(),
+            iothub_hostname.as_bytes(),
+        )?;
+        let iothub_hostname_hash = hex::encode(iothub_hostname_hash);
+
+        let device_id_hash =
+            openssl::hash::hash(openssl::hash::MessageDigest::sha256(), device_id.as_bytes())?;
+        let device_id_hash = hex::encode(device_id_hash);
+
+        path.push(format!("{}-{}", iothub_hostname_hash, device_id_hash));
+
+        Ok(path)
+    }
+
+    fn get_module_path(
+        homedir_path: &Path,
+        iothub_hostname: &str,
+        device_id: &str,
+        module_id: &str,
+    ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = Self::get_device_path(homedir_path, iothub_hostname, device_id)?;
+
+        let module_id_sanitized: String = module_id
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect();
+
+        let module_id_hash =
+            openssl::hash::hash(openssl::hash::MessageDigest::sha256(), module_id.as_bytes())?;
+        let module_id_hash = hex::encode(module_id_hash);
+
+        path.push(format!("{}-{}", module_id_sanitized, module_id_hash));
+
+        Ok(path)
     }
 }
