@@ -53,7 +53,7 @@ impl AziotVersion {
                     .context("could not initialize HTTP connector")?;
             let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
 
-            let mut uri: hyper::Uri = "https://aka.ms/latest-aziot-stable-non-lts"
+            let mut uri: hyper::Uri = "https://aka.ms/latest-aziot-identity-service"
                 .parse()
                 .expect("hard-coded URI cannot fail to parse");
             let LatestVersions {
