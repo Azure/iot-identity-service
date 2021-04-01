@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 mod restart;
 mod set_log_level;
 mod status;
