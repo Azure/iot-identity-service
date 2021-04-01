@@ -290,6 +290,15 @@ impl Client {
                 res
             }
 
+            hyper::StatusCode::NOT_FOUND => {
+                let res: crate::Error = serde_json::from_slice(&body)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    res.message,
+                ));
+            }
+
             res_status_code
                 if res_status_code.is_client_error() || res_status_code.is_server_error() =>
             {

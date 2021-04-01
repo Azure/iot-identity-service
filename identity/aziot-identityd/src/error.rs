@@ -65,6 +65,7 @@ pub enum InternalError {
     BadSettings(std::io::Error),
     CreateCertificate(Box<dyn std::error::Error + Send + Sync>),
     CreateHomeDir(std::io::Error),
+    GetModulePath(Box<dyn std::error::Error + Send + Sync>),
     InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     InvalidUri(http::uri::InvalidUri),
     LoadKeyOpensslEngine(openssl2::Error),
@@ -74,6 +75,7 @@ pub enum InternalError {
     ParseDeviceInfo(toml::de::Error),
     ParseSettings(toml::de::Error),
     SaveDeviceInfo(std::io::Error),
+    SaveModuleBackup(std::io::Error),
     SerializeDeviceInfo(toml::ser::Error),
     SaveSettings(std::io::Error),
 }
@@ -84,6 +86,7 @@ impl std::fmt::Display for InternalError {
             InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
             InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
             InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
+            InternalError::GetModulePath(_) => f.write_str("could not get module backup file path"),
             InternalError::InvalidProxyUri(_) => f.write_str("invalid proxy uri"),
             InternalError::InvalidUri(_) => f.write_str("invalid resource uri"),
             InternalError::LoadKeyOpensslEngine(_) => {
@@ -101,6 +104,9 @@ impl std::fmt::Display for InternalError {
             InternalError::SaveDeviceInfo(_) => {
                 f.write_str("could not save device information state")
             }
+            InternalError::SaveModuleBackup(m) => {
+                write!(f, "could not save module information backup state: {}", m)
+            }
             InternalError::SerializeDeviceInfo(_) => {
                 f.write_str("could not serialize device information state")
             }
@@ -116,6 +122,7 @@ impl std::error::Error for InternalError {
             InternalError::BadSettings(err) => Some(err),
             InternalError::CreateCertificate(err) => Some(&**err),
             InternalError::CreateHomeDir(err) => Some(err),
+            InternalError::GetModulePath(err) => Some(&**err),
             InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::InvalidUri(err) => Some(err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
@@ -125,6 +132,7 @@ impl std::error::Error for InternalError {
             InternalError::ParseDeviceInfo(err) => Some(err),
             InternalError::ParseSettings(err) => Some(err),
             InternalError::SaveDeviceInfo(err) => Some(err),
+            InternalError::SaveModuleBackup(err) => Some(err),
             InternalError::SaveSettings(err) => Some(err),
             InternalError::SerializeDeviceInfo(err) => Some(err),
         }
