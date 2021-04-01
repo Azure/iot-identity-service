@@ -109,7 +109,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &response.module_id,
-                    &Some(aziot_identity_common::hub::Module {
+                    Some(aziot_identity_common::hub::Module {
                         module_id: response.module_id.clone(),
                         device_id: response.device_id.clone(),
                         generation_id: response.generation_id.clone(),
@@ -189,7 +189,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &response.module_id,
-                    &Some(aziot_identity_common::hub::Module {
+                    Some(aziot_identity_common::hub::Module {
                         module_id: response.module_id.clone(),
                         device_id: response.device_id.clone(),
                         generation_id: response.generation_id.clone(),
@@ -262,7 +262,7 @@ impl IdentityManager {
                                 &device.iothub_hostname,
                                 &device.device_id,
                                 &module.module_id,
-                                &Some(aziot_identity_common::hub::Module {
+                                Some(aziot_identity_common::hub::Module {
                                     module_id: module.module_id.clone(),
                                     device_id: module.device_id.clone(),
                                     generation_id: module.generation_id.clone(),
@@ -280,7 +280,7 @@ impl IdentityManager {
                                     &device.iothub_hostname,
                                     &device.device_id,
                                     &module_id,
-                                    &None,
+                                    None,
                                 );
                                 return Err(Error::HubClient(err));
                             }
@@ -349,7 +349,7 @@ impl IdentityManager {
                             &device.iothub_hostname,
                             &device.device_id,
                             &module.module_id,
-                            &Some(aziot_identity_common::hub::Module {
+                            Some(aziot_identity_common::hub::Module {
                                 module_id: module.module_id.clone(),
                                 device_id: module.device_id.clone(),
                                 generation_id: module.generation_id.clone(),
@@ -404,7 +404,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &module_id,
-                    &None,
+                    None,
                 );
 
                 Ok(())
@@ -978,11 +978,11 @@ impl ModuleBackup {
         iothub_hostname: &str,
         device_id: &str,
         module_id: &str,
-        data: &Option<aziot_identity_common::hub::Module>,
+        data: Option<aziot_identity_common::hub::Module>,
     ) {
         let result = match data {
             Some(module) => {
-                let s = serde_json::to_string(module).expect("serializing module cannot fail");
+                let s = serde_json::to_string(&module).expect("serializing module cannot fail");
                 Self::get_module_path(homedir_path, iothub_hostname, device_id, module_id)
                     .map_err(|err| Error::Internal(InternalError::GetModulePath(err)))
                     .and_then(|path| {

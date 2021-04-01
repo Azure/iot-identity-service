@@ -223,7 +223,7 @@ impl Api {
                 match self
                     .local_identities
                     .get(&aziot_identity_common::ModuleId(module_id.to_owned())) {
-                    Some(opts) => self.issue_local_identity(module_id, opts).await,
+                    Some(opts) => self.issue_local_identity(module_id, opts.as_ref()).await,
                     None => Err(
                         Error::invalid_parameter(
                             "moduleId",
@@ -301,7 +301,7 @@ impl Api {
                         }
                     });
 
-                    self.issue_local_identity(module_id, &opts).await
+                    self.issue_local_identity(module_id, opts.as_ref()).await
                 }
             },
         })
@@ -452,7 +452,7 @@ impl Api {
     async fn issue_local_identity(
         &self,
         module_id: &str,
-        opts: &Option<aziot_identity_common::LocalIdOpts>,
+        opts: Option<&aziot_identity_common::LocalIdOpts>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         let localid = self.settings.localid.as_ref().ok_or_else(|| {
             Error::Internal(InternalError::BadSettings(std::io::Error::new(
@@ -544,7 +544,7 @@ impl Api {
             .await
         {
             log::warn!(
-                "Failed to reprovisioning device. Running offline. Reprovisioning failure reason: {}. ",
+                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}. ",
                 err
             );
         }
