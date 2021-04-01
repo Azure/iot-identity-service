@@ -39,26 +39,13 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
                     .strip_suffix(".service")
                     .unwrap_or(service.name)
             ),
-            service.state()
+            service.state().as_service_display()
         )
     }
 
     println!();
 
     for service in services {
-        fn print_logs(process: &str, state: &State) -> Result<()> {
-            println!("{}: {}: Printing the last 10 log lines.", process, state);
-            Command::new("journalctl")
-                .args(&["-u", process, "--no-pager", "-e", "-n", "10"])
-                .spawn()
-                .context("Failed to spawn new process for printing logs")?
-                .wait()
-                .context("Failed to call journalctl")?;
-            println!();
-
-            Ok(())
-        }
-
         if !matches!(service.state(), State::Failed(_)) {
             continue;
         }
@@ -71,10 +58,21 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
                 .unwrap_or(service.name)
         );
 
-        print_logs(service.name, &service.state)?;
+        println!(
+            "{}: {}: Printing the last 10 log lines.",
+            service.name,
+            service.state.as_service_display()
+        );
+        print_journalctl_logs(service.name)?;
+
         for socket in service.sockets {
             if !matches!(socket.state, State::Active) {
-                print_logs(socket.name, &socket.state)?;
+                println!(
+                    "{}: {}: Printing the last 10 log lines.",
+                    socket.name,
+                    socket.state.as_socket_display()
+                );
+                print_journalctl_logs(socket.name)?;
             }
         }
     }
@@ -97,9 +95,9 @@ enum State {
 }
 
 impl State {
-    fn from_systemctl(process: &str) -> Result<State> {
+    fn from_systemctl(unit: &str) -> Result<State> {
         let result = Command::new("systemctl")
-            .args(&["is-active", process])
+            .args(&["is-active", unit])
             .output()
             .context("Failed to call systemctl is-active")?;
 
@@ -117,13 +115,47 @@ impl State {
 
         Ok(result)
     }
+
+    fn as_service_display(&self) -> StateDisplay<'_, state_kind::Service> {
+        StateDisplay {
+            state: self,
+            kind: core::marker::PhantomData,
+        }
+    }
+
+    fn as_socket_display(&self) -> StateDisplay<'_, state_kind::Socket> {
+        StateDisplay {
+            state: self,
+            kind: core::marker::PhantomData,
+        }
+    }
 }
 
-impl fmt::Display for State {
+struct StateDisplay<'a, K> {
+    state: &'a State,
+    kind: core::marker::PhantomData<K>,
+}
+
+mod state_kind {
+    pub struct Service;
+    pub struct Socket;
+}
+
+impl fmt::Display for StateDisplay<'_, state_kind::Service> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+        match self.state {
             State::Active => write!(f, "Running"),
             State::Inactive => write!(f, "Ready"),
+            State::Failed(msg) => write!(f, "Down - {}", msg),
+        }
+    }
+}
+
+impl fmt::Display for StateDisplay<'_, state_kind::Socket> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.state {
+            State::Active => write!(f, "Running"),
+            State::Inactive => write!(f, "Down - inactive"),
             State::Failed(msg) => write!(f, "Down - {}", msg),
         }
     }
@@ -156,4 +188,16 @@ impl<'a> ServiceStatus<'a> {
 struct SocketStatus<'a> {
     name: &'a str,
     state: State,
+}
+
+fn print_journalctl_logs(unit: &str) -> Result<()> {
+    Command::new("journalctl")
+        .args(&["-u", unit, "--no-pager", "-e", "-n", "10"])
+        .spawn()
+        .context("Failed to spawn new process for printing logs")?
+        .wait()
+        .context("Failed to call journalctl")?;
+    println!();
+
+    Ok(())
 }
