@@ -5,7 +5,7 @@ use std::ffi::{OsStr, OsString};
 use anyhow::{anyhow, Result};
 use structopt::StructOpt;
 
-use aziotctl_common::{
+use aziotctl_common::system::{
     get_status, get_system_logs, restart, set_log_level, stop, SERVICE_DEFINITIONS,
 };
 
