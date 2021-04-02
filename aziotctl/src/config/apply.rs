@@ -151,7 +151,7 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
     println!("Azure IoT Identity Service has been configured successfully!");
     println!();
     println!("Restarting service for configuration to take effect...");
-    aziotctl_common::restart(aziotctl_common::SERVICE_DEFINITIONS)?;
+    aziotctl_common::system::restart(aziotctl_common::system::SERVICE_DEFINITIONS)?;
     println!("Done.");
 
     Ok(())
