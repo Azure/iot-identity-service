@@ -32,13 +32,10 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
     for service in &services {
         println!(
             "    {:24}{}",
-            format!(
-                "{}:",
-                service
-                    .name
-                    .strip_suffix(".service")
-                    .unwrap_or(service.name)
-            ),
+            service
+                .name
+                .strip_suffix(".service")
+                .unwrap_or(service.name),
             service.state().as_service_display()
         )
     }
