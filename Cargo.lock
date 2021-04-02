@@ -286,6 +286,7 @@ dependencies = [
  "chrono",
  "config-common",
  "futures-util",
+ "hex",
  "http",
  "http-common",
  "hyper",
