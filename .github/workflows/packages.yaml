@@ -45,7 +45,7 @@ jobs:
           '/src/ci/package.sh'
       env:
         ARCH: "${{ matrix.arch }}"
-        PACKAGE_VERSION: '1.2.0~rc4'
+        PACKAGE_VERSION: '1.2.0'
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
