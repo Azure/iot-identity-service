@@ -4,12 +4,12 @@ All TPM 2.0 TPMs can be accessed via PKCS#11 using the [`tpm2-pkcs11` library.](
 
 `tpm2-pkcs11` depends on a few other `tpm2-*` libraries, some of which may exist in distro packages but may be outdated. Therefore it is recommended to compile all the libraries yourself. This document contains a script to compile the following libraries:
 
-- `tpm2-abrmd` v2.3.2
-- `tpm2-pkcs11` v1.3.0
-- `tpm2-tools` v4.2.1
-- `tpm2-tss` v2.4.1
+- `tpm2-abrmd` v2.4.0
+- `tpm2-pkcs11` v1.5.0
+- `tpm2-tools` v5.0
+- `tpm2-tss` v3.0.3
 
-... which are the latest as of 2020-07-19.
+... which are the latest as of 2021-04-07.
 
 Note that the version numbers of these tools don't follow any common numbering, so you need to be careful to use versions that are compatible with each other. See <https://tpm2-software.github.io/versions/#tpm2-tools> for a list of compatible versions.
 
@@ -47,13 +47,16 @@ mkdir -p ~/src
 
 declare -A checkouts
 
-checkouts['tpm2-abrmd']='2.3.2'
-checkouts['tpm2-pkcs11']='1.3.0'
-checkouts['tpm2-tools']='4.2.1'
-checkouts['tpm2-tss']='2.4.1'
+checkouts['tpm2-abrmd']='2.4.0'
+checkouts['tpm2-pkcs11']='1.5.0'
+checkouts['tpm2-tools']='5.0'
+checkouts['tpm2-tss']='3.0.3'
 
 
-# Download `autoconf-2019.01.06` and extract it
+# Download `autoconf-2019.01.06` and extract it.
+#
+# There is a newer autoconfig-archive, but the tpm2-* autoconf files have
+# hard-coded things for 2019_01_06
 
 if ! [ -f ~/src/autoconf-archive-2019.01.06.tar.gz ]; then
     curl -L \

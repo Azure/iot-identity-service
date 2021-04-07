@@ -59,9 +59,13 @@ touch /run/aziot/keyd.sock
 rm -f /run/aziot/keyd.sock
 
 >./keyd.toml printf "\
+[[principal]]
+uid = %d
+keys = [\"ca\", \"client\", \"server\"]
+
 [aziot_keys]
 homedir_path = \"%s\"
-" "$PWD"
+" "$(id -u)" "$PWD"
 
 if [ -n "${PKCS11_LIB_PATH:-}" ]; then
 >>./keyd.toml printf "\
