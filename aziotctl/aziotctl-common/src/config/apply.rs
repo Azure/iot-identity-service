@@ -21,6 +21,7 @@ pub fn run(
 ) -> anyhow::Result<RunOutput> {
     let super_config::Config {
         hostname,
+        parent_hostname,
         provisioning,
         localid,
         mut aziot_keys,
@@ -143,6 +144,10 @@ pub fn run(
                 id_scope,
                 attestation,
             } => {
+                if parent_hostname.is_some() {
+                    return Err(anyhow!("DPS provisioning is not supported in nested mode"));
+                }
+
                 let attestation = match attestation {
                     super_config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
@@ -207,7 +212,10 @@ pub fn run(
             super_config::ProvisioningType::None => aziot_identityd_config::ProvisioningType::None,
         };
 
-        aziot_identityd_config::Provisioning { provisioning }
+        aziot_identityd_config::Provisioning {
+            provisioning,
+            local_gateway_hostname: parent_hostname,
+        }
     };
 
     let identityd_config = aziot_identityd_config::Settings {
@@ -517,5 +525,30 @@ mod tests {
                 "device ID key bytes do not match"
             );
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "DPS provisioning is not supported in nested mode")]
+    fn dps_not_supported_in_nested() {
+        let super_config = r#"
+local_gateway_hostname = "device.hostname"
+
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+id_scope = "0ab1234C5D6"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "my-device"
+symmetric_key = { value = "YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGVudGl0eS1zZXJ2aWNlfGF6aW90LWlkZW50aXR5LXNlcg==" }
+        
+"#;
+        let super_config: super_config::Config = toml::from_str(super_config).unwrap();
+
+        let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
+        let aziotid_uid = nix::unistd::Uid::from_raw(5556);
+
+        super::run(super_config, aziotcs_uid, aziotid_uid).unwrap();
     }
 }

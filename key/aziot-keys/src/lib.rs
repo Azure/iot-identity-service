@@ -4,16 +4,17 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![deny(missing_docs)]
 #![allow(
-	non_camel_case_types,
-	clippy::default_trait_access,
-	clippy::doc_markdown, // clippy wants "IoT" in a code fence
-	clippy::let_and_return,
-	clippy::let_unit_value,
-	clippy::missing_safety_doc,
-	clippy::shadow_unrelated,
-	clippy::similar_names,
-	clippy::too_many_lines,
-	clippy::type_complexity,
+    non_camel_case_types,
+    clippy::default_trait_access,
+    clippy::doc_markdown, // clippy wants "IoT" in a code fence
+    clippy::let_and_return,
+    clippy::let_unit_value,
+    clippy::missing_safety_doc,
+    clippy::shadow_unrelated,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::type_complexity,
+    clippy::upper_case_acronyms
 )]
 
 //! This library is used to create and load keys for the Azure IoT Keys Service.

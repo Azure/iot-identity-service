@@ -43,7 +43,10 @@ impl Client {
         let res: aziot_cert_common_http::get_cert::Response = http_common::request(
             &self.inner,
             http::Method::POST,
-            &format!("http://foo/certificates?api-version={}", self.api_version),
+            &format!(
+                "http://certd.sock/certificates?api-version={}",
+                self.api_version
+            ),
             Some(&body),
         )
         .await?;
@@ -59,7 +62,7 @@ impl Client {
             &self.inner,
             http::Method::PUT,
             &format!(
-                "http://foo/certificates/{}?api-version={}",
+                "http://certd.sock/certificates/{}?api-version={}",
                 percent_encoding::percent_encode(
                     id.as_bytes(),
                     http_common::PATH_SEGMENT_ENCODE_SET
@@ -77,7 +80,7 @@ impl Client {
             &self.inner,
             http::Method::GET,
             &format!(
-                "http://foo/certificates/{}?api-version={}",
+                "http://certd.sock/certificates/{}?api-version={}",
                 percent_encoding::percent_encode(
                     id.as_bytes(),
                     http_common::PATH_SEGMENT_ENCODE_SET
@@ -95,7 +98,7 @@ impl Client {
             &self.inner,
             http::Method::DELETE,
             &format!(
-                "http://foo/certificates/{}?api-version={}",
+                "http://certd.sock/certificates/{}?api-version={}",
                 percent_encoding::percent_encode(
                     id.as_bytes(),
                     http_common::PATH_SEGMENT_ENCODE_SET

@@ -6,13 +6,12 @@ use serde::Serialize;
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 pub fn daemons_running() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(DaemonRunningKeyd {}));
-    v.push(Box::new(DaemonRunningCertd {}));
-    v.push(Box::new(DaemonRunningTpmd {}));
-    v.push(Box::new(DaemonRunningIdentityd {}));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(DaemonRunningKeyd {}),
+        Box::new(DaemonRunningCertd {}),
+        Box::new(DaemonRunningTpmd {}),
+        Box::new(DaemonRunningIdentityd {}),
+    ];
     v.into_iter()
 }
 
@@ -28,17 +27,20 @@ impl Checker for DaemonRunningKeyd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_keyd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("keyd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to keyd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.keyd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -56,17 +58,20 @@ impl Checker for DaemonRunningCertd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_certd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("certd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to certd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.certd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -122,12 +127,15 @@ impl Checker for DaemonRunningTpmd {
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_tpmd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("tpmd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to tpmd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.tpmd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }
@@ -145,17 +153,20 @@ impl Checker for DaemonRunningIdentityd {
         }
     }
 
-    async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
+    async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         use hyper::service::Service;
 
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_identityd;
         let res = connector
-            .call("foo".parse().unwrap())
+            .call("identityd.sock".parse().unwrap())
             .await
             .with_context(|| anyhow!("Could not connect to identityd on {}", connector));
 
         match res {
-            Ok(_) => CheckResult::Ok,
+            Ok(_) => {
+                cache.daemons_running.identityd = true;
+                CheckResult::Ok
+            }
             Err(e) => CheckResult::Failed(e),
         }
     }

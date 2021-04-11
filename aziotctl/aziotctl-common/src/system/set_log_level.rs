@@ -6,7 +6,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use crate::{program_name, ServiceDefinition};
+use super::ServiceDefinition;
 
 pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
@@ -19,7 +19,7 @@ pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Resu
         .output()
         .context("could not run systemctl daemon-reload")?;
 
-    println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, program_name());
+    println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, crate::program_name());
     Ok(())
 }
 

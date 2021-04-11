@@ -90,6 +90,8 @@ pub enum DpsAttestationMethod {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
+    pub local_gateway_hostname: Option<String>,
+
     #[serde(flatten)]
     pub provisioning: ProvisioningType,
 }

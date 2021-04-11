@@ -6,24 +6,23 @@ use serde::Serialize;
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
 pub fn host_connect_iothub_checks() -> impl Iterator<Item = Box<dyn Checker>> {
-    let mut v: Vec<Box<dyn Checker>> = Vec::new();
-
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-amqp",
-        "host can connect to and perform TLS handshake with iothub AMQP port",
-        5671,
-    )));
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-https",
-        "host can connect to and perform TLS handshake with iothub HTTPS / WebSockets port",
-        443,
-    )));
-    v.push(Box::new(HostConnectIotHub::new(
-        "host-connect-iothub-mqtt",
-        "host can connect to and perform TLS handshake with iothub MQTT port",
-        8883,
-    )));
-
+    let v: Vec<Box<dyn Checker>> = vec![
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-amqp",
+            "host can connect to and perform TLS handshake with iothub AMQP port",
+            5671,
+        )),
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-https",
+            "host can connect to and perform TLS handshake with iothub HTTPS / WebSockets port",
+            443,
+        )),
+        Box::new(HostConnectIotHub::new(
+            "host-connect-iothub-mqtt",
+            "host can connect to and perform TLS handshake with iothub MQTT port",
+            8883,
+        )),
+    ];
     v.into_iter()
 }
 
@@ -69,17 +68,38 @@ impl HostConnectIotHub {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
 
-        let iothub_hostname = match &shared.cfg.iothub_hostname {
-            Some(s) => s,
+        let identityd_config = unwrap_or_skip!(&cache.cfg.identityd);
+
+        let (iothub_hostname, nested) = match &shared.cfg.iothub_hostname {
+            Some(s) => (s, false),
             None => {
-                let iothub_hostname = match &unwrap_or_skip!(&cache.cfg.identityd)
-                    .provisioning
-                    .provisioning
-                {
+                let (iothub_hostname, nested) = match &identityd_config.provisioning.provisioning {
                     ProvisioningType::Manual {
                         iothub_hostname, ..
-                    } => iothub_hostname,
+                    } => {
+                        // use `local_gateway_hostname` if available
+                        (
+                            identityd_config
+                                .provisioning
+                                .local_gateway_hostname
+                                .as_ref()
+                                .unwrap_or(iothub_hostname),
+                            identityd_config
+                                .provisioning
+                                .local_gateway_hostname
+                                .is_some(),
+                        )
+                    }
                     ProvisioningType::Dps { .. } => {
+                        if identityd_config
+                            .provisioning
+                            .local_gateway_hostname
+                            .is_some()
+                        {
+                            // not supported in nested scenarios
+                            return Ok(CheckResult::Ignored);
+                        }
+
                         // It's fine if the prev config doesn't exist, so `unwrap_or_skip` isn't
                         // appropriate here
                         let backup_hostname = match &cache.cfg.identityd_prev {
@@ -94,7 +114,7 @@ impl HostConnectIotHub {
                         };
 
                         if let Some(backup_hostname) = backup_hostname {
-                            backup_hostname
+                            (backup_hostname, false)
                         } else {
                             // the user never manually provisioned, nor have they passed
                             // the `iothub-hostname` flag.
@@ -108,7 +128,7 @@ impl HostConnectIotHub {
                 };
 
                 self.iothub_hostname = Some(iothub_hostname.clone());
-                iothub_hostname
+                (iothub_hostname, nested)
             }
         };
 
@@ -127,7 +147,12 @@ impl HostConnectIotHub {
             &iothub_hostname,
             proxy,
         )
-        .await?;
+        .await.map_err( |e| if nested {
+            e.context("Make sure the parent device is reachable using 'curl https://parenthostname'. Make sure the the trust bundle has been added to the trusted store: sudo cp <path>/azure-iot-test-only.root.ca.cert.pem /usr/local/share/ca-certificates/azure-iot-test-only.root.ca.cert.pem.crt
+            sudo update-ca-certificates")
+        } else {
+            e
+        })?;
 
         Ok(CheckResult::Ok)
     }

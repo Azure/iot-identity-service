@@ -17,16 +17,20 @@ pub struct AdditionalInfo {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     iothub_hostname: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    local_gateway_hostname: Option<String>,
 }
 
 impl AdditionalInfo {
-    pub fn new(iothub_hostname: Option<String>) -> Self {
+    pub fn new(iothub_hostname: Option<String>, local_gateway_hostname: Option<String>) -> Self {
         AdditionalInfo {
             now: chrono::Utc::now(),
             os: OsInfo::new(),
             system_info: SystemInfo::new(),
 
             iothub_hostname,
+            local_gateway_hostname,
         }
     }
 }

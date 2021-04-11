@@ -65,6 +65,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
     1. `clippy::missing_errors_doc`: This lint fires for `pub` functions that return `Result<_, _>` and whose doc comment doesn't have an `# Errors` section. Such a section would be used to document all the ways the function can fail and what kind of error it would return in each of those cases. Unfortunately, such comments have a tendency of getting out of sync with the actual implementation, and so are either detailed but wrong, or overly simplistic (eg `fn foo()`'s doc just says "Returns an error if the foo operation fails."). In either case, such a doc becomes useless.
 
+    1. `clippy::missing_panics_doc`: This lint fires for `pub` functions that might panic from calling `.unwrap()` or `.expect()` and whose doc comment doesn't have a `# Panics` section. We only use `.unwrap()` or `.expect()` for things that are guaranteed to not fail, such as parsing hard-coded constants into non-const types. Furthermore, this lint has the same problem as `clippy::missing_errors_doc` vis-a-vis becoming out of sync with the actual code.
+
     1. `clippy::must_use_candidate`: This lint is broken. It fires for most `pub` functions that have a non-`()` result and wants them to be marked with the `#[must_use]` attribute. This is not necessary in most cases since it's obvious that the function is being used to compute some value, so the caller has an interest in the function's result. Adding this attribute to satisfy the lint would be very noisy and not actually help that much.
 
     1. `clippy::shadow_unrelated`: This lint fires when a binding shadows another binding but has a different type, and recommends renaming the second binding. However, shadowing is an important feature of Rust and it's often cleaner to take advantage of it.
@@ -72,6 +74,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
         Consider a binding named `url` that starts off as a `&str`, and is then parsed into a `url::Url`. It is useful to be able to assign the parsed value to a binding named `url` rather than some other name, both because that is what it is, and because the previous unparsed `&str` is no longer needed now that it has been parsed into a `url::Url`.
 
     1. `clippy::similar_names`: This lint fires for a pair of idents that the lint's heuristic determines are named too similarly, and thus the programmer could easily confuse one with the other. It tends to fire for short idents like `req` and `res`. However, using such short idents instead of full words like `request` and `response` is fairly common in Rust code. For example, iterators are usually called `iter`, callbacks with an obvious usage are usually called `f`, and so on.
+
+    1. `clippy::struct_excessive_bools`: This lint fires for a struct that has more than three `bool` fields, because it assumes the struct is representing a state machine where only one `bool` will be `true` at any time, and wants an `enum` to be used instead. This is overly presumptuous of it.
 
     1. `clippy::too_many_lines`: This lint fires when a function has more lines of code than its heuristic thinks is acceptable. However this is subjective. Sometimes a function does one thing and needs many lines to do it, and it would not be suitable to split it into multiple smaller functions that are only called from the single parent caller.
 

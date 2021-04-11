@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -13,11 +15,6 @@ pub(crate) use checks::all_checks;
 // NOTE: this struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
-    // TODO: add aziotd version info to https://github.com/Azure/azure-iotedge
-    // /// Sets the expected version of the iotedged binary. Defaults to the value
-    // /// contained in <http://aka.ms/latest-iotedge-stable>
-    // expected_iotedged_version: String,
-    //
     /// Sets the NTP server to use when checking host local time.
     #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
@@ -34,6 +31,11 @@ pub struct CheckerCfg {
     /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
     #[structopt(long, value_name = "PROXY_URI")]
     pub proxy_uri: Option<hyper::Uri>,
+
+    /// If set, the check compares the installed package version to this string.
+    /// Otherwise, the version is fetched from <http://aka.ms/latest-aziot-identity-service>
+    #[structopt(long, value_name = "VERSION")]
+    pub expected_aziot_version: Option<String>,
 }
 
 pub struct CheckerShared {
@@ -97,15 +99,17 @@ pub trait Checker: erased_serde::Serialize {
 erased_serde::serialize_trait_object!(Checker);
 
 /// Container for any cached data shared between different checks.
+#[derive(Default)]
 pub struct CheckerCache {
     pub cfg: DaemonConfigs,
+    daemons_running: DaemonsRunning,
+    certs: BTreeMap<String, openssl::x509::X509>,
+    private_keys: BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
 }
 
 impl CheckerCache {
     pub fn new() -> CheckerCache {
-        CheckerCache {
-            cfg: DaemonConfigs::default(),
-        }
+        Default::default()
     }
 }
 
@@ -117,4 +121,12 @@ pub struct DaemonConfigs {
     pub tpmd: Option<aziot_tpmd_config::Config>,
     pub identityd: Option<aziot_identityd_config::Settings>,
     pub identityd_prev: Option<aziot_identityd_config::Settings>,
+}
+
+#[derive(Default)]
+struct DaemonsRunning {
+    certd: bool,
+    identityd: bool,
+    keyd: bool,
+    tpmd: bool,
 }

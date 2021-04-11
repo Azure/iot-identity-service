@@ -159,7 +159,7 @@ impl Client {
         TRequest: serde::Serialize,
         TResponse: serde::de::DeserializeOwned,
     {
-        let uri = format!("https://{}{}", hub_device.iothub_hostname, uri);
+        let uri = format!("https://{}{}", hub_device.local_gateway_hostname, uri);
 
         let req = hyper::Request::builder().method(method).uri(uri);
         // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
@@ -290,6 +290,15 @@ impl Client {
                 res
             }
 
+            hyper::StatusCode::NOT_FOUND => {
+                let res: crate::Error = serde_json::from_slice(&body)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    res.message,
+                ));
+            }
+
             res_status_code
                 if res_status_code.is_client_error() || res_status_code.is_server_error() =>
             {
@@ -318,7 +327,7 @@ impl Client {
     where
         TRequest: serde::Serialize,
     {
-        let uri = format!("https://{}{}", hub_device.iothub_hostname, uri);
+        let uri = format!("https://{}{}", hub_device.local_gateway_hostname, uri);
 
         let req = hyper::Request::builder().method(method).uri(uri);
         // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`

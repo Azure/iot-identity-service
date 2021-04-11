@@ -6,6 +6,14 @@
 #
 # hostname = "my-device"
 
+# ==============================================================================
+# Local Gateway Hostname
+# ==============================================================================
+#
+# If this device is running in a nested deployment, uncomment the next line to
+# set the local gateway hostname of this device.
+#
+# local_gateway_hostname = "my-parent-device"
 
 # ==============================================================================
 # Provisioning
@@ -48,8 +56,8 @@
 # identity_cert = { method = "est", common_name = "my-device" }      # dynamically issued via EST, or...
 # identity_cert = { method = "local_ca", common_name = "my-device" } # dynamically issued by a local CA
 #
-# identity_pk = "file:///var/secrets/device-id.key.pem"                        # file URI, or...
-# identity_pk = { uri = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" } # PKCS#11 URI
+# identity_pk = "file:///var/secrets/device-id.key.pem"              # file URI, or...
+# identity_pk = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" # PKCS#11 URI
 
 
 ## DPS provisioning with symmetric key
@@ -81,8 +89,8 @@
 # identity_cert = { method = "est", common_name = "my-device" }      # dynamically issued via EST, or...
 # identity_cert = { method = "local_ca", common_name = "my-device" } # dynamically issued by a local CA
 #
-# identity_pk = "file:///var/secrets/device-id.key.pem"                        # file URI, or...
-# identity_pk = { uri = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" } # PKCS#11 URI
+# identity_pk = "file:///var/secrets/device-id.key.pem"              # file URI, or...
+# identity_pk = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" # PKCS#11 URI
 
 
 ## DPS provisioning with TPM

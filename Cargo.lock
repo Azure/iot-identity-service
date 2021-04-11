@@ -315,6 +315,7 @@ dependencies = [
  "chrono",
  "config-common",
  "futures-util",
+ "hex",
  "http",
  "http-common",
  "hyper",
@@ -572,15 +573,21 @@ dependencies = [
 
 [[package]]
 name = "aziotctl"
-version = "0.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
+ "aziot-cert-client-async",
+ "aziot-cert-common-http",
  "aziot-certd-config",
  "aziot-identity-client-async",
  "aziot-identity-common-http",
  "aziot-identityd-config",
+ "aziot-key-client",
+ "aziot-key-client-async",
+ "aziot-key-common-http",
+ "aziot-key-openssl-engine",
  "aziot-keyd-config",
  "aziot-keys-common",
  "aziot-tpmd-config",
@@ -592,6 +599,7 @@ dependencies = [
  "colored",
  "config-common",
  "erased-serde",
+ "foreign-types-shared",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -600,6 +608,8 @@ dependencies = [
  "mini-sntp",
  "nix",
  "openssl",
+ "openssl-sys2",
+ "openssl2",
  "serde",
  "serde_json",
  "structopt",
@@ -632,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "aziotd"
-version = "0.1.0"
+version = "1.2.0"
 dependencies = [
  "aziot-certd",
  "aziot-identityd",

@@ -303,7 +303,7 @@ fn create_cert<'a>(
                 x509.set_not_after(&not_after)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
-                x509.set_issuer_name(x509_req.subject_name())
+                x509.set_issuer_name(subject_name)
                     .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                 x509.sign(&issuer_private_key, openssl::hash::MessageDigest::sha256())

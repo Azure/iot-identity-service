@@ -114,8 +114,12 @@ where
     //
     // We don't need to change the value inside `from_d`. We just need to bump the `Arc` refcount.
 
-    let ptr: *mut *const U = from_d as _;
+    let ptr = from_d.cast::<*const U>();
     if !ptr.is_null() {
+        // TODO:
+        // Replace this block's contents with `std::sync::Arc::increment_ref_count(ptr)`
+        // when iotedge starts using Rust 1.51+
+
         let ex_data = std::sync::Arc::from_raw(*ptr);
 
         // Bump the refcount ...
@@ -134,8 +138,12 @@ where
     let ex_index = <T as HasExData<U>>::index().as_raw();
     assert_eq!(idx, ex_index);
 
-    let ptr: *mut U = ptr as _;
+    let ptr = ptr.cast::<U>();
     if !ptr.is_null() {
+        // TODO:
+        // Replace this block's contents with `std::sync::Arc::decrement_ref_count(ptr)`
+        // when iotedge starts using Rust 1.51+
+
         let ex_data = std::sync::Arc::from_raw(ptr);
         drop(ex_data);
     }
