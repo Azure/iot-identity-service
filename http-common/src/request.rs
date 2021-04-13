@@ -64,7 +64,7 @@ where
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
     let res: TResponse = match res_status_code {
-        hyper::StatusCode::OK => {
+        hyper::StatusCode::OK | hyper::StatusCode::CREATED => {
             let res = serde_json::from_slice(&body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             res
