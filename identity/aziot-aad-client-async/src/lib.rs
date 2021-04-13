@@ -59,7 +59,10 @@ impl Client {
     ) -> Result<String, std::io::Error> {
         let access_token_provider_uri = "mtlsauth.windows-ppe.net";
 
-        println!("Getting tenant: {}, scope: {}, app_id: {}", tenant, scope, app_id);
+        println!(
+            "Getting tenant: {}, scope: {}, app_id: {}",
+            tenant, scope, app_id
+        );
 
         let params: String = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("grant_type", "sub_mtls")
@@ -74,7 +77,7 @@ impl Client {
             access_token_provider_uri, tenant
         );
 
-        let res: AADResponse = self.request(http::Method::POST, &uri, Some(params)).await?;
+        let res: AadResponse = self.request(http::Method::POST, &uri, Some(params)).await?;
         Ok(res.access_token)
     }
 
@@ -112,12 +115,11 @@ impl Client {
         let req = req.expect("cannot fail to create hyper request");
 
         let connector = match self.device.credentials.clone() {
-            aziot_identity_common::Credentials::SharedPrivateKey(_) => {
+            aziot_identity_common::Credentials::SharedPrivateKey(_)
+            | aziot_identity_common::Credentials::Tpm => {
                 return Err(std::io::Error::from(std::io::ErrorKind::Other)); //TODO: Do Error stuff
             }
-            aziot_identity_common::Credentials::Tpm => {
-                return Err(std::io::Error::from(std::io::ErrorKind::Other)); //TODO: Do Error stuff
-            }
+
             aziot_identity_common::Credentials::X509 {
                 identity_cert,
                 identity_pk,
@@ -209,7 +211,7 @@ pub struct Error {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct AADRequest<'a> {
+pub struct AadRequest<'a> {
     pub grant_type: &'a str,
     pub scope: &'a str,
     pub client_id: &'a str,
@@ -217,6 +219,6 @@ pub struct AADRequest<'a> {
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct AADResponse {
+pub struct AadResponse {
     pub access_token: String,
 }

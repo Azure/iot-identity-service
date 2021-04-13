@@ -56,7 +56,7 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
             status_code: hyper::StatusCode::BAD_REQUEST,
             message: error_message.into(),
         },
-        crate::error::Error::AADClient(_)
+        crate::error::Error::AadClient(_)
         | crate::error::Error::DpsClient(_)
         | crate::error::Error::DpsNotSupportedInNestedMode
         | crate::error::Error::HubClient(_)

@@ -27,6 +27,7 @@ pub struct IdentityManager {
 }
 
 impl IdentityManager {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         homedir_path: std::path::PathBuf,
         key_client: Arc<aziot_key_client_async::Client>,
@@ -943,7 +944,7 @@ impl IdentityManager {
         let token = client
             .get_token(tenant, scope, app_id)
             .await
-            .map_err(Error::AADClient)?;
+            .map_err(Error::AadClient)?;
         Ok(token)
     }
 }
