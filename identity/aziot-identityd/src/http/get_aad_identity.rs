@@ -42,6 +42,7 @@ impl http_common::server::Route for Route {
         self,
         body: Option<Self::PostBody>,
     ) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+        println!("Got aad request: {:#?}", body);
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),

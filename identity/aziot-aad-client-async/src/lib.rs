@@ -58,10 +58,8 @@ impl Client {
         app_id: &str,
     ) -> Result<String, std::io::Error> {
         let access_token_provider_uri = "mtlsauth.windows-ppe.net";
-        // let tenant = "f35bf5fa-7977-447c-a1af-4c457bad7d7e";
-        // let scope = "https://ppe.cognitiveservices.azure.com/.default";
-        // let app_id = "fb6b46e5-08c9-4b9f-bd4f-9c53cd0347a5";
-        // let aad_device_id = "cb2fefd9-95e9-4f75-9e8f-8c2ea5bf18db";
+
+        println!("Getting tenant: {}, scope: {}, app_id: {}", tenant, scope, app_id);
 
         let params: String = url::form_urlencoded::Serializer::new(String::new())
             .append_pair("grant_type", "sub_mtls")
