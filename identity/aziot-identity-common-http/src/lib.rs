@@ -6,14 +6,14 @@
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2020_09_01,
-    V2020_12_10,
+    V2021_04_01,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             ApiVersion::V2020_09_01 => "2020-09-01",
-            ApiVersion::V2020_12_10 => "2020-12-10",
+            ApiVersion::V2021_04_01 => "2021-04-01",
         })
     }
 }
@@ -24,7 +24,7 @@ impl std::str::FromStr for ApiVersion {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "2020-09-01" => Ok(ApiVersion::V2020_09_01),
-            "2020-12-10" => Ok(ApiVersion::V2020_12_10),
+            "2021-04-01" => Ok(ApiVersion::V2021_04_01),
             _ => Err(()),
         }
     }
