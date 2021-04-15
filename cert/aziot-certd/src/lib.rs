@@ -676,14 +676,6 @@ fn create_cert<'a>(
                                                 ))
                                             })?;
 
-                                        let identity_url =
-                                            urls.get(identity_cert)
-                                            .or_else(|| urls.get("default"))
-                                            .ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
-                                                "cert {:?} is configured to be issued by EST, but the EST endpoint URL for the EST identity is not configured",
-                                                id,
-                                            ).into())))?;
-
                                         // Request the new EST identity cert using the EST bootstrap identity cert.
 
                                         let bootstrap_identity_private_key =
@@ -708,7 +700,7 @@ fn create_cert<'a>(
 
                                         let x509 = est::create_cert(
                                             identity_csr,
-                                            identity_url,
+                                            url,
                                             auth_basic,
                                             Some((
                                                 &bootstrap_identity_cert,
