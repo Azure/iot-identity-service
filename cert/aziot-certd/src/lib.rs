@@ -378,10 +378,13 @@ fn create_cert<'a>(
                 Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
             })?;
 
-            match cert_options.method {
-                CertIssuanceMethod::Est => {
+            match &cert_options.method {
+                CertIssuanceMethod::Est {
+                    url: cert_url,
+                    auth: cert_auth,
+                } => {
                     let Est {
-                        auth,
+                        auth: default_auth,
                         trusted_certs,
                         urls,
                     } = api.cert_issuance.est.as_ref().ok_or_else(|| {
@@ -394,7 +397,8 @@ fn create_cert<'a>(
                         ))
                     })?;
 
-                    let url = urls
+                    let auth = cert_auth.as_ref().unwrap_or(&default_auth);
+                    let url = cert_url.as_ref().unwrap_or(urls
                         .get(id)
                         .or_else(|| urls.get("default"))
                         .ok_or_else(|| {
@@ -405,7 +409,7 @@ fn create_cert<'a>(
                                 )
                                 .into(),
                             ))
-                        })?;
+                        })?);
 
                     let auth_basic = auth
                         .basic
