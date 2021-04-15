@@ -182,10 +182,6 @@ pub struct LocalCa {
 /// Details for issuing a single cert.
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuanceOptions {
-    /// The method used to issue a certificate.
-    #[serde(flatten)]
-    pub method: CertIssuanceMethod,
-
     /// Common name for the issued certificate. Defaults to the common name specified in CSR if not provided.
     pub common_name: Option<String>,
 
@@ -193,6 +189,10 @@ pub struct CertIssuanceOptions {
     /// If not provided, defaults to 30.
     #[serde(default, deserialize_with = "deserialize_expiry_days")]
     pub expiry_days: Option<u32>,
+
+    /// The method used to issue a certificate.
+    #[serde(flatten)]
+    pub method: CertIssuanceMethod,
 }
 
 fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -257,10 +257,10 @@ fn serialize_est_auth<S>(auth: &Option<EstAuth>, serializer: S) -> Result<S::Ok,
 where
     S: serde::ser::Serializer,
 {
-    let mut inner = EstInner::default();
+    let mut inner = EstAuthInner::default();
 
     if let Some(auth) = auth {
-        serialize_auth_inner(&auth, &mut inner.auth);
+        serialize_auth_inner(&auth, &mut inner);
     }
 
     inner.serialize(serializer)
