@@ -63,7 +63,7 @@ pub fn write_file(
     Ok(())
 }
 
-fn parse_manual_connection_string(
+pub fn parse_manual_connection_string(
     connection_string: &str,
 ) -> Result<(String, String, Vec<u8>), String> {
     const HOSTNAME_KEY: &str = "HostName";
