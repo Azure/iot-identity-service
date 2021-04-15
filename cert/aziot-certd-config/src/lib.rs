@@ -11,6 +11,8 @@
 
 pub mod util;
 
+use serde::Serialize;
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     /// Path of home directory.
@@ -74,7 +76,7 @@ pub struct Est {
 /// Authentication parameters for the EST server.
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EstAuth {
     /// Authentication parameters when using basic HTTP authentication.
     pub basic: Option<EstAuthBasic>,
@@ -84,14 +86,14 @@ pub struct EstAuth {
 }
 
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EstAuthX509 {
     /// Cert ID and private key ID for the identity cert.
     ///
@@ -106,8 +108,19 @@ pub struct EstAuthX509 {
     pub bootstrap_identity: Option<(String, String)>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub(crate) struct EstInner {
+    #[serde(flatten)]
+    auth: EstAuthInner,
+
+    #[serde(default)]
+    trusted_certs: Vec<String>,
+
+    urls: std::collections::BTreeMap<String, url::Url>,
+}
+
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
+pub(crate) struct EstAuthInner {
     username: Option<String>,
     password: Option<String>,
 
@@ -115,11 +128,6 @@ pub(crate) struct EstInner {
     identity_pk: Option<String>,
     bootstrap_identity_cert: Option<String>,
     bootstrap_identity_pk: Option<String>,
-
-    #[serde(default)]
-    trusted_certs: Vec<String>,
-
-    urls: std::collections::BTreeMap<String, url::Url>,
 }
 
 impl<'de> serde::Deserialize<'de> for Est {
@@ -129,45 +137,9 @@ impl<'de> serde::Deserialize<'de> for Est {
     {
         let inner: EstInner = serde::Deserialize::deserialize(deserializer)?;
 
-        let auth_basic = match (inner.username, inner.password) {
-            (Some(username), Some(password)) => Some(EstAuthBasic { username, password }),
-
-            (Some(_), None) => return Err(serde::de::Error::missing_field("password")),
-
-            (None, Some(_)) => return Err(serde::de::Error::missing_field("username")),
-
-            (None, None) => None,
-        };
-
-        let auth_x509 = match (inner.identity_cert, inner.identity_pk) {
-            (Some(identity_cert), Some(identity_pk)) => {
-                let identity = (identity_cert, identity_pk);
-
-                let bootstrap_identity =
-                    match (inner.bootstrap_identity_cert, inner.bootstrap_identity_pk) {
-                        (Some(bootstrap_identity_cert), Some(bootstrap_identity_pk)) => {
-                            Some((bootstrap_identity_cert, bootstrap_identity_pk))
-                        }
-                        (Some(_), None) => {
-                            return Err(serde::de::Error::missing_field("bootstrap_identity_pk"))
-                        }
-                        (None, Some(_)) => {
-                            return Err(serde::de::Error::missing_field("bootstrap_identity_cert"))
-                        }
-                        (None, None) => None,
-                    };
-
-                Some(EstAuthX509 {
-                    identity,
-                    bootstrap_identity,
-                })
-            }
-
-            (Some(_), None) => return Err(serde::de::Error::missing_field("identity_pk")),
-
-            (None, Some(_)) => return Err(serde::de::Error::missing_field("identity_cert")),
-
-            (None, None) => None,
+        let auth = match deserialize_auth_inner(&inner.auth) {
+            Ok(auth) => auth,
+            Err(field) => return Err(serde::de::Error::missing_field(field)),
         };
 
         let trusted_certs = inner.trusted_certs;
@@ -175,10 +147,7 @@ impl<'de> serde::Deserialize<'de> for Est {
         let urls = inner.urls;
 
         Ok(Est {
-            auth: EstAuth {
-                basic: auth_basic,
-                x509: auth_x509,
-            },
+            auth,
             trusted_certs,
             urls,
         })
@@ -190,34 +159,11 @@ impl serde::Serialize for Est {
     where
         S: serde::ser::Serializer,
     {
-        let mut inner = EstInner {
-            username: None,
-            password: None,
+        let mut inner = EstInner::default();
 
-            identity_cert: None,
-            identity_pk: None,
-            bootstrap_identity_cert: None,
-            bootstrap_identity_pk: None,
-
-            trusted_certs: self.trusted_certs.clone(),
-
-            urls: self.urls.clone(),
-        };
-
-        if let Some(basic) = &self.auth.basic {
-            inner.username = Some(basic.username.clone());
-            inner.password = Some(basic.password.clone());
-        }
-
-        if let Some(x509) = &self.auth.x509 {
-            inner.identity_cert = Some(x509.identity.0.clone());
-            inner.identity_pk = Some(x509.identity.1.clone());
-
-            if let Some(bootstrap_identity) = &x509.bootstrap_identity {
-                inner.bootstrap_identity_cert = Some(bootstrap_identity.0.clone());
-                inner.bootstrap_identity_pk = Some(bootstrap_identity.1.clone());
-            }
-        }
+        serialize_auth_inner(&self.auth, &mut inner.auth);
+        inner.trusted_certs = self.trusted_certs.clone();
+        inner.urls = self.urls.clone();
 
         inner.serialize(serializer)
     }
@@ -237,6 +183,7 @@ pub struct LocalCa {
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuanceOptions {
     /// The method used to issue a certificate.
+    #[serde(flatten)]
     pub method: CertIssuanceMethod,
 
     /// Common name for the issued certificate. Defaults to the common name specified in CSR if not provided.
@@ -264,17 +211,59 @@ where
 }
 
 /// The method used to issue a certificate.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
-    Est,
+    #[serde(rename = "est")]
+    Est {
+        url: Option<url::Url>,
+        #[serde(
+            flatten,
+            deserialize_with = "deserialize_est_auth",
+            serialize_with = "serialize_est_auth"
+        )]
+        auth: Option<EstAuth>,
+    },
 
     /// The certificate is to be issued via a local CA cert.
     LocalCa,
 
     /// The certificate is to be self-signed.
     SelfSigned,
+}
+
+fn deserialize_est_auth<'de, D>(deserializer: D) -> Result<Option<EstAuth>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let inner: Option<EstAuthInner> = serde::Deserialize::deserialize(deserializer)?;
+
+    if let Some(inner) = inner {
+        let auth = match deserialize_auth_inner(&inner) {
+            Ok(auth) => auth,
+            Err(field) => return Err(serde::de::Error::missing_field(field)),
+        };
+
+        if auth.basic.is_some() || auth.x509.is_some() {
+            return Ok(Some(auth));
+        }
+    }
+
+    Ok(None)
+}
+
+fn serialize_est_auth<S>(auth: &Option<EstAuth>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::ser::Serializer,
+{
+    let mut inner = EstInner::default();
+
+    if let Some(auth) = auth {
+        serialize_auth_inner(&auth, &mut inner.auth);
+    }
+
+    inner.serialize(serializer)
 }
 
 /// The location of a preloaded cert.
@@ -325,6 +314,71 @@ pub struct Principal {
     pub certs: Vec<String>,
 }
 
+fn deserialize_auth_inner(auth: &EstAuthInner) -> Result<EstAuth, &'static str> {
+    let auth_basic = match (&auth.username, &auth.password) {
+        (Some(username), Some(password)) => Some(EstAuthBasic {
+            username: username.to_owned(),
+            password: password.to_owned(),
+        }),
+
+        (Some(_), None) => return Err("password"),
+
+        (None, Some(_)) => return Err("username"),
+
+        (None, None) => None,
+    };
+
+    let auth_x509 = match (&auth.identity_cert, &auth.identity_pk) {
+        (Some(identity_cert), Some(identity_pk)) => {
+            let identity = (identity_cert.to_owned(), identity_pk.to_owned());
+
+            let bootstrap_identity =
+                match (&auth.bootstrap_identity_cert, &auth.bootstrap_identity_pk) {
+                    (Some(bootstrap_identity_cert), Some(bootstrap_identity_pk)) => Some((
+                        bootstrap_identity_cert.to_owned(),
+                        bootstrap_identity_pk.to_owned(),
+                    )),
+                    (Some(_), None) => return Err("bootstrap_identity_pk"),
+                    (None, Some(_)) => return Err("bootstrap_identity_cert"),
+                    (None, None) => None,
+                };
+
+            Some(EstAuthX509 {
+                identity,
+                bootstrap_identity,
+            })
+        }
+
+        (Some(_), None) => return Err("identity_pk"),
+
+        (None, Some(_)) => return Err("identity_cert"),
+
+        (None, None) => None,
+    };
+
+    Ok(EstAuth {
+        basic: auth_basic,
+        x509: auth_x509,
+    })
+}
+
+fn serialize_auth_inner(auth: &EstAuth, inner: &mut EstAuthInner) {
+    if let Some(basic) = &auth.basic {
+        inner.username = Some(basic.username.clone());
+        inner.password = Some(basic.password.clone());
+    }
+
+    if let Some(x509) = &auth.x509 {
+        inner.identity_cert = Some(x509.identity.0.clone());
+        inner.identity_pk = Some(x509.identity.1.clone());
+
+        if let Some(bootstrap_identity) = &x509.bootstrap_identity {
+            inner.bootstrap_identity_cert = Some(bootstrap_identity.0.clone());
+            inner.bootstrap_identity_pk = Some(bootstrap_identity.1.clone());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -334,12 +388,22 @@ homedir_path = "/var/lib/aziot/certd"
 
 [cert_issuance]
 device-ca = { method = "est", common_name = "custom-name" }
-device-id = { method = "est" }
 module-id = { method = "self_signed", expiry_days = 90, common_name = "custom-name"}
 module-server = { method = "local_ca" }
 
+[cert_issuance.device-id]
+method = "est"
+common_name = "test-device"
+expiry_days = 365
+url = "https://estendpoint.com/.well-known/est/device-id/"
+username = "username"
+password = "password"
+identity_cert = "device-id"
+identity_pk = "device-id"
+bootstrap_identity_cert = "bootstrap"
+bootstrap_identity_pk = "bootstrap"
+
 [cert_issuance.est]
-method = "x509"
 identity_cert = "est-id"
 identity_pk = "est-id"
 bootstrap_identity_cert = "bootstrap"
@@ -349,10 +413,8 @@ trusted_certs = [
 ]
 
 [cert_issuance.est.urls]
-default = "https://estendpoint.com/.well-known/est/simpleenroll"
-est-id = "https://estendpoint.com/.well-known/est/est-id/simpleenroll"
-device-id = "https://estendpoint.com/.well-known/est/device-id/simpleenroll"
-device-ca = "https://estendpoint.com/.well-known/est/device-ca/simpleenroll"
+default = "https://estendpoint.com/.well-known/est/"
+device-ca = "https://estendpoint.com/.well-known/est/device-ca/"
 
 [preloaded_certs]
 bootstrap = "file:///var/secrets/bootstrap.cer"
@@ -388,25 +450,11 @@ certs = ["test"]
                         urls: vec![
                             (
                                 "default".to_owned(),
-                                "https://estendpoint.com/.well-known/est/simpleenroll"
-                                    .parse()
-                                    .unwrap()
-                            ),
-                            (
-                                "est-id".to_owned(),
-                                "https://estendpoint.com/.well-known/est/est-id/simpleenroll"
-                                    .parse()
-                                    .unwrap()
-                            ),
-                            (
-                                "device-id".to_owned(),
-                                "https://estendpoint.com/.well-known/est/device-id/simpleenroll"
-                                    .parse()
-                                    .unwrap()
+                                "https://estendpoint.com/.well-known/est/".parse().unwrap()
                             ),
                             (
                                 "device-ca".to_owned(),
-                                "https://estendpoint.com/.well-known/est/device-ca/simpleenroll"
+                                "https://estendpoint.com/.well-known/est/device-ca/"
                                     .parse()
                                     .unwrap()
                             ),
@@ -421,7 +469,10 @@ certs = ["test"]
                         (
                             "device-ca",
                             super::CertIssuanceOptions {
-                                method: super::CertIssuanceMethod::Est,
+                                method: super::CertIssuanceMethod::Est {
+                                    url: None,
+                                    auth: None
+                                },
                                 common_name: Some("custom-name".to_owned()),
                                 expiry_days: None,
                             }
@@ -429,9 +480,31 @@ certs = ["test"]
                         (
                             "device-id",
                             super::CertIssuanceOptions {
-                                method: super::CertIssuanceMethod::Est,
-                                common_name: None,
-                                expiry_days: None,
+                                method: super::CertIssuanceMethod::Est {
+                                    url: Some(
+                                        "https://estendpoint.com/.well-known/est/device-id/"
+                                            .parse()
+                                            .unwrap()
+                                    ),
+                                    auth: Some(super::EstAuth {
+                                        basic: Some(super::EstAuthBasic {
+                                            username: "username".to_owned(),
+                                            password: "password".to_owned(),
+                                        }),
+                                        x509: Some(super::EstAuthX509 {
+                                            identity: (
+                                                "device-id".to_owned(),
+                                                "device-id".to_owned()
+                                            ),
+                                            bootstrap_identity: Some((
+                                                "bootstrap".to_owned(),
+                                                "bootstrap".to_owned()
+                                            )),
+                                        })
+                                    })
+                                },
+                                common_name: Some("test-device".to_owned()),
+                                expiry_days: Some(365)
                             }
                         ),
                         (
