@@ -135,6 +135,13 @@ impl<'de> Deserialize<'de> for ConnectionString {
             {
                 ConnectionString::new(s.to_owned()).map_err(E::custom)
             }
+
+            fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                ConnectionString::new(s).map_err(E::custom)
+            }
         }
 
         deserializer.deserialize_str(Visitor)

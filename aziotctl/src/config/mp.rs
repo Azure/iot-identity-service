@@ -62,7 +62,7 @@ To reconfigure IoT Identity Service, run:
                     connection_string: common_config::super_config::ConnectionString::new(
                         connection_string,
                     )
-                    .map_err(|e| anyhow!("Invalid connection string: {}", e))?,
+                    .map_err(|e| anyhow!("invalid connection string: {}", e))?,
                 },
             },
         },
