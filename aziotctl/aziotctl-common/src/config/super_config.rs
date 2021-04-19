@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 /// This is the config stored in `/etc/aziot/config.toml`
@@ -89,7 +89,7 @@ pub enum ProvisioningType {
 #[serde(untagged)]
 pub enum ManualProvisioning {
     ConnectionString {
-        connection_string: String,
+        connection_string: ConnectionString,
     },
 
     Explicit {
@@ -97,6 +97,55 @@ pub enum ManualProvisioning {
         device_id: String,
         authentication: ManualAuthMethod,
     },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct ConnectionString(String);
+
+impl ConnectionString {
+    pub fn new(s: String) -> Result<ConnectionString, String> {
+        // only perform validation, discarding the constituent components.
+        let _components = super::parse_manual_connection_string(&s)?;
+        Ok(ConnectionString(s))
+    }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for ConnectionString {
+    fn deserialize<D>(deserializer: D) -> Result<ConnectionString, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = ConnectionString;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("connection string")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                ConnectionString::new(s.to_owned()).map_err(E::custom)
+            }
+
+            fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                ConnectionString::new(s).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]

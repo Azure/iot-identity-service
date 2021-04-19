@@ -64,7 +64,7 @@ pub fn run(
                 inner: super_config::ManualProvisioning::ConnectionString { connection_string },
             } => {
                 let (iothub_hostname, device_id, device_id_pk_bytes) =
-                    super::parse_manual_connection_string(&connection_string)
+                    super::parse_manual_connection_string(&connection_string.into_string())
                         .map_err(|err| anyhow!("connection string is invalid: {}", err))?;
 
                 preloaded_device_id_pk = Some(super_config::SymmetricKey::Inline {
@@ -540,7 +540,7 @@ id_scope = "0ab1234C5D6"
 method = "symmetric_key"
 registration_id = "my-device"
 symmetric_key = { value = "YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGVudGl0eS1zZXJ2aWNlfGF6aW90LWlkZW50aXR5LXNlcg==" }
-        
+
 "#;
         let super_config: super_config::Config = toml::from_str(super_config).unwrap();
 
