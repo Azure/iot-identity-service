@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::str::FromStr;
+
 use anyhow::anyhow;
 
 use super::super_config;
@@ -56,6 +58,12 @@ pub fn run(
         certs: vec![],
     };
 
+    // Authorization of CS with KS.
+    let mut aziotcs_keys = aziot_keyd_config::Principal {
+        uid: aziotcs_uid.as_raw(),
+        keys: vec![],
+    };
+
     let provisioning = {
         let super_config::Provisioning { provisioning } = provisioning;
 
@@ -103,7 +111,20 @@ pub fn run(
 
                     super_config::ManualAuthMethod::X509 { identity } => {
                         match identity {
-                            super_config::X509Identity::Issued { identity_cert } => {
+                            super_config::X509Identity::Issued { mut identity_cert } => {
+                                if let aziot_certd_config::CertIssuanceMethod::Est {
+                                    url: _,
+                                    ref mut auth,
+                                } = &mut identity_cert.method
+                                {
+                                    set_device_id_est_auth(
+                                        auth,
+                                        &mut preloaded_certs,
+                                        &mut preloaded_keys,
+                                        &mut aziotcs_keys,
+                                    )?;
+                                }
+
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
                                 cert_issuance_certs
@@ -168,7 +189,20 @@ pub fn run(
                         identity,
                     } => {
                         match identity {
-                            super_config::X509Identity::Issued { identity_cert } => {
+                            super_config::X509Identity::Issued { mut identity_cert } => {
+                                if let aziot_certd_config::CertIssuanceMethod::Est {
+                                    url: _,
+                                    ref mut auth,
+                                } = &mut identity_cert.method
+                                {
+                                    set_device_id_est_auth(
+                                        auth,
+                                        &mut preloaded_certs,
+                                        &mut preloaded_keys,
+                                        &mut aziotcs_keys,
+                                    )?;
+                                }
+
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
                                 cert_issuance_certs
@@ -262,12 +296,6 @@ pub fn run(
         "homedir_path".to_owned(),
         super::AZIOT_KEYD_HOMEDIR_PATH.to_owned(),
     );
-
-    // Authorization of CS with KS.
-    let mut aziotcs_keys = aziot_keyd_config::Principal {
-        uid: aziotcs_uid.as_raw(),
-        keys: vec![],
-    };
 
     let certd_config = {
         let super_config::CertIssuance { est, local_ca } = cert_issuance;
@@ -434,6 +462,59 @@ pub fn run(
         tpmd_config,
         preloaded_device_id_pk_bytes,
     })
+}
+
+fn set_device_id_est_auth(
+    auth: &mut Option<aziot_certd_config::EstAuth>,
+    preloaded_certs: &mut std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
+    preloaded_keys: &mut std::collections::BTreeMap<
+        String,
+        aziot_keys_common::PreloadedKeyLocation,
+    >,
+    aziotcs_keys: &mut aziot_keyd_config::Principal,
+) -> anyhow::Result<()> {
+    if let Some(auth) = auth.as_mut() {
+        if let Some(x509) = &mut auth.x509 {
+            let cert = url::Url::parse(&x509.identity.0)
+                .map_err(|err| anyhow!("invalid EST client cert: {}", err))?;
+            let cert = aziot_certd_config::PreloadedCert::Uri(cert);
+            preloaded_certs.insert(super::DEVICE_ID_EST.to_owned(), cert);
+
+            let key = aziot_keys_common::PreloadedKeyLocation::from_str(&x509.identity.1)
+                .map_err(|err| anyhow!("invalid EST client cert key: {}", err))?;
+
+            preloaded_keys.insert(super::DEVICE_ID_EST.to_owned(), key);
+            aziotcs_keys.keys.push(super::DEVICE_ID_EST.to_owned());
+
+            x509.identity = (
+                super::DEVICE_ID_EST.to_owned(),
+                super::DEVICE_ID_EST.to_owned(),
+            );
+
+            if let Some(bootstrap_x509) = &x509.bootstrap_identity {
+                let bootstrap_cert = url::Url::parse(&bootstrap_x509.0)
+                    .map_err(|err| anyhow!("invalid EST bootstrap client cert: {}", err))?;
+                let bootstrap_cert = aziot_certd_config::PreloadedCert::Uri(bootstrap_cert);
+                preloaded_certs.insert(super::DEVICE_ID_EST_BOOTSTRAP.to_owned(), bootstrap_cert);
+
+                let bootstrap_key =
+                    aziot_keys_common::PreloadedKeyLocation::from_str(&bootstrap_x509.1)
+                        .map_err(|err| anyhow!("invalid EST client cert key: {}", err))?;
+
+                preloaded_keys.insert(super::DEVICE_ID_EST_BOOTSTRAP.to_owned(), bootstrap_key);
+                aziotcs_keys
+                    .keys
+                    .push(super::DEVICE_ID_EST_BOOTSTRAP.to_owned());
+
+                x509.bootstrap_identity = Some((
+                    super::DEVICE_ID_EST_BOOTSTRAP.to_owned(),
+                    super::DEVICE_ID_EST_BOOTSTRAP.to_owned(),
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
