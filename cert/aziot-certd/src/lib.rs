@@ -431,9 +431,10 @@ fn create_cert<'a>(
                                             .into(),
                                         ))
                                     })?;
-                            let x509 = openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
-                                Error::Internal(InternalError::CreateCert(Box::new(err)))
-                            })?;
+                            let x509 =
+                                openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
+                                    Error::Internal(InternalError::CreateCert(Box::new(err)))
+                                })?;
                             trusted_certs_x509.extend(x509);
                         }
                     }

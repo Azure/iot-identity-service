@@ -137,10 +137,7 @@ impl<'de> serde::Deserialize<'de> for Est {
     {
         let inner: EstInner = serde::Deserialize::deserialize(deserializer)?;
 
-        let auth = match deserialize_auth_inner(&inner.auth) {
-            Ok(auth) => auth,
-            Err(field) => return Err(serde::de::Error::missing_field(field)),
-        };
+        let auth = deserialize_auth_inner(&inner.auth).map_err(serde::de::Error::missing_field)?;
 
         let trusted_certs = inner.trusted_certs;
 

@@ -114,7 +114,7 @@ pub fn run(
                             super_config::X509Identity::Issued { mut identity_cert } => {
                                 if let aziot_certd_config::CertIssuanceMethod::Est {
                                     url: _,
-                                    ref mut auth,
+                                    auth,
                                 } = &mut identity_cert.method
                                 {
                                     set_device_id_est_auth(

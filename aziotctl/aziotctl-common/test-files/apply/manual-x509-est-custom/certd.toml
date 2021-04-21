@@ -3,6 +3,7 @@ homedir_path = "/var/lib/aziot/certd"
 common_name = "my-device"
 expiry_days = 365
 method = "est"
+url = "https://example.org/.well-known/est"
 username = "user"
 password = "password"
 identity_cert = "device-id-est"
