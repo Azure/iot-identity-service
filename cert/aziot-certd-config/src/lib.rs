@@ -192,7 +192,7 @@ pub struct CertIssuanceOptions {
     pub method: CertIssuanceMethod,
 }
 
-fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {

@@ -6,11 +6,11 @@ method = "est"
 url = "https://example.org/.well-known/est"
 username = "user"
 password = "password"
-identity_cert = "device-id-est"
-identity_pk = "device-id-est"
+identity_cert = "est-id-device-id"
+identity_pk = "est-id-device-id"
 
 [preloaded_certs]
-device-id-est = "file:///var/secrets/est-id.pem"
+est-id-device-id = "file:///var/secrets/est-id.pem"
 
 [[principal]]
 uid = 5556
