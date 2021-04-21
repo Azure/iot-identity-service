@@ -21,7 +21,7 @@ mod est;
 mod http;
 
 use aziot_certd_config::{
-    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuthBasic,
+    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, EstAuthBasic,
     EstAuthX509, LocalCa, PreloadedCert, Principal,
 };
 
@@ -383,33 +383,33 @@ fn create_cert<'a>(
                     url: cert_url,
                     auth: cert_auth,
                 } => {
-                    let Est {
-                        auth: default_auth,
-                        trusted_certs,
-                        urls,
-                    } = api.cert_issuance.est.as_ref().ok_or_else(|| {
+                    let defaults = api.cert_issuance.est.as_ref();
+
+                    let auth = cert_auth.as_ref().or_else(|| {
+                        defaults.map(|default| &default.auth)
+                    }).ok_or_else(|| {
                         Error::Internal(InternalError::CreateCert(
                             format!(
-                                "cert {:?} is configured to be issued by EST, but EST is not configured",
+                                "cert {:?} is configured to be issued by EST, but EST auth is not configured",
                                 id,
                             )
                             .into(),
                         ))
                     })?;
 
-                    let auth = cert_auth.as_ref().unwrap_or(&default_auth);
-                    let url = cert_url.as_ref().unwrap_or(urls
-                        .get(id)
-                        .or_else(|| urls.get("default"))
-                        .ok_or_else(|| {
-                            Error::Internal(InternalError::CreateCert(
-                                format!(
-                                    "cert {:?} is configured to be issued by EST, but the EST endpoint URL for it is not configured",
-                                    id,
-                                )
-                                .into(),
-                            ))
-                        })?);
+                    let url = cert_url.as_ref().or_else(|| {
+                        defaults
+                            .map(|default| &default.urls)
+                            .and_then(|urls| urls.get(id).or_else(|| urls.get("default")))
+                    }).ok_or_else(|| {
+                        Error::Internal(InternalError::CreateCert(
+                            format!(
+                                "cert {:?} is configured to be issued by EST, but EST URL is not configured",
+                                id,
+                            )
+                            .into(),
+                        ))
+                    })?;
 
                     let auth_basic = auth
                         .basic
@@ -417,22 +417,25 @@ fn create_cert<'a>(
                         .map(|EstAuthBasic { username, password }| (&**username, &**password));
 
                     let mut trusted_certs_x509 = vec![];
-                    for trusted_cert in trusted_certs {
-                        let pem =
-                            get_cert_inner(&api.homedir_path, &api.preloaded_certs, trusted_cert)?
-                                .ok_or_else(|| {
-                                    Error::Internal(InternalError::CreateCert(
-                                        format!(
-                                    "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
-                                    trusted_cert,
-                                )
-                                        .into(),
-                                    ))
-                                })?;
-                        let x509 = openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
-                            Error::Internal(InternalError::CreateCert(Box::new(err)))
-                        })?;
-                        trusted_certs_x509.extend(x509);
+
+                    if let Some(default) = defaults {
+                        for trusted_cert in &default.trusted_certs {
+                            let pem =
+                                get_cert_inner(&api.homedir_path, &api.preloaded_certs, trusted_cert)?
+                                    .ok_or_else(|| {
+                                        Error::Internal(InternalError::CreateCert(
+                                            format!(
+                                        "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
+                                        trusted_cert,
+                                    )
+                                            .into(),
+                                        ))
+                                    })?;
+                            let x509 = openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
+                                Error::Internal(InternalError::CreateCert(Box::new(err)))
+                            })?;
+                            trusted_certs_x509.extend(x509);
+                        }
                     }
 
                     if let Some(EstAuthX509 {
