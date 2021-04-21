@@ -240,10 +240,7 @@ where
     let inner: Option<EstAuthInner> = serde::Deserialize::deserialize(deserializer)?;
 
     if let Some(inner) = inner {
-        let auth = match deserialize_auth_inner(&inner) {
-            Ok(auth) => auth,
-            Err(field) => return Err(serde::de::Error::missing_field(field)),
-        };
+        let auth = deserialize_auth_inner(&inner).map_err(serde::de::Error::missing_field)?;
 
         if auth.basic.is_some() || auth.x509.is_some() {
             return Ok(Some(auth));
