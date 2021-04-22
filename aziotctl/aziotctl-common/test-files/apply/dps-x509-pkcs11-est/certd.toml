@@ -10,8 +10,8 @@ trusted_certs = ["est-server-ca-1"]
 default = "https://example.org/.well-known/est"
 
 [cert_issuance.device-id]
-method = "est"
 common_name = "my-device"
+method = "est"
 
 [preloaded_certs]
 est-id = "file:///var/secrets/est-id.pem"
