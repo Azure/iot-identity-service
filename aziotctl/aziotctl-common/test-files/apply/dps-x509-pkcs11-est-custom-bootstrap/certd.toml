@@ -14,9 +14,15 @@ default = "https://example.org/.well-known/est"
 [cert_issuance.device-id]
 common_name = "my-device"
 method = "est"
+url = "https://example.org/.well-known/custom/est"
+identity_cert = "est-id-device-id"
+identity_pk = "est-id-device-id"
+bootstrap_identity_cert = "est-bootstrap-id-device-id"
+bootstrap_identity_pk = "est-bootstrap-id-device-id"
 
 [preloaded_certs]
 est-bootstrap-id = "file:///var/secrets/est-bootstrap-id.pem"
+est-bootstrap-id-device-id = "file:///var/secrets/est-custom-bootstrap-id.pem"
 est-server-ca-1 = "file:///var/secrets/est-id-ca.pem"
 
 [[principal]]
