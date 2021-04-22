@@ -148,6 +148,7 @@ impl<'de> Deserialize<'de> for ConnectionString {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -161,6 +162,7 @@ pub enum ManualAuthMethod {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
