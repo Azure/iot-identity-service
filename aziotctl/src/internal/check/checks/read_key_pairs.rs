@@ -88,31 +88,28 @@ impl ReadKeyPairs {
 
             match key() {
                 Ok(key) => {
-                    let key_length = key.bits();
+                    if let Ok(rsa) = key.rsa() {
+                        let key_length = rsa.size() * 8;
 
-                    match key.id() {
-                        openssl::pkey::Id::RSA => {
-                            if key_length < RSA_RECOMMENDED_MIN_BITS {
-                                warn_aggregated.push(format!(
-                                    "RSA key {} has length {} (min recommended: {})",
-                                    id, key_length, RSA_RECOMMENDED_MIN_BITS
-                                ));
-                            }
-                        }
-                        openssl::pkey::Id::EC => {
-                            if key_length != 256 {
-                                warn_aggregated.push(format!(
-                                    "EC key {} not using recommended curve (recommended: P-256)",
-                                    id
-                                ));
-                            }
-                        }
-                        _ => {
+                        if key_length < RSA_RECOMMENDED_MIN_BITS {
                             warn_aggregated.push(format!(
-                                "Key {} not using recommended algorithm (recommended: RSA, EC)",
+                                "RSA key {} has length {} (min recommended: {})",
+                                id, key_length, RSA_RECOMMENDED_MIN_BITS
+                            ));
+                        }
+                    } else if let Ok(ec_key) = key.ec_key() {
+                        if ec_key.group().curve_name() != Some(openssl::nid::Nid::X9_62_PRIME256V1)
+                        {
+                            warn_aggregated.push(format!(
+                                "EC key {} not using recommended curve (recommended: P-256)",
                                 id
                             ));
                         }
+                    } else {
+                        warn_aggregated.push(format!(
+                            "Key {} not using recommended algorithm (recommended: RSA, EC)",
+                            id
+                        ));
                     }
 
                     cache.private_keys.insert(id.clone(), key);
