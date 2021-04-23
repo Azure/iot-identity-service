@@ -8,6 +8,8 @@ use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, Ch
 #[derive(Serialize, Default)]
 pub struct ReadKeyPairs {}
 
+const RSA_RECOMMENDED_MIN_BITS: u32 = 2048;
+
 #[async_trait::async_trait]
 impl Checker for ReadKeyPairs {
     fn meta(&self) -> CheckerMeta {
@@ -56,7 +58,8 @@ impl ReadKeyPairs {
             key_engine
         };
 
-        let mut err_aggregated = String::new();
+        let mut err_aggregated = vec![];
+        let mut warn_aggregated = vec![];
 
         for id in preloaded_keys.keys() {
             // We don't know whether `id` is a symmetric or asymmetric key,
@@ -82,23 +85,51 @@ impl ReadKeyPairs {
                 })?;
                 Ok::<_, anyhow::Error>(key)
             };
+
             match key() {
                 Ok(key) => {
+                    if let Ok(rsa) = key.rsa() {
+                        let key_length = rsa.size() * 8;
+
+                        if key_length < RSA_RECOMMENDED_MIN_BITS {
+                            warn_aggregated.push(format!(
+                                "RSA key {} has length {} (min recommended: {})",
+                                id, key_length, RSA_RECOMMENDED_MIN_BITS
+                            ));
+                        }
+                    } else if let Ok(ec_key) = key.ec_key() {
+                        if ec_key.group().curve_name() != Some(openssl::nid::Nid::X9_62_PRIME256V1)
+                        {
+                            warn_aggregated.push(format!(
+                                "EC key {} not using recommended curve (recommended: P-256)",
+                                id
+                            ));
+                        }
+                    } else {
+                        warn_aggregated.push(format!(
+                            "Key {} not using recommended algorithm (recommended: RSA, EC)",
+                            id
+                        ));
+                    }
+
                     cache.private_keys.insert(id.clone(), key);
                 }
                 Err(err) => {
-                    if !err_aggregated.is_empty() {
-                        err_aggregated.push('\n');
-                    }
-                    err_aggregated.push_str(&format!("{:?}", err));
+                    err_aggregated.push(format!("{:?}", err));
                 }
             }
         }
 
-        if err_aggregated.is_empty() {
-            Ok(CheckResult::Ok)
+        #[allow(clippy::if_not_else)]
+        if !err_aggregated.is_empty() {
+            Err(anyhow!("{}", err_aggregated.join("\n")))
+        } else if !warn_aggregated.is_empty() {
+            Ok(CheckResult::Warning(anyhow!(
+                "{}",
+                warn_aggregated.join("\n")
+            )))
         } else {
-            Err(anyhow!("{}", err_aggregated))
+            Ok(CheckResult::Ok)
         }
     }
 }
