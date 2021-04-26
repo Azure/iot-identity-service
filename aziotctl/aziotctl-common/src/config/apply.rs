@@ -492,7 +492,7 @@ fn into_cert_options(
     }
 }
 
-fn set_est_auth(
+pub fn set_est_auth(
     auth: &Option<super_config::EstAuth>,
     preloaded_certs: &mut std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
     preloaded_keys: &mut std::collections::BTreeMap<
