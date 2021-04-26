@@ -119,7 +119,7 @@ pub fn run(
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
-                                        )?
+                                        )
                                     } else {
                                         None
                                     };
@@ -200,7 +200,7 @@ pub fn run(
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
-                                        )?
+                                        )
                                     } else {
                                         None
                                     };
@@ -500,8 +500,8 @@ pub fn set_est_auth(
         aziot_keys_common::PreloadedKeyLocation,
     >,
     aziotcs_keys: &mut aziot_keyd_config::Principal,
-) -> anyhow::Result<Option<aziot_certd_config::EstAuth>> {
-    auth.as_ref().map_or(Ok(None), |auth| {
+) -> Option<aziot_certd_config::EstAuth> {
+    auth.as_ref().map(|auth| {
         let auth_x509 = auth.x509.as_ref().map(|x509| {
             let bootstrap_identity = match x509 {
                 super_config::EstAuthX509::BootstrapIdentity {
@@ -555,10 +555,10 @@ pub fn set_est_auth(
             }
         });
 
-        Ok(Some(aziot_certd_config::EstAuth {
+        aziot_certd_config::EstAuth {
             basic: auth.basic.to_owned(),
             x509: auth_x509,
-        }))
+        }
     })
 }
 
