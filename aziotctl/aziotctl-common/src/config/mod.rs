@@ -21,12 +21,6 @@ const EST_ID_ID: &str = "est-id";
 /// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server for the initial bootstrap.
 const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
 
-/// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server issuing device ID certs.
-const EST_ID_DEVICE_ID: &str = "est-id-device-id";
-
-/// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server issuing device ID certs for the initial bootstrap.
-const EST_BOOTSTRAP_ID_DEVICE_ID: &str = "est-bootstrap-id-device-id";
-
 pub fn create_dir_all(
     path: &(impl AsRef<std::path::Path> + ?Sized),
     user: &nix::unistd::User,
