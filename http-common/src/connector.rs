@@ -44,15 +44,19 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
+        const READ_WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
         match self {
             Incoming::Tcp(listener) => loop {
                 let (tcp_stream, _) = listener.accept().await?;
+                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(tcp_stream);
+                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
+                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
 
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(0, server.clone());
                 tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(tcp_stream, server)
+                        .serve_connection(Box::pin(timeout_stream), server)
                         .await
                     {
                         log::info!("Error while serving HTTP connection: {}", http_err);
@@ -63,11 +67,14 @@ impl Incoming {
             Incoming::Unix(listener) => loop {
                 let (unix_stream, _) = listener.accept().await?;
                 let ucred = unix_stream.peer_cred()?;
+                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(unix_stream);
+                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
+                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
 
                 let server = crate::uid::UidService::new(ucred.uid(), server.clone());
                 tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(unix_stream, server)
+                        .serve_connection(Box::pin(timeout_stream), server)
                         .await
                     {
                         log::info!("Error while serving HTTP connection: {}", http_err);
