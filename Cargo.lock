@@ -135,6 +135,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tokio",
  "url",
  "wildmatch",
 ]
@@ -299,6 +300,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tokio",
  "toml",
  "url",
 ]
@@ -430,6 +432,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "tokio",
  "url",
  "wildmatch",
 ]
@@ -530,6 +533,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "tokio",
  "url",
 ]
 

@@ -32,7 +32,7 @@ pub enum Incoming {
     },
     Unix {
         listener: tokio::net::UnixListener,
-        user_state: futures_util::lock::Mutex<
+        user_state: std::sync::Mutex<
             std::collections::BTreeMap<libc::uid_t, std::sync::Arc<tokio::sync::Semaphore>>,
         >,
     },
@@ -80,8 +80,8 @@ impl Incoming {
                 let (unix_stream, _) = listener.accept().await?;
                 let ucred = unix_stream.peer_cred()?;
                 let user_state = user_state
-                    .lock()
-                    .await
+                    .get_mut()
+                    .expect("mutex shouldn't fail")
                     .entry(ucred.uid())
                     .or_insert_with(|| {
                         std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
@@ -186,9 +186,7 @@ impl Connector {
                     let listener = tokio::net::UnixListener::from_std(listener)?;
                     Ok(Incoming::Unix {
                         listener,
-                        user_state: futures_util::lock::Mutex::new(
-                            std::collections::BTreeMap::new(),
-                        ),
+                        user_state: std::sync::Mutex::new(std::collections::BTreeMap::new()),
                     })
                 }
 
@@ -226,9 +224,7 @@ impl Connector {
                     let listener = tokio::net::UnixListener::bind(socket_path)?;
                     Ok(Incoming::Unix {
                         listener,
-                        user_state: futures_util::lock::Mutex::new(
-                            std::collections::BTreeMap::new(),
-                        ),
+                        user_state: std::sync::Mutex::new(std::collections::BTreeMap::new()),
                     })
                 }
             }

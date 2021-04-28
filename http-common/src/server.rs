@@ -25,6 +25,7 @@ macro_rules! make_service {
                     this: &mut $service_ty,
                     req: hyper::Request<hyper::Body>,
                 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>> + Send>> {
+                    const HYPER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
                     let (http::request::Parts { method, uri, headers, extensions, .. }, body) = req.into_parts();
 
                     let path = uri.path();
@@ -73,11 +74,17 @@ macro_rules! make_service {
                                             let body = {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
                                                 if content_type.as_deref() == Some("application/json") {
-                                                    let body = match hyper::body::to_bytes(body).await {
-                                                        Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::BAD_REQUEST,
-                                                            message: http_common::server::error_to_message(&err).into(),
+                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                        Ok(result) => match result {
+                                                            Ok(body) => body,
+                                                            Err(err) => return Ok((http_common::server::Error {
+                                                                status_code: http::StatusCode::BAD_REQUEST,
+                                                                message: http_common::server::error_to_message(&err).into(),
+                                                            }).to_http_response()),
+                                                        },
+                                                        Err(timeout_err) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                            message: http_common::server::error_to_message(&timeout_err).into(),
                                                         }).to_http_response()),
                                                     };
 
@@ -115,11 +122,17 @@ macro_rules! make_service {
                                             let body = {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
                                                 if content_type.as_deref() == Some("application/json") {
-                                                    let body = match hyper::body::to_bytes(body).await {
-                                                        Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::BAD_REQUEST,
-                                                            message: http_common::server::error_to_message(&err).into(),
+                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                        Ok(result) => match result {
+                                                            Ok(body) => body,
+                                                            Err(err) => return Ok((http_common::server::Error {
+                                                                status_code: http::StatusCode::BAD_REQUEST,
+                                                                message: http_common::server::error_to_message(&err).into(),
+                                                            }).to_http_response()),
+                                                        },
+                                                        Err(timeout_err) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                            message: http_common::server::error_to_message(&timeout_err).into(),
                                                         }).to_http_response()),
                                                     };
 
@@ -154,11 +167,17 @@ macro_rules! make_service {
                                                 }).to_http_response());
                                             }
 
-                                            let body = match hyper::body::to_bytes(body).await {
-                                                Ok(body) => body,
-                                                Err(err) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::BAD_REQUEST,
-                                                    message: http_common::server::error_to_message(&err).into(),
+                                            let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                Ok(result) => match result {
+                                                    Ok(body) => body,
+                                                    Err(err) => return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::BAD_REQUEST,
+                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    }).to_http_response()),
+                                                },
+                                                Err(timeout_err) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                    message: http_common::server::error_to_message(&timeout_err).into(),
                                                 }).to_http_response()),
                                             };
 
