@@ -119,6 +119,7 @@ pub fn run(
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
+                                            super::DEVICE_ID_ID,
                                         )
                                     } else {
                                         None
@@ -200,6 +201,7 @@ pub fn run(
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
+                                            super::DEVICE_ID_ID,
                                         )
                                     } else {
                                         None
@@ -500,33 +502,30 @@ pub fn set_est_auth(
         aziot_keys_common::PreloadedKeyLocation,
     >,
     aziotcs_keys: &mut aziot_keyd_config::Principal,
+    cert_name: &str,
 ) -> Option<aziot_certd_config::EstAuth> {
     auth.as_ref().map(|auth| {
         let auth_x509 = auth.x509.as_ref().map(|x509| {
+            let identity_cert_id = format!("{}-{}", super::EST_ID_ID, cert_name);
+
             let bootstrap_identity = match x509 {
                 super_config::EstAuthX509::BootstrapIdentity {
                     bootstrap_identity_cert,
                     bootstrap_identity_pk,
                 } => {
+                    let bootstrap_cert_id = format!("{}-{}", super::EST_BOOTSTRAP_ID, cert_name);
+
                     let bootstrap_identity_cert =
                         aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert.to_owned());
-                    preloaded_certs.insert(
-                        super::EST_BOOTSTRAP_ID_DEVICE_ID.to_owned(),
-                        bootstrap_identity_cert,
-                    );
+                    preloaded_certs.insert(bootstrap_cert_id.to_owned(), bootstrap_identity_cert);
 
                     preloaded_keys.insert(
-                        super::EST_BOOTSTRAP_ID_DEVICE_ID.to_owned(),
+                        bootstrap_cert_id.to_owned(),
                         bootstrap_identity_pk.to_owned(),
                     );
-                    aziotcs_keys
-                        .keys
-                        .push(super::EST_BOOTSTRAP_ID_DEVICE_ID.to_owned());
+                    aziotcs_keys.keys.push(bootstrap_cert_id.to_owned());
 
-                    Some((
-                        super::EST_BOOTSTRAP_ID_DEVICE_ID.to_owned(),
-                        super::EST_BOOTSTRAP_ID_DEVICE_ID.to_owned(),
-                    ))
+                    Some((bootstrap_cert_id.to_owned(), bootstrap_cert_id))
                 }
 
                 super_config::EstAuthX509::Identity {
@@ -535,22 +534,18 @@ pub fn set_est_auth(
                 } => {
                     let identity_cert =
                         aziot_certd_config::PreloadedCert::Uri(identity_cert.to_owned());
-                    preloaded_certs.insert(super::EST_ID_DEVICE_ID.to_owned(), identity_cert);
+                    preloaded_certs.insert(identity_cert_id.to_owned(), identity_cert);
 
-                    preloaded_keys
-                        .insert(super::EST_ID_DEVICE_ID.to_owned(), identity_pk.to_owned());
+                    preloaded_keys.insert(identity_cert_id.to_owned(), identity_pk.to_owned());
 
                     None
                 }
             };
 
-            aziotcs_keys.keys.push(super::EST_ID_DEVICE_ID.to_owned());
+            aziotcs_keys.keys.push(identity_cert_id.to_owned());
 
             aziot_certd_config::EstAuthX509 {
-                identity: (
-                    super::EST_ID_DEVICE_ID.to_owned(),
-                    super::EST_ID_DEVICE_ID.to_owned(),
-                ),
+                identity: (identity_cert_id.to_owned(), identity_cert_id),
                 bootstrap_identity,
             }
         });
