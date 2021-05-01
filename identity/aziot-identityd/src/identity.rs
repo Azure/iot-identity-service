@@ -553,12 +553,14 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        self.create_identity_cert_if_not_exist_or_expired(
-                            &identity_pk,
-                            &identity_cert,
-                            &device_id,
-                        )
-                        .await?;
+                        //IoT Hub doesn't require device ID to match identity certificate CN
+                        let _ = self
+                            .create_identity_cert_if_not_exist_or_expired(
+                                &identity_pk,
+                                &identity_cert,
+                                Some(&device_id),
+                            )
+                            .await?;
                         aziot_identity_common::Credentials::X509 {
                             identity_cert,
                             identity_pk,
@@ -614,12 +616,25 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        self.create_identity_cert_if_not_exist_or_expired(
-                            &identity_pk,
-                            &identity_cert,
-                            &registration_id,
-                        )
-                        .await?;
+                        //DPS requires registration ID to match identity certificate CN
+                        let cert_subject_name = self
+                            .create_identity_cert_if_not_exist_or_expired(
+                                &identity_pk,
+                                &identity_cert,
+                                registration_id.as_deref().to_owned(),
+                            )
+                            .await?;
+
+                        let registration_id = match registration_id {
+                            Some(registration_id) => registration_id,
+                            None => match cert_subject_name {
+                                std::option::Option::Some(cert_subject_name) => cert_subject_name?,
+                                std::option::Option::None => {
+                                    return Err(Error::Internal(InternalError::CreateCertificate(
+                                                "device identity certificate subject is required to register with DPS, but it is not configured".to_string().into())));
+                                }
+                            },
+                        };
 
                         let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
                             identity_cert: identity_cert.clone(),
@@ -736,15 +751,33 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        subject: &str,
-    ) -> Result<(), Error> {
+        subject: Option<&str>,
+    ) -> Result<Option<Result<String, Error>>, Error> {
         // Retrieve existing cert and check it for expiry.
-        let device_id_cert = match self.cert_client.get_cert(identity_cert).await {
+        let (device_id_cert, old_cert_subject_name) = match self
+            .cert_client
+            .get_cert(identity_cert)
+            .await
+        {
             Ok(pem) => {
                 let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
                 let cert_expiration = cert.as_ref().not_after();
+                let cert_subject = cert.as_ref().subject_name();
+                let cert_subject = match cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next() {
+                    Some(common_name_entry) => {
+                        match String::from_utf8(common_name_entry.data().as_slice().into()) {
+                            Ok(common_name) => Ok(common_name),
+                            Err(err) => {
+                                Err(Error::Internal(InternalError::CreateCertificate(Box::new(err))))
+                            },
+                        }
+                    }
+                    None => {
+                        Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into())))
+                    },
+                };
                 let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
@@ -755,12 +788,17 @@ impl IdentityManager {
                 if expiration_time.days < 1 {
                     log::info!("{} has expired. Renewing certificate", identity_cert);
 
-                    None
+                    (None, Some(cert_subject))
                 } else {
-                    Some(pem)
+                    (Some(pem), Some(cert_subject))
                 }
             }
-            Err(_) => None,
+            Err(_) => {
+                // TODO: Need to check if key exists.
+                // If this function fails, delete any key it creates but don't delete an existing key.
+
+                (None, None)
+            }
         };
 
         // Create new certificate if needed.
@@ -773,6 +811,16 @@ impl IdentityManager {
                         Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                     })?;
             }
+            let new_cert_subject = match subject {
+                Some(subject) => subject.to_string(),
+                None => match old_cert_subject_name {
+                    std::option::Option::Some(sn) => sn?,
+                    std::option::Option::None => {
+                        return Err(Error::Internal(InternalError::CreateCertificate(
+                                    "device identity certificate subject is required to register with DPS, but it is not configured".to_string().into())));
+                    }
+                },
+            };
 
             let key_handle = self
                 .key_client
@@ -790,17 +838,52 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            let csr = create_csr(&subject, &public_key, &private_key, None)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let result = async {
+                let csr =
+                    create_csr(&new_cert_subject.as_str(), &public_key, &private_key, None).map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
 
-            let _ = self
-                .cert_client
-                .create_cert(&identity_cert, &csr, None)
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+                let new_cert_pem = self
+                    .cert_client
+                    .create_cert(&identity_cert, &csr, None)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+
+                let cert = openssl::x509::X509::from_pem(&new_cert_pem).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let cert_subject = cert.as_ref().subject_name();
+                let cert_subject = match cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next() {
+                    Some(common_name_entry) => {
+                        match String::from_utf8(common_name_entry.data().as_slice().into()) {
+                            Ok(common_name) => Ok(common_name),
+                            Err(err) => {
+                                Err(Error::Internal(InternalError::CreateCertificate(Box::new(err))))
+                            },
+                        }
+                    }
+                    None => {
+                        Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into())))
+                    },
+                };
+
+                Ok(cert_subject)
+            }
+            .await;
+
+            if let Err(err) = result {
+                // TODO: need to delete key from keyd.
+
+                return Err(err);
+            }
+
+            Ok(result.ok())
+        } else {
+            Ok(old_cert_subject_name)
         }
-
-        Ok(())
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
