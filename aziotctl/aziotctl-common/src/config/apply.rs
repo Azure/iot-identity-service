@@ -231,7 +231,7 @@ pub fn run(
                         }
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
-                            registration_id: Some(registration_id),
+                            registration_id,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
                         }
