@@ -628,8 +628,8 @@ impl IdentityManager {
                         let registration_id = match registration_id {
                             Some(registration_id) => registration_id,
                             None => match cert_subject_name {
-                                std::option::Option::Some(cert_subject_name) => cert_subject_name?,
-                                std::option::Option::None => {
+                                Some(cert_subject_name) => cert_subject_name?,
+                                None => {
                                     return Err(Error::Internal(InternalError::CreateCertificate(
                                                 "device identity certificate subject is required to register with DPS, but it is not configured".to_string().into())));
                                 }
@@ -814,8 +814,8 @@ impl IdentityManager {
             let new_cert_subject = match subject {
                 Some(subject) => subject.to_string(),
                 None => match old_cert_subject_name {
-                    std::option::Option::Some(sn) => sn?,
-                    std::option::Option::None => {
+                    Some(sn) => sn?,
+                    None => {
                         return Err(Error::Internal(InternalError::CreateCertificate(
                                     "device identity certificate subject is required to register with DPS, but it is not configured".to_string().into())));
                     }
