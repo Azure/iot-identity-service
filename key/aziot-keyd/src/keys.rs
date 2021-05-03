@@ -618,7 +618,7 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { .. } => {
-                    // Old version don't support deleting key pairs, so treat it as a no-op.
+                    // This version doesn't support deleting key pairs, so treat it as a no-op.
                     Ok(())
                 }
 
@@ -752,7 +752,7 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { .. } => {
-                    // Old version don't support deleting keys, so treat it as a no-op.
+                    // This version doesn't support deleting keys, so treat it as a no-op.
                     Ok(())
                 }
 
