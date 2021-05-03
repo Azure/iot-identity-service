@@ -31,8 +31,25 @@ impl http_common::server::Route for Route {
         })
     }
 
-    type DeleteBody = serde::de::IgnoredAny;
+    type DeleteBody = aziot_key_common_http::delete::Request;
     type DeleteResponse = ();
+    async fn delete(
+        self,
+        body: Option<Self::DeleteBody>,
+    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+        let body = body.ok_or_else(|| http_common::server::Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "missing request body".into(),
+        })?;
+
+        let mut api = self.api.lock().await;
+        let api = &mut *api;
+
+        api.delete_key(&body.key_handle)
+            .map_err(|err| super::to_http_error(&err))?;
+
+        Ok((hyper::StatusCode::NO_CONTENT, None))
+    }
 
     type GetResponse = ();
 

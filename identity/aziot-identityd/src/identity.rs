@@ -770,6 +770,15 @@ impl IdentityManager {
 
         // Create new certificate if needed.
         if device_id_cert.is_none() {
+            if let Ok(key_handle) = self.key_client.load_key_pair(identity_pk).await {
+                self.key_client
+                    .delete_key_pair(&key_handle)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+            }
+
             let key_handle = self
                 .key_client
                 .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))

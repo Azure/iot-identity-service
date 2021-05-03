@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+mod create_delete_key;
+mod create_delete_key_pair;
 mod create_derived_key;
-mod create_key_if_not_exists;
-mod create_key_pair_if_not_exists;
 mod decrypt;
 mod encrypt;
 mod export_derived_key;
@@ -19,9 +19,9 @@ http_common::make_service! {
     service: Service,
     api_version: aziot_key_common_http::ApiVersion,
     routes: [
+        create_delete_key::Route,
+        create_delete_key_pair::Route,
         create_derived_key::Route,
-        create_key_if_not_exists::Route,
-        create_key_pair_if_not_exists::Route,
         decrypt::Route,
         encrypt::Route,
         export_derived_key::Route,

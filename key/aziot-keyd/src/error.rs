@@ -55,6 +55,8 @@ pub enum InternalError {
     CreateKeyPairIfNotExists(crate::keys::CreateKeyPairIfNotExistsError),
     GetKeyPairPublicParameter(crate::keys::GetKeyPairPublicParameterError),
     Decrypt(crate::keys::DecryptError),
+    DeleteKey(crate::keys::DeleteKeyError),
+    DeleteKeyPair(crate::keys::DeleteKeyPairError),
     DeriveKey(crate::keys::DeriveKeyError),
     Encrypt(crate::keys::EncryptError),
     GenerateNonce(openssl::error::ErrorStack),
@@ -74,6 +76,8 @@ impl std::fmt::Display for InternalError {
             InternalError::CreateKeyIfNotExistsImport(_) => f.write_str("could not import key"),
             InternalError::CreateKeyPairIfNotExists(_) => f.write_str("could not create key pair"),
             InternalError::Decrypt(_) => f.write_str("could not decrypt"),
+            InternalError::DeleteKey(_) => f.write_str("could not delete key"),
+            InternalError::DeleteKeyPair(_) => f.write_str("could not delete key pair"),
             InternalError::DeriveKey(_) => f.write_str("could not derive key"),
             InternalError::Encrypt(_) => f.write_str("could not encrypt"),
             InternalError::GetKeyPairPublicParameter(_) => {
@@ -100,6 +104,8 @@ impl std::error::Error for InternalError {
             InternalError::CreateKeyIfNotExistsImport(err) => Some(err),
             InternalError::CreateKeyPairIfNotExists(err) => Some(err),
             InternalError::Decrypt(err) => Some(err),
+            InternalError::DeleteKey(err) => Some(err),
+            InternalError::DeleteKeyPair(err) => Some(err),
             InternalError::DeriveKey(err) => Some(err),
             InternalError::Encrypt(err) => Some(err),
             InternalError::GetKeyPairPublicParameter(err) => Some(err),
@@ -158,6 +164,15 @@ impl From<crate::keys::GetKeyPairPublicParameterError> for Error {
     }
 }
 
+impl From<crate::keys::DeleteKeyPairError> for Error {
+    fn from(err: crate::keys::DeleteKeyPairError) -> Self {
+        match err.err.0 {
+            crate::keys::sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER => Error::InvalidParameter(None),
+            _ => Error::Internal(InternalError::DeleteKeyPair(err)),
+        }
+    }
+}
+
 impl From<crate::keys::CreateKeyIfNotExistsError> for Error {
     fn from(err: crate::keys::CreateKeyIfNotExistsError) -> Self {
         match err.err.0 {
@@ -181,6 +196,15 @@ impl From<crate::keys::ImportKeyError> for Error {
         match err.err.0 {
             crate::keys::sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER => Error::InvalidParameter(None),
             _ => Error::Internal(InternalError::CreateKeyIfNotExistsImport(err)),
+        }
+    }
+}
+
+impl From<crate::keys::DeleteKeyError> for Error {
+    fn from(err: crate::keys::DeleteKeyError) -> Self {
+        match err.err.0 {
+            crate::keys::sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER => Error::InvalidParameter(None),
+            _ => Error::Internal(InternalError::DeleteKey(err)),
         }
     }
 }

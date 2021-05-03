@@ -108,8 +108,8 @@ aziot-key-openssl-engine-shared-test:
 	$(CARGO) build -p aziot-key-openssl-engine-shared-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 
-target/openapi-schema-validated: cert/aziot-certd/openapi/2020-09-01.yaml
-target/openapi-schema-validated: key/aziot-keyd/openapi/2020-09-01.yaml
+target/openapi-schema-validated: cert/aziot-certd/openapi/*.yaml
+target/openapi-schema-validated: key/aziot-keyd/openapi/*.yaml
 target/openapi-schema-validated:
 	mkdir -p target
 	$(RM) target/openapi-schema-validated
@@ -122,7 +122,7 @@ target/openapi-schema-validated:
 	# The resolution is to have CI run this target separately after running `make test`.
 	if [ -f /usr/bin/docker ]; then \
 		set -euo pipefail; \
-		for f in 'cert/aziot-certd/openapi/2020-09-01.yaml' 'key/aziot-keyd/openapi/2020-09-01.yaml'; do \
+		for f in cert/aziot-certd/openapi/*.yaml key/aziot-keyd/openapi/*.yaml; do \
 			validator_output="$$( \
 				docker run --rm -v "$$PWD:/src" --user 1000 \
 					openapitools/openapi-generator-cli:v4.3.1 \

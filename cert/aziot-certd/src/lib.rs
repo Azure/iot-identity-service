@@ -47,7 +47,7 @@ pub async fn main(
     let api = {
         let key_client = {
             let key_client = aziot_key_client::Client::new(
-                aziot_key_common_http::ApiVersion::V2020_09_01,
+                aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_connector,
             );
             let key_client = std::sync::Arc::new(key_client);
@@ -545,6 +545,18 @@ fn create_cert<'a>(
                                         bootstrap_identity_private_key,
                                     )) => {
                                         // Create a CSR for the new EST identity cert.
+
+                                        if let Ok(identity_key_pair_handle) =
+                                            api.key_client.load_key_pair(identity_private_key)
+                                        {
+                                            api.key_client
+                                                .delete_key_pair(&identity_key_pair_handle)
+                                                .map_err(|err| {
+                                                    Error::Internal(InternalError::CreateCert(
+                                                        Box::new(err),
+                                                    ))
+                                                })?;
+                                        }
 
                                         let identity_key_pair_handle = api
                                             .key_client

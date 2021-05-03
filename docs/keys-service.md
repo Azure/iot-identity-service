@@ -2,11 +2,11 @@
 
 ## API
 
-An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/2020-09-01.yaml`
+An OpenAPI v3 spec for this service can be found at `/key/aziot-keyd/openapi/2021-05-01.yaml`
 
 ### Generate New Symmetric Key
 
-`POST /key?api-version=2020-09-01`
+`POST /key?api-version=2021-05-01`
 
 #### Authentication
 
@@ -41,7 +41,7 @@ Eg: `"usage": "derive,sign"`
 
 ### Import Symmetric Key
 
-`POST /key?api-version=2020-09-01`
+`POST /key?api-version=2021-05-01`
 
 #### Authentication
 
@@ -68,7 +68,7 @@ Required. See [API authentication](#api-authentication).
 
 ### Get Existing Symmetric Key
 
-`GET /key/{keyId}?api-version=2020-09-01`
+`GET /key/{keyId}?api-version=2021-05-01`
 
 #### Authentication
 
@@ -84,9 +84,31 @@ Required. See [API authentication](#api-authentication).
 
 ---
 
+### Delete Symmetric Key
+
+`DELETE /key?api-version=2021-05-01`
+
+#### Authentication
+
+Not required.
+
+#### Request
+
+```json
+{
+    "keyHandle": "..."
+}
+```
+
+#### Response
+
+Empty (HTTP 204)
+
+---
+
 ### Generate New Asymmetric Key Pair
 
-`POST /keypair?api-version=2020-09-01`
+`POST /keypair?api-version=2021-05-01`
 
 #### Authentication
 
@@ -119,7 +141,7 @@ Required. See [API authentication](#api-authentication).
 
 ### Get Existing Asymmetric Key Pair
 
-`GET /keypair/{keyPairId}?api-version=2020-09-01`
+`GET /keypair/{keyPairId}?api-version=2021-05-01`
 
 #### Authentication
 
@@ -137,7 +159,7 @@ Required. See [API authentication](#api-authentication).
 
 ### Get Parameter of Asymmetric Key Pair
 
-`POST /parameters/{parameterName}?api-version=2020-09-01`
+`POST /parameters/{parameterName}?api-version=2021-05-01`
 
 #### Authentication
 
@@ -173,9 +195,31 @@ The value of `value` in the response depends on the `parameterName`:
 
 ---
 
+### Delete Asymmetric Key Pair
+
+`DELETE /keypair?api-version=2021-05-01`
+
+#### Authentication
+
+Not required.
+
+#### Request
+
+```json
+{
+    "keyHandle": "..."
+}
+```
+
+#### Response
+
+Empty (HTTP 204)
+
+---
+
 ### Sign
 
-`POST /sign?api-version=2020-09-01`
+`POST /sign?api-version=2021-05-01`
 
 This includes both digital signatures using asymmetric keys and HMAC-SHA256 using symmetric keys.
 
@@ -226,7 +270,7 @@ Only valid for symmetric keys.
 
 ### Encrypt
 
-`POST /encrypt?api-version=2020-09-01`
+`POST /encrypt?api-version=2021-05-01`
 
 #### Request
 
@@ -282,7 +326,7 @@ Note also that the exact AEAD algorithm used cannot be chosed by the caller; it 
 
 ### Decrypt
 
-`POST /decrypt?api-version=2020-09-01`
+`POST /decrypt?api-version=2021-05-01`
 
 #### Authentication
 

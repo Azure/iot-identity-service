@@ -6,7 +6,8 @@
     clippy::default_trait_access,
     clippy::let_and_return,
     clippy::let_unit_value,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::too_many_lines
 )]
 
 use async_trait::async_trait;
@@ -112,10 +113,8 @@ impl Api {
             .map(|preferred_algorithms| std::ffi::CString::new(preferred_algorithms.to_owned()))
             .transpose()
             .map_err(|err| Error::invalid_parameter("preferred_algorithms", err))?;
-        self.keys.create_key_pair_if_not_exists(
-            &id_cstr,
-            preferred_algorithms.as_ref().map(AsRef::as_ref),
-        )?;
+        self.keys
+            .create_key_pair_if_not_exists(&id_cstr, preferred_algorithms.as_deref())?;
 
         let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
         Ok(handle)
@@ -149,6 +148,23 @@ impl Api {
             .keys
             .get_key_pair_public_parameter(&id_cstr, parameter_name)?;
         Ok(parameter_value)
+    }
+
+    pub fn delete_key_pair(&mut self, handle: &aziot_key_common::KeyHandle) -> Result<(), Error> {
+        let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
+
+        match id {
+            KeyId::KeyPair(_) => self.keys.delete_key_pair(&id_cstr)?,
+
+            _ => {
+                return Err(Error::invalid_parameter(
+                    "handle",
+                    "handle is not for a key pair",
+                ))
+            }
+        };
+
+        Ok(())
     }
 
     pub fn create_key_if_not_exists(
@@ -209,6 +225,23 @@ impl Api {
 
         let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
         Ok(handle)
+    }
+
+    pub fn delete_key(&mut self, handle: &aziot_key_common::KeyHandle) -> Result<(), Error> {
+        let (id, id_cstr) = key_handle_to_id(handle, &mut self.keys)?;
+
+        match id {
+            KeyId::Key(_) => self.keys.delete_key(&id_cstr)?,
+
+            _ => {
+                return Err(Error::invalid_parameter(
+                    "handle",
+                    "handle is not for a key",
+                ))
+            }
+        };
+
+        Ok(())
     }
 
     pub fn create_derived_key(

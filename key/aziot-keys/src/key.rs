@@ -106,6 +106,32 @@ pub(crate) unsafe extern "C" fn import_key(
     })
 }
 
+pub(crate) unsafe extern "C" fn delete_key(
+    id: *const std::os::raw::c_char,
+) -> crate::AZIOT_KEYS_RC {
+    crate::r#catch(|| {
+        let id = {
+            if id.is_null() {
+                return Err(crate::implementation::err_invalid_parameter(
+                    "id",
+                    "expected non-NULL",
+                ));
+            }
+            let id = std::ffi::CStr::from_ptr(id);
+            let id = id
+                .to_str()
+                .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
+            id
+        };
+
+        let locations = crate::implementation::Location::of(id)?;
+
+        delete_inner(&locations)?;
+
+        Ok(())
+    })
+}
+
 pub(crate) unsafe extern "C" fn derive_key(
     base_id: *const std::os::raw::c_char,
     derivation_data: *const u8,
@@ -521,7 +547,7 @@ fn load_inner(
                     .open_session(pkcs11_slot, uri.pin.clone())
                     .map_err(crate::implementation::err_external)?;
 
-                match pkcs11_session.get_key(uri.object_label.as_ref().map(AsRef::as_ref)) {
+                match pkcs11_session.get_key(uri.object_label.as_deref()) {
                     Ok(key_pair) => return Ok(Some(Key::Pkcs11(key_pair))),
 
                     Err(pkcs11::GetKeyError::KeyDoesNotExist) => (),
@@ -591,8 +617,8 @@ fn create_inner(
 
                 match create_method {
                     CreateMethod::Generate => {
-                        let result = pkcs11_session
-                            .generate_key(uri.object_label.as_ref().map(AsRef::as_ref), usage);
+                        let result =
+                            pkcs11_session.generate_key(uri.object_label.as_deref(), usage);
                         match result {
                             Ok(_) => return Ok(()),
 
@@ -611,11 +637,8 @@ fn create_inner(
                     CreateMethod::Import(bytes) => {
                         // TODO: Verify if CAL actually smashes the stack for keys that are too large,
                         // and if not, if it returns a better error than CKR_GENERAL_ERROR
-                        let result = pkcs11_session.import_key(
-                            bytes,
-                            uri.object_label.as_ref().map(AsRef::as_ref),
-                            usage,
-                        );
+                        let result =
+                            pkcs11_session.import_key(bytes, uri.object_label.as_deref(), usage);
                         match result {
                             Ok(_) => return Ok(()),
 
@@ -633,6 +656,42 @@ fn create_inner(
     Err(crate::implementation::err_external(
         "no valid location for symmetric key",
     ))
+}
+
+fn delete_inner(locations: &[crate::implementation::Location]) -> Result<(), crate::AZIOT_KEYS_RC> {
+    for location in locations {
+        match location {
+            crate::implementation::Location::Filesystem(path) => match std::fs::remove_file(path) {
+                Ok(()) => (),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+                Err(err) => return Err(crate::implementation::err_external(err)),
+            },
+
+            crate::implementation::Location::Pkcs11 { lib_path, uri } => {
+                let pkcs11_context = pkcs11::Context::load(lib_path.clone())
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_slot = pkcs11_context
+                    .find_slot(&uri.slot_identifier)
+                    .map_err(crate::implementation::err_external)?;
+                let pkcs11_session = pkcs11_context
+                    .open_session(pkcs11_slot, uri.pin.clone())
+                    .map_err(crate::implementation::err_external)?;
+                let object_label =
+                    uri.object_label.as_deref()
+                    .ok_or_else(|| crate::implementation::err_invalid_parameter(
+                        "id",
+                        "key corresponding to this ID cannot be deleted because it is a PKCS#11 key without an object label",
+                    ))?;
+
+                match pkcs11_session.delete_key(object_label) {
+                    Ok(()) => (),
+                    Err(err) => return Err(crate::implementation::err_external(err)),
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 unsafe fn derive_key_for_sign(
