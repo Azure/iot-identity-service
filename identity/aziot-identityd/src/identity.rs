@@ -553,7 +553,7 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        //IoT Hub doesn't require device ID to match identity certificate CN
+                        // IoT Hub doesn't require device ID to match identity certificate CN
                         let _ = self
                             .create_identity_cert_if_not_exist_or_expired(
                                 &identity_pk,
@@ -616,12 +616,12 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        //DPS requires registration ID to match identity certificate CN
+                        // DPS requires registration ID to match identity certificate CN
                         let cert_subject_name = self
                             .create_identity_cert_if_not_exist_or_expired(
                                 &identity_pk,
                                 &identity_cert,
-                                registration_id.as_deref().to_owned(),
+                                registration_id.as_ref(),
                             )
                             .await?;
 
@@ -751,7 +751,7 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        subject: Option<&str>,
+        subject: Option<&String>,
     ) -> Result<Option<Result<String, Error>>, Error> {
         // Retrieve existing cert and check it for expiry.
         let (device_id_cert, old_cert_subject_name) = match self
@@ -765,19 +765,10 @@ impl IdentityManager {
                 })?;
                 let cert_expiration = cert.as_ref().not_after();
                 let cert_subject = cert.as_ref().subject_name();
-                let cert_subject = match cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next() {
-                    Some(common_name_entry) => {
-                        match String::from_utf8(common_name_entry.data().as_slice().into()) {
-                            Ok(common_name) => Ok(common_name),
-                            Err(err) => {
-                                Err(Error::Internal(InternalError::CreateCertificate(Box::new(err))))
-                            },
-                        }
-                    }
-                    None => {
-                        Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into())))
-                    },
-                };
+                let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
+                  .map_or(Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
+                    String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
+                });
                 let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
@@ -856,19 +847,10 @@ impl IdentityManager {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
                 let cert_subject = cert.as_ref().subject_name();
-                let cert_subject = match cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next() {
-                    Some(common_name_entry) => {
-                        match String::from_utf8(common_name_entry.data().as_slice().into()) {
-                            Ok(common_name) => Ok(common_name),
-                            Err(err) => {
-                                Err(Error::Internal(InternalError::CreateCertificate(Box::new(err))))
-                            },
-                        }
-                    }
-                    None => {
-                        Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into())))
-                    },
-                };
+                let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
+                    .map_or(Err(Error::Internal(InternalError::CreateCertificate("device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
+                        String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
+                });
 
                 Ok(cert_subject)
             }
