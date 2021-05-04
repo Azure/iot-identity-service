@@ -21,7 +21,7 @@ mod est;
 mod http;
 
 use aziot_certd_config::{
-    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, Est, EstAuthBasic,
+    CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, EstAuthBasic,
     EstAuthX509, LocalCa, PreloadedCert, Principal,
 };
 
@@ -241,7 +241,6 @@ fn create_cert<'a>(
             // If issuance options are not provided for this certificate ID, use defaults.
             let mut expiry_days = 30;
             let mut subject_name = x509_req.subject_name();
-            let version = x509_req.version();
             let common_name;
 
             if let Some(options) = cert_options {
@@ -265,7 +264,7 @@ fn create_cert<'a>(
 
             let mut x509 = openssl::x509::X509::builder()
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-            x509.set_version(version)
+            x509.set_version(2)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
             x509.set_subject_name(subject_name)
                 .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
@@ -378,34 +377,38 @@ fn create_cert<'a>(
                 Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
             })?;
 
-            match cert_options.method {
-                CertIssuanceMethod::Est => {
-                    let Est {
-                        auth,
-                        trusted_certs,
-                        urls,
-                    } = api.cert_issuance.est.as_ref().ok_or_else(|| {
+            match &cert_options.method {
+                CertIssuanceMethod::Est {
+                    url: cert_url,
+                    auth: cert_auth,
+                } => {
+                    let defaults = api.cert_issuance.est.as_ref();
+
+                    let auth = cert_auth.as_ref().or_else(|| {
+                        defaults.map(|default| &default.auth)
+                    }).ok_or_else(|| {
                         Error::Internal(InternalError::CreateCert(
                             format!(
-                                "cert {:?} is configured to be issued by EST, but EST is not configured",
+                                "cert {:?} is configured to be issued by EST, but EST auth is not configured",
                                 id,
                             )
                             .into(),
                         ))
                     })?;
 
-                    let url = urls
-                        .get(id)
-                        .or_else(|| urls.get("default"))
-                        .ok_or_else(|| {
-                            Error::Internal(InternalError::CreateCert(
-                                format!(
-                                    "cert {:?} is configured to be issued by EST, but the EST endpoint URL for it is not configured",
-                                    id,
-                                )
-                                .into(),
-                            ))
-                        })?;
+                    let url = cert_url.as_ref().or_else(|| {
+                        defaults
+                            .map(|default| &default.urls)
+                            .and_then(|urls| urls.get(id).or_else(|| urls.get("default")))
+                    }).ok_or_else(|| {
+                        Error::Internal(InternalError::CreateCert(
+                            format!(
+                                "cert {:?} is configured to be issued by EST, but EST URL is not configured",
+                                id,
+                            )
+                            .into(),
+                        ))
+                    })?;
 
                     let auth_basic = auth
                         .basic
@@ -413,22 +416,26 @@ fn create_cert<'a>(
                         .map(|EstAuthBasic { username, password }| (&**username, &**password));
 
                     let mut trusted_certs_x509 = vec![];
-                    for trusted_cert in trusted_certs {
-                        let pem =
-                            get_cert_inner(&api.homedir_path, &api.preloaded_certs, trusted_cert)?
-                                .ok_or_else(|| {
-                                    Error::Internal(InternalError::CreateCert(
-                                        format!(
-                                    "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
-                                    trusted_cert,
-                                )
-                                        .into(),
-                                    ))
+
+                    if let Some(default) = defaults {
+                        for trusted_cert in &default.trusted_certs {
+                            let pem =
+                                get_cert_inner(&api.homedir_path, &api.preloaded_certs, trusted_cert)?
+                                    .ok_or_else(|| {
+                                        Error::Internal(InternalError::CreateCert(
+                                            format!(
+                                        "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
+                                        trusted_cert,
+                                    )
+                                            .into(),
+                                        ))
+                                    })?;
+                            let x509 =
+                                openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
+                                    Error::Internal(InternalError::CreateCert(Box::new(err)))
                                 })?;
-                        let x509 = openssl::x509::X509::stack_from_pem(&pem).map_err(|err| {
-                            Error::Internal(InternalError::CreateCert(Box::new(err)))
-                        })?;
-                        trusted_certs_x509.extend(x509);
+                            trusted_certs_x509.extend(x509);
+                        }
                     }
 
                     if let Some(EstAuthX509 {
@@ -672,14 +679,6 @@ fn create_cert<'a>(
                                                 ))
                                             })?;
 
-                                        let identity_url =
-                                            urls.get(identity_cert)
-                                            .or_else(|| urls.get("default"))
-                                            .ok_or_else(|| Error::Internal(InternalError::CreateCert(format!(
-                                                "cert {:?} is configured to be issued by EST, but the EST endpoint URL for the EST identity is not configured",
-                                                id,
-                                            ).into())))?;
-
                                         // Request the new EST identity cert using the EST bootstrap identity cert.
 
                                         let bootstrap_identity_private_key =
@@ -704,7 +703,7 @@ fn create_cert<'a>(
 
                                         let x509 = est::create_cert(
                                             identity_csr,
-                                            identity_url,
+                                            url,
                                             auth_basic,
                                             Some((
                                                 &bootstrap_identity_cert,
