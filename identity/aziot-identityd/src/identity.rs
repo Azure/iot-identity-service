@@ -781,9 +781,6 @@ impl IdentityManager {
                 }
             }
             Err(_) => {
-                // TODO: Need to check if key exists.
-                // If this function fails, delete any key it creates but don't delete an existing key.
-
                 (None, Err(Error::Internal(InternalError::CreateCertificate("old device identity certificate, which should contain the common name field required for registration, could not be retrieved".to_string().into()))))
             }
         };
@@ -821,40 +818,24 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            let result = async {
-                let csr =
-                    create_csr(&new_cert_subject.as_str(), &public_key, &private_key, None).map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
+            let csr = create_csr(&new_cert_subject.as_str(), &public_key, &private_key, None)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-                let new_cert_pem = self
-                    .cert_client
-                    .create_cert(&identity_cert, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
+            let new_cert_pem = self
+                .cert_client
+                .create_cert(&identity_cert, &csr, None)
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-                let cert = openssl::x509::X509::from_pem(&new_cert_pem).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let cert_subject = cert.as_ref().subject_name();
-                let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
-                    .map_or(Err(Error::Internal(InternalError::CreateCertificate("new device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
-                        String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
-                });
+            let cert = openssl::x509::X509::from_pem(&new_cert_pem)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+            let cert_subject = cert.as_ref().subject_name();
+            let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
+                .map_or(Err(Error::Internal(InternalError::CreateCertificate("new device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
+                    String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
+            });
 
-                Ok(cert_subject)
-            }
-            .await;
-
-            if let Err(err) = result {
-                // TODO: need to delete key from keyd.
-
-                return Err(err);
-            }
-
-            result
+            Ok(cert_subject)
         } else {
             Ok(old_cert_subject_name)
         }
