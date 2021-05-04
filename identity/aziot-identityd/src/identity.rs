@@ -760,16 +760,20 @@ impl IdentityManager {
                     Some(pem)
                 }
             }
-            Err(_) => {
-                // TODO: Need to check if key exists.
-                // If this function fails, delete any key it creates but don't delete an existing key.
-
-                None
-            }
+            Err(_) => None,
         };
 
         // Create new certificate if needed.
         if device_id_cert.is_none() {
+            if let Ok(key_handle) = self.key_client.load_key_pair(identity_pk).await {
+                self.key_client
+                    .delete_key_pair(&key_handle)
+                    .await
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+            }
+
             let key_handle = self
                 .key_client
                 .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
@@ -786,28 +790,14 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            let result = async {
-                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+            let csr = create_csr(&subject, &public_key, &private_key, None)
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-                let _ = self
-                    .cert_client
-                    .create_cert(&identity_cert, &csr, None)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-
-                Ok::<(), Error>(())
-            }
-            .await;
-
-            if let Err(err) = result {
-                // TODO: need to delete key from keyd.
-
-                return Err(err);
-            }
+            let _ = self
+                .cert_client
+                .create_cert(&identity_cert, &csr, None)
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
         }
 
         Ok(())

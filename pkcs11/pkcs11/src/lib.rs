@@ -29,8 +29,8 @@ pub use object::{
 
 mod session;
 pub use session::{
-    FindObjectsError, GenerateKeyError, GenerateKeyPairError, GetKeyError, ImportKeyError, Key,
-    KeyPair, KeyUsage, LoginError, PublicKey, Session,
+    DeleteKeyError, DeleteKeyPairError, FindObjectsError, GenerateKeyError, GenerateKeyPairError,
+    GetKeyError, ImportKeyError, Key, KeyPair, KeyUsage, LoginError, PublicKey, Session,
 };
 
 #[derive(Clone, Debug, PartialEq)]
