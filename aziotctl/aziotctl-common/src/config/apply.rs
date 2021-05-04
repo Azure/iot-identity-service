@@ -265,6 +265,8 @@ pub fn run(
             crate::hostname()?
         },
 
+        aad_identity: None,
+
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 
         principal: vec![],

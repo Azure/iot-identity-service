@@ -23,9 +23,11 @@ pub struct IdentityManager {
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     proxy_uri: Option<hyper::Uri>,
+    aad_id: Option<String>,
 }
 
 impl IdentityManager {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         homedir_path: std::path::PathBuf,
         key_client: Arc<aziot_key_client_async::Client>,
@@ -34,6 +36,7 @@ impl IdentityManager {
         tpm_client: Arc<aziot_tpm_client_async::Client>,
         iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
         proxy_uri: Option<hyper::Uri>,
+        aad_id: Option<String>,
     ) -> Self {
         IdentityManager {
             homedir_path,
@@ -43,6 +46,7 @@ impl IdentityManager {
             tpm_client,
             iot_hub_device,
             proxy_uri,
+            aad_id,
         }
     }
 
@@ -786,10 +790,11 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
+            let aad_id: Option<&str> = self.aad_id.as_deref();
             let result = async {
-                let csr = create_csr(&subject, &public_key, &private_key, None).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+                let csr = create_csr(&subject, &public_key, &private_key, None, aad_id).map_err(
+                    |err| Error::Internal(InternalError::CreateCertificate(Box::new(err))),
+                )?;
 
                 let _ = self
                     .cert_client
@@ -907,6 +912,40 @@ impl IdentityManager {
         }
 
         Ok(())
+    }
+
+    pub async fn get_aad_token(
+        &self,
+        tenant: &str,
+        scope: &str,
+        app_id: &str,
+    ) -> Result<String, Error> {
+        let device = if let Some(device) = &self.iot_hub_device {
+            device.clone()
+        } else {
+            return Err(Error::DeviceNotFound);
+        };
+
+        let aad_id = if let Some(aad_id) = &self.aad_id {
+            aad_id.clone()
+        } else {
+            return Err(Error::DeviceNotFound); // TODO: fix error
+        };
+
+        let client = aziot_aad_client_async::Client::new(
+            device,
+            self.key_client.clone(),
+            self.key_engine.clone(),
+            self.cert_client.clone(),
+            self.proxy_uri.clone(),
+            aad_id,
+        );
+
+        let token = client
+            .get_token(tenant, scope, app_id)
+            .await
+            .map_err(Error::AadClient)?;
+        Ok(token)
     }
 }
 

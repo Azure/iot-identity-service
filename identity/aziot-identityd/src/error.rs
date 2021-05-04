@@ -5,6 +5,7 @@ pub enum Error {
     Authentication,
     Authorization,
     DeviceNotFound,
+    AadClient(std::io::Error),
     DpsClient(std::io::Error),
     DpsNotSupportedInNestedMode,
     HubClient(std::io::Error),
@@ -29,6 +30,7 @@ impl std::fmt::Display for Error {
             Error::Authentication => f.write_str("authentication error"),
             Error::Authorization => f.write_str("authorization error"),
             Error::DeviceNotFound => f.write_str("device identity not found"),
+            Error::AadClient(_) => f.write_str("AAD client error"),
             Error::DpsClient(_) => f.write_str("DPS client error"),
             Error::DpsNotSupportedInNestedMode => {
                 f.write_str("DPS provisioning is not supported in nested mode")
@@ -52,7 +54,10 @@ impl std::error::Error for Error {
             | Error::DeviceNotFound
             | Error::DpsNotSupportedInNestedMode
             | Error::ModuleNotFound => None,
-            Error::DpsClient(err) | Error::HubClient(err) | Error::KeyClient(err) => Some(err),
+            Error::AadClient(err)
+            | Error::DpsClient(err)
+            | Error::HubClient(err)
+            | Error::KeyClient(err) => Some(err),
             Error::Internal(err) => Some(err),
             Error::InvalidParameter(_, err) => Some(&**err),
         }

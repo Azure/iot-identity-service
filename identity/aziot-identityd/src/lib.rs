@@ -162,6 +162,7 @@ impl Api {
             tpm_client.clone(),
             None,
             proxy_uri.clone(),
+            settings.aad_identity.clone(),
         );
 
         Ok(Api {
@@ -492,7 +493,7 @@ impl Api {
                 "{}.{}.{}",
                 module_id, self.settings.hostname, localid.domain
             );
-            let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
+            let csr = create_csr(&subject, &public_key, &private_key, Some(attributes), None)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
@@ -551,6 +552,16 @@ impl Api {
 
         Ok(())
     }
+
+    async fn get_aad_token(
+        &mut self,
+        tenant: &str,
+        scope: &str,
+        app_id: &str,
+    ) -> Result<String, Error> {
+        let token = self.id_manager.get_aad_token(tenant, scope, app_id).await?;
+        Ok(token)
+    }
 }
 
 #[async_trait]
@@ -569,46 +580,54 @@ pub(crate) fn create_csr(
     public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
     private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
     attributes: Option<aziot_identity_common::LocalIdAttr>,
+    aad_id: Option<&str>,
 ) -> Result<Vec<u8>, openssl::error::ErrorStack> {
     let mut csr = openssl::x509::X509Req::builder()?;
+    csr.set_version(2)?;
 
-    csr.set_version(0)?;
+    let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> =
+        openssl::stack::Stack::new()?;
+
+    // basicConstraints = critical, CA:FALSE
+    let basic_constraints = openssl::x509::extension::BasicConstraints::new()
+        .critical()
+        .build()?;
+    extensions.push(basic_constraints)?;
+
+    // keyUsage = digitalSignature, nonRepudiation, keyEncipherment
+    let key_usage = openssl::x509::extension::KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .non_repudiation()
+        .key_encipherment()
+        .build()?;
+    extensions.push(key_usage)?;
+
+    // extendedKeyUsage = critical, clientAuth
+    // Always set (even for servers) because it's required for EST client certificate renewal.
+    let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
+    extended_key_usage.critical();
+    extended_key_usage.client_auth();
 
     if let Some(attr) = attributes {
-        let mut extensions: openssl::stack::Stack<openssl::x509::X509Extension> =
-            openssl::stack::Stack::new()?;
-
-        // basicConstraints = critical, CA:FALSE
-        let basic_constraints = openssl::x509::extension::BasicConstraints::new()
-            .critical()
-            .build()?;
-        extensions.push(basic_constraints)?;
-
-        // keyUsage = digitalSignature, nonRepudiation, keyEncipherment
-        let key_usage = openssl::x509::extension::KeyUsage::new()
-            .critical()
-            .digital_signature()
-            .non_repudiation()
-            .key_encipherment()
-            .build()?;
-        extensions.push(key_usage)?;
-
-        // extendedKeyUsage = critical, clientAuth
-        // Always set (even for servers) because it's required for EST client certificate renewal.
-        let mut extended_key_usage = openssl::x509::extension::ExtendedKeyUsage::new();
-        extended_key_usage.critical();
-        extended_key_usage.client_auth();
-
         if attr == aziot_identity_common::LocalIdAttr::Server {
             // extendedKeyUsage = serverAuth (in addition to clientAuth)
             extended_key_usage.server_auth();
         }
-
-        let extended_key_usage = extended_key_usage.build()?;
-        extensions.push(extended_key_usage)?;
-
-        csr.add_extensions(&extensions)?;
     }
+
+    let extended_key_usage = extended_key_usage.build()?;
+    extensions.push(extended_key_usage)?;
+
+    // SAN
+    if let Some(aad_id) = aad_id {
+        println!("\nDebugging: Creating cert with aad id {}\n", aad_id);
+        let mut subject_alternate_name = openssl::x509::extension::SubjectAlternativeName::new();
+        subject_alternate_name.email(aad_id);
+        let subject_alternate_name = subject_alternate_name.build(&csr.x509v3_context(None))?;
+        extensions.push(subject_alternate_name)?;
+    }
+    csr.add_extensions(&extensions)?;
 
     let mut subject_name = openssl::x509::X509Name::builder()?;
     subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;

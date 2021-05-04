@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 mod create_or_list_module_identity;
+mod get_aad_identity;
 mod get_caller_identity;
 mod get_device_identity;
 mod get_trust_bundle;
@@ -22,6 +23,7 @@ http_common::make_service! {
         get_trust_bundle::Route,
         get_update_or_delete_module_identity::Route,
         reprovision_device::Route,
+        get_aad_identity::Route,
     ],
 }
 
@@ -54,8 +56,8 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
             status_code: hyper::StatusCode::BAD_REQUEST,
             message: error_message.into(),
         },
-
-        crate::error::Error::DpsClient(_)
+        crate::error::Error::AadClient(_)
+        | crate::error::Error::DpsClient(_)
         | crate::error::Error::DpsNotSupportedInNestedMode
         | crate::error::Error::HubClient(_)
         | crate::error::Error::KeyClient(_) => http_common::server::Error {
