@@ -7,7 +7,11 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access, clippy::let_unit_value)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::let_underscore_drop,
+    clippy::let_unit_value
+)]
 
 mod error;
 
