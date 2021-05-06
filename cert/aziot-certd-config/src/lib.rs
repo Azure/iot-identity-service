@@ -137,7 +137,7 @@ impl<'de> serde::Deserialize<'de> for Est {
     {
         let inner: EstInner = serde::Deserialize::deserialize(deserializer)?;
 
-        let auth = deserialize_auth_inner(&inner.auth).map_err(serde::de::Error::missing_field)?;
+        let auth = deserialize_auth_inner(inner.auth).map_err(serde::de::Error::missing_field)?;
 
         let trusted_certs = inner.trusted_certs;
 
@@ -237,7 +237,7 @@ where
     let inner: Option<EstAuthInner> = serde::Deserialize::deserialize(deserializer)?;
 
     if let Some(inner) = inner {
-        let auth = deserialize_auth_inner(&inner).map_err(serde::de::Error::missing_field)?;
+        let auth = deserialize_auth_inner(inner).map_err(serde::de::Error::missing_field)?;
 
         if auth.basic.is_some() || auth.x509.is_some() {
             return Ok(Some(auth));
@@ -308,12 +308,9 @@ pub struct Principal {
     pub certs: Vec<String>,
 }
 
-fn deserialize_auth_inner(auth: &EstAuthInner) -> Result<EstAuth, &'static str> {
-    let auth_basic = match (&auth.username, &auth.password) {
-        (Some(username), Some(password)) => Some(EstAuthBasic {
-            username: username.to_owned(),
-            password: password.to_owned(),
-        }),
+fn deserialize_auth_inner(auth: EstAuthInner) -> Result<EstAuth, &'static str> {
+    let auth_basic = match (auth.username, auth.password) {
+        (Some(username), Some(password)) => Some(EstAuthBasic { username, password }),
 
         (Some(_), None) => return Err("password"),
 
@@ -322,16 +319,15 @@ fn deserialize_auth_inner(auth: &EstAuthInner) -> Result<EstAuth, &'static str> 
         (None, None) => None,
     };
 
-    let auth_x509 = match (&auth.identity_cert, &auth.identity_pk) {
+    let auth_x509 = match (auth.identity_cert, auth.identity_pk) {
         (Some(identity_cert), Some(identity_pk)) => {
-            let identity = (identity_cert.to_owned(), identity_pk.to_owned());
+            let identity = (identity_cert, identity_pk);
 
             let bootstrap_identity =
-                match (&auth.bootstrap_identity_cert, &auth.bootstrap_identity_pk) {
-                    (Some(bootstrap_identity_cert), Some(bootstrap_identity_pk)) => Some((
-                        bootstrap_identity_cert.to_owned(),
-                        bootstrap_identity_pk.to_owned(),
-                    )),
+                match (auth.bootstrap_identity_cert, auth.bootstrap_identity_pk) {
+                    (Some(bootstrap_identity_cert), Some(bootstrap_identity_pk)) => {
+                        Some((bootstrap_identity_cert, bootstrap_identity_pk))
+                    }
                     (Some(_), None) => return Err("bootstrap_identity_pk"),
                     (None, Some(_)) => return Err("bootstrap_identity_cert"),
                     (None, None) => None,

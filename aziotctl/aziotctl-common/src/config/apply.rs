@@ -115,7 +115,7 @@ pub fn run(
                                         &identity_cert.method
                                     {
                                         set_est_auth(
-                                            &auth,
+                                            auth.as_ref(),
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
@@ -197,7 +197,7 @@ pub fn run(
                                         &identity_cert.method
                                     {
                                         set_est_auth(
-                                            &auth,
+                                            auth.as_ref(),
                                             &mut preloaded_certs,
                                             &mut preloaded_keys,
                                             &mut aziotcs_keys,
@@ -463,9 +463,9 @@ pub fn run(
     };
 
     Ok(RunOutput {
-        keyd_config,
         certd_config,
         identityd_config,
+        keyd_config,
         tpmd_config,
         preloaded_device_id_pk_bytes,
     })
@@ -495,7 +495,7 @@ fn into_cert_options(
 }
 
 pub fn set_est_auth(
-    auth: &Option<super_config::EstAuth>,
+    auth: Option<&super_config::EstAuth>,
     preloaded_certs: &mut std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
     preloaded_keys: &mut std::collections::BTreeMap<
         String,
@@ -504,7 +504,7 @@ pub fn set_est_auth(
     aziotcs_keys: &mut aziot_keyd_config::Principal,
     cert_name: &str,
 ) -> Option<aziot_certd_config::EstAuth> {
-    auth.as_ref().map(|auth| {
+    auth.map(|auth| {
         let auth_x509 = auth.x509.as_ref().map(|x509| {
             let identity_cert_id = format!("{}-{}", super::EST_ID_ID, cert_name);
 
@@ -516,16 +516,13 @@ pub fn set_est_auth(
                     let bootstrap_cert_id = format!("{}-{}", super::EST_BOOTSTRAP_ID, cert_name);
 
                     let bootstrap_identity_cert =
-                        aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert.to_owned());
-                    preloaded_certs.insert(bootstrap_cert_id.to_owned(), bootstrap_identity_cert);
+                        aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert.clone());
+                    preloaded_certs.insert(bootstrap_cert_id.clone(), bootstrap_identity_cert);
 
-                    preloaded_keys.insert(
-                        bootstrap_cert_id.to_owned(),
-                        bootstrap_identity_pk.to_owned(),
-                    );
-                    aziotcs_keys.keys.push(bootstrap_cert_id.to_owned());
+                    preloaded_keys.insert(bootstrap_cert_id.clone(), bootstrap_identity_pk.clone());
+                    aziotcs_keys.keys.push(bootstrap_cert_id.clone());
 
-                    Some((bootstrap_cert_id.to_owned(), bootstrap_cert_id))
+                    Some((bootstrap_cert_id.clone(), bootstrap_cert_id))
                 }
 
                 super_config::EstAuthX509::Identity {
@@ -533,25 +530,25 @@ pub fn set_est_auth(
                     identity_pk,
                 } => {
                     let identity_cert =
-                        aziot_certd_config::PreloadedCert::Uri(identity_cert.to_owned());
-                    preloaded_certs.insert(identity_cert_id.to_owned(), identity_cert);
+                        aziot_certd_config::PreloadedCert::Uri(identity_cert.clone());
+                    preloaded_certs.insert(identity_cert_id.clone(), identity_cert);
 
-                    preloaded_keys.insert(identity_cert_id.to_owned(), identity_pk.to_owned());
+                    preloaded_keys.insert(identity_cert_id.clone(), identity_pk.clone());
 
                     None
                 }
             };
 
-            aziotcs_keys.keys.push(identity_cert_id.to_owned());
+            aziotcs_keys.keys.push(identity_cert_id.clone());
 
             aziot_certd_config::EstAuthX509 {
-                identity: (identity_cert_id.to_owned(), identity_cert_id),
+                identity: (identity_cert_id.clone(), identity_cert_id),
                 bootstrap_identity,
             }
         });
 
         aziot_certd_config::EstAuth {
-            basic: auth.basic.to_owned(),
+            basic: auth.basic.clone(),
             x509: auth_x509,
         }
     })
