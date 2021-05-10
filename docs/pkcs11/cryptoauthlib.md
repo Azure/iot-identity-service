@@ -1,4 +1,4 @@
-# `cryptoauthlib`
+# Installing and configuring the `cryptoauthlib` library for Microchip HSMs
 
 Microchip hardware like the ATECC608A is used via a C library called [`cryptoauthlib`.](https://github.com/MicrochipTech/cryptoauthlib) This library can also be compiled with PKCS#11 support so that the device can be accessed via PKCS#11.
 
@@ -104,7 +104,26 @@ See also [upstream's guide,](https://github.com/MicrochipTech/cryptoauthlib/wiki
 
     Note that each key pair uses only one slot total on the device, not one slot for private key and one slot for public key.
 
-The library should now be configured completely.
+The library should now be installed.
+
+
+## `config.toml`
+
+In the `/etc/aziot/config.toml`, set the `[aziot_keys]` section as follows:
+
+```toml
+[aziot_keys]
+pkcs11_lib_path = "<path of the libcryptoauth.so file>"
+pkcs11_base_slot = "pkcs11:slot-id=0"
+```
+
+For example:
+
+```toml
+[aziot_keys]
+pkcs11_lib_path = "/usr/lib/libcryptoauth.so"
+pkcs11_base_slot = "pkcs11:slot-id=0"
+```
 
 
 ## Miscellaneous
