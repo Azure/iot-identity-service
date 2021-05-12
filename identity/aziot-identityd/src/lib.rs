@@ -51,7 +51,7 @@ macro_rules! match_id_type {
     };
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ReprovisionTrigger {
     ConfigurationFileUpdate,
     Api,
@@ -540,11 +540,21 @@ impl Api {
         // Attempt to re-provision the device. Failures need to be logged and the device should
         // run offline.
         if let Err(err) = self
-            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .reprovision_device(auth::AuthId::LocalRoot, trigger.clone())
             .await
         {
+            // Failure to reprovision on startup means that provisioning with IoT Hub failed and
+            // no valid backup could be loaded. Treat this as a fatal error.
+            if let ReprovisionTrigger::Startup = trigger {
+                log::error!(
+                    "Failed to provision with IoT Hub, and no valid device backup was found."
+                );
+
+                return Err(err);
+            }
+
             log::warn!(
-                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}. ",
+                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
                 err
             );
         }
