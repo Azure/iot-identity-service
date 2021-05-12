@@ -893,8 +893,8 @@ impl IdentityManager {
                         std::collections::BTreeSet::default()
                     };
 
-                // Write out device info and settings.
-                // This overwrites the existing device state and settings backup.
+                // Write out device state and settings.
+                // This overwrites any existing device state and settings backup.
                 std::fs::write(prev_device_info_path, device_status)
                     .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
 
