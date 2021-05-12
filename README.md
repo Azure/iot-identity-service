@@ -5,9 +5,7 @@ This repository contains the code of the Azure IoT Identity Service and related 
 
 The contents of the `docs/` directory are served at <https://azure.github.io/iot-identity-service/>
 
-Go to <https://azure.github.io/iot-identity-service/> for an overview of the services in this repository.
-
-Go to <https://azure.github.io/iot-identity-service/dev/> for developer documentation, and see [`CONTRIBUTING`](CONTRIBUTING.md) for contribution guidelines.
+See [`docs-dev/README.md`](docs-dev/README.md) for developer documentation, and [`CONTRIBUTING`](CONTRIBUTING.md) for contribution guidelines.
 
 
 # License
