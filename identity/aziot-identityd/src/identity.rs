@@ -893,6 +893,14 @@ impl IdentityManager {
                         std::collections::BTreeSet::default()
                     };
 
+                // Write out device info and settings.
+                // This overwrites the existing device state and settings backup.
+                std::fs::write(prev_device_info_path, device_status)
+                    .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
+
+                std::fs::write(prev_settings_path, &settings_serialized)
+                    .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
+
                 if prev_module_set.is_empty() && current_module_set.is_empty() {
                     return Ok(());
                 }
@@ -924,12 +932,6 @@ impl IdentityManager {
                     self.create_module_identity(&m.0).await?;
                     log::info!("Hub identity {:?} added", &m.0);
                 }
-
-                let () = std::fs::write(prev_device_info_path, device_status)
-                    .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
-
-                let () = std::fs::write(prev_settings_path, &settings_serialized)
-                    .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
             None => log::info!("reconcilation skipped since device is not provisioned"),
         }
