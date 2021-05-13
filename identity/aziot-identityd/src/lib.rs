@@ -51,7 +51,7 @@ macro_rules! match_id_type {
     };
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ReprovisionTrigger {
     ConfigurationFileUpdate,
     Api,
@@ -540,7 +540,7 @@ impl Api {
         // Attempt to re-provision the device. Failures need to be logged and the device should
         // run offline.
         if let Err(err) = self
-            .reprovision_device(auth::AuthId::LocalRoot, trigger.clone())
+            .reprovision_device(auth::AuthId::LocalRoot, trigger)
             .await
         {
             // Failure to reprovision on startup means that provisioning with IoT Hub failed and
