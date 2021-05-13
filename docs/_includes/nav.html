@@ -1,6 +1,3 @@
-{% assign items = site.pages | sort: 'url' %}
-{% assign urlbase = site.url | append: "/iot-identity-service" %}
-
 <style>
     #nav-sidebar {
         margin: 0;
@@ -16,38 +13,28 @@
 <div id="nav-sidebar">
     <h3>Contents</h3>
     <ul>
-        {% assign level = 1 %}
-        {% for i in items %}
-            {% unless i.title %}
-                {% continue %}
-            {% endunless %}
+        <li><a href="/iot-identity-service/">Overview</a></li>
 
-            {% assign path = i.url | split: "/" %}
-            {% assign path_level = path.size | minus: 1 | at_least: 1 %}
+        <li><a href="/iot-identity-service/installation.html">Installing the Azure IoT Identity Service</a></li>
 
-            {% if path_level > level %}
-                {% assign limit = path_level | minus: 1 %}
-                {% for l in (level..limit) %}
-                    <ul style="margin-bottom:0;">
-                {% endfor %}
-                {% assign level = path_level %}
-            {% elsif path_level < level %}
-                {% assign limit = level | minus: 1 %}
-                {% for l in (path_level..limit) %}
-                    </ul>
-                {% endfor %}
-                {% assign level = path_level %}
-            {% endif %}
+        <li><a href="/iot-identity-service/configuration.html">Configuring the Azure IoT Identity Service</a></li>
 
-            <li>
-            {% if i.url == page.url %}
-                <a href="{{ urlbase }}{{ i.url }}" style="font-weight: bold;">
-            {% else %}
-                <a href="{{ urlbase }}{{ i.url }}">
-            {% endif %}
+        <li><a href="/iot-identity-service/aziotctl.html">Managing the Azure Iot Identity Service</a></li>
 
-            {{ i.title }}
-            </a></li>
-        {% endfor %}
+        <li><a href="/iot-identity-service/pkcs11/">Protecting keys via an HSM or TPM</a></li>
+        <ul style="margin-bottom: 0">
+            <li><a href="/iot-identity-service/pkcs11/tpm2-pkcs11.html">tpm2-pkcs11</a></li>
+            <li><a href="/iot-identity-service/pkcs11/cryptoauthlib.html">cryptoauthlib</a></li>
+            <li><a href="/iot-identity-service/pkcs11/softhsm.html">softhsm</a></li>
+        </ul>
+
+        <li><a href="/iot-identity-service/host-module.html">Writing a host module</a></li>
+
+        <li><a href="/iot-identity-service/api/">HTTP API of the Services</a></li>
+        <ul style="margin-bottom: 0">
+            <li><a href="/iot-identity-service/api/identity-service.html">Identity Service</a></li>
+            <li><a href="/iot-identity-service/api/keys-service.html">Keys Service</a></li>
+            <li><a href="/iot-identity-service/api/certificates-service.html">Certificates Service</a></li>
+        </ul>
     </ul>
 </div>

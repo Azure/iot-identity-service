@@ -963,6 +963,125 @@ impl std::error::Error for GenerateKeyPairError {
 }
 
 impl Session {
+    /// Delete a symmetric key in the current session with the given label.
+    pub fn delete_key(self: std::sync::Arc<Self>, label: &str) -> Result<(), DeleteKeyError> {
+        unsafe {
+            // Deleting existing keys needs login
+            self.login().map_err(DeleteKeyError::LoginFailed)?;
+
+            match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+                Ok(key_handle) => {
+                    let result = (self.context.C_DestroyObject)(self.handle, key_handle);
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(DeleteKeyError::DeleteExistingKeyFailed(result));
+                    }
+                }
+                Err(GetKeyError::KeyDoesNotExist) => (),
+                Err(err) => return Err(DeleteKeyError::GetExistingKeyFailed(err)),
+            }
+
+            Ok(())
+        }
+    }
+}
+
+/// An error from generating a key pair.
+#[derive(Debug)]
+#[allow(clippy::pub_enum_variant_names)]
+pub enum DeleteKeyError {
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
+    GetExistingKeyFailed(GetKeyError),
+    LoginFailed(crate::LoginError),
+}
+
+impl std::fmt::Display for DeleteKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeleteKeyError::DeleteExistingKeyFailed(result) => {
+                write!(f, "C_DestroyObject failed with {}", result)
+            }
+            DeleteKeyError::GetExistingKeyFailed(_) => {
+                write!(f, "could not get existing key object")
+            }
+            DeleteKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
+    }
+}
+
+impl std::error::Error for DeleteKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            DeleteKeyError::DeleteExistingKeyFailed(_) => None,
+            DeleteKeyError::GetExistingKeyFailed(inner) => Some(inner),
+            DeleteKeyError::LoginFailed(inner) => Some(inner),
+        }
+    }
+}
+
+impl Session {
+    /// Delete a key pair in the current session with the given label.
+    pub fn delete_key_pair(
+        self: std::sync::Arc<Self>,
+        label: &str,
+    ) -> Result<(), DeleteKeyPairError> {
+        unsafe {
+            // Deleting existing keys needs login
+            self.login().map_err(DeleteKeyPairError::LoginFailed)?;
+
+            for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
+                match self.get_key_inner(class, Some(label)) {
+                    Ok(key_handle) => {
+                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
+                        if result != pkcs11_sys::CKR_OK {
+                            return Err(DeleteKeyPairError::DeleteExistingKeyFailed(result));
+                        }
+                    }
+                    Err(GetKeyError::KeyDoesNotExist) => (),
+                    Err(err) => return Err(DeleteKeyPairError::GetExistingKeyFailed(err)),
+                }
+            }
+
+            Ok(())
+        }
+    }
+}
+
+/// An error from generating a key pair.
+#[derive(Debug)]
+#[allow(clippy::pub_enum_variant_names)]
+pub enum DeleteKeyPairError {
+    DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
+    GetExistingKeyFailed(GetKeyError),
+    LoginFailed(crate::LoginError),
+}
+
+impl std::fmt::Display for DeleteKeyPairError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeleteKeyPairError::DeleteExistingKeyFailed(result) => {
+                write!(f, "C_DestroyObject failed with {}", result)
+            }
+            DeleteKeyPairError::GetExistingKeyFailed(_) => {
+                write!(f, "could not get existing key object")
+            }
+            DeleteKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
+        }
+    }
+}
+
+impl std::error::Error for DeleteKeyPairError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            DeleteKeyPairError::DeleteExistingKeyFailed(_) => None,
+            DeleteKeyPairError::GetExistingKeyFailed(inner) => Some(inner),
+            DeleteKeyPairError::LoginFailed(inner) => Some(inner),
+        }
+    }
+}
+
+impl Session {
     pub(crate) unsafe fn login(&self) -> Result<(), LoginError> {
         let mut session_info = std::mem::MaybeUninit::uninit();
         let result = (self.context.C_GetSessionInfo)(self.handle, session_info.as_mut_ptr());

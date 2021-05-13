@@ -100,13 +100,7 @@ impl OsInfo {
 fn parse_os_release_line(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
 
-    let mut parts = line.split('=');
-
-    let key = parts
-        .next()
-        .expect("split line will have at least one part");
-
-    let value = parts.next()?;
+    let (key, value) = line.split_once('=')?;
 
     // The value is essentially a shell string, so it can be quoted in single or
     // double quotes, and can have escaped sequences using backslash.

@@ -92,6 +92,22 @@ impl Client {
         Ok(res.value)
     }
 
+    pub fn delete_key_pair(&self, key_handle: &aziot_key_common::KeyHandle) -> std::io::Result<()> {
+        let mut stream = self.connector.connect()?;
+
+        let body = aziot_key_common_http::delete::Request {
+            key_handle: key_handle.clone(),
+        };
+
+        request_no_content(
+            &mut stream,
+            &http::Method::DELETE,
+            format_args!("/keypair?api-version={}", self.api_version),
+            Some(&body),
+        )?;
+        Ok(())
+    }
+
     pub fn create_key_if_not_exists(
         &self,
         id: &str,
@@ -143,6 +159,22 @@ impl Client {
             None,
         )?;
         Ok(res.handle)
+    }
+
+    pub fn delete_key(&self, key_handle: &aziot_key_common::KeyHandle) -> std::io::Result<()> {
+        let mut stream = self.connector.connect()?;
+
+        let body = aziot_key_common_http::delete::Request {
+            key_handle: key_handle.clone(),
+        };
+
+        request_no_content(
+            &mut stream,
+            &http::Method::DELETE,
+            format_args!("/key?api-version={}", self.api_version),
+            Some(&body),
+        )?;
+        Ok(())
     }
 
     pub fn create_derived_key(
@@ -333,11 +365,11 @@ where
         write!(
             stream,
             "\
-			content-length: {body_len}\r\n\
-			content-type: application/json\r\n\
-			\r\n\
-			{body}\
-			",
+            content-length: {body_len}\r\n\
+            content-type: application/json\r\n\
+            \r\n\
+            {body}\
+            ",
             body_len = body_len,
             body = body,
         )?;
@@ -368,7 +400,7 @@ where
     };
 
     let res: TResponse = match res_status_code {
-        Some(200) => {
+        Some(200) | Some(201) => {
             let res = serde_json::from_slice(body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             res
@@ -388,6 +420,83 @@ where
         }
     };
     Ok(res)
+}
+
+fn request_no_content<TUri, TRequest>(
+    stream: &mut http_common::Stream,
+    method: &http::Method,
+    uri: TUri,
+    body: Option<&TRequest>,
+) -> std::io::Result<()>
+where
+    TUri: std::fmt::Display,
+    TRequest: serde::Serialize,
+{
+    use std::io::{Read, Write};
+
+    write!(
+        stream,
+        "{method} {uri} HTTP/1.1\r\n",
+        method = method,
+        uri = uri
+    )?;
+
+    if let Some(body) = body {
+        let body =
+            serde_json::to_string(body).expect("serializing request body to JSON cannot fail");
+        let body_len = body.len();
+
+        write!(
+            stream,
+            "\
+            content-length: {body_len}\r\n\
+            content-type: application/json\r\n\
+            \r\n\
+            {body}\
+            ",
+            body_len = body_len,
+            body = body,
+        )?;
+    } else {
+        stream.write_all(b"\r\n")?;
+    }
+
+    let mut buf = vec![0_u8; 512];
+    let mut read_so_far = 0;
+
+    let (res_status_code, body) = loop {
+        let new_read = loop {
+            match stream.read(&mut buf[read_so_far..]) {
+                Ok(new_read) => break new_read,
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => (),
+                Err(err) => return Err(err),
+            }
+        };
+        read_so_far += new_read;
+
+        if let Some((res_status_code, body)) = try_parse_response(&buf[..read_so_far], new_read)? {
+            break (res_status_code, body);
+        }
+
+        if read_so_far == buf.len() {
+            buf.resize(buf.len() * 2, 0_u8);
+        }
+    };
+
+    match res_status_code {
+        Some(204) => Ok(()),
+
+        Some(400..=499) | Some(500..=599) => {
+            let res: http_common::ErrorBody<'static> = serde_json::from_slice(body)
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            Err(std::io::Error::new(std::io::ErrorKind::Other, res.message))
+        }
+
+        Some(_) | None => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "malformed HTTP response",
+        )),
+    }
 }
 
 fn try_parse_response(

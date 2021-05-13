@@ -27,8 +27,13 @@ pub enum AsyncStream {
 #[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
-    Tcp(tokio::net::TcpListener),
-    Unix(tokio::net::UnixListener),
+    Tcp {
+        listener: tokio::net::TcpListener,
+    },
+    Unix {
+        listener: tokio::net::UnixListener,
+        user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<tokio::sync::Semaphore>>,
+    },
 }
 
 #[cfg(feature = "tokio1")]
@@ -44,15 +49,21 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
+        const READ_WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+        const MAX_REQUESTS_PER_USER: usize = 10;
+
         match self {
-            Incoming::Tcp(listener) => loop {
+            Incoming::Tcp { listener } => loop {
                 let (tcp_stream, _) = listener.accept().await?;
+                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(tcp_stream);
+                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
+                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
 
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(0, server.clone());
                 tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(tcp_stream, server)
+                        .serve_connection(Box::pin(timeout_stream), server)
                         .await
                     {
                         log::info!("Error while serving HTTP connection: {}", http_err);
@@ -60,17 +71,39 @@ impl Incoming {
                 });
             },
 
-            Incoming::Unix(listener) => loop {
+            Incoming::Unix {
+                listener,
+                user_state,
+            } => loop {
                 let (unix_stream, _) = listener.accept().await?;
                 let ucred = unix_stream.peer_cred()?;
+                let user_state = user_state
+                    .entry(ucred.uid())
+                    .or_insert_with(|| {
+                        std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
+                    })
+                    .clone();
+                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(unix_stream);
+                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
+                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
 
                 let server = crate::uid::UidService::new(ucred.uid(), server.clone());
                 tokio::spawn(async move {
-                    if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(unix_stream, server)
-                        .await
-                    {
-                        log::info!("Error while serving HTTP connection: {}", http_err);
+                    match user_state.try_acquire_owned() {
+                        Ok(_permit) => {
+                            if let Err(http_err) = hyper::server::conn::Http::new()
+                                .serve_connection(Box::pin(timeout_stream), server)
+                                .await
+                            {
+                                log::info!("Error while serving HTTP connection: {}", http_err);
+                            }
+                        }
+                        Err(limit_err) => {
+                            log::info!(
+                                "Error while acquiring permit for HTTP connection: {}",
+                                limit_err
+                            );
+                        }
                     }
                 });
             },
@@ -139,7 +172,7 @@ impl Connector {
                         unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
                     listener.set_nonblocking(true)?;
                     let listener = tokio::net::TcpListener::from_std(listener)?;
-                    Ok(Incoming::Tcp(listener))
+                    Ok(Incoming::Tcp { listener })
                 }
 
                 nix::sys::socket::SockAddr::Unix(_) => {
@@ -147,7 +180,10 @@ impl Connector {
                         unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
                     listener.set_nonblocking(true)?;
                     let listener = tokio::net::UnixListener::from_std(listener)?;
-                    Ok(Incoming::Unix(listener))
+                    Ok(Incoming::Unix {
+                        listener,
+                        user_state: Default::default(),
+                    })
                 }
 
                 sock_addr => Err(std::io::Error::new(
@@ -165,7 +201,7 @@ impl Connector {
                 {
                     if cfg!(debug_assertions) {
                         let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
-                        Ok(Incoming::Tcp(listener))
+                        Ok(Incoming::Tcp { listener })
                     } else {
                         Err(std::io::Error::new(
                             std::io::ErrorKind::Other,
@@ -182,7 +218,10 @@ impl Connector {
                     }
 
                     let listener = tokio::net::UnixListener::bind(socket_path)?;
-                    Ok(Incoming::Unix(listener))
+                    Ok(Incoming::Unix {
+                        listener,
+                        user_state: Default::default(),
+                    })
                 }
             }
         }

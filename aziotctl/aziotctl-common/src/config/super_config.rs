@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 /// This is the config stored in `/etc/aziot/config.toml`
@@ -89,7 +89,7 @@ pub enum ProvisioningType {
 #[serde(untagged)]
 pub enum ManualProvisioning {
     ConnectionString {
-        connection_string: String,
+        connection_string: ConnectionString,
     },
 
     Explicit {
@@ -99,6 +99,56 @@ pub enum ManualProvisioning {
     },
 }
 
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct ConnectionString(String);
+
+impl ConnectionString {
+    pub fn new(s: String) -> Result<ConnectionString, String> {
+        // only perform validation, discarding the constituent components.
+        let _components = super::parse_manual_connection_string(&s)?;
+        Ok(ConnectionString(s))
+    }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for ConnectionString {
+    fn deserialize<D>(deserializer: D) -> Result<ConnectionString, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = ConnectionString;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("connection string")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                ConnectionString::new(s.to_owned()).map_err(E::custom)
+            }
+
+            fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                ConnectionString::new(s).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
+}
+
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -112,6 +162,7 @@ pub enum ManualAuthMethod {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -123,7 +174,7 @@ pub enum DpsAttestationMethod {
     },
 
     X509 {
-        registration_id: String,
+        registration_id: Option<String>,
 
         #[serde(flatten)]
         identity: X509Identity,
@@ -175,7 +226,7 @@ pub enum EstAuthX509 {
 #[serde(untagged)]
 pub enum LocalCa {
     Issued {
-        cert: aziot_certd_config::CertIssuanceOptions,
+        cert: CertIssuanceOptions,
     },
 
     Preloaded {
@@ -201,13 +252,42 @@ pub enum SymmetricKey {
 #[serde(untagged)]
 pub enum X509Identity {
     Issued {
-        identity_cert: aziot_certd_config::CertIssuanceOptions,
+        identity_cert: CertIssuanceOptions,
     },
 
     Preloaded {
         identity_cert: Url,
         identity_pk: aziot_keys_common::PreloadedKeyLocation,
     },
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CertIssuanceOptions {
+    pub common_name: Option<String>,
+
+    #[serde(
+        default,
+        deserialize_with = "aziot_certd_config::deserialize_expiry_days"
+    )]
+    pub expiry_days: Option<u32>,
+
+    #[serde(flatten)]
+    pub method: CertIssuanceMethod,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
+pub enum CertIssuanceMethod {
+    #[serde(rename = "est")]
+    Est {
+        url: Option<url::Url>,
+        #[serde(flatten)]
+        auth: Option<EstAuth>,
+    },
+
+    LocalCa,
+
+    SelfSigned,
 }
 
 mod base64 {

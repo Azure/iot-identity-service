@@ -31,7 +31,7 @@ unsafe extern "C" fn engine_init(e: *mut openssl_sys::ENGINE) -> std::os::raw::c
             .parse()
             .expect("hard-coded URI must parse successfully");
         let key_client = aziot_key_client::Client::new(
-            aziot_key_common_http::ApiVersion::V2020_09_01,
+            aziot_key_common_http::ApiVersion::V2021_05_01,
             key_connector,
         );
         let key_client = std::sync::Arc::new(key_client);

@@ -15,17 +15,18 @@ lazy_static::lazy_static! {
 
 pub(crate) unsafe fn get_function_list(
     version: crate::AZIOT_KEYS_VERSION,
-    pfunction_list: *mut *const crate::AZIOT_KEYS_FUNCTION_LIST,
+    pfunction_list: *mut *const crate::function_list::AZIOT_KEYS_FUNCTION_LIST,
 ) -> crate::AZIOT_KEYS_RC {
     // Ignore the error from `try_init`. The error indicates a global logger was already set,
     // which is because `get_function_list` is being called a second time. That's fine.
     let _ = logger::try_init();
 
     crate::r#catch(|| {
-        static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0: crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 =
-            crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
-                base: crate::AZIOT_KEYS_FUNCTION_LIST {
-                    version: crate::AZIOT_KEYS_VERSION_2_0_0_0,
+        static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0:
+            crate::function_list::v2_0_0_0::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 =
+            crate::function_list::v2_0_0_0::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+                base: crate::function_list::AZIOT_KEYS_FUNCTION_LIST {
+                    version: crate::function_list::v2_0_0_0::AZIOT_KEYS_VERSION_2_0_0_0,
                 },
 
                 set_parameter,
@@ -42,12 +43,44 @@ pub(crate) unsafe fn get_function_list(
                 decrypt,
             };
 
+        static AZIOT_KEYS_FUNCTION_LIST_2_1_0_0:
+            crate::function_list::v2_1_0_0::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 =
+            crate::function_list::v2_1_0_0::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
+                base: crate::function_list::AZIOT_KEYS_FUNCTION_LIST {
+                    version: crate::function_list::v2_1_0_0::AZIOT_KEYS_VERSION_2_1_0_0,
+                },
+
+                set_parameter,
+                create_key_pair_if_not_exists: crate::key_pair::create_key_pair_if_not_exists,
+                load_key_pair: crate::key_pair::load_key_pair,
+                get_key_pair_parameter: crate::key_pair::get_key_pair_parameter,
+                delete_key_pair: crate::key_pair::delete_key_pair,
+                create_key_if_not_exists: crate::key::create_key_if_not_exists,
+                load_key: crate::key::load_key,
+                import_key: crate::key::import_key,
+                delete_key: crate::key::delete_key,
+                derive_key: crate::key::derive_key,
+                sign,
+                verify,
+                encrypt,
+                decrypt,
+            };
+
         match version {
-            crate::AZIOT_KEYS_VERSION_2_0_0_0 => {
+            crate::function_list::v2_0_0_0::AZIOT_KEYS_VERSION_2_0_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
                 *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_0_0_0
-                    as *const crate::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0)
+                    as *const crate::function_list::v2_0_0_0::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0)
+                    .cast();
+                Ok(())
+            }
+
+            crate::function_list::v2_1_0_0::AZIOT_KEYS_VERSION_2_1_0_0 => {
+                let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
+                    .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
+                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_1_0_0
+                    as *const crate::function_list::v2_1_0_0::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0)
                     .cast();
                 Ok(())
             }

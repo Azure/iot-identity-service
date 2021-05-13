@@ -85,6 +85,24 @@ impl Client {
         Ok(res.value)
     }
 
+    pub async fn delete_key_pair(
+        &self,
+        key_handle: &aziot_key_common::KeyHandle,
+    ) -> std::io::Result<()> {
+        let body = aziot_key_common_http::delete::Request {
+            key_handle: key_handle.clone(),
+        };
+
+        http_common::request_no_content(
+            &self.inner,
+            http::Method::GET,
+            &format!("http://keyd.sock/keypair?api-version={}", self.api_version),
+            Some(&body),
+        )
+        .await?;
+        Ok(())
+    }
+
     pub async fn create_key_if_not_exists(
         &self,
         id: &str,
@@ -134,6 +152,24 @@ impl Client {
         )
         .await?;
         Ok(res.handle)
+    }
+
+    pub async fn delete_key(
+        &self,
+        key_handle: &aziot_key_common::KeyHandle,
+    ) -> std::io::Result<()> {
+        let body = aziot_key_common_http::delete::Request {
+            key_handle: key_handle.clone(),
+        };
+
+        http_common::request_no_content(
+            &self.inner,
+            http::Method::GET,
+            &format!("http://keyd.sock/key?api-version={}", self.api_version),
+            Some(&body),
+        )
+        .await?;
+        Ok(())
     }
 
     pub async fn create_derived_key(

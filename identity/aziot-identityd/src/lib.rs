@@ -112,7 +112,7 @@ impl Api {
 
         let key_client = {
             let key_client = aziot_key_client_async::Client::new(
-                aziot_key_common_http::ApiVersion::V2020_09_01,
+                aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_service_connector.clone(),
             );
             let key_client = Arc::new(key_client);
@@ -121,7 +121,7 @@ impl Api {
 
         let key_engine = {
             let key_client = aziot_key_client::Client::new(
-                aziot_key_common_http::ApiVersion::V2020_09_01,
+                aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_service_connector,
             );
             let key_client = Arc::new(key_client);

@@ -6,12 +6,14 @@
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2020_09_01,
+    V2021_05_01,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             ApiVersion::V2020_09_01 => "2020-09-01",
+            ApiVersion::V2021_05_01 => "2021-05-01",
         })
     }
 }
@@ -22,6 +24,7 @@ impl std::str::FromStr for ApiVersion {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "2020-09-01" => Ok(ApiVersion::V2020_09_01),
+            "2021-05-01" => Ok(ApiVersion::V2021_05_01),
             _ => Err(()),
         }
     }
@@ -165,6 +168,14 @@ pub mod load {
     pub struct Response {
         #[serde(rename = "keyHandle")]
         pub handle: aziot_key_common::KeyHandle,
+    }
+}
+
+pub mod delete {
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        #[serde(rename = "keyHandle")]
+        pub key_handle: aziot_key_common::KeyHandle,
     }
 }
 

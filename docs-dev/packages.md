@@ -66,12 +66,12 @@ For an example to put it all together, let's say you want to build the CentOS 7 
 
 ```sh
 docker run -it --rm \
-	-v "$(realpath ~/src/iot-identity-service):/src" \
-	-e 'ARCH=amd64' \
-	-e 'PACKAGE_VERSION=1.2.0' \
-	-e 'PACKAGE_RELEASE=0' \
-	centos:7 \
-	'/src/ci/package.sh'
+    -v "$(realpath ~/src/iot-identity-service):/src" \
+    -e 'ARCH=amd64' \
+    -e 'PACKAGE_VERSION=1.2.0' \
+    -e 'PACKAGE_RELEASE=0' \
+    centos:7 \
+    '/src/ci/package.sh'
 ```
 
 and at the end you would have these files under `~/src/iot-identity-service/packages`:
@@ -93,12 +93,12 @@ For another example, let's say you want to build the Debian 10 package for ARM32
 
 ```sh
 docker run -it --rm \
-	-v "$(realpath ~/src/iot-identity-service):/src" \
-	-e 'ARCH=arm32v7' \
-	-e 'PACKAGE_VERSION=1.2.0' \
-	-e 'PACKAGE_RELEASE=0' \
-	debian:10-slim \
-	'/src/ci/package.sh'
+    -v "$(realpath ~/src/iot-identity-service):/src" \
+    -e 'ARCH=arm32v7' \
+    -e 'PACKAGE_VERSION=1.2.0' \
+    -e 'PACKAGE_RELEASE=0' \
+    debian:10-slim \
+    '/src/ci/package.sh'
 ```
 
 and at the end you would have these files under `~/src/iot-identity-service/packages`:
