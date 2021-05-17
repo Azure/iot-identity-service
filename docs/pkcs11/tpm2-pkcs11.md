@@ -163,19 +163,11 @@ wait $(jobs -pr)
 
     cd ~/src/tpm2-pkcs11
 
-    # The `tpm2-pkcs11` library uses a filesystem directory
-    # to store wrapped keys.
-    sudo mkdir -p /opt/tpm2-pkcs11
-    # aziotks was created by the aziot-identity-service package.
-    sudo chown aziotks:aziotks /opt/tpm2-pkcs11
-    sudo chmod 0700 /opt/tpm2-pkcs11
-
     # --enable-debug=!yes is needed to disable assert() in
     # CKR_FUNCTION_NOT_SUPPORTED-returning unimplemented functions.
     ./configure \
         --enable-debug=info \
-        --enable-esapi-session-manage-flags \
-        --with-storedir=/opt/tpm2-pkcs11
+        --enable-esapi-session-manage-flags
     make "-j$(nproc)"
     sudo make install
 )
@@ -199,9 +191,6 @@ SO_PIN="so$PIN"
 
 sudo tpm2_clear
 
-# This is the directory tpm2-pkcs11 was configured to use.
-export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
-
 # tpm2_ptool requires Python 3 >= 3.7 and expects `python3`
 # to be that version by default.
 #
@@ -211,7 +200,7 @@ export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
 #
 # export PYTHON_INTERPRETER=python3.7
 
-sudo rm -f "$TPM2_PKCS11_STORE/tpm2_pkcs11.sqlite3"
+sudo rm -rf /var/lib/aziot/keyd/.tpm2_pkcs11
 (
     cd ~/src/tpm2-pkcs11/tools &&
     sudo -u aziotks ./tpm2_ptool init --primary-auth '1234' &&
