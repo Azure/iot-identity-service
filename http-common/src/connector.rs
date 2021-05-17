@@ -49,15 +49,14 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        const READ_WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+        const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
         const MAX_REQUESTS_PER_USER: usize = 10;
 
         match self {
             Incoming::Tcp { listener } => loop {
                 let (tcp_stream, _) = listener.accept().await?;
-                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(tcp_stream);
-                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
-                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
+                let mut timeout_stream = tokio_io_timeout::TimeoutReader::new(tcp_stream);
+                timeout_stream.set_timeout(Some(READ_TIMEOUT));
 
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(0, server.clone());
@@ -83,9 +82,8 @@ impl Incoming {
                         std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
                     })
                     .clone();
-                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(unix_stream);
-                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
-                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
+                let mut timeout_stream = tokio_io_timeout::TimeoutReader::new(unix_stream);
+                timeout_stream.set_timeout(Some(READ_TIMEOUT));
 
                 let server = crate::uid::UidService::new(ucred.uid(), server.clone());
                 tokio::spawn(async move {
