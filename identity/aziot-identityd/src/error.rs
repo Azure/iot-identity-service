@@ -24,19 +24,10 @@ impl Error {
 
     pub(crate) fn is_network(&self) -> bool {
         match &self {
-            Error::DpsClient(err) | Error::HubClient(err) => match err.kind() {
-                std::io::ErrorKind::TimedOut => true, // Network timed out
-                std::io::ErrorKind::Other => {
-                    if let Some(err) = err.get_ref() {
-                        // TODO: check if error is hyper::Error
-                        return true;
-                    }
-
-                    false
-                }
-                _ => false,
-            },
-
+            Error::DpsClient(err) | Error::HubClient(err) => matches!(
+                err.kind(),
+                std::io::ErrorKind::TimedOut | std::io::ErrorKind::NotConnected
+            ),
             _ => false,
         }
     }

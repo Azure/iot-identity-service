@@ -291,7 +291,14 @@ impl Client {
             let err = match tokio::time::timeout(self.req_timeout, client.request(req)).await {
                 Ok(res) => match res {
                     Ok(res) => break res,
-                    Err(err) => std::io::Error::new(std::io::ErrorKind::Other, err),
+                    Err(err) => {
+                        if err.is_connect() {
+                            // Network error.
+                            std::io::Error::new(std::io::ErrorKind::NotConnected, err)
+                        } else {
+                            std::io::Error::new(std::io::ErrorKind::Other, err)
+                        }
+                    }
                 },
                 Err(err) => err.into(),
             };
