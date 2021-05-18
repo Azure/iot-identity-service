@@ -47,6 +47,9 @@ pub struct Client {
     global_endpoint: url::Url,
     scope_id: String,
 
+    req_timeout: std::time::Duration,
+    req_retries: u32,
+
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
@@ -59,6 +62,8 @@ impl Client {
     pub fn new(
         global_endpoint: &url::Url,
         scope_id: &str,
+        req_timeout: std::time::Duration,
+        req_retries: u32,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -68,6 +73,9 @@ impl Client {
         Client {
             global_endpoint: global_endpoint.clone(),
             scope_id: scope_id.to_owned(),
+
+            req_timeout,
+            req_retries,
 
             key_client,
             key_engine,
@@ -200,84 +208,107 @@ impl Client {
     {
         let uri = format!("{}{}", self.global_endpoint, resource_uri);
 
-        let req = hyper::Request::builder().method(&method).uri(&uri);
-        // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
-        //
-        // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
-        #[allow(clippy::option_if_let_else)]
-        let req = if let Some(ref body) = orig_body {
-            let body = serde_json::to_vec(&body)
-                .expect("serializing request body to JSON cannot fail")
-                .into();
-            req.header(hyper::header::CONTENT_TYPE, "application/json")
-                .body(body)
-        } else {
-            req.body(hyper::Body::default())
+        let mut current_attempt = 1;
+        let retry_limit = self.req_retries + 1;
+
+        let res = loop {
+            let req = hyper::Request::builder().method(&method).uri(&uri);
+            // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
+            //
+            // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
+            #[allow(clippy::option_if_let_else)]
+            let req = if let Some(ref body) = orig_body {
+                let body = serde_json::to_vec(&body)
+                    .expect("serializing request body to JSON cannot fail")
+                    .into();
+                req.header(hyper::header::CONTENT_TYPE, "application/json")
+                    .body(body)
+            } else {
+                req.body(hyper::Body::default())
+            };
+
+            let mut req = req.expect("cannot fail to create hyper request");
+
+            let connector = match &auth_kind {
+                DpsAuthKind::Tpm => {
+                    http_common::MaybeProxyConnector::new(self.proxy_uri.clone(), None, &[])?
+                }
+                DpsAuthKind::SymmetricKey { sas_key: key } => {
+                    let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
+                    let key_handle = self.key_client.load_key(key).await?;
+                    let (connector, token) = get_sas_connector(
+                        &audience,
+                        key_handle,
+                        &*self.key_client,
+                        self.proxy_uri.clone(),
+                        false,
+                    )
+                    .await?;
+                    let authorization_header_value =
+                        hyper::header::HeaderValue::from_str(&token)
+                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                    req.headers_mut()
+                        .append(hyper::header::AUTHORIZATION, authorization_header_value);
+                    connector
+                }
+                DpsAuthKind::TpmDpsNonce => {
+                    let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
+                    let (connector, token) = get_sas_connector(
+                        &audience,
+                        (),
+                        &*self.tpm_client,
+                        self.proxy_uri.clone(),
+                        true,
+                    )
+                    .await?;
+
+                    let authorization_header_value =
+                        hyper::header::HeaderValue::from_str(&token)
+                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                    req.headers_mut()
+                        .append(hyper::header::AUTHORIZATION, authorization_header_value);
+                    connector
+                }
+                DpsAuthKind::X509 {
+                    identity_cert,
+                    identity_pk,
+                } => {
+                    get_x509_connector(
+                        &identity_cert,
+                        &identity_pk,
+                        &self.key_client,
+                        &mut *self.key_engine.lock().await,
+                        &self.cert_client,
+                        self.proxy_uri.clone(),
+                    )
+                    .await?
+                }
+            };
+
+            let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
+            log::debug!("DPS request {:?}", req);
+
+            let err = match tokio::time::timeout(self.req_timeout, client.request(req)).await {
+                Ok(res) => match res {
+                    Ok(res) => break res,
+                    Err(err) => std::io::Error::new(std::io::ErrorKind::Other, err),
+                },
+                Err(err) => err.into(),
+            };
+
+            log::warn!(
+                "Provisioning failed to communicate with DPS (attempt {} of {}): {}",
+                current_attempt,
+                retry_limit,
+                err
+            );
+
+            if current_attempt == retry_limit {
+                return Err(err);
+            }
+
+            current_attempt += 1;
         };
-
-        let mut req = req.expect("cannot fail to create hyper request");
-
-        let connector = match &auth_kind {
-            DpsAuthKind::Tpm => {
-                http_common::MaybeProxyConnector::new(self.proxy_uri.clone(), None, &[])?
-            }
-            DpsAuthKind::SymmetricKey { sas_key: key } => {
-                let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-                let key_handle = self.key_client.load_key(key).await?;
-                let (connector, token) = get_sas_connector(
-                    &audience,
-                    key_handle,
-                    &*self.key_client,
-                    self.proxy_uri.clone(),
-                    false,
-                )
-                .await?;
-                let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                req.headers_mut()
-                    .append(hyper::header::AUTHORIZATION, authorization_header_value);
-                connector
-            }
-            DpsAuthKind::TpmDpsNonce => {
-                let audience = format!("{}/registrations/{}", self.scope_id, registration_id);
-                let (connector, token) = get_sas_connector(
-                    &audience,
-                    (),
-                    &*self.tpm_client,
-                    self.proxy_uri.clone(),
-                    true,
-                )
-                .await?;
-
-                let authorization_header_value = hyper::header::HeaderValue::from_str(&token)
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-                req.headers_mut()
-                    .append(hyper::header::AUTHORIZATION, authorization_header_value);
-                connector
-            }
-            DpsAuthKind::X509 {
-                identity_cert,
-                identity_pk,
-            } => {
-                get_x509_connector(
-                    &identity_cert,
-                    &identity_pk,
-                    &self.key_client,
-                    &mut *self.key_engine.lock().await,
-                    &self.cert_client,
-                    self.proxy_uri.clone(),
-                )
-                .await?
-            }
-        };
-
-        let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
-        log::debug!("DPS request {:?}", req);
-
-        let res = client
-            .request(req)
-            .await
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
         let (
             http::response::Parts {

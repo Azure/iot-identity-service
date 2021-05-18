@@ -2,7 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
 mod check;
 
@@ -11,6 +11,15 @@ pub struct Settings {
     pub hostname: String,
 
     pub homedir: std::path::PathBuf,
+
+    #[serde(
+        default = "Settings::default_cloud_timeout",
+        deserialize_with = "deserialize_cloud_timeout"
+    )]
+    pub cloud_timeout_sec: u64,
+
+    #[serde(default = "Settings::default_cloud_retries")]
+    pub cloud_retries: u32,
 
     pub provisioning: Provisioning,
 
@@ -24,6 +33,31 @@ pub struct Settings {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub localid: Option<LocalId>,
+}
+
+impl Settings {
+    pub fn default_cloud_timeout() -> u64 {
+        10
+    }
+
+    pub fn default_cloud_retries() -> u32 {
+        0
+    }
+}
+
+fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let result: u64 = serde::Deserialize::deserialize(deserializer)?;
+
+    if result == 0 {
+        return Err(serde::de::Error::custom(
+            "cloud_timeout_sec must be greater than 0",
+        ));
+    }
+
+    Ok(result)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]

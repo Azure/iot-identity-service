@@ -21,6 +21,25 @@ impl Error {
     {
         Error::InvalidParameter(name, err.into())
     }
+
+    pub(crate) fn is_network(&self) -> bool {
+        match &self {
+            Error::DpsClient(err) | Error::HubClient(err) => match err.kind() {
+                std::io::ErrorKind::TimedOut => true, // Network timed out
+                std::io::ErrorKind::Other => {
+                    if let Some(err) = err.get_ref() {
+                        // TODO: check if error is hyper::Error
+                        return true;
+                    }
+
+                    false
+                }
+                _ => false,
+            },
+
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Error {

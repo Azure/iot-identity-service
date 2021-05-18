@@ -10,6 +10,7 @@
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
+    clippy::too_many_arguments,
     clippy::too_many_lines,
     clippy::type_complexity
 )]
@@ -156,6 +157,8 @@ impl Api {
 
         let id_manager = identity::IdentityManager::new(
             settings.homedir.clone(),
+            std::time::Duration::from_secs(settings.cloud_timeout_sec),
+            settings.cloud_retries,
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
@@ -421,16 +424,32 @@ impl Api {
             match err {
                 Error::HubClient(_) => match trigger {
                     ReprovisionTrigger::Startup | ReprovisionTrigger::ConfigurationFileUpdate => {
+                        // Network errors are not fatal because Identity Service can still run off its backup.
+                        if err.is_network() {
+                            log::warn!("Network not available for Identity reconciliation. Using offline backup from last run.");
+
+                            return Ok(());
+                        }
+
                         log::info!("Could not reconcile Identities with current device data. Reprovisioning.");
 
-                        self.id_manager
+                        if let Err(err) = self
+                            .id_manager
                             .provision_device(self.settings.provisioning.clone(), false)
-                            .await?;
-                        log::info!("Successfully reprovisioned.");
+                            .await
+                        {
+                            if err.is_network() {
+                                log::warn!("Reprovisioning failed to communicate with DPS. Using offline backup from last run.");
+                            } else {
+                                return Err(err);
+                            }
+                        } else {
+                            log::info!("Successfully reprovisioned.");
 
-                        self.id_manager
-                            .reconcile_hub_identities(self.settings.clone())
-                            .await?;
+                            self.id_manager
+                                .reconcile_hub_identities(self.settings.clone())
+                                .await?;
+                        }
                     }
 
                     // Don't attempt to reprovision if this function was called by the reprovision API.

@@ -267,6 +267,10 @@ pub fn run(
 
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 
+        cloud_timeout_sec: aziot_identityd_config::Settings::default_cloud_timeout(),
+
+        cloud_retries: aziot_identityd_config::Settings::default_cloud_retries(),
+
         principal: vec![],
 
         provisioning,
