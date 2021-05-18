@@ -14,11 +14,15 @@ pub struct Settings {
 
     #[serde(
         default = "Settings::default_cloud_timeout",
-        deserialize_with = "deserialize_cloud_timeout"
+        deserialize_with = "deserialize_cloud_timeout",
+        skip_serializing_if = "Settings::is_default_timeout"
     )]
     pub cloud_timeout_sec: u64,
 
-    #[serde(default = "Settings::default_cloud_retries")]
+    #[serde(
+        default = "Settings::default_cloud_retries",
+        skip_serializing_if = "Settings::is_default_retries"
+    )]
     pub cloud_retries: u32,
 
     pub provisioning: Provisioning,
@@ -42,6 +46,16 @@ impl Settings {
 
     pub fn default_cloud_retries() -> u32 {
         0
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn is_default_timeout(timeout: &u64) -> bool {
+        *timeout == Settings::default_cloud_timeout()
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    fn is_default_retries(retries: &u32) -> bool {
+        *retries == Settings::default_cloud_retries()
     }
 }
 
