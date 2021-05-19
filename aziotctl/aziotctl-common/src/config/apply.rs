@@ -24,6 +24,8 @@ pub fn run(
         parent_hostname,
         provisioning,
         localid,
+        cloud_timeout_sec,
+        cloud_retries,
         mut aziot_keys,
         mut preloaded_keys,
         cert_issuance,
@@ -267,9 +269,9 @@ pub fn run(
 
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 
-        cloud_timeout_sec: aziot_identityd_config::Settings::default_cloud_timeout(),
+        cloud_timeout_sec,
 
-        cloud_retries: aziot_identityd_config::Settings::default_cloud_retries(),
+        cloud_retries,
 
         principal: vec![],
 

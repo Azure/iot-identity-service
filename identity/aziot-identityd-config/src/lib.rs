@@ -49,17 +49,17 @@ impl Settings {
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn is_default_timeout(timeout: &u64) -> bool {
+    pub fn is_default_timeout(timeout: &u64) -> bool {
         *timeout == Settings::default_cloud_timeout()
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn is_default_retries(retries: &u32) -> bool {
+    pub fn is_default_retries(retries: &u32) -> bool {
         *retries == Settings::default_cloud_retries()
     }
 }
 
-fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>
+pub fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {

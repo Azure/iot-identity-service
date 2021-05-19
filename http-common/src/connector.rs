@@ -59,7 +59,7 @@ impl Incoming {
                 let server = crate::uid::UidService::new(0, server.clone());
                 tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(Box::pin(tcp_stream), server)
+                        .serve_connection(tcp_stream, server)
                         .await
                     {
                         log::info!("Error while serving HTTP connection: {}", http_err);
@@ -85,7 +85,7 @@ impl Incoming {
                     match user_state.try_acquire_owned() {
                         Ok(_permit) => {
                             if let Err(http_err) = hyper::server::conn::Http::new()
-                                .serve_connection(Box::pin(unix_stream), server)
+                                .serve_connection(unix_stream, server)
                                 .await
                             {
                                 log::info!("Error while serving HTTP connection: {}", http_err);
