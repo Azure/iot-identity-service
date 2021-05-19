@@ -165,12 +165,6 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
 
     For `x509_thumbprint` and `x509_ca`, if the keys are backed by hardware, use a `pkcs11:` URI instead of a `file://` URI.
 
-1. If you're using PKCS#11 and specifically the `tpm2-pkcs11` library, remember to also export the `TPM2_PKCS11_STORE` env var.
-
-    ```sh
-    export TPM2_PKCS11_STORE=/opt/tpm2-pkcs11
-    ```
-
 1. Create the `/run/aziot` directory if it doesn't already exist, and make sure it's readable and writable by the user you will run the service as.
 
 1. Run the service, setting the `AZIOT_KEYD_CONFIG` and `AZIOT_KEYD_CONFIG_DIR` env vars if necessary.
