@@ -96,7 +96,14 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 ### Get IoT device provisioning result
 
-`GET /identities/device?api-version=2020-09-01`
+`POST /identities/device?api-version=2020-09-01`
+
+#### Request
+```json
+{
+  "type": "aziot"
+}
+```
 
 #### Response (SAS case)
 ```json

@@ -38,6 +38,19 @@ pub struct Config {
     #[serde(alias = "local_gateway_hostname")]
     pub parent_hostname: Option<String>,
 
+    #[serde(
+        default = "aziot_identityd_config::Settings::default_cloud_timeout",
+        deserialize_with = "aziot_identityd_config::deserialize_cloud_timeout",
+        skip_serializing_if = "aziot_identityd_config::Settings::is_default_timeout"
+    )]
+    pub cloud_timeout_sec: u64,
+
+    #[serde(
+        default = "aziot_identityd_config::Settings::default_cloud_retries",
+        skip_serializing_if = "aziot_identityd_config::Settings::is_default_retries"
+    )]
+    pub cloud_retries: u32,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,
