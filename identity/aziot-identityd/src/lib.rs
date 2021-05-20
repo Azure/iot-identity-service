@@ -688,6 +688,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
                     p.name.0 == m
                         && p.id_type.map_or(false, |i| {
                             i.contains(&aziot_identity_common::IdType::Module)
+                                || i.contains(&aziot_identity_common::IdType::Local)
                         })
                 }
                 auth::OperationType::GetDevice => p
