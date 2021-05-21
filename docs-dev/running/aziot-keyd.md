@@ -69,7 +69,7 @@ keys = ["example"]
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
-- `[[principal]]` - Principals provide a list of users and keys they are authorized to access. See [API authorization](../../docs/api/keys-service.html#api-authentication) for more information.
+- `[[principal]]` - Principals provide a list of users and keys they are authorized to access. See [API authorization](../../docs/api/keys-service.md#api-authentication) for more information.
 
 Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 
