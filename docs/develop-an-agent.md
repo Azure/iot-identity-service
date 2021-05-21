@@ -31,11 +31,11 @@ Alternatively, [install IoT Edge v1.2 or later](https://docs.microsoft.com/azure
 
 ### Configuration for Provisioning
 
-For demonstration purposes we <u>m</u>anually <u>p</u>rovision the device with a connection string. However, the Identity Service can be configured to use any of the following methods.
+For demonstration purposes, we <u>m</u>anually <u>p</u>rovision the device with a connection string. However, the Identity Service can be configured to use any of the following methods.
 1. manually using a connection string
 1. manually using X.509 certificates
 1. via DPS using X.509 certificates (self-signed or CA-signed)
-1. via DPS using TPS attestation
+1. via DPS using TPM attestation
 
 We'll use the `config mp` convenience command:
 
@@ -65,7 +65,7 @@ For the other provisioning methods, start by creating a config file. Modify it t
 
 For example:
 
-* If you have installed _IoT Edge v1.2+_ then use `/etc/aziot/config.toml.edge.template`.
+* If you have installed _IoT Edge v1.2+_, then use `/etc/aziot/config.toml.edge.template`.
 
     ```bash
     sudo cp /etc/aziot/config.toml.edge.template /etc/aziot/config.toml
@@ -133,7 +133,7 @@ name = "mymodule"
 idtype = ["module"]
 EOF
 
-# Set ownership of your registration entry to the identity service
+# Set ownership of your registration entry to the Identity Service
 sudo chown aziotid:aziotid /etc/aziot/identityd/config.d/mymodule.toml
 
 # Set the registration entry to be -rw-------.
@@ -159,11 +159,11 @@ If your agent uses a module identity (recommended) then the only method you **mu
 
 Although not required, we recommend future-proofing your agent by including the logic to support X.509 authentication. The Identity Service does not yet support X.509 authentication for modules. You can test your logic with a device identity. The practical differences in your implementation when using device versus module identity are negligible.
 
-The next sections use bash script to highlight the concepts of how to use the Identity / Keys / Cert services to connect to Hub. The [Device Update agent](https://docs.microsoft.com/azure/iot-hub-device-update/device-update-agent-provisioning) again serves as a real world example. It handles both authentication types. As part of it's startup sequence it retrieves the [provisioning information](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L755) and uses it to [create the client](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L485). In particular, the [RequestConnectionStringFromEISWithExpiry](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/utils/eis_utils/src/eis_utils.c#L397) utility function implements many of the concepts discussed in the next sections for SaS and X.509 authentication.
+The next sections use bash script to highlight the concepts of how to use the Identity / Keys / Cert services to connect to Hub. The [Device Update agent](https://docs.microsoft.com/azure/iot-hub-device-update/device-update-agent-provisioning) again serves as a real world example. It handles both authentication types. As part of its startup sequence, it retrieves the [provisioning information](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L755) and uses it to [create the client](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L485). In particular, the [RequestConnectionStringFromEISWithExpiry](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/utils/eis_utils/src/eis_utils.c#L397) utility function implements many of the concepts discussed in the next sections for SaS and X.509 authentication.
 
 ### SaS authentication with a Connection String Walkthrough
 
-The sequence diagram and examples below shows the steps to create a signed token, the Shared Access Signature, and the final connection string to use with the C SDK.
+The sequence diagram and examples below show the steps to create a signed token, the Shared Access Signature, and the final connection string to use with the C SDK.
 
 _Sequence diagram for runtime operations_
 
@@ -194,7 +194,7 @@ Send the request to the identity endpoint, `/run/aziot/identityd.sock`. Use the 
 
 If the connection is refused, retry after a few seconds.
 
-_Note_: To run the sample script below you may need to first install `jq` (e.g. `sudo apt install jq`).
+_Note_: To run the sample script below, you may need to first install `jq` (e.g. `sudo apt install jq`).
 
 ```bash
 # Call IS as the root user to skip the need to add my user to the requisite security groups for IS/KS/CS. 
@@ -209,11 +209,11 @@ auth_type="$(<<< "$identity" jq -r '.spec.auth.type')"
 key_handle="$(<<< "$identity" jq -r '.spec.auth.keyHandle')"
 ```
 
-#### **Step 2** Build a bas64-encoded resource URI that expires
+#### **Step 2** Build a base64-encoded resource URI that expires
 
-Concatenate the URL encoded `resource_uri` with a desired expiry. The script below uses an expiry of 1 day from today. 
+Concatenate the URL-encoded `resource_uri` with a desired expiry. The script below uses an expiry of 1 day from today. 
 
-In the next step you generate the signed token to connect to IoT Hub by calling the Keys Service's `/sign` API and providing this string as the **message** parameter. The parameter must be a base64-encoded value. 
+In the next step, you generate the signed token to connect to IoT Hub by calling the Keys Service's `/sign` API and providing this string as the **message** parameter. The parameter must be a base64-encoded value. 
 
 > **Note**
 >
@@ -230,7 +230,7 @@ resource_uri="$(printf '%s/devices/%s/modules/%s' "$hub_name" "$device_id" "$mod
 # Expiry of 1 day from today in Unix epoch time
 expiry="$(bc <<< "$(date +%s) + 60 * 60 * 24")"
 
-# Full string to be signed is a base64 encoded string containing the URL encoded resource URI and the expiry
+# Full string to be signed is a base64-encoded string containing the URL-encoded resource URI and the expiry
 signature_data="$(printf '%s\n%s' "$resource_uri" "$expiry" | base64 -w 0)"
 ```
 
@@ -265,7 +265,7 @@ sas_token="$(printf 'sr=%s&se=%s&sig=%s' "$resource_uri" "$expiry" "$signature")
 
 #### **Step 4**: Create the full connection string
 
-The device may have been configured to connect directly to IoT Hub, or it may be connecting via a gateway. It's direct if the `gatewayHost` obtained previously in **Step 1** is the same as the `hubName`. If they differ then connection string should use the gateway host name.
+The device may have been configured to connect directly to IoT Hub, or it may be connecting via a gateway. It's direct if the `gatewayHost` obtained previously in **Step 1** is the same as the `hubName`. If they differ, then connection string should use the gateway host name.
 
 ```bash
 # Note that the 'SharedAccessSignature' appears both in the connection string and in the value for it.
@@ -293,7 +293,7 @@ Repeat all steps starting from _Step 1_ above to re-connect.
 
 Currently, host processes using module identities can only authenticate against IoT Hub using the SaS authentication method. 
 
-It is beneficial that you include and validate X.509 authentication in the short term (by registering a device principal) so that module X.509 authentication could be easily supported in the future. 
+It is beneficial that you include and validate X.509 authentication in the short term (by registering a device principal) so that module X.509 authentication can be easily supported in the future. 
 
 #### Registering a Device Principal
 
@@ -315,9 +315,9 @@ sudo chmod 0600 /etc/aziot/identityd/config.d/myagent.toml
 
 #### TLS Authentication w/ Keys Stored in an HSM
 
-Since X.509 private keys are not exposed outside the Keys Service (e.g. may only exist in an HSM and never loaded into memory), an OpenSSL engine for the Keys Service is provided that can be used with the C SDK to enable processes to perform TLS authentication against IoT Hub. 
+X.509 private keys are not exposed outside the Keys Service (e.g. may only exist in an HSM and never loaded into memory). An OpenSSL engine for the Keys Service that can be used with the C SDK to enable processes to perform TLS authentication against IoT Hub is provided. 
 
-Code snippet samples for using OpenSSL engines with the C SDK are available [here](https://github.com/azure/azure-iot-sdk-c/blob/master/iothub_client/devdoc/iothubclient_c_library.md#openssl-engine-examples). You can also see where its used in the implementation for the Device Update agent [here](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L518).
+Code snippet samples for using OpenSSL engines with the C SDK are available [here](https://github.com/azure/azure-iot-sdk-c/blob/master/iothub_client/devdoc/iothubclient_c_library.md#openssl-engine-examples). You can also see where it's used in the implementation for the Device Update agent [here](https://github.com/Azure/iot-hub-device-update/blob/7a6e4c12d54df7a92984e935c3050f35e359a342/src/agent/src/main.c#L518).
 
 ## Device and Module Provisioning
 
@@ -346,5 +346,4 @@ The module identities that have been registered with IS are automatically create
   * [Security tokens](https://docs.microsoft.com/azure/iot-hub/iot-hub-devguide-security#security-tokens)
   * [Supported X.509 certificates](https://docs.microsoft.com/azure/iot-hub/iot-hub-devguide-security#supported-x509-certificates)
 * [Device and service SDKs](https://docs.microsoft.com/azure/iot-hub/iot-hub-devguide-sdks)
-
 
