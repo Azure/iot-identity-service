@@ -21,6 +21,16 @@ impl Error {
     {
         Error::InvalidParameter(name, err.into())
     }
+
+    pub(crate) fn is_network(&self) -> bool {
+        match &self {
+            Error::DpsClient(err) | Error::HubClient(err) => matches!(
+                err.kind(),
+                std::io::ErrorKind::TimedOut | std::io::ErrorKind::NotConnected
+            ),
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
