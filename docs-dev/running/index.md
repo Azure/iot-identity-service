@@ -2,7 +2,7 @@
 
 1. Follow the steps in [Building the services](../building.md) to build the services.
 
-1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11/index.md)
+1. (Optional) If you want to test the `aziot-keyd` with PKCS#11, see [Setting up your PKCS#11 library](pkcs11.md)
 
 1. Create an Azure IoT Hub and an Azure IoT Device identity in that IoT Hub. Depending on the auth method you choose for the device identity, the services will be configured accordingly later.
 

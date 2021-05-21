@@ -16,11 +16,11 @@
     - `openssl` headers and libraries
     - `pkg-config`
 
-    Check [`/ci/install-build-deps.sh`](../../ci/install-build-deps.sh) for the exact names of the packages for your distro that contain these components.
+    Check [`/ci/install-build-deps.sh`](../ci/install-build-deps.sh) for the exact names of the packages for your distro that contain these components.
 
 1. Install [`rustup`](https://rustup.rs). Ensure that `~/.cargo/bin` is in `$PATH`. The exact toolchain used to build this repository will automatically be downloaded later if necessary.
 
-1. Install `bindgen` and `cbindgen`. Again, check [`/ci/install-build-deps.sh`](../../ci/install-build-deps.sh) for the exact command and versions.
+1. Install `bindgen` and `cbindgen`. Again, check [`/ci/install-build-deps.sh`](../ci/install-build-deps.sh) for the exact command and versions.
 
 1. Build the services.
 

@@ -53,7 +53,7 @@ certs = ["example"]
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
-- `[[principal]]` - Principals provide a list of users and certificates they are authorized to modify; any user can retrieve a certificate without being in the principal list. See [API authorization](https://azure.github.io/iot-identity-service/certificates-service.html#api-authentication) for more information.
+- `[[principal]]` - Principals provide a list of users and certificates they are authorized to modify; any user can retrieve a certificate without being in the principal list. See [API authorization](../../docs/api/certificates-service.html#api-authentication) for more information.
 
 Fill out the configuration depending on what workflow you want to test:
 
