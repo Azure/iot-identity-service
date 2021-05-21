@@ -143,7 +143,40 @@ fn identity_to_tls_connector(
 
     let cert_store = tls_connector.cert_store_mut();
     for trusted_cert in trusted_certs {
-        cert_store.add_cert(trusted_cert.clone())?;
+        if let Err(err) = cert_store.add_cert(trusted_cert.clone()) {
+            // openssl 1.0 raises X509_R_CERT_ALREADY_IN_HASH_TABLE if a duplicate cert is added to a cert store. [1]
+            // 1.1 silently ignores the duplicate. [2]
+            //
+            // Trusted certs can come from the user, and it's benign to ignore such duplicate certs, so we want to ignore it too.
+            //
+            // native-tls's implementation ignores *all errors* [3]. But we would like to check and just ignore this particular one.
+            //
+            // [1]: https://github.com/openssl/openssl/blob/OpenSSL_1_0_2u/crypto/x509/x509_lu.c#L370-L375
+            // [2]: https://github.com/openssl/openssl/blob/OpenSSL_1_1_1k/crypto/x509/x509_lu.c#L354-L355
+            // [3]: https://github.com/sfackler/rust-native-tls/blob/41522daa6f6e76182c3118a7f9c23f6949e6d59f/src/imp/openssl.rs#L272-L274
+            let is_duplicate_cert_error = err.errors().iter().any(|err| {
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_0_2u/crypto/err/err.h#L171
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_1_1k/include/openssl/err.h#L64
+                const ERR_LIB_X509: std::os::raw::c_int = 11;
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_0_2u/crypto/x509/x509.h#L1280
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_1_1k/include/openssl/x509err.h#L73
+                const X509_F_X509_STORE_ADD_CERT: std::os::raw::c_int = 124;
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_0_2u/crypto/x509/x509.h#L1296
+                // https://github.com/openssl/openssl/blob/OpenSSL_1_1_1k/include/openssl/x509err.h#L95
+                const X509_R_CERT_ALREADY_IN_HASH_TABLE: std::os::raw::c_int = 101;
+
+                let code = err.code();
+                let library = openssl_sys::ERR_GET_LIB(code);
+                let function = openssl_sys::ERR_GET_FUNC(code);
+                let reason = openssl_sys::ERR_GET_REASON(code);
+                library == ERR_LIB_X509
+                    && function == X509_F_X509_STORE_ADD_CERT
+                    && reason == X509_R_CERT_ALREADY_IN_HASH_TABLE
+            });
+            if !is_duplicate_cert_error {
+                return Err(err.into());
+            }
+        }
     }
 
     let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();

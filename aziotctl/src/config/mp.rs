@@ -59,12 +59,19 @@ To reconfigure IoT Identity Service, run:
         provisioning: common_config::super_config::Provisioning {
             provisioning: common_config::super_config::ProvisioningType::Manual {
                 inner: common_config::super_config::ManualProvisioning::ConnectionString {
-                    connection_string,
+                    connection_string: common_config::super_config::ConnectionString::new(
+                        connection_string,
+                    )
+                    .map_err(|e| anyhow!("invalid connection string: {}", e))?,
                 },
             },
         },
 
         localid: None,
+
+        cloud_timeout_sec: aziot_identityd_config::Settings::default_cloud_timeout(),
+
+        cloud_retries: aziot_identityd_config::Settings::default_cloud_retries(),
 
         aziot_keys: Default::default(),
 

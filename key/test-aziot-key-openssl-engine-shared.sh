@@ -74,8 +74,7 @@ pkcs11_base_slot = \"%s\"
 " "$PKCS11_LIB_PATH" "$PKCS11_BASE_SLOT"
 fi
 
-rm -rf keys
-AZIOT_KEYD_CONFIG="$PWD/keyd.toml" ./aziotd aziot-keyd &
+AZIOT_KEYD_CONFIG="$PWD/keyd.toml" AZIOT_KEYD_CONFIG_DIR="/nonexistent" ./aziotd aziot-keyd &
 keyd_pid="$!"
 
 
@@ -83,12 +82,29 @@ keyd_pid="$!"
 sleep 1
 
 
+# Delete keys from previous runs, if any
+for key_id in 'ca' 'server' 'client'; do
+    key_handle="$(
+        curl --unix-socket /run/aziot/keyd.sock "http://keyd.sock/keypair/$key_id?api-version=2021-05-01" |
+        jq -r '.keyHandle'
+    )"
+    if [ "$key_handle" != 'null' ]; then
+        echo "Deleting existing $key_id key: $key_handle"
+        curl --unix-socket /run/aziot/keyd.sock \
+            -X DELETE -H 'content-type: application/json' --data-binary "$(
+                jq -n --arg 'key_handle' "$key_handle" '{ "keyHandle": $key_handle }'
+            )" \
+            'http://keyd.sock/keypair?api-version=2021-05-01'
+    fi
+done
+
+
 # Create CA key and cert.
 
 ca_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"ca\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://keyd.sock/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2021-05-01' |
     jq -er '.keyHandle'
 )"
 echo "CA key: $ca_key_handle"
@@ -105,7 +121,7 @@ echo "CA key: $ca_key_handle"
 server_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"server\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://keyd.sock/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2021-05-01' |
     jq -er '.keyHandle'
 )"
 echo "Server key: $server_key_handle"
@@ -123,7 +139,7 @@ echo "Server key: $server_key_handle"
 client_key_handle="$(
     curl --unix-socket /run/aziot/keyd.sock \
         -X POST -H 'content-type: application/json' --data-binary "{ \"keyId\": \"client\", \"preferredAlgorithms\": \"$KEY_TYPE\" }" \
-        'http://keyd.sock/keypair?api-version=2020-09-01' |
+        'http://keyd.sock/keypair?api-version=2021-05-01' |
     jq -er '.keyHandle'
 )"
 echo "Client key: $client_key_handle"

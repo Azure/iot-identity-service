@@ -1,4 +1,4 @@
-# Openssl engine internals
+# OpenSSL engine internals
 
 
 This document talks about some basic crypto concepts, how the openssl API works, how openssl engines work, and how KS, libaziot-keys, and the two openssl engines used by it are structured.

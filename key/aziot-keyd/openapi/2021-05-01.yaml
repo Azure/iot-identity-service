@@ -1,0 +1,497 @@
+# Ref: https://spec.openapis.org/oas/v3.0.3
+
+openapi: '3.0.3'
+
+
+info:
+  title: 'aziot-keyd API specification'
+
+  version: '2021-05-01'
+
+  description: |
+    This is the specification of the HTTP API of the aziot-keyd service.
+
+  license:
+    name: 'MIT'
+
+
+servers:
+- url: 'http://keyd.sock/'
+  description: |
+    The server listens on a unix socket `/run/aziot/keyd.sock`
+
+
+paths:
+  '/derivedkey?api-version=2021-05-01':
+    post:
+      operationId: 'createDerivedKey'
+      summary: 'Creates a new derived symmetric key from a base symmetric key and derivation data.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/CreateDerivedKeyRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/KeyHandleResponse'
+
+  '/key?api-version=2021-05-01':
+    delete:
+      operationId: 'deleteKey'
+      summary: 'Deletes the given key.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/DeleteKeyRequest'
+        required: true
+      responses:
+        '204':
+          description: 'HTTP 204 response'
+    post:
+      operationId: 'createKeyIfNotExists'
+      summary: 'Creates or imports a symmetric key unless there is already an existing key with the same ID.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/CreateKeyIfNotExistsRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/KeyHandleResponse'
+
+  '/keypair?api-version=2021-05-01':
+    delete:
+      operationId: 'deleteKeyPair'
+      summary: 'Deletes the given key pair.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/DeleteKeyPairRequest'
+        required: true
+      responses:
+        '204':
+          description: 'HTTP 204 response'
+    post:
+      operationId: 'createKeyPairIfNotExists'
+      summary: 'Creates an asymmetric key pair unless there is already an existing key pair with the same ID.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/CreateKeyPairIfNotExistsRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/KeyHandleResponse'
+
+  '/decrypt?api-version=2021-05-01':
+    post:
+      operationId: 'decrypt'
+      summary: 'Decrypts the given ciphertext with the given key.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/DecryptRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/DecryptResponse'
+
+  '/encrypt?api-version=2021-05-01':
+    post:
+      operationId: 'encrypt'
+      summary: 'Encrypts the given plaintext with the given key.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/EncryptRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/EncryptResponse'
+
+  '/derivedkey/export?api-version=2021-05-01':
+    post:
+      operationId: 'exportDerivedKey'
+      summary: "Exports the given derived key's bytes."
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/ExportDerivedKeyRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/ExportDerivedKeyResponse'
+
+  '/parameters/{parameterName}?api-version=2021-05-01':
+    parameters:
+    - name: 'parameterName'
+      in: 'path'
+      required: true
+      schema:
+        type: 'string'
+    post:
+      operationId: 'getKeyPairPublicParameter'
+      summary: 'Gets the value of the given parameter of the public key of the given key pair.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/GetKeyPairPublicParameterRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/GetKeyPairPublicParameterResponse'
+
+  '/key/{keyId}?api-version=2021-05-01':
+    parameters:
+    - name: 'keyId'
+      in: 'path'
+      required: true
+      schema:
+        type: 'string'
+    get:
+      operationId: 'loadKey'
+      summary: 'Gets a key handle to the symmetric key with the given ID.'
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/KeyHandleResponse'
+
+  '/keypair/{keyId}?api-version=2021-05-01':
+    parameters:
+    - name: 'keyId'
+      in: 'path'
+      required: true
+      schema:
+        type: 'string'
+    get:
+      operationId: 'loadKeyPair'
+      summary: 'Gets a key handle to the asymmetric key with the given ID.'
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/KeyHandleResponse'
+
+  '/sign?api-version=2021-05-01':
+    post:
+      operationId: 'sign'
+      summary: 'Signs the given message with the given key.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/SignRequest'
+        required: true
+      responses:
+        '200':
+          description: 'HTTP 200 response'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/SignResponse'
+
+
+components:
+  schemas:
+    'KeyHandle':
+      type: 'string'
+
+    'KeyHandleResponse':
+      type: 'object'
+      properties:
+        'keyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+      required:
+      - 'keyHandle'
+
+    'CreateDerivedKeyRequest':
+      type: 'object'
+      properties:
+        'baseKeyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+        'derivationData':
+          type: 'string'
+          format: 'byte'
+      required:
+      - 'baseKeyHandle'
+      - 'derivationData'
+
+    'CreateKeyIfNotExistsRequest':
+      oneOf:
+      - type: 'object'
+        properties:
+          'keyId':
+            type: 'string'
+          'usage':
+            type: 'string'
+        required:
+        - 'keyId'
+        - 'usage'
+      - type: 'object'
+        properties:
+          'keyId':
+            type: 'string'
+          'keyBytes':
+            type: 'string'
+            format: 'byte'
+          'usage':
+            type: 'string'
+        required:
+        - 'keyId'
+        - 'keyBytes'
+        - 'usage'
+
+    'CreateKeyPairIfNotExistsRequest':
+      type: 'object'
+      properties:
+        'keyId':
+          type: 'string'
+        'preferredAlgorithms':
+          type: 'string'
+      required:
+      - 'keyId'
+
+    'DecryptRequest':
+      allOf:
+      - type: 'object'
+        properties:
+          'keyHandle':
+            $ref: '#/components/schemas/KeyHandle'
+          'ciphertext':
+            type: 'string'
+            format: 'byte'
+        required:
+        - 'keyHandle'
+        - 'ciphertext'
+      - $ref: '#/components/schemas/EncryptDecryptRequestParameters'
+
+    'DecryptResponse':
+      type: 'object'
+      properties:
+        'plaintext':
+          type: 'string'
+          format: 'byte'
+      required:
+      - 'plaintext'
+
+    'DeleteKeyRequest':
+      type: 'object'
+      properties:
+        'keyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+      required:
+      - 'keyHandle'
+
+    'DeleteKeyPairRequest':
+      type: 'object'
+      properties:
+        'keyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+      required:
+      - 'keyHandle'
+
+    'EncryptRequest':
+      allOf:
+      - type: 'object'
+        properties:
+          'keyHandle':
+            $ref: '#/components/schemas/KeyHandle'
+          'plaintext':
+            type: 'string'
+            format: 'byte'
+        required:
+        - 'keyHandle'
+        - 'plaintext'
+      - $ref: '#/components/schemas/EncryptDecryptRequestParameters'
+
+    'EncryptResponse':
+      type: 'object'
+      properties:
+        'ciphertext':
+          type: 'string'
+          format: 'byte'
+      required:
+      - 'ciphertext'
+
+    'EncryptDecryptRequestParameters':
+      type: 'object'
+      properties:
+        'algorithm':
+          type: 'string'
+      required:
+      - 'algorithm'
+      discriminator:
+        propertyName: 'algorithm'
+        mapping:
+          'AEAD': '#/components/schemas/EncryptDecryptRequestParameters_AEAD'
+          'RSA-PKCS1': '#/components/schemas/EncryptDecryptRequestParameters_RSA_PKCS1'
+          'RSA-NO-PADDING': '#/components/schemas/EncryptDecryptRequestParameters_RSA_NO_PADDING'
+
+    'EncryptDecryptRequestParameters_AEAD':
+      allOf:
+      - $ref: '#/components/schemas/EncryptDecryptRequestParameters'
+      - type: 'object'
+        properties:
+          'parameters':
+            type: 'object'
+            properties:
+              'iv':
+                type: 'string'
+                format: 'byte'
+              'aad':
+                type: 'string'
+                format: 'byte'
+            required:
+            - 'iv'
+            - 'aad'
+        required:
+        - 'parameters'
+
+    'EncryptDecryptRequestParameters_RSA_PKCS1':
+      allOf:
+      - $ref: '#/components/schemas/EncryptDecryptRequestParameters'
+      - type: 'object'
+
+    'EncryptDecryptRequestParameters_RSA_NO_PADDING':
+      allOf:
+      - $ref: '#/components/schemas/EncryptDecryptRequestParameters'
+      - type: 'object'
+
+    'ExportDerivedKeyRequest':
+      type: 'object'
+      properties:
+        'keyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+      required:
+      - 'keyHandle'
+
+    'ExportDerivedKeyResponse':
+      type: 'object'
+      properties:
+        'key':
+          type: 'string'
+          format: 'byte'
+      required:
+      - 'key'
+
+    'GetKeyPairPublicParameterRequest':
+      type: 'object'
+      properties:
+        'keyHandle':
+          $ref: '#/components/schemas/KeyHandle'
+      required:
+      - 'keyHandle'
+
+    'GetKeyPairPublicParameterResponse':
+      type: 'object'
+      properties:
+        'value':
+          type: 'string'
+      required:
+      - 'value'
+
+    'SignRequest':
+      allOf:
+      - type: 'object'
+        properties:
+          'keyHandle':
+            $ref: '#/components/schemas/KeyHandle'
+        required:
+        - 'keyHandle'
+      - $ref: '#/components/schemas/SignRequestParameters'
+
+    'SignRequestParameters':
+      type: 'object'
+      properties:
+        'algorithm':
+          type: 'string'
+      required:
+      - 'algorithm'
+      discriminator:
+        propertyName: 'algorithm'
+        mapping:
+          'ECDSA': '#/components/schemas/SignRequestParameters_ECDSA'
+          'HMAC-SHA256': '#/components/schemas/SignRequestParameters_HMAC_SHA256'
+
+    'SignRequestParameters_ECDSA':
+      allOf:
+      - $ref: '#/components/schemas/SignRequestParameters'
+      - type: 'object'
+        properties:
+          'parameters':
+            type: 'object'
+            properties:
+              'digest':
+                type: 'string'
+                format: 'byte'
+            required:
+            - 'digest'
+        required:
+        - 'parameters'
+
+    'SignRequestParameters_HMAC_SHA256':
+      allOf:
+      - $ref: '#/components/schemas/SignRequestParameters'
+      - type: 'object'
+        properties:
+          'parameters':
+            type: 'object'
+            properties:
+              'message':
+                type: 'string'
+                format: 'byte'
+            required:
+            - 'message'
+        required:
+        - 'parameters'
+
+    'SignResponse':
+      type: 'object'
+      properties:
+        'signature':
+          type: 'string'
+          format: 'byte'
+      required:
+      - 'signature'

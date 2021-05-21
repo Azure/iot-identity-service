@@ -1,4 +1,4 @@
-# `tpm2-pkcs11`
+# Installing and configuring the `tpm2-pkcs11` library for TPM 2.0 TPMs
 
 All TPM 2.0 TPMs can be accessed via PKCS#11 using the [`tpm2-pkcs11` library.](https://github.com/tpm2-software/tpm2-pkcs11)
 
@@ -11,8 +11,9 @@ All TPM 2.0 TPMs can be accessed via PKCS#11 using the [`tpm2-pkcs11` library.](
 
 ... which are the latest as of 2021-04-07.
 
-Note that the version numbers of these tools don't follow any common numbering, so you need to be careful to use versions that are compatible with each other. See <https://tpm2-software.github.io/versions/#tpm2-tools> for a list of compatible versions.
+Note that the version numbers of these tools don't follow any common numbering, so you need to be careful to use versions that are compatible with each other. See <https://tpm2-software.github.io/versions/#tpm2-tools> for a list of compatible versions. (However as of 2021-04-07 this page is out of date.)
 
+The script must be run as a non-root user. Commands that need to run as root have already been prepended with `sudo`. Furthermore, the `aziot-identity-service` package must have already been installed, so that the `aziotks` Linux user used by the Keys Service has already been created.
 
 ```sh
 #!/bin/bash
@@ -162,30 +163,70 @@ wait $(jobs -pr)
 
     cd ~/src/tpm2-pkcs11
 
-    # The `tpm2-pkcs11` library uses a filesystem directory to store
-    # wrapped keys. Ensure this directory is readable and writable by
-    # the user you'll be running `aziot-keyd` as,
-    # not just root.
-    sudo mkdir -p /opt/tpm2-pkcs11
-    sudo chown "$(id -u):$(id -g)" /opt/tpm2-pkcs11
-    sudo chmod 0700 /opt/tpm2-pkcs11
-
     # --enable-debug=!yes is needed to disable assert() in
     # CKR_FUNCTION_NOT_SUPPORTED-returning unimplemented functions.
     ./configure \
         --enable-debug=info \
-        --enable-esapi-session-manage-flags \
-        --with-storedir=/opt/tpm2-pkcs11
+        --enable-esapi-session-manage-flags
     make "-j$(nproc)"
     sudo make install
 )
-
-export TPM2_PKCS11_STORE='/opt/tpm2-pkcs11'
 ```
 
-The library should now be configured completely.
+The library is now installed.
 
-The `TPM2_PKCS11_STORE` environment variable is needed for any process that loads the `tpm2-pkcs11` library, like `pkcs11-tool`, `p11tool` and `aziot-keyd` itself.
+
+## Base slot and `config.toml`
+
+Create a new token and base slot with the following commands:
+
+```sh
+# A friendly name for the new token
+TOKEN='Key pairs'
+# The PKCS#11 user PIN for the new token
+PIN='1234'
+# The PKCS#11 SO PIN for the new token
+SO_PIN="so$PIN"
+
+
+sudo tpm2_clear
+
+# tpm2_ptool requires Python 3 >= 3.7 and expects `python3`
+# to be that version by default.
+#
+# If your distro has python3.7 or higher at a different path,
+# like how Ubuntu 18.04 has `python3.7`, then set
+# the `PYTHON_INTERPRETER` env var.
+#
+# export PYTHON_INTERPRETER=python3.7
+
+sudo rm -rf /var/lib/aziot/keyd/.tpm2_pkcs11
+(
+    cd ~/src/tpm2-pkcs11/tools &&
+    sudo -u aziotks ./tpm2_ptool init --primary-auth '1234' &&
+    sudo -u aziotks ./tpm2_ptool addtoken \
+        --sopin "$SO_PIN" --userpin "$PIN" \
+        --label "$TOKEN" --pid '1'
+)
+
+echo "PKCS#11 base slot URI is pkcs11:token=${TOKEN}?pin-value=${PIN}"
+```
+
+In the `/etc/aziot/config.toml`, set the `[aziot_keys]` section as follows:
+
+```toml
+[aziot_keys]
+pkcs11_lib_path = "<path of the libtpm2_pkcs11.so file>"
+pkcs11_base_slot = "<the base slot URI printed by the last command above>"
+```
+
+For example:
+
+```toml
+[aziot_keys]
+pkcs11_lib_path = "/usr/lib/arm-linux-gnueabihf/pkcs11/libtpm2_pkcs11.so"
+pkcs11_base_slot = "pkcs11:token=Key pairs?pin-value=1234"
+```
 
 
 ## Miscellaneous
@@ -201,6 +242,3 @@ The `TPM2_PKCS11_STORE` environment variable is needed for any process that load
     If you did it correctly, the kernel should recognize the TPM and create `/dev/tpm0`
 
     Do **not** connect the TPM to the left slot of the click shield. The `tpm-slb9670` overlay uses the chip-enable pin that ends up being mapped to the right slot.
-
-
-1. If you want to use the TPM simulator, see [`ibmswtpm2`](ibmswtpm2.md)

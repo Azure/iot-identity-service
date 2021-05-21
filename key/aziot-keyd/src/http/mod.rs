@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+mod create_delete_key;
+mod create_delete_key_pair;
 mod create_derived_key;
-mod create_key_if_not_exists;
-mod create_key_pair_if_not_exists;
 mod decrypt;
 mod encrypt;
 mod export_derived_key;
@@ -19,9 +19,9 @@ http_common::make_service! {
     service: Service,
     api_version: aziot_key_common_http::ApiVersion,
     routes: [
+        create_delete_key::Route,
+        create_delete_key_pair::Route,
         create_derived_key::Route,
-        create_key_if_not_exists::Route,
-        create_key_pair_if_not_exists::Route,
         decrypt::Route,
         encrypt::Route,
         export_derived_key::Route,
@@ -35,7 +35,7 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
     let error_message = http_common::server::error_to_message(err);
 
     // TODO: When we get distributed tracing, associate these logs with the tracing ID.
-    for line in error_message.split('\n') {
+    for line in error_message.lines() {
         log::log!(
             match err {
                 crate::Error::Internal(_) => log::Level::Error,

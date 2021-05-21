@@ -253,7 +253,7 @@ case "$auth_type" in
                             "message": $message,
                         },
                     }'
-                )" 'http://keyd.sock/sign?api-version=2020-09-01' |
+                )" 'http://keyd.sock/sign?api-version=2021-05-01' |
                 jq '.signature' -er |
                 sed -e 's|+|%2b|g' -e 's|/|%2f|g' -e 's|=|%3d|g'
         )"
