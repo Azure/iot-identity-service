@@ -20,6 +20,7 @@ Edge modules are managed through the [IoT Edge runtime](https://docs.microsoft.c
 - Deploying cloud workloads to an edge device
 - Monitoring the health of the deployed Edge modules
 - Gathering and reporting runtime quality metrics
+- Operating offline for an indefinite period of time
 - Managing communication between Edge modules
 - Remotely restarting a module or retrieving logs
 
