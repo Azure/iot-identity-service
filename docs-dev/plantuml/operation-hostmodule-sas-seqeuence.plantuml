@@ -1,0 +1,34 @@
+@startuml
+title Host-level modules SaS authentication
+skinparam maxMessageSize 150
+
+box Device #LightBlue
+	participant "Your device agent" as hlm
+	participant "Identity Service" as is
+	participant "Keys Service" as ks
+end box
+
+participant "IoT Hub" as hub
+
+autonumber
+
+!startsub HOSTMODULE
+loop for host-level module M to create SAS token for authenticating with IoT Hub
+    hlm -> is ++: Get identity for host module M to identify with IoT Hub
+    is -> ks ++: Get master identity key handle
+    return Key handle
+    is -> ks ++: Create module derived key object for module M (based on master identity key handle)
+    return
+    return Module identity with derived key handle
+    hlm -> hlm: Generate SAS token
+    hlm -> ks++: Sign SAS token using derived key handle
+    return Signed SAS token
+    hlm -> hlm: Generate SharedAccessSignature for authenticating with IoT Hub
+    hlm -> hlm: Create IoT Hub client with SAS token
+    hlm -> hub++: Connect to IoT Hub
+    hub -> hub: Validate SAS token against SAS key that was registered when the Edge Agent identity was created by the runtime
+    return OK
+end
+!endsub
+
+@enduml
