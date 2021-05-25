@@ -61,6 +61,43 @@ impl IdentityManager {
         self.iot_hub_device = Some(device.clone());
     }
 
+    pub fn clear_device(&mut self) {
+        // Clear the backed up device state before reprovisioning.
+        // If this fails, log a warning but continue with reprovisioning.
+        let mut backup_file = self.homedir_path.clone();
+        backup_file.push(DEVICE_BACKUP_LOCATION);
+
+        if let Err(err) = std::fs::remove_file(backup_file) {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::warn!(
+                    "Failed to clear device state before reprovisioning: {}",
+                    err
+                );
+            }
+        }
+
+        // Purge all module identities for this device. These might no longer be valid after reprovision.
+        if let Some(device) = &self.iot_hub_device {
+            let module_backup_path = ModuleBackup::get_device_path(
+                &self.homedir_path,
+                &device.iothub_hostname,
+                &device.device_id,
+            )
+            .expect("module path for existing device must be valid");
+
+            if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!(
+                        "Failed to module identities before reprovisioning: {}",
+                        err
+                    );
+                }
+            }
+        }
+
+        self.iot_hub_device = None;
+    }
+
     pub async fn create_module_identity(
         &self,
         module_id: &str,
