@@ -715,21 +715,28 @@ impl IdentityManager {
             .await
             .map_err(Error::DpsClient)?;
 
-        let status = operation.status;
-        assert!(!status.eq_ignore_ascii_case("assigning"));
+        // DPS client registration won't return if the status is "assigning".
+        assert!(!operation.status.eq_ignore_ascii_case("assigning"));
 
-        let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-        let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-        let device_id = state.device_id.get_or_insert("".into());
-        let device = aziot_identity_common::IoTHubDevice {
-            local_gateway_hostname: local_gateway_hostname
-                .unwrap_or_else(|| iothub_hostname.clone()),
-            iothub_hostname: iothub_hostname.clone(),
-            device_id: device_id.clone(),
-            credentials,
+        let state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+
+        let (iothub_hostname, device_id) = match (state.assigned_hub, state.device_id) {
+            (Some(iothub_hostname), Some(device_id)) => (iothub_hostname, device_id),
+            _ => {
+                return Err(Error::DpsClient(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    state.error_message.unwrap_or_default(),
+                )))
+            }
         };
 
-        Ok(device)
+        Ok(aziot_identity_common::IoTHubDevice {
+            local_gateway_hostname: local_gateway_hostname
+                .unwrap_or_else(|| iothub_hostname.clone()),
+            iothub_hostname,
+            device_id,
+            credentials,
+        })
     }
 
     fn get_backup_provisioning_info(
