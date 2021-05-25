@@ -719,6 +719,14 @@ impl IdentityManager {
         assert!(!status.eq_ignore_ascii_case("assigning"));
 
         let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+
+        if state.status == Some("failed".to_string()) {
+            return Err(Error::DpsClient(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                state.error_message.unwrap_or_default(),
+            )));
+        }
+
         let iothub_hostname = state.assigned_hub.get_or_insert("".into());
         let device_id = state.device_id.get_or_insert("".into());
         let device = aziot_identity_common::IoTHubDevice {
