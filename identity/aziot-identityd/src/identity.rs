@@ -715,12 +715,9 @@ impl IdentityManager {
             .await
             .map_err(Error::DpsClient)?;
 
-        let status = operation.status;
-        assert!(!status.eq_ignore_ascii_case("assigning"));
-
         let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
 
-        if state.status == Some("failed".to_string()) {
+        if state.status.as_deref() == Some("failed") {
             return Err(Error::DpsClient(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 state.error_message.unwrap_or_default(),
