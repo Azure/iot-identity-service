@@ -88,7 +88,7 @@ impl IdentityManager {
             if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
                 if err.kind() != std::io::ErrorKind::NotFound {
                     log::warn!(
-                        "Failed to module identities before reprovisioning: {}",
+                        "Failed to clear module identities before reprovisioning: {}",
                         err
                     );
                 }
