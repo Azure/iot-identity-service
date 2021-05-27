@@ -163,8 +163,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "moduleId": "module01",
         "genId": "12345",
         "auth": {
-            "type": "sas",
-            "keyHandle": "string"
+            "type": "sas"
         }
       }
     }
@@ -188,7 +187,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "genId": "12345",
         "auth": {
             "type": "x509",
-            "keyHandle": "string",
             "certId": "string"
         }
       }
