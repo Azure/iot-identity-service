@@ -1,0 +1,397 @@
+# Ref: https://spec.openapis.org/oas/v3.0.3
+
+openapi: 3.0.1
+
+info:
+  title: Identity Service API
+  
+  version: '2020-09-01'
+  
+  description: |
+    This is the specification of the HTTP API of the aziot-identityd service.
+    
+  license:
+    name: 'MIT'
+
+servers:
+- url: 'http://identityd.sock/'
+  description: |
+    The server listens on a unix socket `/run/aziot/identityd.sock`
+
+    
+paths:
+  /identities/identity:
+    get:
+      tags:
+      - Identity operations
+      summary: Get primary cloud identity for authenticated workload (caller)
+      operationId: getIdentity
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionParameter'
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /identities/device:
+    post:
+      tags:
+      - Identity operations
+      summary: Get the IoT device provisioning result
+      operationId: getDeviceIdentity
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionParameter'
+      requestBody:
+        description: Type of identity to reprovision
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionedIdentityResponse'              
+      x-codegen-request-body-name: GetDeviceIdentityRequest
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /identities/modules:
+    get:
+      tags:
+      - Identity operations
+      summary: List module identities
+      operationId: getModuleIdentities
+      parameters:
+      - name: type
+        in: query
+        description: Identity type
+        required: true
+        schema:
+          type: string
+          default: aziot
+          enum:
+          - aziot
+          - local
+      - $ref: '#/components/parameters/ApiVersionParameter'
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleIdentitiesResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+      - Identity operations
+      summary: Register IoT module identity
+      operationId: registerModuleIdentity
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionParameter'
+      requestBody:
+        description: Data for a module identity to register
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterModuleRequest'
+        required: true
+      x-codegen-request-body-name: RegisteryModuleIdentityRequest
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      
+  /identities/modules/{moduleId}:
+    get:
+      tags:
+      - Identity operations
+      summary: Get IoT module identity information
+      operationId: getModuleIdentityInfo
+      parameters:
+      - $ref: '#/components/parameters/ApiVersionParameter'
+      - name: moduleId
+        in: path
+        description: Module ID
+        example: module01
+        required: true
+        schema:
+          type: string
+      - name: type
+        in: query
+        description: Identity type
+        required: true
+        schema:
+          type: string
+          default: aziot
+          enum:
+          - aziot
+          - local
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+      - Identity operations
+      summary: Delete the IoT module identity
+      operationId: deleteModuleIdentity
+      parameters:
+      - $ref: '#/components/parameters/ApiVersionParameter'
+      - name: moduleId
+        in: path
+        description: Module ID
+        example: module01
+        required: true
+        schema:
+          type: string
+      - name: type
+        in: query
+        description: Identity type
+        required: true
+        schema:
+          type: string
+          default: aziot
+          enum:
+          - aziot
+      responses:
+        204:
+          description: No Content
+          content: {}
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /identities/device/reprovision:
+    post:
+      tags:
+      - Identity operations
+      summary: Trigger an IoT device reprovisioning flow
+      operationId: reprovision
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionParameter'
+      requestBody:
+        description: Type of identity to reprovision
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionedIdentityResponse'
+        required: true
+      x-codegen-request-body-name: ReprovisionRequest
+      responses:
+        200:
+          description: Ok
+          content: {}
+        204:
+          description: No Content
+          content: {}
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+components:
+  schemas:
+    RegisterModuleRequest:
+      required:
+      - moduleId
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          description: The identity type.
+          default: aziot
+          enum:
+          - aziot
+          - local
+        'moduleId':
+          type: string
+          description: Name of the module to add to the identity registry.
+          example: module01
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          'aziot': '#/components/schemas/RegisterAziotIdentityRequest'
+          'local': '#/components/schemas/RegisterLocalIdentityRequest'
+
+    RegisterAziotIdentityRequest:
+      allOf:
+      - $ref: '#/components/schemas/RegisterModuleRequest'
+
+    RegisterLocalIdentityRequest:
+      allOf:
+      - $ref: '#/components/schemas/RegisterModuleRequest'
+      - type: 'object'
+        properties:
+          'localIdOpts':
+            type: object
+            properties:
+              'type':
+                type: string
+                description: Type of local identity. Currently, only x509 is supported.
+                enum:
+                - x509
+              'attributes':
+                type: string
+                description: Attributes of the X.509 local identity certificate. May be either client or server.
+                enum:
+                - client
+                - server
+            description: Optional field to specify configuration of the issued local identity.
+     
+            
+    ModuleIdentitiesResponse:
+      type: object
+      properties:
+        'identities':
+          type: array
+          description: A collection of module identities
+          items:
+            $ref: '#/components/schemas/IdentityResponse'
+            
+    IdentityResponse:
+      required:
+      - spec
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          description: The identity type.
+          default: aziot
+          enum:
+          - aziot
+          - local
+        'spec':
+          $ref: '#/components/schemas/IdentitySpec'
+          
+    IdentitySpec:
+      required:
+      - deviceId
+      - hubName
+      type: object
+      properties:
+        'hubName':
+          type: string
+          description: The name of the IoT hub where the device is provisioned.
+          example: myhub.net
+        'gatewayHost':
+          type: string
+          description: The hostname of the parent Edge gateway that intermediates
+            all requests for the current device when in a nested configuration. In
+            a single-node deployment (i.e. non-nested) it will match the 'hubName'.
+          example: parentdevice
+        'deviceId':
+          type: string
+          description: The identity name of the provisioned device in the assigned
+            IoT Hub.
+          example: device01
+        'moduleId':
+          type: string
+          description: The identity name of the device workload in the provisioned
+            device in the assigned IoT Hub.
+          example: module01
+        'genId':
+          type: string
+          description: The generation ID of the device workload assigned by IoT Hub.
+          example: "12345"
+        'auth':
+          $ref: '#/components/schemas/AuthenticationProperties'
+      description: The identity specification.
+      
+    AuthenticationProperties:
+      required:
+      - keyHandle
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          description: Indicates the type of authentication credential used.
+          enum:
+          - sas
+          - x509
+        'keyHandle':
+          type: string
+          description: Key handle used for Key Service requests.
+        'certId':
+          type: string
+          description: Certificate ID of the identity X.509 certificate.
+          
+    ProvisionedIdentityResponse:
+      required:
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          default: aziot
+          enum:
+          - aziot
+
+    ErrorResponse:
+      required:
+      - message
+      type: object
+      properties:
+        'message':
+          type: string
+           
+          
+  parameters:
+    ApiVersionParameter:
+      name: api-version
+      in: query
+      description: The version of the API.
+      required: true
+      schema:
+        type: string
+        default: '2020-09-01'
+        enum:
+        - '2020-09-01'
+
