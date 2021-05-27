@@ -124,7 +124,9 @@ impl std::str::FromStr for Uri {
         where
             F: FnMut(&[u8]) -> Option<T>,
         {
-            let (key, value) = s.split_once('=').unwrap_or((s, ""));
+            let mut parts = s.splitn(2, '=');
+
+            let key = parts.next().expect("str::splitn() yields at least one str");
 
             let key = percent_encoding::percent_decode(key.as_bytes());
             let key: std::borrow::Cow<'a, _> = key.into();
@@ -133,6 +135,7 @@ impl std::str::FromStr for Uri {
                 None => return Ok(None),
             };
 
+            let value = parts.next().unwrap_or_default();
             let value = percent_encoding::percent_decode(value.as_bytes());
             match value.decode_utf8() {
                 Ok(value) => Ok(Some((typed_key, value))),
@@ -152,7 +155,11 @@ impl std::str::FromStr for Uri {
             .strip_prefix("pkcs11:")
             .ok_or(ParsePkcs11UriError::InvalidScheme)?;
 
-        let (path, query) = s.split_once('?').unwrap_or((s, ""));
+        let mut url_parts = s.splitn(2, '?');
+
+        let path = url_parts
+            .next()
+            .expect("str::splitn() yields at least one str");
 
         let path_components = path.split(';');
         for path_component in path_components {
@@ -180,6 +187,7 @@ impl std::str::FromStr for Uri {
             }
         }
 
+        let query = url_parts.next().unwrap_or_default();
         let query_components = query.split('&');
         for query_component in query_components {
             let key_value_pair = parse_key_value_pair(query_component, |key| match key {

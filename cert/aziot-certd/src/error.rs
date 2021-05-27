@@ -23,13 +23,11 @@ impl std::fmt::Display for Error {
             Error::InvalidParameter(name, _) => {
                 write!(f, "parameter {:?} has an invalid value", name)
             }
-            Error::Unauthorized(user, id) => {
-                write!(
-                    f,
-                    "user {} is not authorized to modify the cert {}",
-                    user, id
-                )
-            }
+            Error::Unauthorized(user, id) => write!(
+                f,
+                "user {} is not authorized to modify the cert {}",
+                user, id
+            ),
         }
     }
 }
