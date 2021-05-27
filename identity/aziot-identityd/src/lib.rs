@@ -377,39 +377,28 @@ impl Api {
 
         log::info!("Provisioning starting. Reason: {:?}", trigger);
 
-        let _ = match trigger {
+        match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
                 // For now, skip reprovisioning if there's a valid backup. This means config file
                 // updates will only reconcile identities.
-                self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
             }
             ReprovisionTrigger::Api => {
-                // Clear the backed up device state before reprovisioning.
-                // If this fails, log a warning but continue with reprovisioning.
-                let mut backup_file = self.settings.homedir.clone();
-                backup_file.push(identity::DEVICE_BACKUP_LOCATION);
-
-                if let Err(err) = std::fs::remove_file(backup_file) {
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        log::warn!(
-                            "Failed to clear device state before reprovisioning: {}",
-                            err
-                        );
-                    }
-                }
+                // Purge current device information before reprovisioning. This is needed only
+                // when triggered by the reprovision API, since:
+                // - The ConfigurationFileUpdate trigger doesn't reprovision
+                // - The Startup trigger is a new process, so it will not have a device in memory
+                self.id_manager.clear_device();
 
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), false)
-                    .await?
+                    .await?;
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
+                    .await?;
             }
-        };
+        }
 
         log::info!("Provisioning complete.");
 
