@@ -136,7 +136,7 @@ paths:
       tags:
       - Identity operations
       summary: Get IoT module identity information
-      operationId: getModuleIdentityInfo
+      operationId: getModuleIdentityById
       parameters:
       - $ref: '#/components/parameters/ApiVersionParameter'
       - name: moduleId
