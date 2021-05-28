@@ -1,4 +1,4 @@
-# Ref: https://spec.openapis.org/oas/v4.0.3
+# Ref: https://spec.openapis.org/oas/v3.0.3
 
 openapi: 3.0.1
 
@@ -202,12 +202,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateIdentityRequest'
+              $ref: '#/components/schemas/CreateModuleRequest'
             examples:
               'Module identity':
                 value:
                   type: 'aziot'
                   moduleId: 'module01'
+              'Local identity':
+                value:
+                  type: 'local'
+                  moduleId: 'module01'
+                  localIdOpts:
+                    type: 'x509'
+                    attributes: 'server'
         required: true
       x-codegen-request-body-name: CreateModuleIdentityRequest
       responses:
@@ -216,7 +223,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AziotModuleIdentityResponse'
+                $ref: '#/components/schemas/ModuleIdentityResponse'
               examples:
                 'SAS case':
                   value:
@@ -243,6 +250,15 @@ paths:
                         type: 'x509'
                         keyHandle: 'string'
                         certId: 'string'
+                'Local identity':
+                  value:
+                    type: 'local'
+                    spec:
+                      moduleId: 'module01'
+                      auth:
+                        privateKey: 'private key bytes'
+                        certificate: 'certificate bytes'
+                        expiration: 'yyyy-mm-ddThh:mm:ss+00:00'
         default:
           description: Unexpected error
           content:
@@ -253,7 +269,7 @@ paths:
   /identities/modules/{id}?api-version=2020-09-01:
     parameters:
       - $ref: '#/components/parameters/IdentityName'
-      - $ref: '#/components/parameters/AziotIdentityTypeParameter'
+      - $ref: '#/components/parameters/AnyModuleIdentityTypeParameter'
     get:
       tags:
       - Identity operations
@@ -265,7 +281,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AziotModuleIdentityResponse'
+                $ref: '#/components/schemas/ModuleIdentityResponse'
               examples:
                 'SAS case':
                   value:
@@ -292,6 +308,15 @@ paths:
                         type: 'x509'
                         keyHandle: 'string'
                         certId: 'string'
+                'Local identity':
+                  value:
+                    type: 'local'
+                    spec:
+                      moduleId: 'module01'
+                      auth:
+                        privateKey: 'private key bytes'
+                        certificate: 'certificate bytes'
+                        expiration: 'yyyy-mm-ddThh:mm:ss+00:00'
         default:
           description: Unexpected error
           content:
@@ -346,6 +371,19 @@ paths:
 
 components:
   schemas:
+    AnyIdentityType:
+      type: string
+      enum:
+      - aziot
+      - local
+      example:
+        local:
+          value: local
+          summary: 'Local identity.'
+        aziot:
+          value: aziot
+          summary: 'Module identity.'
+
     AuthenticationCredentials:
       required:
       - type
@@ -464,11 +502,69 @@ components:
       type: object
       properties:
         'type':
-          $ref: '#/components/schemas/AziotIdentityType'
+          type: string
+          description: The identity type.
+          example: aziot
+          enum:
+          - aziot
+          - local
         'moduleId':
           type: string
           description: Name of the module to add to the identity registry.
           example: module01
+
+    CreateLocalIdentityRequest:
+      allOf:
+      - $ref: '#/components/schemas/CreateIdentityRequest'
+      - type: 'object'
+        properties:
+          'localIdOpts':
+            type: object
+            default: '{"type": "x509", "attributes": "client"}'
+            properties:
+              'type':
+                type: string
+                description: Type of local identity. Currently, only x509 is supported.
+                enum:
+                - x509
+              'attributes':
+                type: string
+                description: Attributes of the X.509 local identity certificate. May be either client or server.
+                enum:
+                - client
+                - server
+            description: Optional field to specify configuration of the issued local identity.
+
+    CreateModuleRequest:
+      oneOf:
+      - $ref: '#/components/schemas/CreateIdentityRequest'
+      - $ref: '#/components/schemas/CreateLocalIdentityRequest'
+      discriminator:
+        propertyName: type
+        mapping:
+          aziot: '#/components/schemas/CreateIdentityRequest'
+          local: '#/components/schemas/CreateLocalIdentityRequest'
+#      required:
+#      - moduleId
+#      - type
+#      type: object
+#      properties:
+#        'type':
+#          type: string
+#          description: The identity type.
+#          example: aziot
+#          enum:
+#          - aziot
+#          - local
+#        'moduleId':
+#          type: string
+#          description: Name of the module to add to the identity registry.
+#          example: module01
+#      discriminator:
+#        propertyName: 'type'
+#        mapping:
+#          'aziot': '#/components/schemas/CreateIdentityRequest'
+#          'local': '#/components/schemas/CreateLocalIdentityRequest'
 
     ErrorResponse:
       required:
@@ -477,6 +573,57 @@ components:
       properties:
         'message':
           type: string
+
+    LocalIdentityResponse:
+      required:
+      - spec
+      - type
+      type: object
+      properties:
+        'type':
+          $ref: '#/components/schemas/LocalIdentityType'
+        'spec':
+          $ref: '#/components/schemas/LocalIdentitySpec'
+
+    LocalIdentitySpec:
+      required:
+      - moduleId
+      - auth
+      type: object
+      properties:
+        'moduleId':
+          type: string
+          description: The identity name for the workload in the local registry.
+          example: module01
+        'auth':
+          type: object
+          properties:
+            'privateKey':
+              type: string
+              format: byte
+            'certificate':
+              type: string
+              format: byte
+            'expiration':
+              type: string
+              format: date-time
+      description: The local identity specification.
+
+    LocalIdentityType:
+      type: string
+      example: local
+      enum:
+      - local
+
+    ModuleIdentityResponse:
+      oneOf:
+      - $ref: '#/components/schemas/AziotModuleIdentityResponse'
+      - $ref: '#/components/schemas/LocalIdentityResponse'
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          'aziot': '#/components/schemas/AziotModuleIdentityResponse'
+          'local': '#/components/schemas/LocalIdentityResponse'
 
     ProvisioningResultRequest:
       required:
@@ -509,6 +656,27 @@ components:
       allOf:
       - $ref: '#/components/schemas/UpdateModuleRequest'
 
+    UpdateLocalIdentityRequest:
+      allOf:
+      - $ref: '#/components/schemas/UpdateModuleRequest'
+      - type: 'object'
+        properties:
+          'localIdOpts':
+            type: object
+            properties:
+              'type':
+                type: string
+                description: Type of local identity. Currently, only x509 is supported.
+                enum:
+                - x509
+              'attributes':
+                type: string
+                description: Attributes of the X.509 local identity certificate. May be either client or server.
+                enum:
+                - client
+                - server
+            description: Optional field to specify configuration of the issued local identity.
+
     UpdateModuleRequest:
       required:
       - moduleId
@@ -521,10 +689,16 @@ components:
           example: aziot
           enum:
           - aziot
+          - local
         'moduleId':
           type: string
           description: Name of the module to add to the identity registry.
           example: module01
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          'aziot': '#/components/schemas/UpdateAziotIdentityRequest'
+          'local': '#/components/schemas/UpdateLocalIdentityRequest'
 
     X509AuthenticationCredentials:
       allOf:
@@ -551,6 +725,14 @@ components:
       required: true
       schema:
         type: string
+
+    AnyModuleIdentityTypeParameter:
+      name: type
+      in: query
+      description: Supported identity types
+      required: true
+      schema:
+        $ref: '#/components/schemas/AnyIdentityType'
 
     AziotIdentityTypeParameter:
       name: type
