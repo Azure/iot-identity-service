@@ -162,9 +162,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
-        "auth": {
-            "type": "sas"
-        }
       }
     }
   ]
@@ -185,10 +182,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
-        "auth": {
-            "type": "x509",
-            "certId": "string"
-        }
       }
     }
   ]
