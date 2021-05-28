@@ -288,7 +288,7 @@ mod tests {
             &["/usr/libexec/aziot/aziotd", "foo"][..],
         ] {
             let mut input = input.iter().copied().map(std::ffi::OsStr::new);
-            let _ = super::process_name_from_args(&mut input).unwrap_err();
+            super::process_name_from_args(&mut input).unwrap_err();
         }
     }
 }

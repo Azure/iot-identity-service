@@ -602,7 +602,7 @@ mod tests {
             "ftp://127.0.0.1",
         ] {
             let input = input.parse().unwrap();
-            let _ = super::Connector::new(&input).unwrap_err();
+            super::Connector::new(&input).unwrap_err();
         }
     }
 }
