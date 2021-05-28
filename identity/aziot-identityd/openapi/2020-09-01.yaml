@@ -1,4 +1,4 @@
-# Ref: https://spec.openapis.org/oas/v4.0.3
+# Ref: https://spec.openapis.org/oas/v3.0.3
 
 openapi: 3.0.1
 
@@ -95,7 +95,8 @@ paths:
       operationId: getDeviceIdentity
       x-codegen-request-body-name: GetDeviceIdentityRequest
       requestBody:
-        description: Type of identity to reprovision
+        description: The type of provisioned identity
+        required: true
         content:
           application/json:
             schema:
@@ -197,26 +198,26 @@ paths:
       - Identity operations
       summary: Create IoT module identity
       operationId: createModuleIdentity
+      x-codegen-request-body-name: CreateModuleIdentityRequest
       requestBody:
-        description: Data for a module identity to register
+        description: The type of module identity to create
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateIdentityRequest'
+              $ref: '#/components/schemas/CreateModuleRequest'
             examples:
               'Module identity':
                 value:
                   type: 'aziot'
                   moduleId: 'module01'
-        required: true
-      x-codegen-request-body-name: CreateModuleIdentityRequest
       responses:
         200:
           description: Ok
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AziotModuleIdentityResponse'
+                $ref: '#/components/schemas/ModuleIdentityResponse'
               examples:
                 'SAS case':
                   value:
@@ -253,7 +254,7 @@ paths:
   /identities/modules/{id}?api-version=2020-09-01:
     parameters:
       - $ref: '#/components/parameters/IdentityName'
-      - $ref: '#/components/parameters/AziotIdentityTypeParameter'
+      - $ref: '#/components/parameters/ModuleIdentityTypes'
     get:
       tags:
       - Identity operations
@@ -265,7 +266,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AziotModuleIdentityResponse'
+                $ref: '#/components/schemas/ModuleIdentityResponse'
               examples:
                 'SAS case':
                   value:
@@ -321,14 +322,14 @@ paths:
       - Identity operations
       summary: Trigger an IoT device reprovisioning flow
       operationId: reprovision
+      x-codegen-request-body-name: ReprovisionRequest
       requestBody:
         description: Type of identity to reprovision
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ReprovisionRequest'
-        required: true
-      x-codegen-request-body-name: ReprovisionRequest
       responses:
         200:
           description: Ok
@@ -357,6 +358,11 @@ components:
           enum:
           - sas
           - x509
+      discriminator:
+        propertyName: type
+        mapping:
+          sas: '#/components/schemas/SASAuthenticationCredentials'
+          x509: '#/components/schemas/X509AuthenticationCredentials'
 
     AziotDeviceIdentitySpec:
       required:
@@ -382,14 +388,7 @@ components:
             IoT Hub.
           example: device01
         'auth':
-          oneOf:
-          - $ref: '#/components/schemas/SASAuthenticationCredentials'
-          - $ref: '#/components/schemas/X509AuthenticationCredentials'
-          discriminator:
-            propertyName: type
-            mapping:
-              sas: '#/components/schemas/SASAuthenticationCredentials'
-              x509: '#/components/schemas/X509AuthenticationCredentials'
+          $ref: '#/components/schemas/AuthenticationCredentials'
       description: The device identity specification.
 
     AziotIdentityResponse:
@@ -419,9 +418,12 @@ components:
 
     AziotIdentityType:
       type: string
-      example: aziot
       enum:
       - aziot
+      example:
+        aziot:
+          value: aziot
+          summary: 'Module identity.'
 
     AziotModuleIdentityResponse:
       required:
@@ -464,11 +466,19 @@ components:
       type: object
       properties:
         'type':
-          $ref: '#/components/schemas/AziotIdentityType'
+          $ref: '#/components/schemas/IdentityTypes'
         'moduleId':
           type: string
           description: Name of the module to add to the identity registry.
           example: module01
+
+    CreateModuleRequest:
+      oneOf:
+      - $ref: '#/components/schemas/CreateIdentityRequest'
+      discriminator:
+        propertyName: type
+        mapping:
+          aziot: '#/components/schemas/CreateIdentityRequest'
 
     ErrorResponse:
       required:
@@ -477,6 +487,24 @@ components:
       properties:
         'message':
           type: string
+
+    IdentityTypes:
+      type: string
+      description: The identity type.
+      enum:
+      - aziot
+      example:
+        aziot:
+          value: aziot
+          summary: 'Azure IoT Hub identity.'
+
+    ModuleIdentityResponse:
+      oneOf:
+      - $ref: '#/components/schemas/AziotModuleIdentityResponse'
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          'aziot': '#/components/schemas/AziotModuleIdentityResponse'
 
     ProvisioningResultRequest:
       required:
@@ -505,27 +533,6 @@ components:
           type: string
           description: Key handle used for Key Service requests.
 
-    UpdateAziotIdentityRequest:
-      allOf:
-      - $ref: '#/components/schemas/UpdateModuleRequest'
-
-    UpdateModuleRequest:
-      required:
-      - moduleId
-      - type
-      type: object
-      properties:
-        'type':
-          type: string
-          description: The identity type.
-          example: aziot
-          enum:
-          - aziot
-        'moduleId':
-          type: string
-          description: Name of the module to add to the identity registry.
-          example: module01
-
     X509AuthenticationCredentials:
       allOf:
       - $ref: '#/components/schemas/AuthenticationCredentials'
@@ -551,6 +558,14 @@ components:
       required: true
       schema:
         type: string
+
+    ModuleIdentityTypes:
+      name: type
+      in: query
+      description: Supported identity types
+      required: true
+      schema:
+        $ref: '#/components/schemas/IdentityTypes'
 
     AziotIdentityTypeParameter:
       name: type
