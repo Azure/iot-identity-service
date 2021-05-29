@@ -116,7 +116,7 @@ paths:
                   'type':
                     $ref: '#/components/schemas/AziotIdentityType'
                   'spec':
-                    $ref: '#/components/schemas/AziotDeviceIdentitySpec'
+                    $ref: '#/components/schemas/AziotIdentitySpec'
               examples:
                 'SAS case':
                   value:
@@ -146,14 +146,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/modules?api-version=2020-09-01:
+  /identities/modules?api-version=2020-09-01&type={type}:
+    parameters:
+    - $ref: '#/components/parameters/AziotIdentityTypeParameter'
     get:
       tags:
       - Identity operations
       summary: List IoT module identities
       operationId: getModuleIdentities
-      parameters:
-      - $ref: '#/components/parameters/AziotIdentityTypeParameter'
       responses:
         200:
           description: Ok
@@ -193,6 +193,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/modules?api-version=2020-09-01:
     post:
       tags:
       - Identity operations
@@ -251,10 +253,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/modules/{id}?api-version=2020-09-01:
+  /identities/modules/{id}?api-version=2020-09-01&type={type}:
     parameters:
       - $ref: '#/components/parameters/IdentityName'
-      - $ref: '#/components/parameters/ModuleIdentityTypes'
+      - $ref: '#/components/parameters/ModuleIdentityKind'
     get:
       tags:
       - Identity operations
@@ -364,33 +366,6 @@ components:
           sas: '#/components/schemas/SASAuthenticationCredentials'
           x509: '#/components/schemas/X509AuthenticationCredentials'
 
-    AziotDeviceIdentitySpec:
-      required:
-      - auth
-      - deviceId
-      - gatewayHost
-      - hubName
-      type: object
-      properties:
-        'hubName':
-          type: string
-          description: The name of the IoT hub where the device is provisioned.
-          example: myhub.net
-        'gatewayHost':
-          type: string
-          description: The hostname of the parent Edge gateway that intermediates
-            all requests for the current device when in a nested configuration. In
-            a single-node deployment (i.e. non-nested) it will match the 'hubName'.
-          example: parentdevice
-        'deviceId':
-          type: string
-          description: The identity name of the provisioned device in the assigned
-            IoT Hub.
-          example: device01
-        'auth':
-          $ref: '#/components/schemas/AuthenticationCredentials'
-      description: The device identity specification.
-
     AziotIdentityResponse:
       required:
       - spec
@@ -412,9 +387,39 @@ components:
             $ref: '#/components/schemas/AziotModuleIdentityResponse'
 
     AziotIdentitySpec:
-      oneOf:
-      - $ref: '#/components/schemas/AziotDeviceIdentitySpec'
-      - $ref: '#/components/schemas/AziotModuleIdentitySpec'
+      required:
+      - deviceId
+      - gatewayHost
+      - hubName
+      type: object
+      properties:
+        'hubName':
+          type: string
+          description: The name of the IoT hub where the device is provisioned.
+          example: myhub.net
+        'gatewayHost':
+          type: string
+          description: The hostname of the parent Edge gateway that intermediates
+            all requests for the current device when in a nested configuration. In
+            a single-node deployment (i.e. non-nested) it will match the 'hubName'.
+          example: parentdevice
+        'deviceId':
+          type: string
+          description: The identity name of the provisioned device in the assigned
+            IoT Hub.
+          example: device01
+        'moduleId':
+          type: string
+          description: The identity name of the device workload in the provisioned
+            device in the assigned IoT Hub.
+          example: module01
+        'genId':
+          type: string
+          description: The generation ID of the device workload assigned by IoT Hub.
+          example: "12345"
+        'auth':
+          $ref: '#/components/schemas/AuthenticationCredentials'
+      description: The device identity specification.
 
     AziotIdentityType:
       type: string
@@ -438,12 +443,8 @@ components:
 
     AziotModuleIdentitySpec:
       allOf:
-      - $ref: '#/components/schemas/AziotDeviceIdentitySpec'
+      - $ref: '#/components/schemas/AziotIdentitySpec'
       required:
-      - auth
-      - deviceId
-      - gatewayHost
-      - hubName
       - moduleId
       - genId
       type: object
@@ -466,7 +467,7 @@ components:
       type: object
       properties:
         'type':
-          $ref: '#/components/schemas/IdentityTypes'
+          $ref: '#/components/schemas/IdentityKind'
         'moduleId':
           type: string
           description: Name of the module to add to the identity registry.
@@ -488,7 +489,7 @@ components:
         'message':
           type: string
 
-    IdentityTypes:
+    IdentityKind:
       type: string
       description: The identity type.
       enum:
@@ -520,7 +521,9 @@ components:
       type: object
       properties:
         'type':
-          $ref: '#/components/schemas/AziotIdentityType'
+          type: string
+          enum:
+          - aziot
 
     SASAuthenticationCredentials:
       allOf:
@@ -550,6 +553,14 @@ components:
 
 
   parameters:
+    AziotIdentityTypeParameter:
+      name: type
+      in: path
+      description: Aziot identity type
+      required: true
+      schema:
+        $ref: '#/components/schemas/AziotIdentityType'
+
     IdentityName:
       name: id
       in: path
@@ -559,19 +570,12 @@ components:
       schema:
         type: string
 
-    ModuleIdentityTypes:
+    ModuleIdentityKind:
       name: type
-      in: query
+      in: path
       description: Supported identity types
       required: true
       schema:
-        $ref: '#/components/schemas/IdentityTypes'
+        $ref: '#/components/schemas/IdentityKind'
 
-    AziotIdentityTypeParameter:
-      name: type
-      in: query
-      description: Aziot identity type
-      required: true
-      schema:
-        $ref: '#/components/schemas/AziotIdentityType'
 
