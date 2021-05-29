@@ -347,55 +347,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ---
 
-### Update IoT module identity
-
-`PUT /identities/modules/{module-id}?api-version=2020-09-01&type={type}`
-
-The `type` query parameter specifies the identity type to return. Accepted values are:
-- `aziot`: Module identity.
-
-#### Response (SAS case)
-```json
-{
-  "type": "aziot",
-  "spec":
-  {
-    "hubName": "myhub.net",
-    "gatewayHost": "parentdevice",
-    "deviceId": "device01",
-    "moduleId": "module01",
-    "genId": "12345",
-    "auth": {
-        "type": "sas",
-        "keyHandle": "string"
-   }
-  }
-}
-```
-
-#### Response (X.509 case)
-
-```json
-{
-  "type": "aziot",
-  "spec":
-  {
-    "hubName": "myhub.net",
-    "gatewayHost": "parentdevice",
-    "deviceId": "device01",
-    "moduleId": "module01",
-    "genId": "12345",
-    "auth": {
-        "type": "x509",
-        "keyHandle": "string",
-        "certId": "string"
-    }
-  }
-}
-```
-
----
-
 ### Delete IoT module identity
 
 `DELETE /identities/modules/{module-id}?api-version=2020-09-01&type={type}`
