@@ -11,7 +11,29 @@ macro_rules! make_service {
             $($route:path ,)*
         ],
     ) => {
-        impl hyper::service::Service<hyper::Request<hyper::Body>> for $service_ty {
+        http_common::make_service!{
+            service: $service_ty,
+            {}
+            {}
+            api_version: $api_version_ty,
+            routes: [
+                $($route ,)*
+            ],
+        }
+    };
+    (
+        service: $service_ty:ty,
+        { $($impl_generics:tt)* }
+        { $($bounds:tt)* }
+        api_version: $api_version_ty:ty,
+        routes: [
+            $($route:path ,)*
+        ],
+    ) => {
+        impl $($impl_generics)* hyper::service::Service<hyper::Request<hyper::Body>> for $service_ty
+        where
+            $($bounds)*
+        {
             type Response = hyper::Response<hyper::Body>;
             type Error = std::convert::Infallible;
             type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
@@ -21,10 +43,13 @@ macro_rules! make_service {
             }
 
             fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
-                fn call_inner(
+                fn call_inner $($impl_generics)* (
                     this: &mut $service_ty,
                     req: hyper::Request<hyper::Body>,
-                ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>> + Send>> {
+                ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>> + Send>>
+                where
+                    $($bounds)*
+                {
                     const HYPER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
                     let (http::request::Parts { method, uri, headers, extensions, .. }, body) = req.into_parts();
 
