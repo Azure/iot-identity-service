@@ -428,9 +428,9 @@ pub fn run(
     };
 
     Ok(RunOutput {
-        keyd_config,
         certd_config,
         identityd_config,
+        keyd_config,
         tpmd_config,
         preloaded_device_id_pk_bytes,
     })
@@ -540,7 +540,7 @@ id_scope = "0ab1234C5D6"
 method = "symmetric_key"
 registration_id = "my-device"
 symmetric_key = { value = "YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGVudGl0eS1zZXJ2aWNlfGF6aW90LWlkZW50aXR5LXNlcg==" }
-        
+
 "#;
         let super_config: super_config::Config = toml::from_str(super_config).unwrap();
 

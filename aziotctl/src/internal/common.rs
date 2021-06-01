@@ -81,7 +81,7 @@ pub async fn resolve_and_tls_handshake(
 
     // we don't actually care about the stream that gets returned. All we care about
     // is whether or not the TLS handshake was successful
-    let _ = http_common::MaybeProxyConnector::new(proxy_uri, None, &[])
+    http_common::MaybeProxyConnector::new(proxy_uri, None, &[])
         .with_context(|| {
             anyhow!(
                 "Could not connect to {} : could not create TLS connector",

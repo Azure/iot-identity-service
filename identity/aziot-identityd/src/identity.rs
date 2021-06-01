@@ -55,6 +55,43 @@ impl IdentityManager {
         self.iot_hub_device = Some(device.clone());
     }
 
+    pub fn clear_device(&mut self) {
+        // Clear the backed up device state before reprovisioning.
+        // If this fails, log a warning but continue with reprovisioning.
+        let mut backup_file = self.homedir_path.clone();
+        backup_file.push(DEVICE_BACKUP_LOCATION);
+
+        if let Err(err) = std::fs::remove_file(backup_file) {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::warn!(
+                    "Failed to clear device state before reprovisioning: {}",
+                    err
+                );
+            }
+        }
+
+        // Purge all module identities for this device. These might no longer be valid after reprovision.
+        if let Some(device) = &self.iot_hub_device {
+            let module_backup_path = ModuleBackup::get_device_path(
+                &self.homedir_path,
+                &device.iothub_hostname,
+                &device.device_id,
+            )
+            .expect("module path for existing device must be valid");
+
+            if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!(
+                        "Failed to clear module identities before reprovisioning: {}",
+                        err
+                    );
+                }
+            }
+        }
+
+        self.iot_hub_device = None;
+    }
+
     pub async fn create_module_identity(
         &self,
         module_id: &str,
@@ -686,21 +723,28 @@ impl IdentityManager {
             .await
             .map_err(Error::DpsClient)?;
 
-        let status = operation.status;
-        assert!(!status.eq_ignore_ascii_case("assigning"));
+        // DPS client registration won't return if the status is "assigning".
+        assert!(!operation.status.eq_ignore_ascii_case("assigning"));
 
-        let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-        let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-        let device_id = state.device_id.get_or_insert("".into());
-        let device = aziot_identity_common::IoTHubDevice {
-            local_gateway_hostname: local_gateway_hostname
-                .unwrap_or_else(|| iothub_hostname.clone()),
-            iothub_hostname: iothub_hostname.clone(),
-            device_id: device_id.clone(),
-            credentials,
+        let state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+
+        let (iothub_hostname, device_id) = match (state.assigned_hub, state.device_id) {
+            (Some(iothub_hostname), Some(device_id)) => (iothub_hostname, device_id),
+            _ => {
+                return Err(Error::DpsClient(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    state.error_message.unwrap_or_default(),
+                )))
+            }
         };
 
-        Ok(device)
+        Ok(aziot_identity_common::IoTHubDevice {
+            local_gateway_hostname: local_gateway_hostname
+                .unwrap_or_else(|| iothub_hostname.clone()),
+            iothub_hostname,
+            device_id,
+            credentials,
+        })
     }
 
     fn get_backup_provisioning_info(

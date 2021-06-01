@@ -266,7 +266,7 @@ fn generate_cert(
     let ca_key_handle = match &kind {
         GenerateCertKind::Ca => key_handle,
         GenerateCertKind::Client { ca_key_handle, .. }
-        | GenerateCertKind::Server { ca_key_handle, .. } => ca_key_handle.to_owned(),
+        | GenerateCertKind::Server { ca_key_handle, .. } => ca_key_handle.clone(),
     };
     let ca_key = load_private_key(&mut engine, ca_key_handle)?;
     builder.sign(&ca_key, openssl::hash::MessageDigest::sha256())?;
