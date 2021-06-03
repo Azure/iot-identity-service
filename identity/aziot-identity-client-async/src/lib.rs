@@ -161,11 +161,7 @@ impl Client {
         let res: get_module_identities::Response = http_common::request::<(), _>(
             &self.inner,
             http::Method::GET,
-            make_uri!(
-                "/identities/modules",
-                self.api_version,
-                ID_TYPE_AZIOT
-            ),
+            make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
             None,
         )
         .await?;
