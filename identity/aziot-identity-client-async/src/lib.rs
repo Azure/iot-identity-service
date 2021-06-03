@@ -26,7 +26,13 @@ macro_rules! make_uri {
     ($path:literal, $api_version:expr, $type:expr, $name:ident) => {
         &format!(
             "http://identityd.sock{}/{}?api-version={}&type={}",
-            $path, $name, $api_version, $type
+            $path,
+            percent_encoding::percent_encode(
+                $name.as_bytes(),
+                http_common::PATH_SEGMENT_ENCODE_SET
+            ),
+            $api_version,
+            $type
         )
     };
 }
