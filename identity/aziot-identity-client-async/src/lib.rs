@@ -147,7 +147,7 @@ impl Client {
             make_uri!(
                 "/identities/modules",
                 self.api_version,
-                ID_TYPE_AZIOT.to_string(),
+                ID_TYPE_AZIOT,
                 module_name
             ),
             None,
@@ -164,7 +164,7 @@ impl Client {
             make_uri!(
                 "/identities/modules",
                 self.api_version,
-                ID_TYPE_AZIOT.to_string()
+                ID_TYPE_AZIOT
             ),
             None,
         )
@@ -180,7 +180,7 @@ impl Client {
             make_uri!(
                 "/identities/modules",
                 self.api_version,
-                ID_TYPE_AZIOT.to_string(),
+                ID_TYPE_AZIOT,
                 module_name
             ),
             None,
@@ -197,7 +197,7 @@ impl Client {
             make_uri!(
                 "/identities/modules",
                 self.api_version,
-                ID_TYPE_AZIOT.to_string(),
+                ID_TYPE_AZIOT,
                 module_name
             ),
             None,
