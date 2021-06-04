@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use aziot_identity_common::{ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 use aziot_identityd_config as config;
 
 pub mod auth;
@@ -30,12 +31,6 @@ pub mod identity;
 
 use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
-
-/// URI query parameter that identifies module identity type.
-const ID_TYPE_AZIOT: &str = "aziot";
-
-/// URI query parameter that identifies local identity type.
-const ID_TYPE_LOCAL: &str = "local";
 
 macro_rules! match_id_type {
     ($id_type:ident { $( $type:ident => $action:block ,)+ }) => {
