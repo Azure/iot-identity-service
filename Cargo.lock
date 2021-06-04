@@ -239,10 +239,13 @@ dependencies = [
 name = "aziot-identity-client-async"
 version = "0.1.0"
 dependencies = [
+ "aziot-cert-common-http",
+ "aziot-identity-common",
  "aziot-identity-common-http",
  "http",
  "http-common",
  "hyper",
+ "percent-encoding",
 ]
 
 [[package]]
