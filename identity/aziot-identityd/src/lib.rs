@@ -65,8 +65,11 @@ pub async fn main(
     let connector = settings.endpoints.aziot_identityd.clone();
 
     if !homedir_path.exists() {
-        let () =
-            std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
+        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+            log::error!("Failed to create home directory: {}", err);
+
+            return Err(error::InternalError::CreateHomeDir(err).into());
+        }
     }
 
     let api = Api::new(settings.clone())?;
@@ -428,8 +431,6 @@ impl Api {
                                 return Err(err);
                             }
                         } else {
-                            log::info!("Successfully reprovisioned.");
-
                             self.id_manager
                                 .reconcile_hub_identities(self.settings.clone())
                                 .await?;
@@ -550,7 +551,8 @@ impl Api {
             // no valid backup could be loaded. Treat this as a fatal error.
             if let ReprovisionTrigger::Startup = trigger {
                 log::error!(
-                    "Failed to provision with IoT Hub, and no valid device backup was found."
+                    "Failed to provision with IoT Hub, and no valid device backup was found: {}",
+                    err
                 );
 
                 return Err(err);
