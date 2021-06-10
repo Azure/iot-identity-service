@@ -80,6 +80,7 @@ make -j \
     localstatedir=%{_localstatedir} \
     sysconfdir=%{_sysconfdir} \
     unitdir=%{_unitdir} \
+    presetdir=%{_presetdir} \
     OPENSSL_ENGINES_DIR=/usr/lib64/openssl/engines \
     RELEASE=1 \
     V=1 \
@@ -128,7 +129,6 @@ fi
 %systemd_post aziot-identityd.socket
 %systemd_post aziot-keyd.socket
 %systemd_post aziot-tpmd.socket
-
 
 %preun
 %systemd_preun aziot-certd.socket
@@ -191,6 +191,8 @@ fi
 %{_unitdir}/aziot-keyd.socket
 %{_unitdir}/aziot-tpmd.service
 %{_unitdir}/aziot-tpmd.socket
+
+%{_presetdir}/00-aziot.preset
 
 %doc README.md
 %doc THIRD-PARTY-NOTICES

@@ -1,0 +1,7 @@
+# Enable the sockets for aziot services.
+# The services themselves only start if data is written to their respective socket.
+
+enable aziot-certd.socket
+enable aziot-identityd.socket
+enable aziot-keyd.socket
+enable aziot-tpmd.socket
