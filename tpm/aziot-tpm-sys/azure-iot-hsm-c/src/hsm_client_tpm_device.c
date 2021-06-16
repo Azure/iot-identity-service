@@ -254,6 +254,13 @@ static int insert_key_in_tpm
                 }
             }
         }
+
+        if (TPM2_FlushContext(&sec_info->tpm_device, ek_sess.SessIn.sessionHandle) != TPM_RC_SUCCESS)
+        {
+            // Failure to flush the session isn't a fatal error now, but might cause future calls
+            // to this function to fail.
+            LOG_ERROR("Failed to flush session");
+        }
     }
     return result;
 }
