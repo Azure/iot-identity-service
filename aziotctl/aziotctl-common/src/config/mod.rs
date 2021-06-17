@@ -75,11 +75,14 @@ fn parse_manual_connection_string(
     let mut symmetric_key = None;
 
     for sections in connection_string.split(';') {
-        let parts = sections.split_once('=');
-        match parts {
-            Some((HOSTNAME_KEY, value)) => iothub_hostname = Some(value),
-            Some((DEVICEID_KEY, value)) => device_id = Some(value),
-            Some((SHAREDACCESSKEY_KEY, value)) => symmetric_key = Some(value),
+        let mut parts = sections.splitn(2, '=');
+        match parts
+            .next()
+            .expect("str::splitn always returns at least one part")
+        {
+            HOSTNAME_KEY => iothub_hostname = parts.next(),
+            DEVICEID_KEY => device_id = parts.next(),
+            SHAREDACCESSKEY_KEY => symmetric_key = parts.next(),
             _ => (), // Ignore extraneous component in the connection string
         }
     }

@@ -116,7 +116,18 @@ where
 
     let ptr = from_d.cast::<*const U>();
     if !ptr.is_null() {
-        std::sync::Arc::increment_strong_count(ptr);
+        // TODO:
+        // Replace this block's contents with `std::sync::Arc::increment_ref_count(ptr)`
+        // when iotedge starts using Rust 1.51+
+
+        let ex_data = std::sync::Arc::from_raw(*ptr);
+
+        // Bump the refcount ...
+        let ex_data_clone = ex_data.clone();
+
+        // ... and `forget` the two `Arc`s, so that they don't get dropped and decrease the refcount again.
+        std::mem::forget(ex_data);
+        std::mem::forget(ex_data_clone);
     }
 }
 
@@ -129,7 +140,12 @@ where
 
     let ptr = ptr.cast::<U>();
     if !ptr.is_null() {
-        std::sync::Arc::decrement_strong_count(ptr);
+        // TODO:
+        // Replace this block's contents with `std::sync::Arc::decrement_ref_count(ptr)`
+        // when iotedge starts using Rust 1.51+
+
+        let ex_data = std::sync::Arc::from_raw(ptr);
+        drop(ex_data);
     }
 }
 
