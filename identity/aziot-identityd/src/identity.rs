@@ -17,6 +17,8 @@ pub(crate) const DEVICE_BACKUP_LOCATION: &str = "device_info";
 
 pub struct IdentityManager {
     homedir_path: std::path::PathBuf,
+    req_timeout: std::time::Duration,
+    req_retries: u32,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
@@ -28,6 +30,8 @@ pub struct IdentityManager {
 impl IdentityManager {
     pub fn new(
         homedir_path: std::path::PathBuf,
+        req_timeout: std::time::Duration,
+        req_retries: u32,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -37,6 +41,8 @@ impl IdentityManager {
     ) -> Self {
         IdentityManager {
             homedir_path,
+            req_timeout,
+            req_retries,
             key_client,
             key_engine,
             cert_client,
@@ -107,6 +113,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -187,6 +195,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -283,6 +293,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -369,6 +381,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -425,6 +439,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -626,6 +642,8 @@ impl IdentityManager {
                 let dps_client = aziot_dps_client_async::Client::new(
                     &global_endpoint,
                     &scope_id,
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -909,10 +927,6 @@ impl IdentityManager {
                         std::collections::BTreeSet::default()
                     };
 
-                if prev_module_set.is_empty() && current_module_set.is_empty() {
-                    return Ok(());
-                }
-
                 let hub_module_ids = self.get_module_identities().await?;
 
                 for m in hub_module_ids {
@@ -941,10 +955,12 @@ impl IdentityManager {
                     log::info!("Hub identity {:?} added", &m.0);
                 }
 
-                let () = std::fs::write(prev_device_info_path, device_status)
+                // Write out device state and settings.
+                // This overwrites any existing device state and settings backup.
+                std::fs::write(prev_device_info_path, device_status)
                     .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
 
-                let () = std::fs::write(prev_settings_path, &settings_serialized)
+                std::fs::write(prev_settings_path, &settings_serialized)
                     .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
             None => log::info!("reconcilation skipped since device is not provisioned"),
