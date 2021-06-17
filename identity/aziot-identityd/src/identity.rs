@@ -628,6 +628,8 @@ impl IdentityManager {
                     credentials,
                 };
                 self.set_device(&device);
+
+                log::info!("Updated device info for {}.", device.device_id);
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             config::ProvisioningType::Dps {
@@ -707,6 +709,8 @@ impl IdentityManager {
                     .await?;
 
                 self.set_device(&device);
+
+                log::info!("Successfully provisioned with DPS.");
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             config::ProvisioningType::None => {

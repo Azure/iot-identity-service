@@ -516,11 +516,15 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     TEST_FUNCTION(hsm_client_tpm_activate_key_succeed)
     {
         //arrange
+        TPMI_DH_CONTEXT tmp_dh_ctx = { 0 };
+
         const HSM_CLIENT_TPM_INTERFACE* tpm_if = hsm_client_tpm_interface();
         HSM_CLIENT_HANDLE sec_handle = tpm_if->hsm_client_tpm_create();
         umock_c_reset_all_calls();
 
         setup_hsm_client_tpm_activate_key_mock();
+        STRICT_EXPECTED_CALL(TPM2_FlushContext(IGNORED_PTR_ARG, tmp_dh_ctx))
+            .IgnoreArgument_flushHandle();
 
         //act
         int import_res = tpm_if->hsm_client_activate_identity_key(sec_handle, TEST_IMPORT_KEY, TEST_KEY_SIZE);
