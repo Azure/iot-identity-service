@@ -9,7 +9,7 @@
     non_snake_case,
     non_upper_case_globals,
     clippy::must_use_candidate,
-    clippy::too_many_lines,
+    clippy::too_many_lines
 )]
 
 use std::os::raw::{c_int, c_uchar, c_void};
