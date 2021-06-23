@@ -56,7 +56,7 @@ impl Incoming {
                 let (tcp_stream, _) = listener.accept().await?;
 
                 // TCP is available in test builds only (not production). Assume current user is root.
-                let server = crate::uid::UidService::new(0, server.clone());
+                let server = crate::uid::UidService::new(None, 0, server.clone());
                 tokio::spawn(async move {
                     if let Err(http_err) = hyper::server::conn::Http::new()
                         .serve_connection(tcp_stream, server)
@@ -80,7 +80,7 @@ impl Incoming {
                     })
                     .clone();
 
-                let server = crate::uid::UidService::new(ucred.uid(), server.clone());
+                let server = crate::uid::UidService::new(ucred.pid(), ucred.uid(), server.clone());
                 tokio::spawn(async move {
                     match user_state.try_acquire_owned() {
                         Ok(_permit) => {

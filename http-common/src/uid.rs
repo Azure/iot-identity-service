@@ -1,15 +1,16 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use libc::uid_t;
+use libc::{pid_t, uid_t};
 
 pub struct UidService<T> {
+    pid: Option<pid_t>,
     uid: uid_t,
     inner: T,
 }
 
 impl<T> UidService<T> {
-    pub fn new(uid: uid_t, inner: T) -> Self {
-        UidService { uid, inner }
+    pub fn new(pid: Option<pid_t>, uid: uid_t, inner: T) -> Self {
+        UidService { pid, uid, inner }
     }
 }
 
@@ -34,7 +35,9 @@ where
 
     fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
         let mut req = req;
-        req.extensions_mut().insert(self.uid);
+        let extensions = req.extensions_mut();
+        extensions.insert(self.uid);
+        extensions.insert(self.pid);
         Box::pin(self.inner.call(req))
     }
 
