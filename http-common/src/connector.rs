@@ -49,8 +49,6 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        const MAX_REQUESTS_PER_USER: usize = 10;
-
         match self {
             Incoming::Tcp { listener } => loop {
                 let (tcp_stream, _) = listener.accept().await?;
@@ -58,12 +56,7 @@ impl Incoming {
                 // TCP is available in test builds only (not production). Assume current user is root.
                 let server = crate::uid::UidService::new(None, 0, server.clone());
                 tokio::spawn(async move {
-                    if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(tcp_stream, server)
-                        .await
-                    {
-                        log::info!("Error while serving HTTP connection: {}", http_err);
-                    }
+                    serve_tcp(server, tcp_stream).await;
                 });
             },
 
@@ -72,34 +65,104 @@ impl Incoming {
                 user_state,
             } => loop {
                 let (unix_stream, _) = listener.accept().await?;
-                let ucred = unix_stream.peer_cred()?;
-                let user_state = user_state
-                    .entry(ucred.uid())
-                    .or_insert_with(|| {
-                        std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
-                    })
-                    .clone();
+                let (user_state, ucred) = get_user_auth(&unix_stream, user_state)?;
 
                 let server = crate::uid::UidService::new(ucred.pid(), ucred.uid(), server.clone());
                 tokio::spawn(async move {
-                    match user_state.try_acquire_owned() {
-                        Ok(_permit) => {
-                            if let Err(http_err) = hyper::server::conn::Http::new()
-                                .serve_connection(unix_stream, server)
-                                .await
-                            {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
-                            }
-                        }
-                        Err(limit_err) => {
-                            log::info!(
-                                "Error while acquiring permit for HTTP connection: {}",
-                                limit_err
-                            );
-                        }
-                    }
+                    serve_unix(user_state, server, unix_stream).await;
                 });
             },
+        }
+    }
+
+    //#[cfg(feature = "serve_with_shutdown")]
+    pub async fn serve_with_shutdown<H>(
+        &mut self,
+        server: H,
+        shutdown: tokio::sync::oneshot::Receiver<()>,
+    ) -> std::io::Result<()>
+    where
+        H: hyper::service::Service<
+                hyper::Request<hyper::Body>,
+                Response = hyper::Response<hyper::Body>,
+                Error = std::convert::Infallible,
+            > + Clone
+            + Send
+            + 'static,
+        <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+    {
+        Ok(())
+    }
+}
+
+async fn serve_tcp<H>(server: crate::uid::UidService<H>, tcp_stream: tokio::net::TcpStream)
+where
+    H: hyper::service::Service<
+            hyper::Request<hyper::Body>,
+            Response = hyper::Response<hyper::Body>,
+            Error = std::convert::Infallible,
+        > + Clone
+        + Send
+        + 'static,
+    <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+{
+    if let Err(http_err) = hyper::server::conn::Http::new()
+        .serve_connection(tcp_stream, server)
+        .await
+    {
+        log::info!("Error while serving HTTP connection: {}", http_err);
+    }
+}
+
+fn get_user_auth(
+    unix_stream: &tokio::net::UnixStream,
+    user_state: &mut std::collections::BTreeMap<
+        libc::uid_t,
+        std::sync::Arc<tokio::sync::Semaphore>,
+    >,
+) -> std::io::Result<(
+    std::sync::Arc<tokio::sync::Semaphore>,
+    tokio::net::unix::UCred,
+)> {
+    const MAX_REQUESTS_PER_USER: usize = 10;
+
+    let ucred = unix_stream.peer_cred()?;
+    let user_state = user_state
+        .entry(ucred.uid())
+        .or_insert_with(|| std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER)))
+        .clone();
+
+    Ok((user_state, ucred))
+}
+
+async fn serve_unix<H>(
+    user_state: std::sync::Arc<tokio::sync::Semaphore>,
+    server: crate::uid::UidService<H>,
+    unix_stream: tokio::net::UnixStream,
+) where
+    H: hyper::service::Service<
+            hyper::Request<hyper::Body>,
+            Response = hyper::Response<hyper::Body>,
+            Error = std::convert::Infallible,
+        > + Clone
+        + Send
+        + 'static,
+    <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+{
+    match user_state.try_acquire_owned() {
+        Ok(_permit) => {
+            if let Err(http_err) = hyper::server::conn::Http::new()
+                .serve_connection(unix_stream, server)
+                .await
+            {
+                log::info!("Error while serving HTTP connection: {}", http_err);
+            }
+        }
+        Err(limit_err) => {
+            log::info!(
+                "Error while acquiring permit for HTTP connection: {}",
+                limit_err
+            );
         }
     }
 }
