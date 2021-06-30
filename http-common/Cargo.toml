@@ -30,3 +30,4 @@ serde_json = "1"
 
 [features]
 tokio1 = ["headers", "hyper", "hyper-openssl", "hyper-proxy", "openssl", "openssl-sys", "tokio"]
+serve_with_shutdown = ["tokio/time"]

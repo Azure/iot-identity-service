@@ -1,5 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[cfg(feature = "serve_with_shutdown")]
+use futures_util::future;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
     Tcp {
@@ -75,7 +78,7 @@ impl Incoming {
         }
     }
 
-    //#[cfg(feature = "serve_with_shutdown")]
+    #[cfg(feature = "serve_with_shutdown")]
     pub async fn serve_with_shutdown<H>(
         &mut self,
         server: H,
@@ -91,6 +94,61 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
+        let shutdown_loop = shutdown;
+        futures_util::pin_mut!(shutdown_loop);
+
+        // Keep track of the number of running tasks.
+        let tasks = std::sync::atomic::AtomicIsize::new(0);
+        let tasks = std::sync::Arc::new(tasks);
+
+        match self {
+            Incoming::Tcp { listener } => loop {
+                let (tcp_stream, _) = listener.accept().await?;
+
+                // TCP is available in test builds only (not production). Assume current user is root.
+                let server = crate::uid::UidService::new(None, 0, server.clone());
+                tokio::spawn(async move {
+                    serve_tcp(server, tcp_stream).await;
+                });
+            },
+
+            Incoming::Unix {
+                listener,
+                user_state,
+            } => loop {
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
+
+                // Await either the next established connection or the shutdown signal.
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((unix_stream, shutdown)) => {
+                        let unix_stream = unix_stream?.0;
+
+                        let (user_state, ucred) = get_user_auth(&unix_stream, user_state)?;
+                        let server =
+                            crate::uid::UidService::new(ucred.pid(), ucred.uid(), server.clone());
+
+                        tasks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            serve_unix(user_state, server, unix_stream).await;
+                            server_tasks.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                        });
+
+                        shutdown_loop = shutdown;
+                    }
+                };
+            },
+        }
+
+        // Wait for all running server tasks to finish before returning.
+        let poll_ms = std::time::Duration::from_millis(100);
+
+        while tasks.load(std::sync::atomic::Ordering::Relaxed) != 0 {
+            tokio::time::sleep(poll_ms).await;
+        }
+
         Ok(())
     }
 }
