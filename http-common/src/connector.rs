@@ -94,22 +94,35 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        let shutdown_loop = shutdown;
-        futures_util::pin_mut!(shutdown_loop);
-
         // Keep track of the number of running tasks.
         let tasks = std::sync::atomic::AtomicIsize::new(0);
         let tasks = std::sync::Arc::new(tasks);
 
+        let shutdown_loop = shutdown;
+        futures_util::pin_mut!(shutdown_loop);
+
         match self {
             Incoming::Tcp { listener } => loop {
-                let (tcp_stream, _) = listener.accept().await?;
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
 
-                // TCP is available in test builds only (not production). Assume current user is root.
-                let server = crate::uid::UidService::new(None, 0, server.clone());
-                tokio::spawn(async move {
-                    serve_tcp(server, tcp_stream).await;
-                });
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((tcp_stream, shutdown)) => {
+                        let tcp_stream = tcp_stream?.0;
+
+                        let server = crate::uid::UidService::new(None, 0, server.clone());
+
+                        tasks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            serve_tcp(server, tcp_stream).await;
+                            server_tasks.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                        });
+
+                        shutdown_loop = shutdown;
+                    }
+                }
             },
 
             Incoming::Unix {
