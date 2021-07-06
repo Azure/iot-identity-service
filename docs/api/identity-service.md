@@ -162,10 +162,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
-        "auth": {
-            "type": "sas",
-            "keyHandle": "string"
-        }
       }
     }
   ]
@@ -186,11 +182,6 @@ The `type` query parameter specifies the identity type to return. Accepted value
         "deviceId": "device01",
         "moduleId": "module01",
         "genId": "12345",
-        "auth": {
-            "type": "x509",
-            "keyHandle": "string",
-            "certId": "string"
-        }
       }
     }
   ]
@@ -362,6 +353,11 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 The `type` query parameter specifies the identity type to return. Accepted values are:
 - `aziot`: Module identity.
+
+#### Request
+```json
+{}
+```
 
 #### Response (SAS case)
 ```json

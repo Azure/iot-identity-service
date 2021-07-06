@@ -25,7 +25,7 @@ Example principal file in config directory:
 [[principal]]
 uid = 1002
 name = "hostprocess2" # Module name created in IoT Hub by Identity Service
-idtype = "module"
+idtype = ["module"]
 ```
 
 - `hostname` is the device's network hostname. This setting is used for nested topology configuration.
