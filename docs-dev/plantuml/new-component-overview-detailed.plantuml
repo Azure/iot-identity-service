@@ -1,4 +1,4 @@
-@@startuml
+@startuml
 title Data Flow - new architecture
 
 actor Operator
@@ -108,4 +108,4 @@ skinparam component {
     backgroundColor<<service>> White
 }
 
-@@enduml
+@enduml

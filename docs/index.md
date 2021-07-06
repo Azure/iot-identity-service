@@ -22,6 +22,7 @@ The package is made up of these services:
 
     This service brokers access to a device's TPM, and allows callers to retrieve the TPM's endorsement and storage root keys, activate a new identity key, and sign data using a stored identity key. The TPM service is the only service with permissions to access the TPM, and exposes an API which ensures the integrity of the keys stored in the TPM.
 
+![New component overview](img/new-component-overview-simple.svg)
 
 # Relationship with IoT Edge
 
