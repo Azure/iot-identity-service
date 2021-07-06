@@ -126,13 +126,7 @@ impl Incoming {
                                 .fetch_update(
                                     atomic::Ordering::AcqRel,
                                     atomic::Ordering::Acquire,
-                                    |current| {
-                                        if current == 0 {
-                                            None
-                                        } else {
-                                            Some(current - 1)
-                                        }
-                                    },
+                                    |current| current.checked_sub(1),
                                 )
                                 .is_ok();
 
