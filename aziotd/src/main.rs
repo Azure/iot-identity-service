@@ -203,8 +203,12 @@ where
         .incoming()
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
+
+    // Channel to gracefully shut down the server. It's currently not used.
+    let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+
     let () = incoming
-        .serve(server)
+        .serve(server, shutdown_rx)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
