@@ -160,6 +160,7 @@ impl Client {
         TResponse: serde::de::DeserializeOwned,
     {
         let uri = format!("https://{}{}", hub_device.local_gateway_hostname, uri);
+        log::info!("uri is {:?}", uri);
 
         let req = hyper::Request::builder().method(method).uri(uri);
         // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
