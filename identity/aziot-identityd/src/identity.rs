@@ -17,6 +17,8 @@ pub(crate) const DEVICE_BACKUP_LOCATION: &str = "device_info";
 
 pub struct IdentityManager {
     homedir_path: std::path::PathBuf,
+    req_timeout: std::time::Duration,
+    req_retries: u32,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
@@ -28,6 +30,8 @@ pub struct IdentityManager {
 impl IdentityManager {
     pub fn new(
         homedir_path: std::path::PathBuf,
+        req_timeout: std::time::Duration,
+        req_retries: u32,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -37,6 +41,8 @@ impl IdentityManager {
     ) -> Self {
         IdentityManager {
             homedir_path,
+            req_timeout,
+            req_retries,
             key_client,
             key_engine,
             cert_client,
@@ -55,6 +61,43 @@ impl IdentityManager {
         self.iot_hub_device = Some(device.clone());
     }
 
+    pub fn clear_device(&mut self) {
+        // Clear the backed up device state before reprovisioning.
+        // If this fails, log a warning but continue with reprovisioning.
+        let mut backup_file = self.homedir_path.clone();
+        backup_file.push(DEVICE_BACKUP_LOCATION);
+
+        if let Err(err) = std::fs::remove_file(backup_file) {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                log::warn!(
+                    "Failed to clear device state before reprovisioning: {}",
+                    err
+                );
+            }
+        }
+
+        // Purge all module identities for this device. These might no longer be valid after reprovision.
+        if let Some(device) = &self.iot_hub_device {
+            let module_backup_path = ModuleBackup::get_device_path(
+                &self.homedir_path,
+                &device.iothub_hostname,
+                &device.device_id,
+            )
+            .expect("module path for existing device must be valid");
+
+            if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!(
+                        "Failed to clear module identities before reprovisioning: {}",
+                        err
+                    );
+                }
+            }
+        }
+
+        self.iot_hub_device = None;
+    }
+
     pub async fn create_module_identity(
         &self,
         module_id: &str,
@@ -70,6 +113,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -150,6 +195,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -246,6 +293,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -332,6 +381,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -388,6 +439,8 @@ impl IdentityManager {
             Some(device) => {
                 let client = aziot_hub_client_async::Client::new(
                     device.clone(),
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -577,6 +630,8 @@ impl IdentityManager {
                     credentials,
                 };
                 self.set_device(&device);
+
+                log::info!("Updated device info for {}.", device.device_id);
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             config::ProvisioningType::Dps {
@@ -591,6 +646,8 @@ impl IdentityManager {
                 let dps_client = aziot_dps_client_async::Client::new(
                     &global_endpoint,
                     &scope_id,
+                    self.req_timeout,
+                    self.req_retries,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
@@ -663,6 +720,8 @@ impl IdentityManager {
                     .await?;
 
                 self.set_device(&device);
+
+                log::info!("Successfully provisioned with DPS.");
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             config::ProvisioningType::None => {
@@ -697,21 +756,28 @@ impl IdentityManager {
             .await
             .map_err(Error::DpsClient)?;
 
-        let status = operation.status;
-        assert!(!status.eq_ignore_ascii_case("assigning"));
+        // DPS client registration won't return if the status is "assigning".
+        assert!(!operation.status.eq_ignore_ascii_case("assigning"));
 
-        let mut state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-        let iothub_hostname = state.assigned_hub.get_or_insert("".into());
-        let device_id = state.device_id.get_or_insert("".into());
-        let device = aziot_identity_common::IoTHubDevice {
-            local_gateway_hostname: local_gateway_hostname
-                .unwrap_or_else(|| iothub_hostname.clone()),
-            iothub_hostname: iothub_hostname.clone(),
-            device_id: device_id.clone(),
-            credentials,
+        let state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
+
+        let (iothub_hostname, device_id) = match (state.assigned_hub, state.device_id) {
+            (Some(iothub_hostname), Some(device_id)) => (iothub_hostname, device_id),
+            _ => {
+                return Err(Error::DpsClient(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    state.error_message.unwrap_or_default(),
+                )))
+            }
         };
 
-        Ok(device)
+        Ok(aziot_identity_common::IoTHubDevice {
+            local_gateway_hostname: local_gateway_hostname
+                .unwrap_or_else(|| iothub_hostname.clone()),
+            iothub_hostname,
+            device_id,
+            credentials,
+        })
     }
 
     fn get_backup_provisioning_info(
@@ -893,10 +959,6 @@ impl IdentityManager {
                         std::collections::BTreeSet::default()
                     };
 
-                if prev_module_set.is_empty() && current_module_set.is_empty() {
-                    return Ok(());
-                }
-
                 let hub_module_ids = self.get_module_identities().await?;
 
                 for m in hub_module_ids {
@@ -925,10 +987,12 @@ impl IdentityManager {
                     log::info!("Hub identity {:?} added", &m.0);
                 }
 
-                let () = std::fs::write(prev_device_info_path, device_status)
+                // Write out device state and settings.
+                // This overwrites any existing device state and settings backup.
+                std::fs::write(prev_device_info_path, device_status)
                     .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
 
-                let () = std::fs::write(prev_settings_path, &settings_serialized)
+                std::fs::write(prev_settings_path, &settings_serialized)
                     .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
             None => log::info!("reconcilation skipped since device is not provisioned"),

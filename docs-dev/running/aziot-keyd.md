@@ -69,7 +69,7 @@ keys = ["example"]
 
     The configured value (or the default) will only take effect if the service hasn't been started via systemd socket activation. If it has been started via systemd socket activation, the service will use that socket fd instead.
 
-- `[[principal]]` - Principals provide a list of users and keys they are authorized to access. See [API authorization](https://azure.github.io/iot-identity-service/keys-service.html#api-authentication) for more information.
+- `[[principal]]` - Principals provide a list of users and keys they are authorized to access. See [API authorization](../../docs/api/keys-service.md#api-authentication) for more information.
 
 Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start with this basic file and fill it out depending on what workflow you want to test:
 
@@ -164,12 +164,6 @@ Assuming you're using Microsoft's implementation of `libaziot_keys.so`, start wi
         ```
 
     For `x509_thumbprint` and `x509_ca`, if the keys are backed by hardware, use a `pkcs11:` URI instead of a `file://` URI.
-
-1. If you're using PKCS#11 and specifically the `tpm2-pkcs11` library, remember to also export the `TPM2_PKCS11_STORE` env var.
-
-    ```sh
-    export TPM2_PKCS11_STORE=/opt/tpm2-pkcs11
-    ```
 
 1. Create the `/run/aziot` directory if it doesn't already exist, and make sure it's readable and writable by the user you will run the service as.
 

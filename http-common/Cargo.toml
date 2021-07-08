@@ -17,11 +17,11 @@ libc = "0.2"
 log = "0.4"
 nix = "0.18"
 openssl = { version = "0.10", optional = true }
+openssl-sys = { version = "0.9", optional = true }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"], optional = true }
-tokio-io-timeout = { version = "1" }
+tokio = { version = "1", features = ["net", "rt-multi-thread", "sync", "time"], optional = true }
 tracing = { version = "0.1", features = ["log"] }
 url = { version = "2", features = ["serde"] }
 
@@ -29,4 +29,4 @@ url = { version = "2", features = ["serde"] }
 serde_json = "1"
 
 [features]
-tokio1 = ["headers", "hyper", "hyper-openssl", "hyper-proxy", "openssl", "tokio"]
+tokio1 = ["headers", "hyper", "hyper-openssl", "hyper-proxy", "openssl", "openssl-sys", "tokio"]

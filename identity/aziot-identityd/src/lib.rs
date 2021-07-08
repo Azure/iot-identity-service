@@ -5,11 +5,11 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
-    clippy::let_underscore_drop,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
+    clippy::too_many_arguments,
     clippy::too_many_lines,
     clippy::type_complexity
 )]
@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use aziot_identity_common::{ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 use aziot_identityd_config as config;
 
 pub mod auth;
@@ -29,12 +30,6 @@ pub mod identity;
 
 use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
-
-/// URI query parameter that identifies module identity type.
-const ID_TYPE_AZIOT: &str = "aziot";
-
-/// URI query parameter that identifies local identity type.
-const ID_TYPE_LOCAL: &str = "local";
 
 macro_rules! match_id_type {
     ($id_type:ident { $( $type:ident => $action:block ,)+ }) => {
@@ -51,7 +46,7 @@ macro_rules! match_id_type {
     };
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ReprovisionTrigger {
     ConfigurationFileUpdate,
     Api,
@@ -69,8 +64,11 @@ pub async fn main(
     let connector = settings.endpoints.aziot_identityd.clone();
 
     if !homedir_path.exists() {
-        let () =
-            std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
+        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+            log::error!("Failed to create home directory: {}", err);
+
+            return Err(error::InternalError::CreateHomeDir(err).into());
+        }
     }
 
     let api = Api::new(settings.clone())?;
@@ -156,6 +154,8 @@ impl Api {
 
         let id_manager = identity::IdentityManager::new(
             settings.homedir.clone(),
+            std::time::Duration::from_secs(settings.cloud_timeout_sec),
+            settings.cloud_retries,
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
@@ -200,7 +200,7 @@ impl Api {
             }
         }
 
-        return Err(Error::Authorization);
+        Err(Error::Authorization)
     }
 
     pub async fn get_identity(
@@ -374,39 +374,28 @@ impl Api {
 
         log::info!("Provisioning starting. Reason: {:?}", trigger);
 
-        let _ = match trigger {
+        match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
                 // For now, skip reprovisioning if there's a valid backup. This means config file
                 // updates will only reconcile identities.
-                self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
             }
             ReprovisionTrigger::Api => {
-                // Clear the backed up device state before reprovisioning.
-                // If this fails, log a warning but continue with reprovisioning.
-                let mut backup_file = self.settings.homedir.clone();
-                backup_file.push(identity::DEVICE_BACKUP_LOCATION);
-
-                if let Err(err) = std::fs::remove_file(backup_file) {
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        log::warn!(
-                            "Failed to clear device state before reprovisioning: {}",
-                            err
-                        );
-                    }
-                }
+                // Purge current device information before reprovisioning. This is needed only
+                // when triggered by the reprovision API, since:
+                // - The ConfigurationFileUpdate trigger doesn't reprovision
+                // - The Startup trigger is a new process, so it will not have a device in memory
+                self.id_manager.clear_device();
 
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), false)
-                    .await?
+                    .await?;
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
                     .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
+                    .await?;
             }
-        };
+        }
 
         log::info!("Provisioning complete.");
 
@@ -421,16 +410,30 @@ impl Api {
             match err {
                 Error::HubClient(_) => match trigger {
                     ReprovisionTrigger::Startup | ReprovisionTrigger::ConfigurationFileUpdate => {
+                        // Network errors are not fatal because Identity Service can still run off its backup.
+                        if err.is_network() {
+                            log::warn!("Network not available for Identity reconciliation. Using offline backup from last run.");
+
+                            return Ok(());
+                        }
+
                         log::info!("Could not reconcile Identities with current device data. Reprovisioning.");
 
-                        self.id_manager
+                        if let Err(err) = self
+                            .id_manager
                             .provision_device(self.settings.provisioning.clone(), false)
-                            .await?;
-                        log::info!("Successfully reprovisioned.");
-
-                        self.id_manager
-                            .reconcile_hub_identities(self.settings.clone())
-                            .await?;
+                            .await
+                        {
+                            if err.is_network() {
+                                log::warn!("Reprovisioning failed to communicate with DPS. Using offline backup from last run.");
+                            } else {
+                                return Err(err);
+                            }
+                        } else {
+                            self.id_manager
+                                .reconcile_hub_identities(self.settings.clone())
+                                .await?;
+                        }
                     }
 
                     // Don't attempt to reprovision if this function was called by the reprovision API.
@@ -543,8 +546,19 @@ impl Api {
             .reprovision_device(auth::AuthId::LocalRoot, trigger)
             .await
         {
+            // Failure to reprovision on startup means that provisioning with IoT Hub failed and
+            // no valid backup could be loaded. Treat this as a fatal error.
+            if let ReprovisionTrigger::Startup = trigger {
+                log::error!(
+                    "Failed to provision with IoT Hub, and no valid device backup was found: {}",
+                    err
+                );
+
+                return Err(err);
+            }
+
             log::warn!(
-                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}. ",
+                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
                 err
             );
         }
@@ -659,6 +673,7 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
                     p.name.0 == m
                         && p.id_type.map_or(false, |i| {
                             i.contains(&aziot_identity_common::IdType::Module)
+                                || i.contains(&aziot_identity_common::IdType::Local)
                         })
                 }
                 auth::OperationType::GetDevice => p

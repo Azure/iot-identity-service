@@ -40,4 +40,4 @@ Refer to <https://github.com/Azure/iotedge> for more details about the IoT Edge 
 
 - [Protecting keys via an HSM or TPM](pkcs11/index.md)
 
-- [Writing a host module](host-module.md)
+- [Creating an IoT agent](develop-an-agent.md)

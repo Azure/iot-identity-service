@@ -269,6 +269,9 @@ rpm:
 	mkdir -p $(RPMBUILDDIR)/SPECS
 	sed -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' contrib/centos/aziot-identity-service.spec >$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
+	# Copy preset file to be included in the package
+	cp contrib/centos/00-aziot.preset $(RPMBUILDDIR)/SOURCES
+
 	# Build package
 	rpmbuild -ba $(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
@@ -293,6 +296,7 @@ localstatedir = $(prefix)/var
 sysconfdir = $(prefix)/etc
 
 unitdir = $(libdir)/systemd/system
+presetdir = $(libdir)/systemd/system-preset
 
 # Note: This default is almost certainly wrong for most distros and architectures, so it ought to be overridden by the caller of `make`.
 #
@@ -374,6 +378,8 @@ install-rpm: install-common
 	$(INSTALL_PROGRAM) -D \
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/libaziot_keys.so
+
+	$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset
 
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 

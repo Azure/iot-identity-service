@@ -1,5 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::sync::atomic;
+
+use futures_util::future;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
     Tcp {
@@ -32,13 +36,17 @@ pub enum Incoming {
     },
     Unix {
         listener: tokio::net::UnixListener,
-        user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<tokio::sync::Semaphore>>,
+        user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<atomic::AtomicUsize>>,
     },
 }
 
 #[cfg(feature = "tokio1")]
 impl Incoming {
-    pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
+    pub async fn serve<H>(
+        &mut self,
+        server: H,
+        shutdown: tokio::sync::oneshot::Receiver<()>,
+    ) -> std::io::Result<()>
     where
         H: hyper::service::Service<
                 hyper::Request<hyper::Body>,
@@ -49,65 +57,112 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        const READ_WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
         const MAX_REQUESTS_PER_USER: usize = 10;
+
+        // Keep track of the number of running tasks.
+        let tasks = atomic::AtomicUsize::new(0);
+        let tasks = std::sync::Arc::new(tasks);
+
+        let shutdown_loop = shutdown;
+        futures_util::pin_mut!(shutdown_loop);
 
         match self {
             Incoming::Tcp { listener } => loop {
-                let (tcp_stream, _) = listener.accept().await?;
-                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(tcp_stream);
-                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
-                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
 
-                // TCP is available in test builds only (not production). Assume current user is root.
-                let server = crate::uid::UidService::new(0, server.clone());
-                tokio::spawn(async move {
-                    if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(Box::pin(timeout_stream), server)
-                        .await
-                    {
-                        log::info!("Error while serving HTTP connection: {}", http_err);
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((tcp_stream, shutdown)) => {
+                        let tcp_stream = tcp_stream?.0;
+
+                        let server = crate::uid::UidService::new(None, 0, server.clone());
+
+                        tasks.fetch_add(1, atomic::Ordering::AcqRel);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            if let Err(http_err) = hyper::server::conn::Http::new()
+                                .serve_connection(tcp_stream, server)
+                                .await
+                            {
+                                log::info!("Error while serving HTTP connection: {}", http_err);
+                            }
+
+                            server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
+                        });
+
+                        shutdown_loop = shutdown;
                     }
-                });
+                }
             },
 
             Incoming::Unix {
                 listener,
                 user_state,
             } => loop {
-                let (unix_stream, _) = listener.accept().await?;
-                let ucred = unix_stream.peer_cred()?;
-                let user_state = user_state
-                    .entry(ucred.uid())
-                    .or_insert_with(|| {
-                        std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
-                    })
-                    .clone();
-                let mut timeout_stream = tokio_io_timeout::TimeoutStream::new(unix_stream);
-                timeout_stream.set_read_timeout(Some(READ_WRITE_TIMEOUT));
-                timeout_stream.set_write_timeout(Some(READ_WRITE_TIMEOUT));
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
 
-                let server = crate::uid::UidService::new(ucred.uid(), server.clone());
-                tokio::spawn(async move {
-                    match user_state.try_acquire_owned() {
-                        Ok(_permit) => {
-                            if let Err(http_err) = hyper::server::conn::Http::new()
-                                .serve_connection(Box::pin(timeout_stream), server)
-                                .await
-                            {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
+                // Await either the next established connection or the shutdown signal.
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((unix_stream, shutdown)) => {
+                        let unix_stream = unix_stream?.0;
+
+                        let ucred = unix_stream.peer_cred()?;
+                        let servers_available = user_state
+                            .entry(ucred.uid())
+                            .or_insert_with(|| {
+                                std::sync::Arc::new(atomic::AtomicUsize::new(MAX_REQUESTS_PER_USER))
+                            })
+                            .clone();
+
+                        let server =
+                            crate::uid::UidService::new(ucred.pid(), ucred.uid(), server.clone());
+                        tasks.fetch_add(1, atomic::Ordering::AcqRel);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            let available = servers_available
+                                .fetch_update(
+                                    atomic::Ordering::AcqRel,
+                                    atomic::Ordering::Acquire,
+                                    |current| current.checked_sub(1),
+                                )
+                                .is_ok();
+
+                            if available {
+                                if let Err(http_err) = hyper::server::conn::Http::new()
+                                    .serve_connection(unix_stream, server)
+                                    .await
+                                {
+                                    log::info!("Error while serving HTTP connection: {}", http_err);
+                                }
+
+                                servers_available.fetch_add(1, atomic::Ordering::AcqRel);
+                            } else {
+                                log::info!(
+                                    "Max simultaneous connections reached for user {}",
+                                    ucred.uid()
+                                );
                             }
-                        }
-                        Err(limit_err) => {
-                            log::info!(
-                                "Error while acquiring permit for HTTP connection: {}",
-                                limit_err
-                            );
-                        }
+
+                            server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
+                        });
+
+                        shutdown_loop = shutdown;
                     }
-                });
+                };
             },
         }
+
+        // Wait for all running server tasks to finish before returning.
+        let poll_ms = std::time::Duration::from_millis(100);
+
+        while tasks.load(atomic::Ordering::Acquire) != 0 {
+            tokio::time::sleep(poll_ms).await;
+        }
+
+        Ok(())
     }
 }
 

@@ -3,6 +3,12 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+/// URI query parameter that identifies module identity type.
+pub const ID_TYPE_AZIOT: &str = "aziot";
+
+/// URI query parameter that identifies local identity type.
+pub const ID_TYPE_LOCAL: &str = "local";
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeviceId(pub String);
 #[derive(Clone, Debug, Eq, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize)]
