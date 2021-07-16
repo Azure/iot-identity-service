@@ -13,6 +13,9 @@ pub enum Connector {
     Unix {
         socket_path: std::sync::Arc<std::path::Path>,
     },
+    Fd {
+        fd: std::os::unix::io::RawFd,
+    },
 }
 
 #[derive(Debug)]
@@ -192,6 +195,27 @@ impl Connector {
                 Ok(Connector::Unix { socket_path })
             }
 
+            "fd" => {
+                let host = uri.host_str().ok_or_else(|| ConnectorError {
+                    uri: uri.clone(),
+                    inner: "fd URI does not have a host".into(),
+                })?;
+
+                // Try to parse the host as an fd number.
+                let fd = match host.parse::<std::os::unix::io::RawFd>() {
+                    Ok(fd) => {
+                        // Host is an fd number. Check that it is valid.
+                        fd
+                    }
+                    Err(_) => {
+                        // Host is not an fd number. Check that it is an fd name.
+                        3
+                    }
+                };
+
+                Ok(Connector::Fd { fd })
+            }
+
             scheme => Err(ConnectorError {
                 uri: uri.clone(),
                 inner: format!("unrecognized scheme {:?}", scheme).into(),
@@ -210,44 +234,50 @@ impl Connector {
                 let inner = std::os::unix::net::UnixStream::connect(socket_path)?;
                 Ok(Stream::Unix(inner))
             }
+
+            Connector::Fd { fd } => {
+                let inner = if is_unix_fd(*fd)? {
+                    let inner: std::os::unix::net::UnixStream =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(*fd) };
+
+                    Stream::Unix(inner)
+                } else {
+                    let inner: std::net::TcpStream =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(*fd) };
+
+                    Stream::Tcp(inner)
+                };
+
+                Ok(inner)
+            }
         }
     }
 
     #[cfg(feature = "tokio1")]
     pub async fn incoming(self) -> std::io::Result<Incoming> {
-        let systemd_socket = get_systemd_socket()
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+        let systemd_socket = if let Connector::Fd { fd } = self {
+            Some(fd)
+        } else {
+            get_systemd_socket()
+                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?
+        };
+
         if let Some(fd) = systemd_socket {
-            let sock_addr = nix::sys::socket::getsockname(fd)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            match sock_addr {
-                // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
-                nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
-                    let listener: std::net::TcpListener =
-                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-                    listener.set_nonblocking(true)?;
-                    let listener = tokio::net::TcpListener::from_std(listener)?;
-                    Ok(Incoming::Tcp { listener })
-                }
-
-                nix::sys::socket::SockAddr::Unix(_) => {
-                    let listener: std::os::unix::net::UnixListener =
-                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-                    listener.set_nonblocking(true)?;
-                    let listener = tokio::net::UnixListener::from_std(listener)?;
-                    Ok(Incoming::Unix {
-                        listener,
-                        user_state: Default::default(),
-                    })
-                }
-
-                sock_addr => Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "systemd socket has unsupported address family {:?}",
-                        sock_addr.family()
-                    ),
-                )),
+            if is_unix_fd(fd)? {
+                let listener: std::os::unix::net::UnixListener =
+                    unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                listener.set_nonblocking(true)?;
+                let listener = tokio::net::UnixListener::from_std(listener)?;
+                Ok(Incoming::Unix {
+                    listener,
+                    user_state: Default::default(),
+                })
+            } else {
+                let listener: std::net::TcpListener =
+                    unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+                listener.set_nonblocking(true)?;
+                let listener = tokio::net::TcpListener::from_std(listener)?;
+                Ok(Incoming::Tcp { listener })
             }
         } else {
             match self {
@@ -278,6 +308,9 @@ impl Connector {
                         user_state: Default::default(),
                     })
                 }
+
+                // Connector::Fd is handled above. This block only needs to consider Tcp and Unix connectors.
+                _ => unreachable!(),
             }
         }
     }
@@ -310,7 +343,39 @@ impl Connector {
                 url.set_path(socket_path);
                 Ok(url)
             }
+
+            Connector::Fd { fd } => {
+                let fd_path = format!("fd://{}", fd);
+
+                let url = url::Url::parse(&fd_path).expect("hard-coded URL parses successfully");
+
+                Ok(url)
+            }
         }
+    }
+}
+
+/// Returns `true` if the given fd is a Unix socket; `false` if the given fd is a TCP socket.
+///
+/// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
+/// so this function returns an Err for release builds using a TCP socket.
+fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
+    let sock_addr = nix::sys::socket::getsockname(fd)
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+
+    match sock_addr {
+        nix::sys::socket::SockAddr::Unix(_) => Ok(true),
+
+        // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
+        nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => Ok(false),
+
+        sock_addr => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!(
+                "systemd socket has unsupported address family {:?}",
+                sock_addr.family()
+            ),
+        )),
     }
 }
 
@@ -363,6 +428,32 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                     let inner = tokio::net::UnixStream::connect(&*socket_path).await?;
                     Ok(AsyncStream::Unix(inner))
                 };
+                Box::pin(f)
+            }
+
+            Connector::Fd { fd } => {
+                let fd = *fd;
+
+                let f = async move {
+                    if is_unix_fd(fd)? {
+                        let stream: std::os::unix::net::UnixStream =
+                            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+
+                        stream.set_nonblocking(true)?;
+                        let stream = tokio::net::UnixStream::from_std(stream)?;
+
+                        Ok(AsyncStream::Unix(stream))
+                    } else {
+                        let stream: std::net::TcpStream =
+                            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+
+                        stream.set_nonblocking(true)?;
+                        let stream = tokio::net::TcpStream::from_std(stream)?;
+
+                        Ok(AsyncStream::Tcp(stream))
+                    }
+                };
+
                 Box::pin(f)
             }
         }
