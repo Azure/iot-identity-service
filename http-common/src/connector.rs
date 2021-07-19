@@ -727,6 +727,18 @@ fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String>
     //
     // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
     // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
+    //
+    // Note that it's not possible to distinguish between fd numbers if a process requires more than one socket.
+    // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
+    // for example.
+    //
+    // If CS/IS/KS require more than one socket each in the future, keep in mind that that those sockets must be named. The sockets must
+    // be differentiated by inspecting the LISTEN_FDNAMES env var instead of by fd number, since systemd does not pass down multiple fds
+    // in a deterministic order. The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
+    // would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7 (just like iotedged). This creates more complications,
+    // because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does) which means host modules need to try
+    // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
+    // /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
