@@ -211,15 +211,10 @@ impl Connector {
                     }
                     Err(_) => {
                         // Host is not an fd number. Parse it as an fd name.
-                        match socket_name_to_fd(host) {
-                            Ok(fd) => fd,
-                            Err(message) => {
-                                return Err(ConnectorError {
-                                    uri: uri.clone(),
-                                    inner: message.into(),
-                                })
-                            }
-                        }
+                        socket_name_to_fd(host).map_err(|message| ConnectorError {
+                            uri: uri.clone(),
+                            inner: message.into(),
+                        })?
                     }
                 };
 
@@ -266,7 +261,7 @@ impl Connector {
     #[cfg(feature = "tokio1")]
     pub async fn incoming(self) -> std::io::Result<Incoming> {
         // Check for systemd sockets.
-        let systemd_sockets = get_systemd_sockets()
+        let systemd_sockets = get_num_systemd_sockets()
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
         match (systemd_sockets, self) {
@@ -284,7 +279,7 @@ impl Connector {
 
             // Prefer use of systemd sockets.
             (Some(sockets), _) => {
-                // If more than 1 systemd socket is found, we don't know which one is intended for this process.
+                // If more than 1 systemd socket is found, we don't know which one to use.
                 if sockets > 1 {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
@@ -727,21 +722,11 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the number of systemd socket fds.
 #[cfg(feature = "tokio1")]
-fn get_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String> {
+fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //
     // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
     // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
-    //
-    // Note that this function always returns the first fd. It cannot be used for processes which expect more than one socket.
-    // CS/IS/KS only expect one socket, so this is fine, but it is not the case for iotedged (mgmt and workload sockets) for example.
-    //
-    // If obtaining more than one fd is required in the future, keep in mind that it requires getting fds by name (by inspecting the LISTEN_FDNAMES env var)
-    // instead of by number, since systemd does not pass down multiple fds in a deterministic order. The complication with LISTEN_FDNAMES is that
-    // CentOS 7's systemd is too old and doesn't support it, which would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7
-    // (just like iotedged). This creates more complications, because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does)
-    // which means host modules need to try both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot
-    // but have to create /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
