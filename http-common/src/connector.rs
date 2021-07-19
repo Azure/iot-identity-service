@@ -210,8 +210,16 @@ impl Connector {
                         fd
                     }
                     Err(_) => {
-                        // Host is not an fd number. Check that it is an fd name.
-                        3
+                        // Host is not an fd number. Parse it as an fd name.
+                        match socket_name_to_fd(host) {
+                            Ok(fd) => fd,
+                            Err(message) => {
+                                return Err(ConnectorError {
+                                    uri: uri.clone(),
+                                    inner: message.into(),
+                                })
+                            }
+                        }
                     }
                 };
 
@@ -634,6 +642,67 @@ fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
     }
 }
 
+/// Get the value of the `LISTEN_FDS` or `LISTEN_FDNAMES` environment variable.
+///
+/// Checks the `LISTEN_PID` variable to ensure that the requested environment variable is for this process.
+fn get_env(env: &str) -> Result<Option<String>, String> {
+    // Check that the LISTEN_* environment variable is for this process.
+    let listen_pid = {
+        let listen_pid = match std::env::var("LISTEN_PID") {
+            Ok(listen_pid) => listen_pid,
+            Err(std::env::VarError::NotPresent) => return Ok(None),
+            Err(err @ std::env::VarError::NotUnicode(_)) => {
+                return Err(format!("could not read LISTEN_PID env var: {}", err))
+            }
+        };
+
+        let listen_pid = listen_pid
+            .parse()
+            .map_err(|err| format!("could not read LISTEN_PID env var: {}", err))?;
+
+        nix::unistd::Pid::from_raw(listen_pid)
+    };
+
+    let current_pid = nix::unistd::Pid::this();
+    if listen_pid != current_pid {
+        // The env vars are not for us. Perhaps we're being spawned by another socket-activated service and we inherited these env vars from it.
+        //
+        // Either way, this is the same as if the env var wasn't set at all. That is, the caller wants us to find a socket-activated fd,
+        // but we weren't started via socket activation.
+        return Ok(None);
+    }
+
+    // Get the requested environment variable.
+    match std::env::var(env) {
+        Ok(value) => Ok(Some(value)),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(err @ std::env::VarError::NotUnicode(_)) => {
+            Err(format!("could not read {} env var: {}", env, err))
+        }
+    }
+}
+
+fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
+    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
+        Some(listen_fdnames) => listen_fdnames,
+        None => return Err("LISTEN_FDNAMES not found".to_string()),
+    };
+
+    let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
+
+    let index: std::os::unix::io::RawFd =
+        match listen_fdnames.iter().position(|&fdname| fdname == name) {
+            Some(index) => match std::convert::TryInto::try_into(index) {
+                Ok(index) => index,
+                Err(_) => return Err("couldn't convert LISTEN_FDNAMES index to fd".to_string()),
+            },
+            None => return Err(format!("socket {} not found", name)),
+        };
+
+    // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
+    Ok(index + SD_LISTEN_FDS_START)
+}
+
 fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
     if is_unix_fd(fd)? {
         let listener: std::os::unix::net::UnixListener =
@@ -673,44 +742,14 @@ fn get_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String> {
     // which means host modules need to try both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot
     // but have to create /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
-    let listen_pid = {
-        let listen_pid = match std::env::var("LISTEN_PID") {
-            Ok(listen_pid) => listen_pid,
-            Err(std::env::VarError::NotPresent) => return Ok(None),
-            Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_PID env var: {}", err))
-            }
-        };
-        let listen_pid = listen_pid
+    let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
+        Some(listen_fds) => listen_fds
             .parse()
-            .map_err(|err| format!("could not read LISTEN_PID env var: {}", err))?;
-        nix::unistd::Pid::from_raw(listen_pid)
-    };
-    let current_pid = nix::unistd::Pid::this();
-    if listen_pid != current_pid {
-        // The env vars are not for us. Perhaps we're being spawned by another socket-activated service and we inherited these env vars from it.
-        //
-        // Either way, this is the same as if the env var wasn't set at all. That is, the caller wants us to find a socket-activated fd,
-        // but we weren't started via socket activation.
-        return Ok(None);
-    }
+            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?,
 
-    // At this point, we expect that the remaining env vars are set and contain the socket we're looking for, else we error.
-    // That is, falling back is no longer an option, so we won't return `Ok(None)`
-
-    let listen_fds = {
-        let listen_fds = match std::env::var("LISTEN_FDS") {
-            Ok(listen_fds) => listen_fds,
-            Err(std::env::VarError::NotPresent) => return Ok(None),
-            Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_FDS env var: {}", err))
-            }
-        };
-        let listen_fds: std::os::unix::io::RawFd = listen_fds
-            .parse()
-            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?;
-        listen_fds
+        None => return Ok(None),
     };
+
     if listen_fds == 0 {
         return Ok(None);
     }
