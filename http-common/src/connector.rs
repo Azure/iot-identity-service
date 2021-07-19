@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[cfg(feature = "tokio1")]
 use std::sync::atomic;
 
+#[cfg(feature = "tokio1")]
 use futures_util::future;
 
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
