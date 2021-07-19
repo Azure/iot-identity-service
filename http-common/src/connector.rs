@@ -703,6 +703,7 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
     Ok(index + SD_LISTEN_FDS_START)
 }
 
+#[cfg(feature = "tokio1")]
 fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
     if is_unix_fd(fd)? {
         let listener: std::os::unix::net::UnixListener =
