@@ -3,7 +3,6 @@
 mod create_or_list_module_identity;
 mod get_caller_identity;
 mod get_device_identity;
-mod get_trust_bundle;
 mod get_update_or_delete_module_identity;
 mod reprovision_device;
 
@@ -19,7 +18,6 @@ http_common::make_service! {
         create_or_list_module_identity::Route,
         get_caller_identity::Route,
         get_device_identity::Route,
-        get_trust_bundle::Route,
         get_update_or_delete_module_identity::Route,
         reprovision_device::Route,
     ],

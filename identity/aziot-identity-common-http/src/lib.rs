@@ -96,13 +96,6 @@ pub mod get_module_identity {
     }
 }
 
-pub mod get_trust_bundle {
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub struct Response {
-        pub certificate: aziot_cert_common_http::Pem,
-    }
-}
-
 pub mod reprovision_device {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {

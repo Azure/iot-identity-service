@@ -204,16 +204,4 @@ impl Client {
 
         Ok(())
     }
-
-    pub async fn get_trust_bundle(&self) -> Result<aziot_cert_common_http::Pem, std::io::Error> {
-        let res: get_trust_bundle::Response = http_common::request::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/trust-bundle", self.api_version),
-            None,
-        )
-        .await?;
-
-        Ok(res.certificate)
-    }
 }

@@ -343,23 +343,6 @@ impl Api {
         })
     }
 
-    pub async fn get_trust_bundle(
-        &self,
-        auth_id: auth::AuthId,
-    ) -> Result<aziot_cert_common_http::Pem, Error> {
-        if !self.authorizer.authorize(auth::Operation {
-            auth_id,
-            op_type: auth::OperationType::GetTrustBundle,
-        })? {
-            return Err(Error::Authorization);
-        }
-
-        //TODO: invoke get trust bundle
-        Ok(aziot_cert_common_http::Pem {
-            0: std::vec::Vec::default(),
-        })
-    }
-
     pub async fn reprovision_device(
         &mut self,
         auth_id: auth::AuthId,
