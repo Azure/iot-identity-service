@@ -43,10 +43,7 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    async fn delete(
-        self,
-        _body: Option<Self::DeleteBody>,
-    ) -> http_common::server::RouteResponse {
+    async fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -54,7 +51,7 @@ impl http_common::server::Route for Route {
             return Err(super::to_http_error(&err));
         }
 
-        Ok(http_common::server::empty_response())
+        Ok(http_common::server::response::empty())
     }
 
     async fn get(self) -> http_common::server::RouteResponse {
@@ -70,17 +67,14 @@ impl http_common::server::Route for Route {
         let res = aziot_cert_common_http::get_cert::Response {
             pem: aziot_cert_common_http::Pem(pem),
         };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
 
     type PutBody = aziot_cert_common_http::import_cert::Request;
-    async fn put(
-        self,
-        body: Self::PutBody,
-    ) -> http_common::server::RouteResponse {
+    async fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -90,7 +84,7 @@ impl http_common::server::Route for Route {
         };
 
         let res = aziot_cert_common_http::import_cert::Response { pem: body.pem };
-        let res = http_common::server::json_response(hyper::StatusCode::CREATED, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::CREATED, &res);
         Ok(res)
     }
 }

@@ -44,7 +44,7 @@ impl http_common::server::Route for Route {
             storage_root_key: http_common::ByteString(keys.storage_root_key),
         };
 
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

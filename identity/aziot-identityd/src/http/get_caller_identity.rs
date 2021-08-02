@@ -47,7 +47,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_module_identity::Response { identity };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

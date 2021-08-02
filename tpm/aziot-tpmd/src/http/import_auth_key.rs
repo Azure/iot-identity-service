@@ -45,7 +45,7 @@ impl http_common::server::Route for Route {
             .map_err(|e| super::to_http_error(&e))?;
 
         let res = aziot_tpm_common_http::import_auth_key::Response {};
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

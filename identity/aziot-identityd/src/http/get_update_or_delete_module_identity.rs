@@ -53,10 +53,7 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    async fn delete(
-        self,
-        _body: Option<Self::DeleteBody>,
-    ) -> http_common::server::RouteResponse {
+    async fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -73,7 +70,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         }
 
-        Ok(http_common::server::empty_response())
+        Ok(http_common::server::response::empty())
     }
 
     async fn get(self) -> http_common::server::RouteResponse {
@@ -93,7 +90,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_module_identity::Response { identity };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 
@@ -106,10 +103,7 @@ impl http_common::server::Route for Route {
     //
     // So suppress it manually.
     #[allow(clippy::needless_pass_by_value)]
-    async fn put(
-        self,
-        _body: Self::PutBody,
-    ) -> http_common::server::RouteResponse {
+    async fn put(self, _body: Self::PutBody) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -126,7 +120,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::update_module_identity::Response { identity };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 }

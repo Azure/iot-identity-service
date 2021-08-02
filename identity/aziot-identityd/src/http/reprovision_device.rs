@@ -34,10 +34,7 @@ impl http_common::server::Route for Route {
     type DeleteBody = serde::de::IgnoredAny;
 
     type PostBody = serde::de::IgnoredAny;
-    async fn post(
-        self,
-        _body: Option<Self::PostBody>,
-    ) -> http_common::server::RouteResponse {
+    async fn post(self, _body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -54,7 +51,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        Ok(http_common::server::empty_response())
+        Ok(http_common::server::response::empty())
     }
 
     type PutBody = serde::de::IgnoredAny;

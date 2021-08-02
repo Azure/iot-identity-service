@@ -48,7 +48,7 @@ impl http_common::server::Route for Route {
         let res = aziot_tpm_common_http::sign_with_auth_key::Response {
             digest: http_common::ByteString(digest),
         };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

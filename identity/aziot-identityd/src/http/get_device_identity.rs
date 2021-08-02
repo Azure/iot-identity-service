@@ -34,10 +34,7 @@ impl http_common::server::Route for Route {
     type DeleteBody = serde::de::IgnoredAny;
 
     type PostBody = aziot_identity_common_http::get_device_identity::Request;
-    async fn post(
-        self,
-        body: Option<Self::PostBody>,
-    ) -> http_common::server::RouteResponse {
+    async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),
@@ -56,7 +53,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_device_identity::Response { identity };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

@@ -73,7 +73,7 @@ impl http_common::server::Route for Route {
         };
 
         let res = aziot_key_common_http::load::Response { handle };
-        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
         Ok(res)
     }
 

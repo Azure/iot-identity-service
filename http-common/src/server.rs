@@ -326,54 +326,54 @@ impl Error {
         let body = crate::ErrorBody {
             message: std::borrow::Cow::Borrowed(std::borrow::Borrow::borrow(&self.message)),
         };
-        let res = json_response(self.status_code, &body);
+        let res = response::json(self.status_code, &body);
         res
     }
 }
 
 #[cfg(feature = "tokio1")]
-pub fn empty_response() -> hyper::Response<hyper::Body> {
-    let res = hyper::Response::builder()
-        .status(hyper::StatusCode::NO_CONTENT)
-        .body(Default::default())
-        .expect("cannot fail to build hyper response");
+pub mod response {
+    pub fn empty() -> hyper::Response<hyper::Body> {
+        let res = hyper::Response::builder()
+            .status(hyper::StatusCode::NO_CONTENT)
+            .body(Default::default())
+            .expect("cannot fail to build hyper response");
 
-    res
-}
+        res
+    }
 
-#[cfg(feature = "tokio1")]
-pub fn json_response(
-    status_code: hyper::StatusCode,
-    body: &impl serde::Serialize,
-) -> hyper::Response<hyper::Body> {
-    let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
-    let body = hyper::Body::from(body);
+    pub fn json(
+        status_code: hyper::StatusCode,
+        body: &impl serde::Serialize,
+    ) -> hyper::Response<hyper::Body> {
+        let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
+        let body = hyper::Body::from(body);
 
-    let res = hyper::Response::builder()
-        .status(status_code)
-        .header(hyper::header::CONTENT_TYPE, "application/json")
-        .body(body);
+        let res = hyper::Response::builder()
+            .status(status_code)
+            .header(hyper::header::CONTENT_TYPE, "application/json")
+            .body(body);
 
-    let res = res.expect("cannot fail to build hyper response");
-    res
-}
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
 
-#[cfg(feature = "tokio1")]
-pub fn zip_response(
-    status_code: hyper::StatusCode,
-    size: usize,
-    body: Vec<u8>,
-) -> hyper::Response<hyper::Body> {
-    let res = hyper::Response::builder().status(status_code);
+    pub fn zip(
+        status_code: hyper::StatusCode,
+        size: usize,
+        body: Vec<u8>,
+    ) -> hyper::Response<hyper::Body> {
+        let res = hyper::Response::builder().status(status_code);
 
-    let res = res
-        .header(hyper::header::CONTENT_ENCODING, "zip")
-        .header(hyper::header::CONTENT_LENGTH, size.to_string())
-        .header(hyper::header::CONTENT_TYPE, "application/zip")
-        .body(hyper::Body::from(body));
+        let res = res
+            .header(hyper::header::CONTENT_ENCODING, "zip")
+            .header(hyper::header::CONTENT_LENGTH, size.to_string())
+            .header(hyper::header::CONTENT_TYPE, "application/zip")
+            .body(hyper::Body::from(body));
 
-    let res = res.expect("cannot fail to build hyper response");
-    res
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
 }
 
 /// This server is never actually used, but is useful to ensure that the macro
