@@ -51,7 +51,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
 
-        Ok(http_common::server::response::empty())
+        Ok(http_common::server::response::no_content())
     }
 
     type PutBody = serde::de::IgnoredAny;

@@ -70,7 +70,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         }
 
-        Ok(http_common::server::response::empty())
+        Ok(http_common::server::response::no_content())
     }
 
     async fn get(self) -> http_common::server::RouteResponse {

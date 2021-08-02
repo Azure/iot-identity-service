@@ -44,7 +44,7 @@ impl http_common::server::Route for Route {
         api.delete_key(&body.key_handle)
             .map_err(|err| super::to_http_error(&err))?;
 
-        Ok(http_common::server::response::empty())
+        Ok(http_common::server::response::no_content())
     }
 
     type PostBody = aziot_key_common_http::create_key_if_not_exists::Request;

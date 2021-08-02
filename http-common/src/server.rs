@@ -333,7 +333,7 @@ impl Error {
 
 #[cfg(feature = "tokio1")]
 pub mod response {
-    pub fn empty() -> hyper::Response<hyper::Body> {
+    pub fn no_content() -> hyper::Response<hyper::Body> {
         let res = hyper::Response::builder()
             .status(hyper::StatusCode::NO_CONTENT)
             .body(Default::default())
@@ -366,7 +366,7 @@ pub mod response {
         let res = hyper::Response::builder().status(status_code);
 
         let res = res
-            .header(hyper::header::CONTENT_ENCODING, "zip")
+            .header(hyper::header::CONTENT_ENCODING, "deflate")
             .header(hyper::header::CONTENT_LENGTH, size.to_string())
             .header(hyper::header::CONTENT_TYPE, "application/zip")
             .body(hyper::Body::from(body));
