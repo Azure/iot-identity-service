@@ -53,11 +53,10 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
     async fn delete(
         self,
         _body: Option<Self::DeleteBody>,
-    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+    ) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -74,11 +73,10 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         }
 
-        Ok((hyper::StatusCode::NO_CONTENT, None))
+        Ok(http_common::server::empty_response())
     }
 
-    type GetResponse = aziot_identity_common_http::get_module_identity::Response;
-    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+    async fn get(self) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -95,14 +93,13 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_module_identity::Response { identity };
-        Ok((hyper::StatusCode::OK, res))
+        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
-    type PostResponse = ();
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = aziot_identity_common_http::update_module_identity::Response;
     // clippy fires this lint for the `_body` parameter of the inner fn in the `async-trait` expansion.
     // It's not clear why clippy does this, especially since it doesn't raise it for other functions
     // that also ignore their `_body` parameter like `fn delete` above.
@@ -112,7 +109,7 @@ impl http_common::server::Route for Route {
     async fn put(
         self,
         _body: Self::PutBody,
-    ) -> http_common::server::RouteResponse<Self::PutResponse> {
+    ) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -129,6 +126,7 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::update_module_identity::Response { identity };
-        Ok((hyper::StatusCode::OK, res))
+        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 }
