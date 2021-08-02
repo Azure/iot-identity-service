@@ -332,9 +332,9 @@ impl Error {
 }
 
 #[cfg(feature = "tokio1")]
-pub fn empty_response(status_code: hyper::StatusCode) -> hyper::Response<hyper::Body> {
+pub fn empty_response() -> hyper::Response<hyper::Body> {
     let res = hyper::Response::builder()
-        .status(status_code)
+        .status(hyper::StatusCode::NO_CONTENT)
         .body(Default::default())
         .expect("cannot fail to build hyper response");
 

@@ -50,10 +50,8 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
 
-    type GetResponse = aziot_key_common_http::load::Response;
-    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+    async fn get(self) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -75,12 +73,11 @@ impl http_common::server::Route for Route {
         };
 
         let res = aziot_key_common_http::load::Response { handle };
-        Ok((hyper::StatusCode::OK, res))
+        let res = http_common::server::json_response(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
-    type PostResponse = ();
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }
