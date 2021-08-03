@@ -342,6 +342,22 @@ pub mod response {
         res
     }
 
+    pub fn chunked<S, O, E>(status_code: hyper::StatusCode, body: S) -> hyper::Response<hyper::Body>
+    where
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<hyper::body::Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+    {
+        let body = hyper::Body::wrap_stream(body);
+
+        let res = hyper::Response::builder()
+            .status(status_code)
+            .body(body);
+
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
+
     pub fn json(
         status_code: hyper::StatusCode,
         body: &impl serde::Serialize,
