@@ -350,9 +350,7 @@ pub mod response {
     {
         let body = hyper::Body::wrap_stream(body);
 
-        let res = hyper::Response::builder()
-            .status(status_code)
-            .body(body);
+        let res = hyper::Response::builder().status(status_code).body(body);
 
         let res = res.expect("cannot fail to build hyper response");
         res
