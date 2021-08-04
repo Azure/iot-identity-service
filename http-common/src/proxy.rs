@@ -102,31 +102,34 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
         identity: Option<(&openssl::pkey::PKeyRef<openssl::pkey::Private>, &[u8])>,
         trusted_certs: &[openssl::x509::X509],
     ) -> io::Result<Self> {
-        let https_connector = if let Some((key, certs)) = identity {
-            let tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
+        let mut http_connector = hyper::client::HttpConnector::new();
+        http_connector.enforce_http(false);
 
-            let mut http_connector = hyper::client::HttpConnector::new();
-            http_connector.enforce_http(false);
-            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?
-        } else {
-            hyper_openssl::HttpsConnector::new()?
-        };
+        let tls_connector = make_tls_connector(identity, trusted_certs)?;
+
+        let https_connector =
+            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
 
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
-            let proxy_connector = match identity {
-                None => hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?,
-                Some((key, certs)) => {
-                    // DEVNOTE: SslConnectionBuilder::build() consumes the builder. So, we need
-                    //          to create two copies of it.
-                    let proxy_tls_connector = identity_to_tls_connector(key, certs, trusted_certs)?;
 
-                    let mut proxy_connector =
-                        hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
-                    proxy_connector.set_tls(Some(proxy_tls_connector.build()));
-                    proxy_connector
-                }
-            };
+            let mut proxy_connector =
+                hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
+
+            // There are two TLS connectors involved with a proxy:
+            //
+            // - the connector used to connect to the proxy itself
+            // - the connector used to connect to the proxied destination
+            //
+            // We don't have separate configuration of TLS client identity and trusted certs for these two,
+            // so we apply the same config to both. Therefore, we create a new `openssl::ssl::SslConnectorBuilder`
+            // identical to the original `tls_connector` and use that with `proxy_connector.set_tls`
+            //
+            // `tls_connector` was already consumed by `hyper_openssl::HttpsConnector::with_connector`
+            // and doesn't impl `Clone`, so the new one has to be built from scratch via `make_tls_connector`
+            let proxy_tls_connector = make_tls_connector(identity, trusted_certs)?;
+            proxy_connector.set_tls(Some(proxy_tls_connector.build()));
+
             Ok(MaybeProxyConnector::Proxy(proxy_connector))
         } else {
             Ok(MaybeProxyConnector::NoProxy(https_connector))
@@ -134,9 +137,8 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
     }
 }
 
-fn identity_to_tls_connector(
-    key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
-    certs: &[u8],
+fn make_tls_connector(
+    identity: Option<(&openssl::pkey::PKeyRef<openssl::pkey::Private>, &[u8])>,
     trusted_certs: &[openssl::x509::X509],
 ) -> io::Result<openssl::ssl::SslConnectorBuilder> {
     let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
@@ -179,18 +181,20 @@ fn identity_to_tls_connector(
         }
     }
 
-    let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
-    let client_cert = device_id_certs
-        .next()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "device identity cert not found"))?;
+    if let Some((key, certs)) = identity {
+        let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
+        let client_cert = device_id_certs.next().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::Other, "device identity cert not found")
+        })?;
 
-    tls_connector.set_certificate(&client_cert)?;
+        tls_connector.set_certificate(&client_cert)?;
 
-    for cert in device_id_certs {
-        tls_connector.add_extra_chain_cert(cert)?;
+        for cert in device_id_certs {
+            tls_connector.add_extra_chain_cert(cert)?;
+        }
+
+        tls_connector.set_private_key(key)?;
     }
-
-    tls_connector.set_private_key(key)?;
 
     Ok(tls_connector)
 }
