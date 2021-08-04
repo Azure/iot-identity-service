@@ -10,7 +10,7 @@ base64 = "0.13"
 futures-util = "0.3"
 headers = { version = "0.3", optional = true }
 http = "0.2"
-hyper = { version = "0.14", features = ["client", "http1", "http2", "server", "tcp"], optional = true }
+hyper = { version = "0.14", features = ["client", "http1", "http2", "server", "stream", "tcp"], optional = true }
 hyper-openssl = { version = "0.9", optional = true }
 hyper-proxy = { version = "0.9", features = ["openssl-tls"], default-features = false, optional = true }
 libc = "0.2"
