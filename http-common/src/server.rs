@@ -342,7 +342,11 @@ pub mod response {
         res
     }
 
-    pub fn chunked<S, O, E>(status_code: hyper::StatusCode, body: S) -> hyper::Response<hyper::Body>
+    pub fn chunked<S, O, E>(
+        status_code: hyper::StatusCode,
+        body: S,
+        content_type: &'static str,
+    ) -> hyper::Response<hyper::Body>
     where
         S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<hyper::body::Bytes> + 'static,
@@ -352,7 +356,7 @@ pub mod response {
 
         let res = hyper::Response::builder()
             .status(status_code)
-            .header(hyper::header::CONTENT_TYPE, "text/plain")
+            .header(hyper::header::CONTENT_TYPE, content_type)
             .body(body);
 
         let res = res.expect("cannot fail to build hyper response");
