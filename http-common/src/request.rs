@@ -1,25 +1,26 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub async fn request<TUri, TRequest, TResponse>(
+pub async fn request<TUri, THeader, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
     uri: TUri,
-    additional_headers: Option<&[(headers::HeaderName, &str)]>,
+    headers: Option<&[(headers::HeaderName, THeader)]>,
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
     TUri: Into<hyper::Uri>,
+    THeader: AsRef<str>,
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
     let mut req = hyper::Request::builder().method(method).uri(uri);
 
-    if let Some(additional_headers) = additional_headers {
-        let headers = req.headers_mut().unwrap(); // .ok_or(std::io::Error::new(std::io::ErrorKind::Other))?;
-        for (key, value) in additional_headers {
-            headers.insert(
+    if let Some(headers) = headers {
+        let headers_map = req.headers_mut().unwrap(); // .ok_or(std::io::Error::new(std::io::ErrorKind::Other))?;
+        for (key, value) in headers {
+            headers_map.insert(
                 key,
-                headers::HeaderValue::from_str(value)
+                headers::HeaderValue::from_str(value.as_ref())
                     .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
             );
         }
