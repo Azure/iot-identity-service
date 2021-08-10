@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub async fn request<TRequest, TResponse>(
+pub async fn request<TUri, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
-    uri: &str,
+    uri: TUri,
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
+    TUri: Into<hyper::Uri>,
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
