@@ -4,6 +4,7 @@ pub async fn request<TUri, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
     uri: TUri,
+    additional_headers: Option<&[(headers::HeaderName, &str)]>,
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
@@ -11,7 +12,19 @@ where
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
-    let req = hyper::Request::builder().method(method).uri(uri);
+    let mut req = hyper::Request::builder().method(method).uri(uri);
+
+    if let Some(additional_headers) = additional_headers {
+        let headers = req.headers_mut().unwrap(); // .ok_or(std::io::Error::new(std::io::ErrorKind::Other))?;
+        for (key, value) in additional_headers {
+            headers.insert(
+                key,
+                headers::HeaderValue::from_str(value)
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+            );
+        }
+    }
+
     // `req` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
     //
     // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
@@ -20,6 +33,7 @@ where
         let body = serde_json::to_vec(body)
             .expect("serializing request body to JSON cannot fail")
             .into();
+
         req.header(hyper::header::CONTENT_TYPE, "application/json")
             .body(body)
     } else {
