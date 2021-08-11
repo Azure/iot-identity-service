@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::str::FromStr;
+
 pub async fn request<TUri, THeader, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
     uri: TUri,
-    headers: Option<&[(headers::HeaderName, THeader)]>,
+    headers: Option<&[(THeader, THeader)]>,
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
@@ -16,13 +18,15 @@ where
     let mut req = hyper::Request::builder().method(method).uri(uri);
 
     if let Some(headers) = headers {
-        let headers_map = req.headers_mut().unwrap(); // .ok_or(std::io::Error::new(std::io::ErrorKind::Other))?;
-        for (key, value) in headers {
-            headers_map.insert(
-                key,
-                headers::HeaderValue::from_str(value.as_ref())
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-            );
+        if let Some(headers_map) = req.headers_mut() {
+            for (key, value) in headers {
+                headers_map.insert(
+                    headers::HeaderName::from_str(key.as_ref())
+                        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                    headers::HeaderValue::from_str(value.as_ref())
+                        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                );
+            }
         }
     }
 
