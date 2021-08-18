@@ -13,20 +13,19 @@ where
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
-    request_with_headers::<_, &str, _, _>(client, method, uri, None, body).await
+    request_with_headers(client, method, uri, None, body).await
 }
 
-pub async fn request_with_headers<TUri, THeader, TRequest, TResponse>(
+pub async fn request_with_headers<TUri, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
     uri: TUri,
-    headers: Option<&[(THeader, THeader)]>,
+    headers: Option<&[(&str, &str)]>,
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
     hyper::Uri: TryFrom<TUri>,
     <hyper::Uri as TryFrom<TUri>>::Error: Into<http::Error>,
-    THeader: AsRef<str>,
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
 {
@@ -36,9 +35,9 @@ where
         if let Some(headers_map) = req.headers_mut() {
             for (key, value) in headers {
                 headers_map.insert(
-                    headers::HeaderName::from_str(key.as_ref())
+                    headers::HeaderName::from_str(key)
                         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-                    headers::HeaderValue::from_str(value.as_ref())
+                    headers::HeaderValue::from_str(value)
                         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
                 );
             }
