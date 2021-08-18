@@ -1,8 +1,22 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::convert::TryFrom;
 use std::str::FromStr;
 
-pub async fn request<TUri, THeader, TRequest, TResponse>(
+pub async fn request<TRequest, TResponse>(
+    client: &hyper::Client<super::Connector, hyper::Body>,
+    method: http::Method,
+    uri: &str,
+    body: Option<&TRequest>,
+) -> std::io::Result<TResponse>
+where
+    TRequest: serde::Serialize,
+    TResponse: serde::de::DeserializeOwned,
+{
+    request_with_headers::<_, &str, _, _>(client, method, uri, None, body).await
+}
+
+pub async fn request_with_headers<TUri, THeader, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
     uri: TUri,
@@ -10,7 +24,8 @@ pub async fn request<TUri, THeader, TRequest, TResponse>(
     body: Option<&TRequest>,
 ) -> std::io::Result<TResponse>
 where
-    TUri: Into<hyper::Uri>,
+    hyper::Uri: TryFrom<TUri>,
+    <hyper::Uri as TryFrom<TUri>>::Error: Into<http::Error>,
     THeader: AsRef<str>,
     TRequest: serde::Serialize,
     TResponse: serde::de::DeserializeOwned,
