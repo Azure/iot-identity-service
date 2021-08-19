@@ -358,10 +358,15 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ### Update IoT module identity
 
-`PUT /identities/modules/{module-id}?api-version=2020-09-01&type={type}`
+`PUT /identities/modules/{module-id}?api-version=2020-09-01`
 
-The `type` query parameter specifies the identity type to return. Accepted values are:
-- `aziot`: Module identity.
+#### Request
+```json
+{
+  "type": "aziot",
+  "moduleId": "module01"
+}
+```
 
 #### Response (SAS case)
 ```json
