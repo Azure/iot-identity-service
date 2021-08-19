@@ -143,7 +143,12 @@ impl Client {
         &self,
         module_name: &str,
     ) -> Result<Identity, std::io::Error> {
-        let res: update_module_identity::Response = http_common::request::<(), _>(
+        let body = update_module_identity::Request {
+            id_type: ID_TYPE_AZIOT.to_string(),
+            module_id: module_name.to_string(),
+        };
+
+        let res: update_module_identity::Response = http_common::request(
             &self.inner,
             http::Method::PUT,
             make_uri!(
@@ -152,7 +157,7 @@ impl Client {
                 ID_TYPE_AZIOT,
                 module_name
             ),
-            None,
+            Some(&body),
         )
         .await?;
 

@@ -75,6 +75,14 @@ pub mod create_module_identity {
 
 pub mod update_module_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        #[serde(rename = "type")]
+        pub id_type: String,
+        #[serde(rename = "moduleId")]
+        pub module_id: String,
+    }
+
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
         #[serde(flatten)]
         pub identity: aziot_identity_common::Identity,
