@@ -261,48 +261,17 @@ impl Connector {
     }
 
     #[cfg(feature = "tokio1")]
-    pub async fn incoming(self) -> std::io::Result<Incoming> {
+    pub async fn incoming(self, socket_name: Option<String>) -> std::io::Result<Incoming> {
         // Check for systemd sockets.
-        let systemd_sockets = get_num_systemd_sockets()
+        let systemd_socket = get_systemd_sockets(socket_name)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+        //Can return
 
-        match (systemd_sockets, self) {
-            (Some(sockets), Connector::Fd { fd }) => {
-                // Check that the fd specified in the connector URI is in the valid range of systemd sockets.
-                if fd < SD_LISTEN_FDS_START || fd >= SD_LISTEN_FDS_START + sockets {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("fd {} not valid", fd),
-                    ));
-                }
-
-                fd_to_listener(fd)
-            }
+        match (systemd_socket, self) {
+            (_, Connector::Fd { fd }) => fd_to_listener(fd),
 
             // Prefer use of systemd sockets.
-            (Some(sockets), _) => {
-                // If more than 1 systemd socket is found, we don't know which one to use.
-                if sockets > 1 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "multiple systemd sockets found",
-                    ));
-                }
-
-                fd_to_listener(SD_LISTEN_FDS_START)
-            }
-
-            (None, Connector::Tcp { host, port }) => {
-                if cfg!(debug_assertions) {
-                    let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
-                    Ok(Incoming::Tcp { listener })
-                } else {
-                    Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "servers can only use `unix://` connectors, not `http://` connectors",
-                    ))
-                }
-            }
+            (Some(fd), _) => fd_to_listener(fd),
 
             (None, Connector::Unix { socket_path }) => {
                 match std::fs::remove_file(&*socket_path) {
@@ -318,10 +287,17 @@ impl Connector {
                 })
             }
 
-            (None, Connector::Fd { fd: _ }) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "fd URI specified, but systemd sockets not found",
-            )),
+            (None, Connector::Tcp { host, port }) => {
+                if cfg!(debug_assertions) {
+                    let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
+                    Ok(Incoming::Tcp { listener })
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "servers can only use `unix://` connectors, not `http://` connectors",
+                    ))
+                }
+            }
         }
     }
 
@@ -696,8 +672,10 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
             None => return Err(format!("socket {} not found", name)),
         };
 
+    let fd = index + SD_LISTEN_FDS_START - 1;
+
     // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
-    Ok(index + SD_LISTEN_FDS_START)
+    Ok(fd)
 }
 
 #[cfg(feature = "tokio1")]
@@ -724,7 +702,9 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the number of systemd socket fds.
 #[cfg(feature = "tokio1")]
-fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String> {
+fn get_systemd_sockets(
+    socket_name: Option<String>,
+) -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //
     // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
@@ -742,6 +722,13 @@ fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String>
     // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
     // /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
+    //We consider 4 cases:
+    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means,
+    // the call is made by identity service which uses only one socket. So matching is simple
+    // 2. There are 2 sockets and a socket name is provided. It means edged is telling use to match this socket.
+    // 3. There are 2 sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
+    // 4. There are 2 sockets but not socket name is provided. In there case it means there is no corresponding systemd socket we should match
+
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
             .parse()
@@ -750,9 +737,21 @@ fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String>
         None => return Ok(None),
     };
 
+    // If there is  no socket available, not match is possible.
     if listen_fds == 0 {
         return Ok(None);
     }
+
+    //If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
+    if listen_fds == 1 {
+        return Ok(Some(SD_LISTEN_FDS_START as i32));
+    }
+
+    //if there is more than 1 and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
+    let socket_name = match socket_name {
+        Some(socket_name) => socket_name,
+        None => return Ok(None),
+    };
 
     // fcntl(CLOEXEC) all the fds so that they aren't inherited by the child processes.
     // Note that we want to do this for all the fds, not just the one we're looking for.
@@ -768,8 +767,37 @@ fn get_num_systemd_sockets() -> Result<Option<std::os::unix::io::RawFd>, String>
         }
     }
 
-    // Return the number of systemd sockets.
-    Ok(Some(listen_fds))
+    // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
+    // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created noneless so we still prefer to use them.
+    // If no socket name is provided, this mean edged is telling us there is not matching systemd socket, we return early. See above "((listen_fds > 1)&&(socket_name == None))"
+    // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, we can't match either.
+    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
+        Some(listen_fdnames) => listen_fdnames,
+        None => return Ok(None),
+    };
+    let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
+
+    if listen_fds != listen_fdnames.len() as i32 {
+        return Err(format!(
+            "Mismatch, there are {} fds, and {} names",
+            listen_fds,
+            listen_fdnames.len()
+        ));
+    }
+
+    let mut fd_index = SD_LISTEN_FDS_START;
+    for name in listen_fdnames.into_iter() {
+        if name.eq(&socket_name) {
+            return Ok(Some(fd_index));
+        }
+
+        fd_index += 1;
+    }
+
+    Err(format!(
+        "Could not find a match for {} in the fd list",
+        socket_name
+    ))
 }
 
 #[cfg(test)]
