@@ -279,7 +279,21 @@ impl Connector {
                 fd_to_listener(fd)
             }
 
-            // Prefer use of systemd sockets.
+            // Prefer use of unix sockets.
+            (_, Connector::Unix { socket_path }) => {
+                match std::fs::remove_file(&*socket_path) {
+                    Ok(()) => (),
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(err) => return Err(err),
+                }
+
+                let listener = tokio::net::UnixListener::bind(socket_path)?;
+                Ok(Incoming::Unix {
+                    listener,
+                    user_state: Default::default(),
+                })
+            }
+
             (Some(sockets), _) => {
                 // If more than 1 systemd socket is found, we don't know which one to use.
                 if sockets > 1 {
@@ -302,20 +316,6 @@ impl Connector {
                         "servers can only use `unix://` connectors, not `http://` connectors",
                     ))
                 }
-            }
-
-            (None, Connector::Unix { socket_path }) => {
-                match std::fs::remove_file(&*socket_path) {
-                    Ok(()) => (),
-                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
-                    Err(err) => return Err(err),
-                }
-
-                let listener = tokio::net::UnixListener::bind(socket_path)?;
-                Ok(Incoming::Unix {
-                    listener,
-                    user_state: Default::default(),
-                })
             }
 
             (None, Connector::Fd { fd: _ }) => Err(std::io::Error::new(
