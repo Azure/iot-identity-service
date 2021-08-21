@@ -263,15 +263,13 @@ impl Connector {
     #[cfg(feature = "tokio1")]
     pub async fn incoming(self, socket_name: Option<String>) -> std::io::Result<Incoming> {
         // Check for systemd sockets.
-        let systemd_socket = get_systemd_sockets(socket_name)
+        let systemd_socket = get_systemd_socket(socket_name)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         //Can return
 
         match (systemd_socket, self) {
-            (_, Connector::Fd { fd }) => fd_to_listener(fd),
-
             // Prefer use of systemd sockets.
-            (Some(fd), _) => fd_to_listener(fd),
+            (_, Connector::Fd { fd }) | (Some(fd), _) => fd_to_listener(fd),
 
             (None, Connector::Unix { socket_path }) => {
                 match std::fs::remove_file(&*socket_path) {
@@ -698,36 +696,36 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
     }
 }
 
-/// Finds the number of available systemd sockets. Checks if this process has been socket-activated.
+/// Return a matching systemd sockets. Checks if this process has been socket-activated.
 ///
-/// This mimics `sd_listen_fds` from libsystemd, then returns the number of systemd socket fds.
+/// This mimics `sd_listen_fds` from libsystemd, then returns the fd of systemd socket.
 #[cfg(feature = "tokio1")]
-fn get_systemd_sockets(
+fn get_systemd_socket(
     socket_name: Option<String>,
 ) -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
+    //
+    // Trie to find a systemd socket to match when non "fd" path has been provided.
+    // We consider 4 cases:
+    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means,
+    // the call is made by identity service which uses only one systemd socket. So matching is simple
+    // 2. There are > 1 systemd sockets and a socket name is provided. It means edged is telling use to match an fd with the provided socket name.
+    // 3. There are > 1 systemd sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
+    // 4. There are > 1 systemd sockets but not socket name is provided. In there case it means there is no corresponding systemd socket we should match
     //
     // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
     // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
     //
     // Note that it's not possible to distinguish between fd numbers if a process requires more than one socket.
+    // That is why in edged case we use the systemd socket name to know which fd the function should return
     // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
     // for example.
     //
-    // If CS/IS/KS require more than one socket each in the future, keep in mind that that those sockets must be named. The sockets must
-    // be differentiated by inspecting the LISTEN_FDNAMES env var instead of by fd number, since systemd does not pass down multiple fds
-    // in a deterministic order. The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
+    // The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
     // would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7 (just like iotedged). This creates more complications,
     // because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does) which means host modules need to try
     // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
     // /run/aziot themselves on startup with ACLs for all three users and all three groups.
-
-    //We consider 4 cases:
-    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means,
-    // the call is made by identity service which uses only one socket. So matching is simple
-    // 2. There are 2 sockets and a socket name is provided. It means edged is telling use to match this socket.
-    // 3. There are 2 sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
-    // 4. There are 2 sockets but not socket name is provided. In there case it means there is no corresponding systemd socket we should match
 
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
@@ -741,17 +739,6 @@ fn get_systemd_sockets(
     if listen_fds == 0 {
         return Ok(None);
     }
-
-    //If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
-    if listen_fds == 1 {
-        return Ok(Some(SD_LISTEN_FDS_START as i32));
-    }
-
-    //if there is more than 1 and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
-    let socket_name = match socket_name {
-        Some(socket_name) => socket_name,
-        None => return Ok(None),
-    };
 
     // fcntl(CLOEXEC) all the fds so that they aren't inherited by the child processes.
     // Note that we want to do this for all the fds, not just the one we're looking for.
@@ -767,6 +754,17 @@ fn get_systemd_sockets(
         }
     }
 
+    //If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
+    if listen_fds == 1 {
+        return Ok(Some(SD_LISTEN_FDS_START as i32));
+    }
+
+    //if there is more than 1 and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
+    let socket_name = match socket_name {
+        Some(socket_name) => socket_name,
+        None => return Ok(None),
+    };
+
     // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
     // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created noneless so we still prefer to use them.
     // If no socket name is provided, this mean edged is telling us there is not matching systemd socket, we return early. See above "((listen_fds > 1)&&(socket_name == None))"
@@ -777,6 +775,11 @@ fn get_systemd_sockets(
     };
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap
+    )]
     if listen_fds != listen_fdnames.len() as i32 {
         return Err(format!(
             "Mismatch, there are {} fds, and {} names",
@@ -785,19 +788,22 @@ fn get_systemd_sockets(
         ));
     }
 
-    let mut fd_index = SD_LISTEN_FDS_START;
-    for name in listen_fdnames.into_iter() {
-        if name.eq(&socket_name) {
-            return Ok(Some(fd_index));
-        }
-
-        fd_index += 1;
+    if let Some(index) = listen_fdnames
+        .iter()
+        .position(|fdname| (*fdname).eq(&socket_name))
+    {
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_possible_wrap
+        )]
+        Ok(Some(SD_LISTEN_FDS_START + index as i32))
+    } else {
+        Err(format!(
+            "Could not find a match for {} in the fd list",
+            socket_name
+        ))
     }
-
-    Err(format!(
-        "Could not find a match for {} in the fd list",
-        socket_name
-    ))
 }
 
 #[cfg(test)]
