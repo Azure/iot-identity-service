@@ -33,7 +33,7 @@ where
     validate_json(headers)?;
 
     match res_status_code {
-        hyper::StatusCode::OK | hyper::StatusCode::CREATED => {
+        res_status_code if res_status_code.is_success() => {
             let res = serde_json::from_slice(&body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             Ok(res)
@@ -81,7 +81,7 @@ where
     let (res_status_code, headers, body) = make_call(client, method, uri, headers, body).await?;
 
     match res_status_code {
-        hyper::StatusCode::NO_CONTENT |  hyper::StatusCode::OK | hyper::StatusCode::CREATED => Ok(()),
+        res_status_code if res_status_code.is_success() => Ok(()),
 
         res_status_code
             if res_status_code.is_client_error() || res_status_code.is_server_error() =>
@@ -113,7 +113,6 @@ where
     TRequest: serde::Serialize,
 {
     let mut req = hyper::Request::builder().method(method).uri(uri);
-    println!("Uri: {:#?}", req.uri_ref());
 
     if let Some(headers) = headers {
         if let Some(headers_map) = req.headers_mut() {
@@ -155,11 +154,6 @@ where
         },
         body,
     ) = response.into_parts();
-
-    println!(
-        "Status: {:#?}\nHeaders: {:#?}\nBody: {:#?}",
-        status, headers, body
-    );
 
     let body = hyper::body::to_bytes(body)
         .await
