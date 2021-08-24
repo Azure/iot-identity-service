@@ -66,14 +66,16 @@ where
     request_with_headers_no_content(client, method, uri, None, body).await
 }
 
-pub async fn request_with_headers_no_content<TRequest>(
+pub async fn request_with_headers_no_content<TUri, TRequest>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
-    uri: &str,
+    uri: TUri,
     headers: Option<&[(&str, &str)]>,
     body: Option<&TRequest>,
 ) -> std::io::Result<()>
 where
+    hyper::Uri: TryFrom<TUri>,
+    <hyper::Uri as TryFrom<TUri>>::Error: Into<http::Error>,
     TRequest: serde::Serialize,
 {
     let (res_status_code, headers, body) = make_call(client, method, uri, headers, body).await?;
