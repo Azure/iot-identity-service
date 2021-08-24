@@ -113,6 +113,7 @@ where
     TRequest: serde::Serialize,
 {
     let mut req = hyper::Request::builder().method(method).uri(uri);
+    println!("Uri: {:#?}", req.uri_ref());
 
     if let Some(headers) = headers {
         if let Some(headers_map) = req.headers_mut() {
