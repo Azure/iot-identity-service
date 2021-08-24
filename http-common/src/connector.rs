@@ -265,7 +265,6 @@ impl Connector {
         // Check for systemd sockets.
         let systemd_socket = get_systemd_socket(socket_name)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        //Can return
 
         match (systemd_socket, self) {
             // Prefer use of systemd sockets.
@@ -670,9 +669,9 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
             None => return Err(format!("socket {} not found", name)),
         };
 
+    // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
     let fd = index + SD_LISTEN_FDS_START - 1;
 
-    // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
     Ok(fd)
 }
 
@@ -696,7 +695,7 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
     }
 }
 
-/// Return a matching systemd sockets. Checks if this process has been socket-activated.
+/// Return a matching systemd socket. Checks if this process has been socket-activated.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the fd of systemd socket.
 #[cfg(feature = "tokio1")]
@@ -705,19 +704,19 @@ fn get_systemd_socket(
 ) -> Result<Option<std::os::unix::io::RawFd>, String> {
     // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
     //
-    // Trie to find a systemd socket to match when non "fd" path has been provided.
+    // Try to find a systemd socket to match when non "fd" path has been provided.
     // We consider 4 cases:
-    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means,
+    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means
     // the call is made by identity service which uses only one systemd socket. So matching is simple
-    // 2. There are > 1 systemd sockets and a socket name is provided. It means edged is telling use to match an fd with the provided socket name.
+    // 2. There are > 1 systemd sockets and a socket name is provided. It means edged is telling us to match an fd with the provided socket name.
     // 3. There are > 1 systemd sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
-    // 4. There are > 1 systemd sockets but not socket name is provided. In there case it means there is no corresponding systemd socket we should match
+    // 4. There are > 1 systemd sockets but no socket name is provided. In this case it means there is no corresponding systemd socket we should match
     //
     // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
     // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
     //
     // Note that it's not possible to distinguish between fd numbers if a process requires more than one socket.
-    // That is why in edged case we use the systemd socket name to know which fd the function should return
+    // That is why in edged's case we use the systemd socket name to know which fd the function should return
     // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
     // for example.
     //
@@ -735,7 +734,7 @@ fn get_systemd_socket(
         None => return Ok(None),
     };
 
-    // If there is  no socket available, not match is possible.
+    // If there is no socket available, no match is possible.
     if listen_fds == 0 {
         return Ok(None);
     }
@@ -754,33 +753,29 @@ fn get_systemd_socket(
         }
     }
 
-    //If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
+    // If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
     if listen_fds == 1 {
-        return Ok(Some(SD_LISTEN_FDS_START as i32));
+        return Ok(Some(SD_LISTEN_FDS_START));
     }
 
-    //if there is more than 1 and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
+    // If there is more than 1 socket and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
     let socket_name = match socket_name {
         Some(socket_name) => socket_name,
         None => return Ok(None),
     };
 
     // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
-    // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created noneless so we still prefer to use them.
-    // If no socket name is provided, this mean edged is telling us there is not matching systemd socket, we return early. See above "((listen_fds > 1)&&(socket_name == None))"
-    // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, we can't match either.
+    // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created nonetheless, so we still prefer to use them.
+    // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, and we can't match either.
     let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
         Some(listen_fdnames) => listen_fdnames,
         None => return Ok(None),
     };
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_possible_wrap
-    )]
-    if listen_fds != listen_fdnames.len() as i32 {
+    let len: std::os::unix::io::RawFd = std::convert::TryInto::try_into(listen_fdnames.len())
+        .map_err(|_| "invalid number of sockets".to_string())?;
+    if listen_fds != len {
         return Err(format!(
             "Mismatch, there are {} fds, and {} names",
             listen_fds,
@@ -792,12 +787,9 @@ fn get_systemd_socket(
         .iter()
         .position(|fdname| (*fdname).eq(&socket_name))
     {
-        #[allow(
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss,
-            clippy::cast_possible_wrap
-        )]
-        Ok(Some(SD_LISTEN_FDS_START + index as i32))
+        let index: std::os::unix::io::RawFd = std::convert::TryInto::try_into(index)
+            .map_err(|_| "invalid number of sockets".to_string())?;
+        Ok(Some(SD_LISTEN_FDS_START + index))
     } else {
         Err(format!(
             "Could not find a match for {} in the fd list",
