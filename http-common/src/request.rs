@@ -155,6 +155,11 @@ where
         body,
     ) = response.into_parts();
 
+    println!(
+        "Status: {:#?}\nHeaders: {:#?}\nBody: {:#?}",
+        status, headers, body
+    );
+
     let body = hyper::body::to_bytes(body)
         .await
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
