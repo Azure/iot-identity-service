@@ -261,7 +261,13 @@ impl Connector {
     }
 
     #[cfg(feature = "tokio1")]
-    pub async fn incoming(self, socket_name: Option<String>) -> std::io::Result<Incoming> {
+    pub async fn incoming(
+        self,
+        socket_name: Option<String>,
+        unix_socket_permission: Option<u32>,
+    ) -> std::io::Result<Incoming> {
+        use std::os::unix::prelude::PermissionsExt;
+
         // Check for systemd sockets.
         let systemd_socket = get_systemd_socket(socket_name)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
@@ -277,7 +283,16 @@ impl Connector {
                     Err(err) => return Err(err),
                 }
 
-                let listener = tokio::net::UnixListener::bind(socket_path)?;
+                let listener = tokio::net::UnixListener::bind(socket_path.clone())?;
+
+                if let Some(unix_socket_permission) = unix_socket_permission {
+                    std::fs::set_permissions(
+                        socket_path.as_ref(),
+                        std::fs::Permissions::from_mode(unix_socket_permission),
+                    )
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                }
+
                 Ok(Incoming::Unix {
                     listener,
                     user_state: Default::default(),
