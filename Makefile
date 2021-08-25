@@ -275,6 +275,33 @@ rpm:
 	# Build package
 	rpmbuild -ba $(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
+# mariner rpm build
+MarinerRPMBUILDDIR = $(HOME)/CBL-Mariner
+mrpm: contrib/centos/aziot-identity-service.spec
+mrpm: dist
+mrpm:
+	# Move dist tarball to rpmbuild sources directory
+	mkdir -p $(MarinerRPMBUILDDIR)/SPECS/SOURCES
+	mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(MarinerRPMBUILDDIR)/SPECS/aziot-identity-service-$(PACKAGE_VERSION).tar.gz
+
+	# Copy spec file to rpmbuild specs directory
+	mkdir -p $(MarinerRPMBUILDDIR)/SPECS
+	pushd $(MarinerRPMBUILDDIR)/SPECS
+	cp contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
+	cp contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
+
+	sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.signatures.json
+	sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.spec
+
+	TARBALL_HASH=$(sha256sum "aziot-identity-service-$(PACKAGE_VERSION).tar.gz" | awk '{print $1}')
+	sed -i 's/\("azure-iotedge-[0-9.]\+.tar.gz": "\)\([a-fA-F0-9]\+\)/\1'${TARBALL_HASH}'/g' aziot-identity-service/iot-identity-service.signatures.json"
+	popd
+
+	# Build package
+	pushd toolkit
+	sudo make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" CONFIG_FILE= -j$(nproc)
+	popd
+
 # Ref: https://www.gnu.org/software/make/manual/html_node/Directory-Variables.html
 #
 # These are expected to be overridden by the spec file so that they correspond to the distro's personality.

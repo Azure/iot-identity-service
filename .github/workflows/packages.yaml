@@ -18,6 +18,7 @@ jobs:
         - 'debian:10-slim'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
+        - 'mariner'
         arch:
         - 'amd64'
         - 'arm32v7'
@@ -28,6 +29,10 @@ jobs:
         - container_os: 'centos:7'
           arch: 'arm32v7'
         - container_os: 'centos:7'
+          arch: 'aarch64'
+        - container_os: 'mariner'
+          arch: 'arm32v7'
+        - container_os: 'mariner'
           arch: 'aarch64'
 
     steps:

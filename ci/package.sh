@@ -34,6 +34,34 @@ case "$OS" in
             "packages/centos7/$ARCH/"
         ;;
 
+    'mariner')
+        case "$ARCH" in
+            'arm32v7'|'aarch64')
+                echo 'Cross-compilation not implemnted for mariner' >&2
+                exit 1
+                ;;
+        esac
+
+        git clone https://github.com/microsoft/CBL-Mariner.git
+        pushd CBL-Mariner
+        git checkout "1.0-dev"
+        pushd toolkit
+        sudo make package-toolkit REBUILD_TOOLS=y
+        popd
+        sudo mv out/toolkit-*.tar.gz "~/CBL-Mariner/toolkit.tar.gz"
+        popd
+
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 mrpm
+
+        rm -rf "packages/mariner/$ARCH"
+        mkdir -p "packages/mariner/$ARCH"
+        cp \
+            ~/"CBL-Mariner/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-4.x86_64.rpm" \
+            ~/"CBL-Mariner/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-4.x86_64.rpm" \
+            ~/"CBL-Mariner/out/SRPMS/aziot-identity-service-$PACKAGE_VERSION-4.src.rpm" \
+            "packages/mariner/$ARCH/"
+        ;;
+
     'debian:9'|'debian:10'|'ubuntu:18.04'|'ubuntu:20.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make dh-systemd
 
