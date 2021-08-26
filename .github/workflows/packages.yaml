@@ -71,7 +71,7 @@ jobs:
           -e "ARCH=amd64" \
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
-          "ubuntu-18.04" \
+          "ubuntu:18.04" \
           '/src/ci/package-mariner.sh'
       env:
         ARCH: "amd64"
@@ -80,7 +80,7 @@ jobs:
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
-        container_os="ubuntu-18.04"
+        container_os="ubuntu"
         echo "::set-output name=artifact-name::packages_mariner_amd64"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
