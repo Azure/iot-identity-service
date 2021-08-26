@@ -6,16 +6,18 @@ cd /src
 
 . ./ci/install-build-deps.sh
 
+apt-get install -y --no-install-recommends \
+    golang
+
 mkdir -p packages
 
 git clone https://github.com/microsoft/CBL-Mariner.git
-apt-get install golang
 pushd CBL-Mariner
-git checkout "1.0-dev"
+git checkout "1.0-stable"
 pushd toolkit
 make package-toolkit REBUILD_TOOLS=y
 popd
-# mv out/toolkit-*.tar.gz "~/CBL-Mariner/toolkit.tar.gz"
+mv out/toolkit-*.tar.gz "/src/CBL-Mariner/toolkit.tar.gz"
 popd
 
 make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 mrpm
