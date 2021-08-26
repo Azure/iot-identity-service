@@ -12,9 +12,9 @@ git clone https://github.com/microsoft/CBL-Mariner.git
 pushd CBL-Mariner
 git checkout "1.0-dev"
 pushd toolkit
-sudo make package-toolkit REBUILD_TOOLS=y
+make package-toolkit REBUILD_TOOLS=y
 popd
-sudo mv out/toolkit-*.tar.gz "~/CBL-Mariner/toolkit.tar.gz"
+mv out/toolkit-*.tar.gz "~/CBL-Mariner/toolkit.tar.gz"
 popd
 
 make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 mrpm
