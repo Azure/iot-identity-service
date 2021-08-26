@@ -9,6 +9,7 @@ cd /src
 mkdir -p packages
 
 git clone https://github.com/microsoft/CBL-Mariner.git
+apt-get install golang
 pushd CBL-Mariner
 git checkout "1.0-dev"
 pushd toolkit
