@@ -15,7 +15,7 @@ git clone https://github.com/microsoft/CBL-Mariner.git
 pushd CBL-Mariner
 git checkout "1.0-stable"
 pushd toolkit
-make package-toolkit REBUILD_TOOLS=y
+make package-toolkit
 popd
 mv out/toolkit-*.tar.gz "/src/CBL-Mariner/toolkit.tar.gz"
 popd
