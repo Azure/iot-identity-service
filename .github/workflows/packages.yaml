@@ -72,7 +72,7 @@ jobs:
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
           "ubuntu:18.04" \
-          '/src/ci/packageMariner.sh'
+          '/src/ci/package-mariner.sh'
       env:
         ARCH: "amd64"
         PACKAGE_VERSION: '1.2.2'
