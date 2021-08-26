@@ -81,7 +81,12 @@ where
     let (res_status_code, headers, body) = make_call(client, method, uri, headers, body).await?;
 
     match res_status_code {
-        res_status_code if res_status_code.is_success() => Ok(()),
+        res_status_code
+            if res_status_code.is_success()
+                || res_status_code == hyper::StatusCode::NOT_MODIFIED =>
+        {
+            Ok(())
+        }
 
         res_status_code
             if res_status_code.is_client_error() || res_status_code.is_server_error() =>
