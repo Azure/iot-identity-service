@@ -13,6 +13,8 @@ mod error;
 
 use error::{Error, ErrorKind};
 
+const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
+
 #[tokio::main]
 async fn main() {
     logger::try_init()
@@ -200,7 +202,7 @@ where
     log::info!("Starting server...");
 
     let mut incoming = connector
-        .incoming(None)
+        .incoming(SOCKET_DEFAULT_PERMISSION, None)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
