@@ -379,18 +379,24 @@ pub mod response {
         res
     }
 
-    pub fn zip(
+    pub fn zip<S, O, E>(
         status_code: hyper::StatusCode,
         size: usize,
-        body: Vec<u8>,
-    ) -> hyper::Response<hyper::Body> {
+        body: S,
+    ) -> hyper::Response<hyper::Body>
+    where
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<hyper::body::Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+    {
+        let body = hyper::Body::wrap_stream(body);
         let res = hyper::Response::builder().status(status_code);
 
         let res = res
             .header(hyper::header::CONTENT_ENCODING, "deflate")
             .header(hyper::header::CONTENT_LENGTH, size.to_string())
             .header(hyper::header::CONTENT_TYPE, "application/zip")
-            .body(hyper::Body::from(body));
+            .body(body);
 
         let res = res.expect("cannot fail to build hyper response");
         res
