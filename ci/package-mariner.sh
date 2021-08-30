@@ -14,7 +14,7 @@ apt-get update
 
 apt-get install -y --no-install-recommends \
     wget rpm qemu-utils golang-1.15-go genisoimage python-minimal bison gawk
-apt-get install -y --no-install-recommendspigz
+apt-get install -y --no-install-recommends pigz
 ln -vsf /usr/lib/go-1.15/bin/go /usr/bin/go
 
 mkdir -p packages
