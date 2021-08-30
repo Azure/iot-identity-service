@@ -7,7 +7,8 @@ cd /src
 . ./ci/install-build-deps.sh
 
 apt-get install -y --no-install-recommends \
-    golang
+    wget rpm qemu-utils golang-1.15-go genisoimage python-minimal bison gawk pigz
+ln -vsf /usr/lib/go-1.15/bin/go /usr/bin/go
 
 mkdir -p packages
 
@@ -15,7 +16,7 @@ git clone https://github.com/microsoft/CBL-Mariner.git
 pushd CBL-Mariner
 git checkout "1.0-stable"
 pushd toolkit
-make package-toolkit
+make package-toolkit REBUILD_TOOLS=y
 popd
 mv out/toolkit-*.tar.gz "/src/CBL-Mariner/toolkit.tar.gz"
 popd
