@@ -6,10 +6,15 @@ cd /src
 
 . ./ci/install-build-deps.sh
 
-apt-get install -y --no-install-recommends \
-    wget rpm qemu-utils genisoimage python-minimal bison gawk pigz
 
-apt-get install -y --no-install-recommends golang-1.15-go
+apt-get update
+apt-get install -y --no-install-recommends software-properties-common
+add-apt-repository ppa:longsleep/golang-backports
+apt-get update
+
+apt-get install -y --no-install-recommends \
+    wget rpm qemu-utils golang-1.15-go genisoimage python-minimal bison gawk
+apt-get install -y --no-install-recommendspigz
 ln -vsf /usr/lib/go-1.15/bin/go /usr/bin/go
 
 mkdir -p packages
