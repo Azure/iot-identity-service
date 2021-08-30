@@ -2,7 +2,7 @@
 
 ## API
 
-An OpenAPI v3 spec for this service can be found at `/key/aziot-certd/openapi/2020-09-01.yaml`
+An OpenAPI v3 spec for this service can be found at `/cert/aziot-certd/openapi/2020-09-01.yaml`
 
 Note: For both requests and responses, the PEM string can contain multiple certificates. This happens when the certificates form a chain where the first cert is the leaf cert.
 
