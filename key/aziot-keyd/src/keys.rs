@@ -1172,7 +1172,8 @@ pub(crate) mod sys {
         unused,
         clippy::too_many_lines,
         clippy::unreadable_literal,
-        clippy::unseparated_literal_suffix
+        clippy::unseparated_literal_suffix,
+        clippy::upper_case_acronyms
     )]
 
     use openssl_sys::EVP_PKEY;

@@ -5,6 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
@@ -200,7 +201,7 @@ impl Api {
             }
         }
 
-        Err(Error::Authorization)
+        return Err(Error::Authorization);
     }
 
     pub async fn get_identity(

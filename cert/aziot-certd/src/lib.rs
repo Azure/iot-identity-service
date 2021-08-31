@@ -858,12 +858,7 @@ fn get_cert_inner(
                     result.extend_from_slice(&bytes);
                 }
             }
-
-            if result.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(result))
-            }
+            Ok((!result.is_empty()).then(|| result))
         }
     }
 }
