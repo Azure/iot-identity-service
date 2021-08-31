@@ -13,7 +13,7 @@ pub(crate) async fn create_cert(
     let proxy_connector = match client_cert {
         Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
             proxy_uri,
-            Some((&device_id_private_key, &device_id_certs)),
+            Some((device_id_private_key, device_id_certs)),
             &trusted_certs,
         )
         .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?,

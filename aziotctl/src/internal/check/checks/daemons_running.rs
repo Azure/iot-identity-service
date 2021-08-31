@@ -95,25 +95,24 @@ impl Checker for DaemonRunningTpmd {
         use aziot_identityd_config::{DpsAttestationMethod, ProvisioningType};
 
         // Only try to connect to the tpmd when using DPS-TPM provisioning
-        #[allow(clippy::clippy::match_like_matches_macro)]
         let using_tpmd = match &cache.cfg.identityd {
-            Some(config) => match &config.provisioning.provisioning {
+            Some(config) => matches!(
+                &config.provisioning.provisioning,
                 ProvisioningType::Dps {
                     attestation: DpsAttestationMethod::Tpm { .. },
                     ..
-                } => true,
-                _ => false,
-            },
+                }
+            ),
             None => {
                 // Check if the prev config happens to use DPS-TPM provisioning
                 match &cache.cfg.identityd_prev {
-                    Some(cfg) => match &cfg.provisioning.provisioning {
+                    Some(cfg) => matches!(
+                        &cfg.provisioning.provisioning,
                         ProvisioningType::Dps {
                             attestation: DpsAttestationMethod::Tpm { .. },
                             ..
-                        } => true,
-                        _ => false,
-                    },
+                        }
+                    ),
                     // there's no way to tell whether or not the user is using tpmd
                     // in this case, let's play it safe and try to connect to tpmd
                     None => true,

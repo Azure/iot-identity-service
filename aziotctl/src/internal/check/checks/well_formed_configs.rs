@@ -30,15 +30,14 @@ impl Checker for WellFormedKeydConfig {
         }
     }
 
+    #[allow(clippy::unused_async)]
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "keyd",
             Path::new("/etc/aziot/keyd/config.toml"),
             Some(Path::new("/etc/aziot/keyd/config.d")),
             shared,
-        )
-        .await
-        {
+        ) {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
             Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
@@ -61,15 +60,14 @@ impl Checker for WellFormedCertdConfig {
         }
     }
 
+    #[allow(clippy::unused_async)]
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "certd",
             Path::new("/etc/aziot/certd/config.toml"),
             Some(Path::new("/etc/aziot/certd/config.d")),
             shared,
-        )
-        .await
-        {
+        ) {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
             Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
@@ -92,15 +90,14 @@ impl Checker for WellFormedTpmdConfig {
         }
     }
 
+    #[allow(clippy::unused_async)]
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg = match load_daemon_cfg(
             "tpmd",
             Path::new("/etc/aziot/tpmd/config.toml"),
             Some(Path::new("/etc/aziot/tpmd/config.d")),
             shared,
-        )
-        .await
-        {
+        ) {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
             Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
@@ -124,15 +121,14 @@ impl Checker for WellFormedIdentitydConfig {
         }
     }
 
+    #[allow(clippy::unused_async)]
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         let daemon_cfg: aziot_identityd_config::Settings = match load_daemon_cfg(
             "identityd",
             Path::new("/etc/aziot/identityd/config.toml"),
             Some(Path::new("/etc/aziot/identityd/config.d")),
             shared,
-        )
-        .await
-        {
+        ) {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => daemon_cfg,
             Ok(DaemonCfg::PermissionDenied(e)) => return CheckResult::Fatal(e),
             Err(e) => return CheckResult::Failed(e),
@@ -152,9 +148,7 @@ impl Checker for WellFormedIdentitydConfig {
             Path::new("/var/lib/aziot/identityd/prev_state"),
             None,
             shared,
-        )
-        .await
-        {
+        ) {
             Ok(DaemonCfg::Cfg(daemon_cfg)) => {
                 if let Ok(daemon_cfg) = daemon_cfg.check() {
                     cache.cfg.identityd_prev = Some(daemon_cfg);
@@ -172,7 +166,7 @@ enum DaemonCfg<T> {
     PermissionDenied(Error),
 }
 
-async fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
+fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
     daemon: &str,
     config_path: &Path,
     config_directory_path: Option<&Path>,

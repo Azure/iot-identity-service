@@ -37,7 +37,7 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
                 .strip_suffix(".service")
                 .unwrap_or(service.name),
             service.state().as_service_display()
-        )
+        );
     }
 
     println!();

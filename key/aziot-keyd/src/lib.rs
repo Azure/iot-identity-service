@@ -23,6 +23,7 @@ use aziot_keyd_config::{Config, Endpoints, Principal};
 
 use config_common::watcher::UpdateConfig;
 
+#[allow(clippy::unused_async)]
 pub async fn main(
     config: Config,
     config_path: std::path::PathBuf,
@@ -491,6 +492,7 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
+    #[allow(clippy::unused_async)]
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
         log::info!("Detected change in config files. Updating config.");
 
@@ -614,7 +616,7 @@ fn key_handle_to_id(
         }
 
         KeyId::Derived(base_handle, _) => {
-            let (_, base_id_cstr) = key_handle_to_id(&base_handle, keys)?;
+            let (_, base_id_cstr) = key_handle_to_id(base_handle, keys)?;
             base_id_cstr
         }
     };

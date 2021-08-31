@@ -254,7 +254,7 @@ where
     let mut inner = EstAuthInner::default();
 
     if let Some(auth) = auth {
-        serialize_auth_inner(&auth, &mut inner);
+        serialize_auth_inner(auth, &mut inner);
     }
 
     inner.serialize(serializer)

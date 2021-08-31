@@ -52,7 +52,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_CERTD_CONFIG_DIR",
                 "/etc/aziot/certd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Identityd => {
@@ -63,7 +63,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_IDENTITYD_CONFIG_DIR",
                 "/etc/aziot/identityd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Keyd => {
@@ -74,7 +74,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_KEYD_CONFIG_DIR",
                 "/etc/aziot/keyd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Tpmd => {
@@ -85,7 +85,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_TPMD_CONFIG_DIR",
                 "/etc/aziot/tpmd/config.d",
             )
-            .await?
+            .await?;
         }
     }
 

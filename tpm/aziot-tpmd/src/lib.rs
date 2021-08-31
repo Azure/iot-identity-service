@@ -18,6 +18,7 @@ use aziot_tpmd_config::{Config, Endpoints};
 
 use error::{Error, InternalError};
 
+#[allow(clippy::unused_async)]
 pub async fn main(
     config: Config,
     _: std::path::PathBuf,
