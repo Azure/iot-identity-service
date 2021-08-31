@@ -6,16 +6,13 @@ cd /src
 
 . ./ci/install-build-deps.sh
 
-
 apt-get update
-apt-get install -y --no-install-recommends software-properties-common
-add-apt-repository ppa:longsleep/golang-backports
+apt-get install -y git sudo software-properties-common
+sudo add-apt-repository ppa:longsleep/golang-backports
 apt-get update
-
-apt-get install -y --no-install-recommends \
-    wget rpm qemu-utils golang-1.15-go genisoimage python-minimal bison gawk
-apt-get install -y --no-install-recommends pigz
-ln -vsf /usr/lib/go-1.15/bin/go /usr/bin/go
+apt -y install make tar wget curl rpm qemu-utils golang-1.13-go genisoimage pigz cpio python-pip python3-distutils
+sudo ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+mv /.dockerenv /.dockerenv.old 
 
 mkdir -p packages
 
@@ -28,7 +25,52 @@ popd
 mv out/toolkit-*.tar.gz "/src/CBL-Mariner/toolkit.tar.gz"
 popd
 
-make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 mrpm
+# cargo vendor vendor
+
+# mkdir .cargo
+# cat > .cargo/config << EOF
+# [source.crates-io]
+# replace-with = "vendored-sources"
+# [source.vendored-sources]
+# directory = "vendor"
+# EOF
+
+make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
+
+
+MarinerRPMBUILDDIR=$(HOME)/Mariner-Build
+MarinerSpecsDir=$(MarinerRPMBUILDDIR)/SPECS/aziot-identity-service
+MarinerSourceDir=$(MarinerSpecsDir)/SOURCES
+
+# Extract built toolkit in building direectory
+mkdir -p $(MarinerRPMBUILDDIR)
+pushd $(MarinerRPMBUILDDIR)
+mv /src/CBL-Mariner/toolkit.tar.gz toolkit.tar.gz
+tar -xzvf toolkit.tar.gz
+popd
+
+# move tarballed IIS source to building directory
+mkdir -p $(MarinerSourceDir)
+mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(MarinerSourceDir)/aziot-identity-service-$(PACKAGE_VERSION).tar.gz
+
+# Copy spec file to rpmbuild specs directory
+pushd $(MarinerSpecsDir)
+cp contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
+cp contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
+
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.signatures.json
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.spec
+
+TARBALL_HASH=$(sha256sum "aziot-identity-service-$(PACKAGE_VERSION).tar.gz" | awk '{print $1}')
+sed -i 's/\("azure-iotedge-[0-9.]\+.tar.gz": "\)\([a-fA-F0-9]\+\)/\1'${TARBALL_HASH}'/g' aziot-identity-service/iot-identity-service.signatures.json"
+popd
+
+# Build package
+pushd toolkit
+sudo make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" CONFIG_FILE= -j$(nproc)
+popd
+
+
 
 rm -rf "packages/mariner/$ARCH"
 mkdir -p "packages/mariner/$ARCH"
