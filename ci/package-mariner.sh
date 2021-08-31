@@ -51,12 +51,12 @@ popd
 
 # move tarballed IIS source to building directory
 mkdir -p $MarinerSourceDir
-mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz
+mv /tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz $MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz
 
 # Copy spec file to rpmbuild specs directory
 pushd $MarinerSpecsDir
-cp contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
-cp contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
+cp /src/contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
+cp /src/contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
 
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/iot-identity-service/aziot-identity-service.signatures.json
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/iot-identity-service/aziot-identity-service.spec
