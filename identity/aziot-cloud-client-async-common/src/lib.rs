@@ -66,7 +66,7 @@ pub async fn get_x509_connector(
     proxy_uri: Option<hyper::Uri>,
 ) -> io::Result<MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>> {
     let device_id_private_key = {
-        let device_id_key_handle = key_client.load_key_pair(&identity_pk).await?;
+        let device_id_key_handle = key_client.load_key_pair(identity_pk).await?;
         let device_id_key_handle = std::ffi::CString::new(device_id_key_handle.0)?;
         let device_id_private_key = key_engine
             .load_private_key(&device_id_key_handle)
@@ -74,7 +74,7 @@ pub async fn get_x509_connector(
         device_id_private_key
     };
 
-    let device_id_certs = cert_client.get_cert(&identity_cert).await?;
+    let device_id_certs = cert_client.get_cert(identity_cert).await?;
 
     let proxy_connector = MaybeProxyConnector::new(
         proxy_uri,

@@ -2,14 +2,12 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::must_use_candidate,
-    clippy::missing_errors_doc,
-    clippy::wildcard_imports
-)]
+#![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
 
 use aziot_identity_common::{Identity, ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 
+// All exports of aziot_identity_common_http are used in this file.
+#[allow(clippy::wildcard_imports)]
 use aziot_identity_common_http::*;
 
 macro_rules! make_uri {

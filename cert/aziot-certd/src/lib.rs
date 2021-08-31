@@ -27,6 +27,7 @@ use aziot_certd_config::{
 
 use config_common::watcher::UpdateConfig;
 
+#[allow(clippy::unused_async)]
 pub async fn main(
     config: Config,
     config_path: std::path::PathBuf,
@@ -172,6 +173,7 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
+    #[allow(clippy::unused_async)]
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
         log::info!("Detected change in config files. Updating config.");
 
@@ -253,7 +255,7 @@ fn create_cert<'a>(
                         .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                     name_builder
-                        .append_entry_by_text("CN", &c)
+                        .append_entry_by_text("CN", c)
                         .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
                     common_name = name_builder.build();
                     subject_name = &common_name;
@@ -858,12 +860,7 @@ fn get_cert_inner(
                     result.extend_from_slice(&bytes);
                 }
             }
-
-            if result.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(result))
-            }
+            Ok((!result.is_empty()).then(|| result))
         }
     }
 }

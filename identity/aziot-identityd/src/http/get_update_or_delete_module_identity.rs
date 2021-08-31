@@ -42,7 +42,7 @@ impl http_common::server::Route for Route {
             }
         });
 
-        let uid = extensions.get::<libc::uid_t>().cloned()?;
+        let uid = extensions.get::<libc::uid_t>().copied()?;
 
         Some(Route {
             api: service.api.clone(),

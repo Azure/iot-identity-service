@@ -328,7 +328,7 @@ impl IdentityManager {
                                     &self.homedir_path,
                                     &device.iothub_hostname,
                                     &device.device_id,
-                                    &module_id,
+                                    module_id,
                                     None,
                                 );
                                 return Err(Error::HubClient(err));
@@ -338,7 +338,7 @@ impl IdentityManager {
                                 &self.homedir_path,
                                 &device.iothub_hostname,
                                 &device.device_id,
-                                &module_id,
+                                module_id,
                             );
 
                             match module {
@@ -456,7 +456,7 @@ impl IdentityManager {
                     &self.homedir_path,
                     &device.iothub_hostname,
                     &device.device_id,
-                    &module_id,
+                    module_id,
                     None,
                 );
 
@@ -884,12 +884,12 @@ impl IdentityManager {
                 .load_public_key(&key_handle)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            let csr = create_csr(&new_cert_subject.as_str(), &public_key, &private_key, None)
+            let csr = create_csr(new_cert_subject.as_str(), &public_key, &private_key, None)
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
             let new_cert_pem = self
                 .cert_client
-                .create_cert(&identity_cert, &csr, None)
+                .create_cert(identity_cert, &csr, None)
                 .await
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 

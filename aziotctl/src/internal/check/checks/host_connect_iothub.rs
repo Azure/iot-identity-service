@@ -124,7 +124,7 @@ impl HostConnectIotHub {
                             return Ok(CheckResult::Warning(anyhow::Error::msg(reason)));
                         }
                     }
-                    _ => return Ok(CheckResult::Ignored),
+                    ProvisioningType::None => return Ok(CheckResult::Ignored),
                 };
 
                 self.iothub_hostname = Some(iothub_hostname.clone());
@@ -144,7 +144,7 @@ impl HostConnectIotHub {
 
         crate::internal::common::resolve_and_tls_handshake(
             iothub_hostname_url,
-            &iothub_hostname,
+            iothub_hostname,
             proxy,
         )
         .await.map_err( |e| if nested {

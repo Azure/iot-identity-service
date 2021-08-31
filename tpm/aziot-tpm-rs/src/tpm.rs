@@ -104,7 +104,9 @@ impl Tpm {
                 }
             }
         });
-        unsafe { INIT_RESULT.unwrap()? };
+        unsafe {
+            INIT_RESULT.unwrap()?;
+        };
 
         // ensure that calls to `aziot_tpm_create` are serialized
         let handle = {
@@ -178,7 +180,9 @@ pub struct TpmBuffer {
 
 impl Drop for TpmBuffer {
     fn drop(&mut self) {
-        unsafe { aziot_tpm_free_buffer(self.key as *mut c_void) };
+        unsafe {
+            aziot_tpm_free_buffer(self.key as *mut c_void);
+        };
     }
 }
 

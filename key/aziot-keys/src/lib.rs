@@ -14,6 +14,7 @@
     clippy::similar_names,
     clippy::too_many_lines,
     clippy::type_complexity,
+    clippy::upper_case_acronyms
 )]
 
 //! This library is used to create and load keys for the Azure IoT Keys Service.

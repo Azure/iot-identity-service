@@ -7,7 +7,11 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access, clippy::let_unit_value)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::let_underscore_drop,
+    clippy::let_unit_value
+)]
 
 mod error;
 
@@ -48,7 +52,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_CERTD_CONFIG_DIR",
                 "/etc/aziot/certd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Identityd => {
@@ -59,7 +63,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_IDENTITYD_CONFIG_DIR",
                 "/etc/aziot/identityd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Keyd => {
@@ -70,7 +74,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_KEYD_CONFIG_DIR",
                 "/etc/aziot/keyd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Tpmd => {
@@ -81,7 +85,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_TPMD_CONFIG_DIR",
                 "/etc/aziot/tpmd/config.d",
             )
-            .await?
+            .await?;
         }
     }
 

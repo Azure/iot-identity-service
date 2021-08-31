@@ -274,8 +274,8 @@ impl Client {
                     identity_pk,
                 } => {
                     get_x509_connector(
-                        &identity_cert,
-                        &identity_pk,
+                        identity_cert,
+                        identity_pk,
                         &self.key_client,
                         &mut *self.key_engine.lock().await,
                         &self.cert_client,

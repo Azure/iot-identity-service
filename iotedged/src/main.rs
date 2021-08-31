@@ -5,6 +5,8 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
+    clippy::too_many_lines,
     clippy::type_complexity
 )]
 
@@ -626,7 +628,7 @@ async fn verify_encrypt_decrypt(
 
     let ciphertext = key_client
         .encrypt(
-            &encrypt_key_handle,
+            encrypt_key_handle,
             aziot_key_common::EncryptMechanism::Aead {
                 iv: iv.clone(),
                 aad: aad.clone(),
@@ -638,7 +640,7 @@ async fn verify_encrypt_decrypt(
 
     let new_plaintext = key_client
         .decrypt(
-            &decrypt_key_handle,
+            decrypt_key_handle,
             aziot_key_common::EncryptMechanism::Aead { iv, aad },
             &ciphertext,
         )

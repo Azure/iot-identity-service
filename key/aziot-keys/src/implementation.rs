@@ -485,14 +485,14 @@ impl Location {
 
         match (preloaded_keys.get(id), pkcs11_lib_path) {
             (Some(PreloadedKeyLocation::Filesystem { path }), _) => {
-                locations.push(Location::Filesystem(path.clone()))
+                locations.push(Location::Filesystem(path.clone()));
             }
 
             (Some(PreloadedKeyLocation::Pkcs11 { uri }), Some(pkcs11_lib_path)) => {
                 locations.push(Location::Pkcs11 {
                     lib_path: pkcs11_lib_path.clone(),
                     uri: uri.clone(),
-                })
+                });
             }
 
             (Some(PreloadedKeyLocation::Pkcs11 { .. }), None) => {

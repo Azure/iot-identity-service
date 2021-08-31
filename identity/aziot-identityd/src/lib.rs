@@ -5,6 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
+    clippy::let_underscore_drop,
     clippy::let_unit_value,
     clippy::missing_errors_doc,
     clippy::module_name_repetitions,
@@ -499,7 +500,7 @@ impl Api {
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
-                .create_cert(&module_id, &csr, None)
+                .create_cert(module_id, &csr, None)
                 .await
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = String::from_utf8(certificate)
@@ -699,7 +700,7 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 
     let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
     let diff = epoch
-        .diff(&cert.not_after())
+        .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
     let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);

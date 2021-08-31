@@ -24,11 +24,13 @@ impl std::fmt::Display for Error {
                 write!(f, "parameter {:?} has an invalid value", name)
             }
             Error::InvalidParameter(None) => f.write_str("a parameter has an invalid value"),
-            Error::Unauthorized(user, id) => write!(
-                f,
-                "user {} is not authorized to access the key {}",
-                user, id
-            ),
+            Error::Unauthorized(user, id) => {
+                write!(
+                    f,
+                    "user {} is not authorized to access the key {}",
+                    user, id
+                )
+            }
         }
     }
 }

@@ -65,7 +65,7 @@ impl Client {
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
             "/devices/{}/modules/{}?api-version=2017-11-08-preview",
-            percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            percent_encoding::percent_encode(self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
         );
 
@@ -93,7 +93,7 @@ impl Client {
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
             "/devices/{}/modules/{}?api-version=2017-11-08-preview",
-            percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            percent_encoding::percent_encode(self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
         );
 
@@ -119,7 +119,7 @@ impl Client {
     ) -> Result<aziot_identity_common::hub::Module, std::io::Error> {
         let uri = format!(
             "/devices/{}/modules/{}?api-version=2017-11-08-preview",
-            percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            percent_encoding::percent_encode(self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
         );
 
@@ -136,7 +136,7 @@ impl Client {
     ) -> Result<Vec<aziot_identity_common::hub::Module>, std::io::Error> {
         let uri = format!(
             "/devices/{}/modules?api-version=2017-11-08-preview",
-            percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            percent_encoding::percent_encode(self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
         );
 
         let res = self
@@ -150,7 +150,7 @@ impl Client {
     pub async fn delete_module(&self, module_id: &str) -> Result<(), std::io::Error> {
         let uri = format!(
             "/devices/{}/modules/{}?api-version=2017-11-08-preview",
-            percent_encoding::percent_encode(&self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
+            percent_encoding::percent_encode(self.device.device_id.as_bytes(), IOT_HUB_ENCODE_SET),
             percent_encoding::percent_encode(module_id.as_bytes(), IOT_HUB_ENCODE_SET),
         );
 

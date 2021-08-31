@@ -253,6 +253,7 @@ macro_rules! make_service {
 
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 #[async_trait::async_trait]
+#[allow(clippy::unused_async)]
 pub trait Route: Sized {
     type ApiVersion: std::cmp::PartialOrd;
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;

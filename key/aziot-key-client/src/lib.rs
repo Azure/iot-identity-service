@@ -400,13 +400,13 @@ where
     };
 
     let res: TResponse = match res_status_code {
-        Some(200) | Some(201) => {
+        Some(200 | 201) => {
             let res = serde_json::from_slice(body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             res
         }
 
-        Some(400..=499) | Some(500..=599) => {
+        Some(400..=499 | 500..=599) => {
             let res: http_common::ErrorBody<'static> = serde_json::from_slice(body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
@@ -486,7 +486,7 @@ where
     match res_status_code {
         Some(204) => Ok(()),
 
-        Some(400..=499) | Some(500..=599) => {
+        Some(400..=499 | 500..=599) => {
             let res: http_common::ErrorBody<'static> = serde_json::from_slice(body)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             Err(std::io::Error::new(std::io::ErrorKind::Other, res.message))
@@ -507,7 +507,7 @@ fn try_parse_response(
 
     let mut res = httparse::Response::new(&mut headers);
 
-    let body_start_pos = match res.parse(&buf) {
+    let body_start_pos = match res.parse(buf) {
         Ok(httparse::Status::Complete(body_start_pos)) => body_start_pos,
         Ok(httparse::Status::Partial) if new_read == 0 => return Ok(None),
         Ok(httparse::Status::Partial) => return Err(std::io::ErrorKind::UnexpectedEof.into()),

@@ -388,7 +388,6 @@ unsafe fn sign_inner(
 }
 
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum SignError {
     LoginFailed(crate::LoginError),
     SignInitFailed(pkcs11_sys::CK_RV),
@@ -448,7 +447,6 @@ unsafe fn verify_inner(
 }
 
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum VerifyError {
     LoginFailed(crate::LoginError),
     VerifyInitFailed(pkcs11_sys::CK_RV),
@@ -509,7 +507,6 @@ unsafe fn encrypt_inner(
     Ok(ciphertext_len)
 }
 
-#[allow(clippy::pub_enum_variant_names)]
 #[derive(Debug)]
 pub enum EncryptError {
     EncryptInitFailed(pkcs11_sys::CK_RV),
@@ -562,7 +559,6 @@ unsafe fn decrypt_inner(
     Ok(plaintext_len)
 }
 
-#[allow(clippy::pub_enum_variant_names)]
 #[derive(Debug)]
 pub enum DecryptError {
     DecryptInitFailed(pkcs11_sys::CK_RV),

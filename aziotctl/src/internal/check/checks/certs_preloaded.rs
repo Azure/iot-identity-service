@@ -80,7 +80,7 @@ async fn walk_preloaded_certs<'a>(
                     ));
                 }
 
-                match CertificateValidity::new(uri.path(), "", &id)
+                match CertificateValidity::new(uri.path(), "", id)
                     .await?
                     .to_check_result()?
                 {

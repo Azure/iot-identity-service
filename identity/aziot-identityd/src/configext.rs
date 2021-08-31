@@ -38,14 +38,14 @@ pub fn prepare_authorized_principals(
                     aziot_identity_common::IdType::Local => local_module_map
                         .insert(p.name.clone(), p.localid.clone())
                         .is_some(),
-                    _ => true,
+                    aziot_identity_common::IdType::Device => true,
                 };
             }
         } else if found_daemon {
             log::warn!("Principal {:?} is not authorized. Please ensure there is only one principal without a type in the config.toml", p.name);
             continue;
         } else {
-            found_daemon = true
+            found_daemon = true;
         }
 
         principal_map.insert(p.uid, p.clone());
