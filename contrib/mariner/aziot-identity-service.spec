@@ -16,11 +16,6 @@ Summary: Azure IoT Identity Service and related services
 License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: %{name}-%{version}.tar.gz
-# Source1: rust-bindgen-0.57.0.tar.gz
-# Source2: cbindgen-0.18.0.tar.gz
-
-# update for OpenSSL 1.1 *.so naming requirements
-# Patch0: 0001-Makefile-update-for-mariner.patch
 
 Conflicts: iotedge, libiothsm-std
 
@@ -71,7 +66,6 @@ This package contains development files for the Azure IoT device runtime.
 # popd
 
 %setup -q
-%patch0 -p1
 
 %build
 
@@ -100,7 +94,7 @@ make -j \
     RELEASE=1 \
     V=1 \
     ARCH=%{_arch} \
-    install-rpm
+    install-rpm-mariner
 
 %pre
 

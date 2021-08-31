@@ -37,7 +37,6 @@ popd
 
 make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
-
 MarinerRPMBUILDDIR=/src/Mariner-Build
 MarinerSpecsDir=$MarinerRPMBUILDDIR/SPECS/aziot-identity-service
 MarinerSourceDir=$MarinerSpecsDir/SOURCES
@@ -57,17 +56,13 @@ mv /tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz $MarinerSourceDir/aziot-i
 pushd $MarinerSpecsDir
 cp /src/contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
 cp /src/contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" aziot-identity-service.signatures.json
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" aziot-identity-service.spec
 
-sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/aziot-identity-service/aziot-identity-service.signatures.json
-sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/aziot-identity-service/aziot-identity-service.spec
-
-TARBALL_HASH=$(sha256sum "aziot-identity-service-$PACKAGE_VERSION.tar.gz" | awk '{print $1}')
-sed -i 's/\("azure-iotedge-[0-9.]\+.tar.gz": "\)\([a-fA-F0-9]\+\)/\1'${TARBALL_HASH}'/g' aziot-identity-service/aziot-identity-service.signatures.json"
-popd
 
 # Build package
-pushd toolkit
-sudo make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" CONFIG_FILE= -j$(nproc)
+pushd $MarinerRPMBUILDDIR/toolkit
+sudo make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update CONFIG_FILE= -j$(nproc)
 popd
 
 

@@ -385,3 +385,16 @@ install-rpm: install-common
 
 	# devel
 	$(INSTALL_DATA) -D key/aziot-keys/aziot-keys.h $(DESTDIR)$(includedir)/aziot-identity-service/aziot-keys.h
+
+install-rpm-mariner: install-common
+	# libaziot-key-openssl-engine-shared
+	$(INSTALL_PROGRAM) -D \
+		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
+		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
+
+	$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset
+
+	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
+
+	# devel
+	$(INSTALL_DATA) -D key/aziot-keys/aziot-keys.h $(DESTDIR)$(includedir)/aziot-identity-service/aziot-keys.h
