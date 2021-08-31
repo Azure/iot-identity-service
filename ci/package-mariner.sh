@@ -61,7 +61,7 @@ cp /src/contrib/mariner/aziot-identity-service.signatures.json aziot-identity-se
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/aziot-identity-service/aziot-identity-service.signatures.json
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/aziot-identity-service/aziot-identity-service.spec
 
-TARBALL_HASH=$(sha256sum "aziot-identity-service-$(PACKAGE_VERSION).tar.gz" | awk '{print $1}')
+TARBALL_HASH=$(sha256sum "aziot-identity-service-$PACKAGE_VERSION.tar.gz" | awk '{print $1}')
 sed -i 's/\("azure-iotedge-[0-9.]\+.tar.gz": "\)\([a-fA-F0-9]\+\)/\1'${TARBALL_HASH}'/g' aziot-identity-service/aziot-identity-service.signatures.json"
 popd
 
