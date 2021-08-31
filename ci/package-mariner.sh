@@ -38,28 +38,28 @@ popd
 make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
 
-MarinerRPMBUILDDIR=$(HOME)/Mariner-Build
-MarinerSpecsDir=$(MarinerRPMBUILDDIR)/SPECS/aziot-identity-service
-MarinerSourceDir=$(MarinerSpecsDir)/SOURCES
+MarinerRPMBUILDDIR=/src/Mariner-Build
+MarinerSpecsDir=$MarinerRPMBUILDDIR/SPECS/aziot-identity-service
+MarinerSourceDir=$MarinerSpecsDir/SOURCES
 
 # Extract built toolkit in building direectory
-mkdir -p $(MarinerRPMBUILDDIR)
-pushd $(MarinerRPMBUILDDIR)
+mkdir -p $MarinerRPMBUILDDIR
+pushd $MarinerRPMBUILDDIR
 mv /src/CBL-Mariner/toolkit.tar.gz toolkit.tar.gz
 tar -xzvf toolkit.tar.gz
 popd
 
 # move tarballed IIS source to building directory
-mkdir -p $(MarinerSourceDir)
-mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(MarinerSourceDir)/aziot-identity-service-$(PACKAGE_VERSION).tar.gz
+mkdir -p $MarinerSourceDir
+mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz
 
 # Copy spec file to rpmbuild specs directory
-pushd $(MarinerSpecsDir)
+pushd $MarinerSpecsDir
 cp contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
 cp contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
 
-sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.signatures.json
-sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $(MarinerRPMBUILDDIR)/SPECS/iot-identity-service/aziot-identity-service.spec
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/iot-identity-service/aziot-identity-service.signatures.json
+sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" $MarinerRPMBUILDDIR/SPECS/iot-identity-service/aziot-identity-service.spec
 
 TARBALL_HASH=$(sha256sum "aziot-identity-service-$(PACKAGE_VERSION).tar.gz" | awk '{print $1}')
 sed -i 's/\("azure-iotedge-[0-9.]\+.tar.gz": "\)\([a-fA-F0-9]\+\)/\1'${TARBALL_HASH}'/g' aziot-identity-service/iot-identity-service.signatures.json"
