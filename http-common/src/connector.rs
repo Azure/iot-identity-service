@@ -682,7 +682,7 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
         };
 
     // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
-    let fd = index + SD_LISTEN_FDS_START - 1;
+    let fd = index + SD_LISTEN_FDS_START;
 
     Ok(fd)
 }
