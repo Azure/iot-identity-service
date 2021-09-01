@@ -85,7 +85,7 @@ impl Client {
         http_common::request_no_content(
             &self.inner,
             http::Method::POST,
-            make_uri!("/device/reprovision", self.api_version),
+            make_uri!("/identities/device/reprovision", self.api_version),
             Some(&body),
         )
         .await?;
