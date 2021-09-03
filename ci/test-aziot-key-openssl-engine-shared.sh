@@ -7,7 +7,7 @@ cd /src
 . ./ci/install-runtime-deps.sh
 
 case "$OS" in
-    'centos:7')
+    'centos:7'|'almalinux:8.4')
         cp \
             ./target/debug/libaziot_key_openssl_engine_shared.so \
             /usr/lib64/openssl/engines/libaziot_keys.so

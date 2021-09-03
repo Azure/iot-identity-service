@@ -5,26 +5,24 @@
 # WARNING: This script is destructive to your machine's environment and globally-installed files. For example, the Ubuntu-specific parts of the script
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
 
-
-OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
-
+OS="$(. /etc/os-release; if [ -z "$PLATFORM_ID" ]; then echo "$ID:$VERSION_ID"; else echo "$PLATFORM_ID"; fi)"
 
 # OS packages
 
 case "$OS:$ARCH" in
-    'centos:7:amd64')
+    'centos:7:amd64'|'platform:el8:amd64')
         yum install -y epel-release
         yum install -y \
             curl gcc gcc-c++ git jq make pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
-    'centos:7:arm32v7'|'centos:7:aarch64')
-        echo 'Cross-compilation on CentOS 7 is not supported' >&2
+    'centos:7:arm32v7'|'centos:7:aarch64'|'platform:el8:arm32v7'|'platform:el8:aarch64')
+        echo "Cross-compilation on $OS $ARCH is not supported" >&2
         exit 1
         ;;
 
-    'debian:9:amd64'|'debian:10:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
+    'debian:9:amd64'|'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -35,7 +33,7 @@ case "$OS:$ARCH" in
             libclang1 libssl-dev llvm-dev
         ;;
 
-    'debian:9:arm32v7'|'debian:10:arm32v7')
+    'debian:9:arm32v7'|'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -47,7 +45,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'debian:9:aarch64'|'debian:10:aarch64')
+    'debian:9:aarch64'|'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

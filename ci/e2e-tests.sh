@@ -60,12 +60,20 @@ get_package() {
             artifact_name='centos-7'
             ;;
 
+        'platform:el8')
+            artifact_name='el-8'
+            ;;
+
         'debian:9')
             artifact_name='debian-9-slim'
             ;;
 
         'debian:10')
             artifact_name='debian-10-slim'
+            ;;
+
+        'debian:11')
+            artifact_name='debian-11-slim'
             ;;
 
         'ubuntu:18.04')
@@ -113,13 +121,23 @@ get_package() {
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
             ;;
 
-        'debian:9')
+        'platform:el8')
+            unzip -j package.zip 'el8/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
+            ;;
+
+         'debian:9')
             unzip -j package.zip 'debian9/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
         'debian:10')
             unzip -j package.zip 'debian10/amd64/aziot-identity-service_*_amd64.deb' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'debian:11')
+            unzip -j package.zip 'debian11/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
@@ -218,7 +236,14 @@ case "$OS" in
         vm_image='OpenLogic:CentOS:7_8-gen2:7.8.2020100701'
         ;;
 
-    'debian:9')
+    'platform:el8')
+        # az vm image list --all \
+        #     --publisher 'almalinux' --offer 'almalinux' --sku '8_4-gen2' \
+        #     --query "[?publisher == 'almalinux' && offer == 'almalinux'].{ sku: sku, version: version }" --output table
+        vm_image='almalinux:almalinux:8_4-gen2:8.4.20210729'
+        ;;
+
+     'debian:9')
         # az vm image list --all \
         #     --publisher 'credativ' --offer 'Debian' --sku '9' \
         #     --query "[?publisher == 'credativ' && offer == 'Debian'].{ sku: sku, version: version }" --output table
@@ -234,7 +259,14 @@ case "$OS" in
         vm_image='Debian:debian-10:10-gen2:0.20201023.432'
         ;;
 
-    'ubuntu:18.04')
+    'debian:11')
+        # az vm image list --all \
+        #     --publisher 'Debian' --offer 'debian-11' --sku '11-gen2' \
+        #     --query "[?publisher == 'Debian' && offer == 'debian-11'].{ sku: sku, version: version }" --output table
+        vm_image='Debian:debian-11:11-gen2:0.20210814.734'
+        ;;
+
+     'ubuntu:18.04')
         # az vm image list --all \
         #     --publisher 'Canonical' --offer 'UbuntuServer' --sku '18' \
         #     --query "[?publisher == 'Canonical' && offer == 'UbuntuServer'].{ sku: sku, version: version }" --output table
@@ -752,7 +784,7 @@ fi
 
 echo 'Updating VM...' >&2
 case "$OS" in
-    centos:*)
+    centos:*|platform:el8:*)
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
@@ -805,7 +837,7 @@ fi
 
 echo 'Installing package...' >&2
 case "$OS" in
-    centos:*)
+    centos:*|platform:el8:*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
