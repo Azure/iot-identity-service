@@ -17,7 +17,7 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 </tr>
 <tr>
 <td>RHEL 8 compatible</td>
-<td><code>almalinux:8.4</code></td>
+<td><code>redhat/ubi8:latest</code></td>
 </tr>
 <tr>
 <td>Debian 9 / Raspberry Pi OS 9</td>
@@ -78,7 +78,7 @@ docker run -it --rm \
     -e 'ARCH=amd64' \
     -e 'PACKAGE_VERSION=1.2.0' \
     -e 'PACKAGE_RELEASE=0' \
-    almalinux:8.4 \
+    redhat/ubi8:latest \
     '/src/ci/package.sh'
 ```
 
@@ -130,6 +130,8 @@ The first file is the binary package, the second through fourth file together co
 
 1. The script must be run on an `x86_64` host, even for building ARM32 and ARM64 packages. The ARM32 and ARM64 packages are built via cross-compilation.
 
-1. Building ARM32 and ARM64 packages for either CentOS 7 or RHEL 8 is currently not supported, because they do not have functional cross compilers for those architectures. (It has the `gcc` cross compiler itself but not a cross `glibc` for the compiled binary to link to, because the cross compiler is only intended for cross-compiling the kernel.)
+1. Building ARM32 and ARM64 packages for CentOS 7 is currently not supported, because CentOS 7 does do not have functional cross compilers for those architectures. (It has the `gcc` cross compiler itself but not a cross `glibc` for the compiled binary to link to, because the cross compiler is only intended for cross-compiling the kernel.)
+
+1. Building ARM32 and ARM64 packages for RHEL 8 is currently not supported. More investigation would be required to determine feasibility.
 
 1. The packages script is also run in our CI, via the `.github/workflows/packages.yaml` file.
