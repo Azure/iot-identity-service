@@ -392,8 +392,6 @@ install-rpm-mariner: install-common
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
 
-	$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset
-
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 
 	# devel

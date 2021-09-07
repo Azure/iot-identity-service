@@ -52,6 +52,42 @@ popd
 mkdir -p $MarinerSourceDir
 mv /tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz $MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz
 
+mkdir /temp
+rustup install stable
+rustup default stable
+wget https://github.com/eqrion/cbindgen/archive/refs/tags/v0.18.0.tar.gz -O /temp/cbindgen-0.18.0.tar.gz
+pushd /temp
+tar xf cbindgen-0.18.0.tar.gz --no-same-owner
+pushd /temp/cbindgen-0.18.0
+cargo vendor vendor
+mkdir /temp/cbindgen-0.18.0/.cargo
+cat > /temp/cbindgen-0.18.0/.cargo/config << EOF
+[source.crates-io]
+replace-with = "vendored-sources"
+[source.vendored-sources]
+directory = "vendor"
+EOF
+popd
+tar -cf $MarinerSourceDir/cbindgen-0.18.0.tar.gz cbindgen-0.18.0/
+popd
+
+
+wget https://github.com/rust-lang/rust-bindgen/archive/refs/tags/v0.57.0.tar.gz -O /temp/rust-bindgen-0.57.0.tar.gz
+pushd /temp
+tar xf rust-bindgen-0.57.0.tar.gz --no-same-owner
+pushd /temp/rust-bindgen-0.57.0
+cargo vendor vendor
+mkdir /temp/rust-bindgen-0.57.0/.cargo
+cat > /temp/rust-bindgen-0.57.0/.cargo/config << EOF
+[source.crates-io]
+replace-with = "vendored-sources"
+[source.vendored-sources]
+directory = "vendor"
+EOF
+popd
+tar -cf $MarinerSourceDir/rust-bindgen-0.57.0.tar.gz rust-bindgen-0.57.0/
+popd
+
 # Copy spec file to rpmbuild specs directory
 pushd $MarinerSpecsDir
 cp /src/contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
@@ -67,10 +103,9 @@ popd
 
 
 
-rm -rf "packages/mariner/$ARCH"
-mkdir -p "packages/mariner/$ARCH"
+rm -rf "/src/packages/mariner/$ARCH"
+mkdir -p "/src/packages/mariner/$ARCH"
 cp \
-    ~/"CBL-Mariner/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-4.x86_64.rpm" \
-    ~/"CBL-Mariner/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-4.x86_64.rpm" \
-    ~/"CBL-Mariner/out/SRPMS/aziot-identity-service-$PACKAGE_VERSION-4.src.rpm" \
-    "packages/mariner/$ARCH/"
+    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
+    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
+    "/src/packages/mariner/$ARCH/"

@@ -16,6 +16,8 @@ Summary: Azure IoT Identity Service and related services
 License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: %{name}-%{version}.tar.gz
+Source1: rust-bindgen-0.57.0.tar.gz
+Source2: cbindgen-0.18.0.tar.gz
 
 Conflicts: iotedge, libiothsm-std
 
@@ -26,8 +28,8 @@ BuildRequires: make
 BuildRequires: cmake
 BuildRequires: openssl-devel
 BuildRequires: pkg-config
-BuildRequires:  rust >= 1.47.0
-# Required for %{_unitdir} to be defined, as described in https://fedoraproject.org/wiki/Packaging:Systemd
+BuildRequires: rust >= 1.47.0
+BuildRequires: tar
 BuildRequires: systemd
 
 %description
@@ -45,7 +47,6 @@ This package also contains the following libraries:
 
 Lastly, this package contains the aziotctl binary that is used to configure and manage the services.
 
-
 %package devel
 
 Summary: Development files for Azure IoT Identity Service and related services
@@ -57,13 +58,13 @@ This package contains development files for the Azure IoT device runtime.
 %prep
 # build and install required rust packages needed for during aziot-identity-service build
 # since Mariner Toolkit builds packages offline
-# mkdir -p $HOME
-# pushd $HOME
-# tar xf %{SOURCE1} --no-same-owner
-# cargo install bindgen --path rust-bindgen-0.57.0 --offline
-# tar xf %{SOURCE2} --no-same-owner
-# cargo install cbindgen --path cbindgen-0.18.0 --offline
-# popd
+mkdir -p $HOME
+pushd $HOME
+tar xf %{SOURCE1} --no-same-owner
+cargo install bindgen --path rust-bindgen-0.57.0 --offline
+tar xf %{SOURCE2} --no-same-owner
+cargo install cbindgen --path cbindgen-0.18.0 --offline
+popd
 
 %setup -q
 

@@ -84,7 +84,6 @@ jobs:
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
-        container_os="ubuntu"
         echo "::set-output name=artifact-name::packages_mariner_amd64"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
