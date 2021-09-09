@@ -784,7 +784,7 @@ fi
 
 echo 'Updating VM...' >&2
 case "$OS" in
-    centos:*|platform:el8:*)
+    centos:*)
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
@@ -803,6 +803,18 @@ case "$OS" in
             sudo apt-get upgrade -y
         '
         ;;
+
+    platform:el*)
+        ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            set -euxo pipefail
+
+            sudo yum -y update
+
+            # The get-twin tests need perl
+            sudo yum -y install perl
+        '
+        ;;
+
 
     *)
         echo "Unsupported OS $OS" >&2
@@ -837,7 +849,7 @@ fi
 
 echo 'Installing package...' >&2
 case "$OS" in
-    centos:*|platform:el8:*)
+    centos:*|platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
