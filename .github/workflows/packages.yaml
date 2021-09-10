@@ -60,15 +60,6 @@ jobs:
         path: 'packages'
   BuildMarinerRelease:
     runs-on: 'ubuntu-18.04'
-    strategy:
-      fail-fast: false
-
-      matrix:
-        release_os:
-        - 'mariner'
-        arch:
-        - 'amd64'
-        - 'arm32v7'
     steps:
     - uses: 'actions/checkout@v1'
       with:
@@ -80,20 +71,20 @@ jobs:
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
-          -e "ARCH=$ARCH" \
+          -e "ARCH=amd64" \
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
           --privileged \
           "ubuntu:18.04" \
           '/src/ci/package-mariner.sh'
       env:
-        ARCH: "${{ matrix.arch }}"
+        ARCH: "amd64"
         PACKAGE_VERSION: '1.2.2'
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
-        echo "::set-output name=artifact-name::packages_mariner_${{ matrix.arch }}"
+        echo "::set-output name=artifact-name::packages_mariner_amd64"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:
