@@ -101,11 +101,16 @@ pushd $MarinerRPMBUILDDIR/toolkit
 sudo make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update CONFIG_FILE= -j$(nproc)
 popd
 
+MarinerArchName=$ARCH
 
+if [ $MarinerArchName -eq "amd64" ]
+then
+    MarinerArchName="x86_64"
+fi
 
 rm -rf "/src/packages/mariner/$ARCH"
 mkdir -p "/src/packages/mariner/$ARCH"
 cp \
-    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
-    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
+    "/src/Mariner-Build/out/RPMS/$MarinerArchName/aziot-identity-service-$PACKAGE_VERSION-2.cm1.$MarinerArchName.rpm" \
+    "/src/Mariner-Build/out/RPMS/$MarinerArchName/aziot-identity-service-devel-$PACKAGE_VERSION-2.cm1.$MarinerArchName.rpm" \
     "/src/packages/mariner/$ARCH/"
