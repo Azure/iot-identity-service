@@ -64,7 +64,7 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        const MAX_REQUESTS_PER_USER: usize = 10;
+        const MAX_REQUESTS_PER_USER: usize = 30;
 
         // Keep track of the number of running tasks.
         let tasks = atomic::AtomicUsize::new(0);
