@@ -112,6 +112,7 @@ pub enum ManualProvisioning {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
