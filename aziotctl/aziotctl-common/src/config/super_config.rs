@@ -136,7 +136,7 @@ pub enum DpsAttestationMethod {
     },
 
     X509 {
-        registration_id: String,
+        registration_id: Option<String>,
 
         #[serde(flatten)]
         identity: X509Identity,
