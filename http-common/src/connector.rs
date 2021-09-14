@@ -148,7 +148,8 @@ impl Incoming {
                                 servers_available.fetch_add(1, atomic::Ordering::AcqRel);
                             } else {
                                 log::info!(
-                                    "Max simultaneous connections reached for user {}",
+                                    "Max simultaneous connections ({}) reached for user {}",
+                                    MAX_REQUESTS_PER_USER,
                                     ucred.uid()
                                 );
                             }
