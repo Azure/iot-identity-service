@@ -853,14 +853,6 @@ impl IdentityManager {
 
         // Create new certificate if needed.
         if device_id_cert.is_none() {
-            if let Ok(key_handle) = self.key_client.load_key_pair(identity_pk).await {
-                self.key_client
-                    .delete_key_pair(&key_handle)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-            }
             let new_cert_subject = match subject {
                 Some(subject) => subject.to_string(),
                 None => old_cert_subject_name.map_err(|err| {
