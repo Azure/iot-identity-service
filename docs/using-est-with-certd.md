@@ -167,25 +167,19 @@ openssl genrsa -out key.pem
 # attributes.
 openssl req -new -key key.pem -subj "/CN=test-est-cert" -out req.pem
 
-# Construct JSON request and save it as req.json.
-#
-# The schema is:
-# {
-#     "certId": "test-est-cert",
-#     "csr": "<generated CSR with newlines escaped>"
-# }
-jq \
-    --arg certId test-est-cert \
-    --arg csr "$(cat req.pem)" \
-    '. | .["certId"]=$certId | .["csr"]=$csr' <<< '{}' > req.json
-
 # Make the request to Certificates Service.
 # The user making this request must be root or in the aziotcs group.
 # For a non-root user, the uid must match the uid in certd's authorized principals
 # (1000 in the example above).
+#
+# The request schema is:
+# {
+#     "certId": "<cert name>",
+#     "csr": "<generated CSR with newlines escaped>"
+# }
 curl --unix-socket /run/aziot/certd.sock http://localhost/certificates?api-version=2020-09-01 \
     -H "content-type: application/json" \
-    --data @req.json
+    --data "$(jq -cn --arg 'certId' 'test-est-cert' --arg 'csr' "$(cat req.pem)" '{"certId": $certId, "csr": $csr}')"
 ```
 
 You should receive the newly-issued certificate as the output of the last command.
