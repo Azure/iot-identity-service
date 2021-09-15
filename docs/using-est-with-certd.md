@@ -29,6 +29,26 @@ trusted_certs = ["cert-id"]
 [cert_issuance.est.urls]
 default = "https://est.example.com/.well-known/est"
 
+# Below are options for authenticating with the EST server. The required options will depend on the EST
+# server's configuration. These global settings apply to all certificates that don't configure auth separately.
+[cert_issuance.est.auth]
+
+# Authentication with TLS client certificate. Provide the cert ID of the client cert and its corresponding
+# private key. Note that the aziotcs user must be authorized to access `identity_pk` in Keys Service.
+identity_cert = "identity-cert-id"
+identity_pk = "identity-cert-pk-id"
+
+# Authentication with a TLS client certificate which will be used once to create the initial certificate.
+# After the first certificate issuance, an identity_cert and identity_pk will be automatically created and
+# used. Provide the cert ID of the bootstrap client cert and its corresponding private key. Note that the
+# aziotcs user must be authorized to access `bootstrap_identity_pk` in Keys Service.
+bootstrap_identity_cert = "bootstrap-identity-cert-id"
+bootstrap_identity_pk = "bootstrap-identity-pk-id"
+
+# Authentication with username and password.
+username = "username"
+password = "password"
+
 # Sample configuration of a single EST-issued certificate.
 # Replace `name` with the desired certificate name.
 [cert_issuance.name]
@@ -47,22 +67,15 @@ expiry_days = 30
 # provided here and no default exists.
 url = "https://est.example.com/.well-known/est"
 
-# Below are options for authenticating with the EST server. The required options will depend on the EST
-# server's configuration.
-
-# Authentication with TLS client certificate. Provide the cert ID of the client cert and its corresponding
-# private key. Note that the aziotcs user must be authorized to access `identity_pk` in Keys Service.
+# It is also possible to configure auth separately for each certificate. The options are the
+# same as in the global EST configuration and override the global configuration for their corresponding
+# certificate.
 identity_cert = "identity-cert-id"
 identity_pk = "identity-cert-pk-id"
 
-# Authentication with a TLS client certificate which will be used once to create the initial certificate.
-# After the first certificate issuance, an identity_cert and identity_pk will be automatically created and
-# used. Provide the cert ID of the bootstrap client cert and its corresponding private key. Note that the
-# aziotcs user must be authorized to access `bootstrap_identity_pk` in Keys Service.
 bootstrap_identity_cert = "bootstrap-identity-cert-id"
 bootstrap_identity_pk = "bootstrap-identity-pk-id"
 
-# Authentication with username and password.
 username = "username"
 password = "password"
 ```
@@ -154,14 +167,25 @@ openssl genrsa -out key.pem
 # attributes.
 openssl req -new -key key.pem -subj "/CN=test-est-cert" -out req.pem
 
-# Escape newlines in CSR.
-csr=$(awk '{printf "%s\\n", $0}' req.pem)
+# Construct JSON request and save it as req.json.
+#
+# The schema is:
+# {
+#     "certId": "test-est-cert",
+#     "csr": "<generated CSR with newlines escaped>"
+# }
+jq \
+    --arg certId test-est-cert \
+    --arg csr "$(cat req.pem)" \
+    '. | .["certId"]=$certId | .["csr"]=$csr' <<< '{}' > req.json
 
 # Make the request to Certificates Service.
 # The user making this request must be root or in the aziotcs group.
+# For a non-root user, the uid must match the uid in certd's authorized principals
+# (1000 in the example above).
 curl --unix-socket /run/aziot/certd.sock http://localhost/certificates?api-version=2020-09-01 \
     -H "content-type: application/json" \
-    --data "{\"certId\": \"test-est-cert\", \"csr\": \"$csr\"}"
+    --data @req.json
 ```
 
 You should receive the newly-issued certificate as the output of the last command.
