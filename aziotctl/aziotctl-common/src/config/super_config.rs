@@ -155,6 +155,7 @@ pub struct CertIssuance {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Est {
+    #[serde(default)]
     pub trusted_certs: Vec<Url>,
     pub auth: EstAuth,
     pub urls: BTreeMap<String, Url>,
