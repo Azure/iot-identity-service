@@ -112,6 +112,7 @@ pub enum ManualProvisioning {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -125,6 +126,7 @@ pub enum ManualAuthMethod {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -188,7 +190,7 @@ pub enum EstAuthX509 {
 #[serde(untagged)]
 pub enum LocalCa {
     Issued {
-        cert: aziot_certd_config::CertIssuanceOptions,
+        cert: CertIssuanceOptions,
     },
 
     Preloaded {
@@ -214,13 +216,42 @@ pub enum SymmetricKey {
 #[serde(untagged)]
 pub enum X509Identity {
     Issued {
-        identity_cert: aziot_certd_config::CertIssuanceOptions,
+        identity_cert: CertIssuanceOptions,
     },
 
     Preloaded {
         identity_cert: Url,
         identity_pk: aziot_keys_common::PreloadedKeyLocation,
     },
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CertIssuanceOptions {
+    pub common_name: Option<String>,
+
+    #[serde(
+        default,
+        deserialize_with = "aziot_certd_config::deserialize_expiry_days"
+    )]
+    pub expiry_days: Option<u32>,
+
+    #[serde(flatten)]
+    pub method: CertIssuanceMethod,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
+pub enum CertIssuanceMethod {
+    #[serde(rename = "est")]
+    Est {
+        url: Option<url::Url>,
+        #[serde(flatten)]
+        auth: Option<EstAuth>,
+    },
+
+    LocalCa,
+
+    SelfSigned,
 }
 
 mod base64 {
