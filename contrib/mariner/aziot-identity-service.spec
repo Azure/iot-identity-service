@@ -31,6 +31,7 @@ BuildRequires: pkg-config
 BuildRequires: rust >= 1.47.0
 BuildRequires: tar
 BuildRequires: systemd
+Requires(pre):  shadow-utils
 
 %description
 This package contains the Azure IoT device runtime, comprised of the following services:
