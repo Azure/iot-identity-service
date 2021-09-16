@@ -1,15 +1,21 @@
-# Using EST with Certificates Service
+# Issuing Arbitrary Certificates over EST with Certificates Service
 
-This document covers how to configure Certificates Service to issue certificates over EST.
+This document addresses the more advanced scenario of configuring the Certificates Service to issue arbitrary certificates over EST. Refer to [other doc] that covers the common scenario of issuing the device ID and Edge CA certs.
 
 ## Prerequisites
 
 - Certificates Service and Keys Service configured and running
 - A working EST server that processes enrollment requests
 
+## Configuration Files
+
+EST certificate issuance is configured in Certificates Service's config.toml, which by default is `/etc/aziot/certd/config.toml` or a file in `/etc/aziot/certd/config.d/`. We recommend creating a separate file in `config.d` for each certificate issuance. For example, to issue a certificate called `test-est-cert`, create the file `/etc/aziot/certd/config.d/test-est-cert.toml`.
+
+Depending on the EST certificate issuance, Certificates Service might need to access certain keys in Keys Service. This can be configured in `/etc/aziot/keyd/config.toml` or a file in `/etc/aziot/keyd/config.d/`. Again, we recommend creating a separate file in `config.d` for each certificate issuance. For example, to authorize keys for `test-est-cert`, create the file `/etc/aziot/keyd/config.d/test-est-cert.toml`.
+
 ## Configuration Options
 
-EST certificate issuance is configured in Certificates Service's config.toml, which by default is `/etc/aziot/certd/config.toml` or a file in `/etc/aziot/certd/config.d/`.
+The options in this section apply to the Certificates Service configuration file.
 
 The global `[cert_issuance.est]` section controls options that apply to all certificates issued over EST.
 
@@ -131,7 +137,7 @@ uid = 1000
 certs = ["test-est-cert"]
 ```
 
-The keyd configuration file authorizes aziotcs to access the required keys.
+The keyd configuration file authorizes aziotcs to access the required keys. It is required because the sample EST certificate issuance is using X.509-based authentication, which requires access to the corresponding private keys. This file would not be required for EST servers that authenticate only based on username and password.
 
 `/etc/aziot/keyd/config.d/test-est-cert.toml`
 
