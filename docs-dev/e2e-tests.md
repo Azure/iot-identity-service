@@ -22,19 +22,23 @@ AZURE_ACCOUNT="$(az account show)"
 AZURE_SUBSCRIPTION_ID="$(<<< "$AZURE_ACCOUNT" jq --raw-output '.id')"
 
 AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
-AZURE_SP_NAME="http://iot-identity-service-e2e-tests"
+AZURE_SP_NAME="http://iot-identity-service-e2e-tests2"
 
 # The location of the resource group as well as resources created in the group.
-AZURE_LOCATION='...'
+AZURE_LOCATION='westus'
 
 az group create --name "$AZURE_RESOURCE_GROUP_NAME" --location "$AZURE_LOCATION"
 
+AZURE_SP=$(az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment)
+
 # Save the output of this command. It contains the password for the SP
 # which cannot be obtained later.
-az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment
+echo $AZURE_SP
+
+AZURE_SP_ID="$(<<< "$AZURE_SP" jq --raw-output '.appId')"
 
 az role assignment create \
-    --assignee "$AZURE_SP_NAME" \
+    --assignee "$AZURE_SP_ID" \
     --role 'Contributor' \
     --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP_NAME"
 ```
@@ -78,7 +82,8 @@ cd ~/src/iot-identity-service
 # The `tenant` property from the `az ad sp create-for-rbac` output.
 export AZURE_TENANT_ID='...'
 
-export AZURE_USERNAME="$AZURE_SP_NAME"
+# The `appId` property from the `az ad sp create-for-rbac` output.
+export AZURE_USERNAME="$..."
 
 # The `password` property from the `az ad sp create-for-rbac` output.
 export AZURE_PASSWORD='...'
