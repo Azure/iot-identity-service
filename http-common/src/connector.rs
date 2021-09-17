@@ -230,6 +230,20 @@ impl Connector {
         }
     }
 
+    pub fn into_client<B>(self) -> hyper::Client<Connector, B>
+    where
+        B: hyper::body::HttpBody + Send,
+        B::Data: Send,
+    {
+        match self {
+            Connector::Tcp { .. } | Connector::Fd { .. } => hyper::Client::builder().build(self),
+            // we don't need connection pool'ing for unix sockets.
+            Connector::Unix { .. } => hyper::Client::builder()
+                .pool_max_idle_per_host(0)
+                .build(self),
+        }
+    }
+
     pub fn connect(&self) -> std::io::Result<Stream> {
         match self {
             Connector::Tcp { host, port } => {
