@@ -42,7 +42,7 @@ az role assignment create \
 Next, the identity of this SP and the name of this resource group must be set in GitHub secrets on the repo:
 
 - `AZURE_TENANT_ID`: The `tenant` property from the `az ad sp create-for-rbac` output.
-- `AZURE_USERNAME`: The `AZURE_SP_NAME` variable in the script.
+- `AZURE_USERNAME`: The `appId` property from the `az ad sp create-for-rbac` output.
 - `AZURE_PASSWORD`: The `password` property from the `az ad sp create-for-rbac` output.
 - `AZURE_RESOURCE_GROUP_NAME`: The `AZURE_RESOURCE_GROUP_NAME` variable in the script.
 - `AZURE_LOCATION`: The `AZURE_LOCATION` variable in the script. Note that this can be changed afterwards to start putting the resources in a different location instead of the resource group's location. (The location of a resource group is just a default for new resources.)
