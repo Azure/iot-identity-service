@@ -25,7 +25,7 @@ AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
 AZURE_SP_NAME="http://iot-identity-service-e2e-tests"
 
 # The location of the resource group as well as resources created in the group.
-AZURE_LOCATION='westus'
+AZURE_LOCATION='...'
 
 az group create --name "$AZURE_RESOURCE_GROUP_NAME" --location "$AZURE_LOCATION"
 
