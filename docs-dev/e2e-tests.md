@@ -22,7 +22,7 @@ AZURE_ACCOUNT="$(az account show)"
 AZURE_SUBSCRIPTION_ID="$(<<< "$AZURE_ACCOUNT" jq --raw-output '.id')"
 
 AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
-AZURE_SP_NAME="http://iot-identity-service-e2e-tests2"
+AZURE_SP_NAME="http://iot-identity-service-e2e-tests"
 
 # The location of the resource group as well as resources created in the group.
 AZURE_LOCATION='westus'
