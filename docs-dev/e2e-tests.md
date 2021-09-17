@@ -33,7 +33,7 @@ AZURE_SP=$(az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment)
 
 # Save the output of this command. It contains the password for the SP
 # which cannot be obtained later.
-echo $AZURE_SP
+echo "$AZURE_SP"
 
 AZURE_SP_ID="$(<<< "$AZURE_SP" jq --raw-output '.appId')"
 
