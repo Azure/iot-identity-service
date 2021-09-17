@@ -83,7 +83,7 @@ cd ~/src/iot-identity-service
 export AZURE_TENANT_ID='...'
 
 # The `appId` property from the `az ad sp create-for-rbac` output.
-export AZURE_USERNAME="$..."
+export AZURE_USERNAME='...'
 
 # The `password` property from the `az ad sp create-for-rbac` output.
 export AZURE_PASSWORD='...'
