@@ -39,7 +39,7 @@ jobs:
       run: |
         ./ci/e2e-tests.sh ${{ matrix.test_name }}
       env:
-        BRANCH: "${{ github.events.inputs.branch }}"
+        BRANCH: "${{ github.event.inputs.branch }}"
 
         OS: "${{ matrix.os }}"
 
