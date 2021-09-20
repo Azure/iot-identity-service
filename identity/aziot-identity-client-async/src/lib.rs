@@ -45,7 +45,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(api_version: ApiVersion, connector: http_common::Connector) -> Self {
-        let inner = hyper::Client::builder().build(connector);
+        let inner = connector.into_client();
         Client { api_version, inner }
     }
 
