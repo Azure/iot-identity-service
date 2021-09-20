@@ -15,7 +15,7 @@ impl Client {
         api_version: aziot_key_common_http::ApiVersion,
         connector: http_common::Connector,
     ) -> Self {
-        let inner = hyper::Client::builder().build(connector);
+        let inner = connector.into_client();
         Client { api_version, inner }
     }
 
