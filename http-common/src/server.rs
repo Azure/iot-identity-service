@@ -97,13 +97,11 @@ macro_rules! make_service {
                                     let response = match method {
                                         http::Method::DELETE => {
                                             let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                Ok(result) => match result {
-                                                    Ok(body) => body,
-                                                    Err(err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::BAD_REQUEST,
-                                                        message: http_common::server::error_to_message(&err).into(),
-                                                    }).to_http_response()),
-                                                },
+                                                Ok(Ok(body)) => body,
+                                                Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::BAD_REQUEST,
+                                                    message: http_common::server::error_to_message(&err).into(),
+                                                }).to_http_response()),
                                                 Err(timeout_err) => return Ok((http_common::server::Error {
                                                     status_code: http::StatusCode::REQUEST_TIMEOUT,
                                                     message: http_common::server::error_to_message(&timeout_err).into(),
@@ -146,13 +144,11 @@ macro_rules! make_service {
 
                                         http::Method::POST => {
                                             let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                Ok(result) => match result {
-                                                    Ok(body) => body,
-                                                    Err(err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::BAD_REQUEST,
-                                                        message: http_common::server::error_to_message(&err).into(),
-                                                    }).to_http_response()),
-                                                },
+                                                Ok(Ok(body)) => body,
+                                                Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::BAD_REQUEST,
+                                                    message: http_common::server::error_to_message(&err).into(),
+                                                }).to_http_response()),
                                                 Err(timeout_err) => return Ok((http_common::server::Error {
                                                     status_code: http::StatusCode::REQUEST_TIMEOUT,
                                                     message: http_common::server::error_to_message(&timeout_err).into(),
@@ -192,13 +188,11 @@ macro_rules! make_service {
                                             let body = match content_type.as_deref() {
                                                 Some("application/json") | None => {
                                                     let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                        Ok(result) => match result {
-                                                            Ok(body) => body,
-                                                            Err(err) => return Ok((http_common::server::Error {
-                                                                status_code: http::StatusCode::BAD_REQUEST,
-                                                                message: http_common::server::error_to_message(&err).into(),
-                                                            }).to_http_response()),
-                                                        },
+                                                        Ok(Ok(body)) => body,
+                                                        Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::BAD_REQUEST,
+                                                            message: http_common::server::error_to_message(&err).into(),
+                                                        }).to_http_response()),
                                                         Err(timeout_err) => return Ok((http_common::server::Error {
                                                             status_code: http::StatusCode::REQUEST_TIMEOUT,
                                                             message: http_common::server::error_to_message(&timeout_err).into(),
