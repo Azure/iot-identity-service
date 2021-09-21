@@ -1,6 +1,6 @@
 # Issuing Certificates over EST with Certificates Service
 
-This document addresses the more advanced scenario of configuring the Certificates Service to issue arbitrary certificates over EST. Refer to [other doc] that covers the common scenario of issuing the device ID and Edge CA certs.
+This document addresses the more advanced scenario of configuring the Certificates Service to issue arbitrary certificates over EST. Refer to [this document](https://github.com/Azure/iotedge/blob/master/edgelet/doc/est.md) that covers the common scenario of issuing the device ID and Edge CA certs.
 
 ## Prerequisites
 
