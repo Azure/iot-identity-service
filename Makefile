@@ -269,7 +269,7 @@ rpm:
 	mkdir -p $(RPMBUILDDIR)/SPECS
 	ENGINESDIR='/usr/lib64/openssl/engines'; \
 	ENGINESDIR=$$(if [ ! -d $$ENGINESDIR ]; then echo $$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/'); else echo $$ENGINESDIR; fi); \
-    ENGINESDIR="$$(echo $$ENGINESDIR | sed -e 's/\//\\\//g')"; \
+	ENGINESDIR="$$(echo $$ENGINESDIR | sed -e 's/\//\\\//g')"; \
 	sed -e "s/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g; s/@enginesdir@/$$ENGINESDIR/g" contrib/centos/aziot-identity-service.spec >$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
 	# Copy preset file to be included in the package
