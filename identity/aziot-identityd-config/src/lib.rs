@@ -25,6 +25,12 @@ pub struct Settings {
     )]
     pub cloud_retries: u32,
 
+    #[serde(
+        default = "Settings::default_dps_trust_bundle",
+        skip_serializing_if = "Settings::is_default_dps_trust_bundle"
+    )]
+    pub dps_trust_bundle: String,
+
     pub provisioning: Provisioning,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -48,6 +54,10 @@ impl Settings {
         1
     }
 
+    pub fn default_dps_trust_bundle() -> String {
+        "aziot-dps-trust-bundle".to_string()
+    }
+
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn is_default_timeout(timeout: &u64) -> bool {
         *timeout == Settings::default_cloud_timeout()
@@ -56,6 +66,10 @@ impl Settings {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn is_default_retries(retries: &u32) -> bool {
         *retries == Settings::default_cloud_retries()
+    }
+
+    pub fn is_default_dps_trust_bundle(trust_bundle: &str) -> bool {
+        trust_bundle == Settings::default_dps_trust_bundle()
     }
 }
 

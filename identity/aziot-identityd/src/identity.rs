@@ -19,6 +19,7 @@ pub struct IdentityManager {
     homedir_path: std::path::PathBuf,
     req_timeout: std::time::Duration,
     req_retries: u32,
+    dps_trust_bundle: String,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
@@ -29,9 +30,7 @@ pub struct IdentityManager {
 
 impl IdentityManager {
     pub fn new(
-        homedir_path: std::path::PathBuf,
-        req_timeout: std::time::Duration,
-        req_retries: u32,
+        settings: &config::Settings,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -40,9 +39,10 @@ impl IdentityManager {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
-            homedir_path,
-            req_timeout,
-            req_retries,
+            homedir_path: settings.homedir.clone(),
+            req_timeout: std::time::Duration::from_secs(settings.cloud_timeout_sec),
+            req_retries: settings.cloud_retries,
+            dps_trust_bundle: settings.dps_trust_bundle.clone(),
             key_client,
             key_engine,
             cert_client,
@@ -592,6 +592,26 @@ impl IdentityManager {
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
+        // Remove any DPS-provided trust bundle, which might not be valid after reprovisioning.
+        if self
+            .cert_client
+            .get_cert(&self.dps_trust_bundle)
+            .await
+            .is_ok()
+        {
+            match self.cert_client.delete_cert(&self.dps_trust_bundle).await {
+                Ok(()) => log::info!(
+                    "Removed DPS-provided trust bundle {}.",
+                    &self.dps_trust_bundle
+                ),
+                Err(err) => log::warn!(
+                    "Failed to remove DPS-provided trust bundle {}: {}",
+                    &self.dps_trust_bundle,
+                    err
+                ),
+            }
+        }
+
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
                 iothub_hostname,
@@ -771,6 +791,10 @@ impl IdentityManager {
             }
         };
 
+        if let Some(trust_bundle) = state.trust_bundle {
+            self.save_trust_bundle(trust_bundle).await?;
+        }
+
         Ok(aziot_identity_common::IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
                 .unwrap_or_else(|| iothub_hostname.clone()),
@@ -778,6 +802,39 @@ impl IdentityManager {
             device_id,
             credentials,
         })
+    }
+
+    async fn save_trust_bundle(
+        &self,
+        trust_bundle: aziot_dps_client_async::model::TrustBundle,
+    ) -> Result<(), Error> {
+        let mut certificates = String::new();
+
+        for cert in trust_bundle.certificates {
+            certificates.push_str(&cert.certificate);
+
+            let last = certificates.chars().last().ok_or_else(|| {
+                Error::Internal(InternalError::CreateCertificate(Box::new(
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, "empty DPS trust bundle"),
+                )))
+            })?;
+
+            if last != '\n' {
+                certificates.push('\n');
+            }
+        }
+
+        self.cert_client
+            .import_cert(&self.dps_trust_bundle, certificates.as_bytes())
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        log::info!(
+            "Saved DPS-provided trust bundle as {}.",
+            &self.dps_trust_bundle
+        );
+
+        Ok(())
     }
 
     fn get_backup_provisioning_info(

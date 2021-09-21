@@ -26,6 +26,7 @@ pub fn run(
         localid,
         cloud_timeout_sec,
         cloud_retries,
+        dps_trust_bundle,
         mut aziot_keys,
         mut preloaded_keys,
         cert_issuance,
@@ -57,6 +58,9 @@ pub fn run(
         uid: aziotid_uid.as_raw(),
         certs: vec![],
     };
+
+    // Always allow IS to modify the DPS trust bundle certs.
+    aziotid_certs.certs.push(dps_trust_bundle.clone());
 
     // Authorization of CS with KS.
     let mut aziotcs_keys = aziot_keyd_config::Principal {
@@ -272,6 +276,8 @@ pub fn run(
         cloud_timeout_sec,
 
         cloud_retries,
+
+        dps_trust_bundle,
 
         principal: vec![],
 
