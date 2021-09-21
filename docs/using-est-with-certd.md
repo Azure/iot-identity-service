@@ -65,9 +65,6 @@ method = "est"
 # Optional certificate common name. Defaults to the CSR's common name if not provided.
 common_name = "common name"
 
-# Optional number of days between certificate issuance and expiry. Defaults to 30 if not provided.
-expiry_days = 30
-
 # Optional EST URL to issue this certificate. Defaults to the `default` URL in `[cert_issuance.est.urls]`
 # if not provided. The URL must be provided either here or in default, i.e. certd will fail if no URL is
 # provided here and no default exists.
