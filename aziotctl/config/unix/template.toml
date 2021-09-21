@@ -35,6 +35,22 @@
 # cloud_retries = 1
 
 # ==============================================================================
+# DPS Trust Bundle Name
+# ==============================================================================
+#
+# DPS can be configured to provide trusted root CA certificates for a provisioned
+# device. If provided, this trust bundle is saved to Certificates Service with the
+# name specified here. Applications can then get these certificates from CS using
+# this name.
+#
+# If this setting is not provided and Identity Service receives a trust bundle from
+# DPS, it will save the trust bundle under the default name, aziot-dps-trust-bundle.
+#
+# This setting has no effect when [provisioning.source] is not "dps".
+#
+# dps_trust_bundle = "aziot-dps-trust-bundle"
+
+# ==============================================================================
 # Provisioning
 # ==============================================================================
 #

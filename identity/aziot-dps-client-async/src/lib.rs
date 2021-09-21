@@ -91,7 +91,7 @@ impl Client {
         auth_kind: &DpsAuthKind,
     ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
         let resource_uri = format!(
-            "{}/registrations/{}/register?api-version=2018-11-01",
+            "{}/registrations/{}/register?api-version=2021-11-01-preview",
             self.scope_id, registration_id
         );
 
@@ -131,7 +131,7 @@ impl Client {
 
         // spin until the registration has completed successfully
         let resource_uri = format!(
-            "{}/registrations/{}/operations/{}?api-version=2018-11-01",
+            "{}/registrations/{}/operations/{}?api-version=2021-11-01-preview",
             self.scope_id, registration_id, res.operation_id
         );
 

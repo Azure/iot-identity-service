@@ -51,6 +51,12 @@ pub struct Config {
     )]
     pub cloud_retries: u32,
 
+    #[serde(
+        default = "aziot_identityd_config::Settings::default_dps_trust_bundle",
+        skip_serializing_if = "aziot_identityd_config::Settings::is_default_dps_trust_bundle"
+    )]
+    pub dps_trust_bundle: String,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,

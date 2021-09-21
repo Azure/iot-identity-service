@@ -59,6 +59,10 @@ pub struct DeviceRegistrationResult {
     /// The entity tag associated with the resource.
     #[serde(rename = "etag", skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
+
+    /// Trust bundle provided by DPS.
+    #[serde(rename = "trustBundle")]
+    pub trust_bundle: Option<TrustBundle>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
@@ -125,4 +129,21 @@ pub struct RegistrationOperationStatus {
     /// Device registration status.
     #[serde(rename = "registrationState", skip_serializing_if = "Option::is_none")]
     pub registration_state: Option<DeviceRegistrationResult>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TrustBundle {
+    /// List of trust bundle certificates received from DPS.
+    pub certificates: Vec<TrustBundleCertificate>,
+    // The DPS trust bundle response contains other fields, but they are not relevant
+    // for Identity Service and therefore omitted.
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct TrustBundleCertificate {
+    /// PEM-encoded certificate.
+    pub certificate: String,
+
+    /// Certificate metadata.
+    pub metadata: X509CertificateInfo,
 }
