@@ -3,13 +3,24 @@
 use http_common::MaybeProxyConnector;
 
 pub(crate) async fn create_cert(
-    csr: Vec<u8>,
+    csr: &[u8],
     url: &url::Url,
     basic_auth: Option<(&str, &str)>,
     client_cert: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
     trusted_certs: Vec<openssl::x509::X509>,
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, crate::Error> {
+    // Request body is PKCS#10, which is a PEM without the header and footer, so remove them.
+    let csr = csr
+        .strip_prefix(b"-----BEGIN CERTIFICATE REQUEST-----\n")
+        .map_or(csr, |mut csr| {
+            while let Some(csr_) = csr.strip_suffix(b"\n") {
+                csr = csr_;
+            }
+            csr.strip_suffix(b"-----END CERTIFICATE REQUEST-----")
+                .unwrap_or(csr)
+        });
+
     let proxy_connector = match client_cert {
         Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
             proxy_uri,
@@ -59,7 +70,7 @@ pub(crate) async fn create_cert(
     let simple_enroll_request = simple_enroll_request
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
-        .body(csr.into());
+        .body(csr.to_owned().into());
 
     let ca_certs_request = ca_certs_request.body(Default::default());
 
@@ -146,6 +157,9 @@ async fn get_pkcs7_response(
     // but the EST server response does not contain this wrapper. Add it.
     let mut pkcs7 = b"-----BEGIN PKCS7-----\n"[..].to_owned();
     pkcs7.extend_from_slice(&body);
+    if pkcs7.last() != Some(&b'\n') {
+        pkcs7.push(b'\n');
+    }
     pkcs7.extend_from_slice(b"-----END PKCS7-----\n");
 
     let pkcs7 = openssl::pkcs7::Pkcs7::from_pem(&pkcs7)
