@@ -267,10 +267,12 @@ rpm:
 
 	# Copy spec file to rpmbuild specs directory
 	mkdir -p $(RPMBUILDDIR)/SPECS
-	ENGINESDIR='/usr/lib64/openssl/engines'; \
-	ENGINESDIR=$$(if [ ! -d $$ENGINESDIR ]; then echo $$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/'); else echo $$ENGINESDIR; fi); \
-	ENGINESDIR="$$(echo $$ENGINESDIR | sed -e 's/\//\\\//g')"; \
-	sed -e "s/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g; s/@enginesdir@/$$ENGINESDIR/g" contrib/centos/aziot-identity-service.spec >$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
+
+	# Ask openssl for its engine dir and on versions <1.1 fallback to a hardcoded path.
+	which openssl # Assert that openssl exists and that the empty output of `openssl version -e` is not because it never even ran
+	ENGINESDIR="$$(openssl version -e 2> /dev/null | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')"; \
+	ENGINESDIR="$${ENGINESDIR:-%\{_libdir\}/openssl/engines}"; \
+	sed -e "s/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g; s|@enginesdir@|$$ENGINESDIR|g" contrib/centos/aziot-identity-service.spec >$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
 	# Copy preset file to be included in the package
 	cp contrib/centos/00-aziot.preset $(RPMBUILDDIR)/SOURCES

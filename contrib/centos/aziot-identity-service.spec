@@ -33,7 +33,7 @@ This package contains the Azure IoT device runtime, comprised of the following s
 This package also contains the following libraries:
 
 - libaziot_keys.so - The library used by the Keys Service to communicate with HSMs for key operations.
-- @enginesdir@/libaziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
+- <openssl engines directory>/libaziot_keys.so - An openssl engine that can be used to work with asymmetric keys managed by the Azure IoT Keys Service.
 
 Lastly, this package contains the aziotctl binary that is used to configure and manage the services.
 
