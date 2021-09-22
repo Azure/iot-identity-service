@@ -4,7 +4,7 @@
 #
 # e2e-tests.sh <test_name>
 #
-# See https://azure.github.io/iot-identity-service/dev/e2e-tests.html for details of some env vars that need to be defined.
+# See https://github.com/Azure/iot-identity-service/blob/main/docs-dev/e2e-tests.md for details of some env vars that need to be defined.
 #
 # <test_name>:
 #     manual-symmetric-key
@@ -68,6 +68,14 @@ get_package() {
             artifact_name='debian-10-slim'
             ;;
 
+        'debian:11')
+            artifact_name='debian-11-slim'
+            ;;
+
+        'platform:el8')
+            artifact_name='el-8'
+            ;;
+
         'ubuntu:18.04')
             artifact_name='ubuntu-18.04'
             ;;
@@ -121,6 +129,16 @@ get_package() {
         'debian:10')
             unzip -j package.zip 'debian10/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'debian:11')
+            unzip -j package.zip 'debian11/amd64/aziot-identity-service_*_amd64.deb' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'platform:el8')
+            unzip -j package.zip 'el8/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
             ;;
 
         'ubuntu:18.04')
@@ -232,6 +250,20 @@ case "$OS" in
         #     --publisher 'Debian' --offer 'debian-10' --sku '10' \
         #     --query "[?publisher == 'Debian' && offer == 'debian-10'].{ sku: sku, version: version }" --output table
         vm_image='Debian:debian-10:10-gen2:0.20201023.432'
+        ;;
+
+    'debian:11')
+        # az vm image list --all \
+        #     --publisher 'Debian' --offer 'debian-11' --sku '11-gen2' \
+        #     --query "[?publisher == 'Debian' && offer == 'debian-11'].{ sku: sku, version: version }" --output table
+        vm_image='Debian:debian-11:11-gen2:0.20210814.734'
+        ;;
+
+    'platform:el8')
+        # az vm image list --all \
+        #     --publisher 'almalinux' --offer 'almalinux' --sku '8_4-gen2' \
+        #     --query "[?publisher == 'almalinux' && offer == 'almalinux'].{ sku: sku, version: version }" --output table
+        vm_image='almalinux:almalinux:8_4-gen2:8.4.20210729'
         ;;
 
     'ubuntu:18.04')
@@ -772,6 +804,18 @@ case "$OS" in
         '
         ;;
 
+    platform:el*)
+        ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            set -euxo pipefail
+
+            sudo yum -y update
+
+            # The get-twin tests need perl
+            sudo yum -y install perl
+        '
+        ;;
+
+
     *)
         echo "Unsupported OS $OS" >&2
         exit 1
@@ -805,7 +849,7 @@ fi
 
 echo 'Installing package...' >&2
 case "$OS" in
-    centos:*)
+    centos:*|platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
