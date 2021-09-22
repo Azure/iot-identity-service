@@ -11,11 +11,21 @@ mkdir -p packages
 
 
 case "$OS" in
-    'centos:7')
+    'centos:7'|'platform:el8')
         case "$ARCH" in
             'arm32v7'|'aarch64')
-                echo 'Cross-compilation on CentOS 7 is not supported' >&2
+                echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
+                ;;
+        esac
+
+        case "$OS" in
+            'centos:7')
+                TARGET_DIR="centos7/$ARCH"
+                ;;
+
+            'platform:el8')
+                TARGET_DIR="el8/$ARCH"
                 ;;
         esac
 
@@ -25,18 +35,18 @@ case "$OS" in
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 rpm
 
-        rm -rf "packages/centos7/$ARCH"
-        mkdir -p "packages/centos7/$ARCH"
+        rm -rf "packages/$TARGET_DIR"
+        mkdir -p "packages/$TARGET_DIR"
         cp \
             ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
             ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
             ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
             ~/"rpmbuild/SRPMS/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.src.rpm" \
-            "packages/centos7/$ARCH/"
+            "packages/$TARGET_DIR/"
         ;;
 
-    'debian:9'|'debian:10'|'ubuntu:18.04'|'ubuntu:20.04')
-        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make dh-systemd
+    'debian:9'|'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
+        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 deb
 
@@ -48,6 +58,11 @@ case "$OS" in
 
             'debian:10')
                 TARGET_DIR="debian10/$ARCH"
+                DBGSYM_EXT='deb'
+                ;;
+
+            'debian:11')
+                TARGET_DIR="debian11/$ARCH"
                 DBGSYM_EXT='deb'
                 ;;
 
