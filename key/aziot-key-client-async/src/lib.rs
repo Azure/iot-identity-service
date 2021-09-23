@@ -95,7 +95,7 @@ impl Client {
 
         http_common::request_no_content(
             &self.inner,
-            http::Method::GET,
+            http::Method::DELETE,
             &format!("http://keyd.sock/keypair?api-version={}", self.api_version),
             Some(&body),
         )
@@ -164,7 +164,7 @@ impl Client {
 
         http_common::request_no_content(
             &self.inner,
-            http::Method::GET,
+            http::Method::DELETE,
             &format!("http://keyd.sock/key?api-version={}", self.api_version),
             Some(&body),
         )
