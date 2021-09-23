@@ -78,6 +78,9 @@ pub struct Est {
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
 #[derive(Clone, Debug, PartialEq)]
 pub struct EstAuth {
+    // Headers to inject into authentication request.
+    pub headers: Option<std::collections::BTreeMap<String, String>>,
+
     /// Authentication parameters when using basic HTTP authentication.
     pub basic: Option<EstAuthBasic>,
 
@@ -128,6 +131,8 @@ pub(crate) struct EstAuthInner {
     identity_pk: Option<String>,
     bootstrap_identity_cert: Option<String>,
     bootstrap_identity_pk: Option<String>,
+
+    headers: Option<std::collections::BTreeMap<String, String>>
 }
 
 impl<'de> serde::Deserialize<'de> for Est {
@@ -239,7 +244,7 @@ where
     if let Some(inner) = inner {
         let auth = deserialize_auth_inner(inner).map_err(serde::de::Error::missing_field)?;
 
-        if auth.basic.is_some() || auth.x509.is_some() {
+        if auth.headers.is_some() || auth.basic.is_some() || auth.x509.is_some() {
             return Ok(Some(auth));
         }
     }
@@ -347,6 +352,7 @@ fn deserialize_auth_inner(auth: EstAuthInner) -> Result<EstAuth, &'static str> {
     };
 
     Ok(EstAuth {
+        headers: auth.headers,
         basic: auth_basic,
         x509: auth_x509,
     })
@@ -427,6 +433,7 @@ certs = ["test"]
                 cert_issuance: super::CertIssuance {
                     est: Some(super::Est {
                         auth: super::EstAuth {
+                            headers: None,
                             basic: None,
                             x509: Some(super::EstAuthX509 {
                                 identity: ("est-id".to_owned(), "est-id".to_owned()),
@@ -477,6 +484,7 @@ certs = ["test"]
                                             .unwrap()
                                     ),
                                     auth: Some(super::EstAuth {
+                                        headers: None,
                                         basic: Some(super::EstAuthBasic {
                                             username: "username".to_owned(),
                                             password: "password".to_owned(),

@@ -1,10 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::collections::BTreeMap;
+use std::convert::AsRef;
+
 use http_common::MaybeProxyConnector;
 
 pub(crate) async fn create_cert(
     csr: Vec<u8>,
     url: &url::Url,
+    headers: &BTreeMap<impl AsRef<str>, impl AsRef<str>>,
     basic_auth: Option<(&str, &str)>,
     client_cert: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
     trusted_certs: Vec<openssl::x509::X509>,
@@ -56,7 +60,9 @@ pub(crate) async fn create_cert(
         (simple_enroll_request, ca_certs_request)
     };
 
-    let simple_enroll_request = simple_enroll_request
+    let simple_enroll_request = headers
+        .into_iter()
+        .fold(simple_enroll_request, |req, (k, v)| req.header(k.as_ref(), v.as_ref()))
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
         .body(csr.into());

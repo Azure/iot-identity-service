@@ -412,6 +412,12 @@ fn create_cert<'a>(
                         ))
                     })?;
 
+                    let headers = auth
+                        .headers
+                        .as_ref()
+                        .map(Clone::clone)
+                        .unwrap_or_default();
+
                     let auth_basic = auth
                         .basic
                         .as_ref()
@@ -491,6 +497,7 @@ fn create_cert<'a>(
                                 let x509 = est::create_cert(
                                     csr.to_owned(),
                                     url,
+                                    &headers,
                                     auth_basic,
                                     Some((&identity_cert, &identity_private_key)),
                                     trusted_certs_x509,
@@ -718,6 +725,7 @@ fn create_cert<'a>(
                                         let x509 = est::create_cert(
                                             identity_csr,
                                             url,
+                                            &headers,
                                             auth_basic,
                                             Some((
                                                 &bootstrap_identity_cert,
@@ -768,6 +776,7 @@ fn create_cert<'a>(
                         let x509 = est::create_cert(
                             csr.to_owned(),
                             url,
+                            &headers,
                             auth_basic,
                             None,
                             trusted_certs_x509,

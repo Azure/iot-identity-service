@@ -12,7 +12,7 @@ openssl = "0.10"
 serde = { version = "1", features = ["derive"] }
 url = { version = "2", features = ["serde"] }
 
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = [ "tokio1" ] }
 
 [dev-dependencies]
 toml = "0.5"
