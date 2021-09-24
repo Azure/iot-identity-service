@@ -215,7 +215,7 @@ pub struct Est {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EstAuth {
     #[serde(flatten)]
-    pub headers: BTreeMap<String, String>,
+    pub headers: Option<BTreeMap<String, String>>,
 
     #[serde(flatten)]
     pub basic: Option<aziot_certd_config::EstAuthBasic>,

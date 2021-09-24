@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[cfg(feature = "tokio1")]
 use crate::DynRangeBounds;
 
 #[macro_export]
@@ -260,6 +261,7 @@ macro_rules! make_service {
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 #[async_trait::async_trait]
 #[allow(clippy::unused_async)]
+#[cfg(feature = "tokio1")]
 pub trait Route: Sized {
     type ApiVersion: std::cmp::PartialOrd;
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
@@ -304,6 +306,7 @@ pub trait Route: Sized {
     }
 }
 
+#[cfg(feature = "tokio1")]
 pub type RouteResponse = Result<hyper::Response<hyper::Body>, Error>;
 
 pub fn error_to_message(err: &impl std::error::Error) -> String {
