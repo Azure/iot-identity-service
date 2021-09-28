@@ -12,11 +12,14 @@
 pub mod util;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use http_common::Connector;
 use serde::{Deserialize, Serialize};
+use serde_with::with_prefix;
+use url::Url;
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
     /// Path of home directory.
     pub homedir_path: PathBuf,
@@ -48,135 +51,105 @@ pub struct Config {
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct CertIssuance {
     /// Configuration of parameters for issuing certs via EST.
     pub est: Option<Est>,
 
     /// Configuration of parameters for issuing certs via a local CA cert.
-    pub local_ca: Option<LocalCa>,
+    pub local_ca: Option<CertAuthority>,
 
     /// Map of certificate IDs to the details used to issue them.
     #[serde(flatten)]
-    pub certs: std::collections::BTreeMap<String, CertIssuanceOptions>,
+    pub certs: BTreeMap<String, CertIssuanceOptions>,
 }
 
 /// Configuration of parameters for issuing certs via EST.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Est {
     /// Authentication parameters for the EST server.
+    #[serde(flatten)]
     pub auth: EstAuth,
 
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
+    #[serde(default)]
     pub trusted_certs: Vec<String>,
 
     /// Map of certificate IDs to EST endpoint URLs.
     ///
     /// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
-    pub urls: std::collections::BTreeMap<String, url::Url>,
+    pub urls: BTreeMap<String, Url>,
 }
 
 /// Authentication parameters for the EST server.
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EstAuth {
     // Headers to inject into authentication request.
-    pub headers: Option<std::collections::BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub headers: BTreeMap<String, String>,
 
     /// Authentication parameters when using basic HTTP authentication.
+    #[serde(flatten)]
     pub basic: Option<EstAuthBasic>,
 
     /// Authentication parameters when using TLS client cert authentication.
+    #[serde(flatten)]
     pub x509: Option<EstAuthX509>,
 }
 
+impl EstAuth {
+    fn merge(mut self, other: &EstAuth) -> Self {
+        for (k, v) in other.headers.iter() {
+            if !self.headers.contains_key(k) {
+                self.headers.insert(k.clone(), v.clone());
+            }
+        }
+
+        if self.basic.is_none() {
+            self.basic = other.basic.clone();
+        }
+
+        if self.x509.is_none() {
+            self.x509 = other.x509.clone();
+        }
+
+        self
+    }
+}
+
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EstAuthX509 {
     /// Cert ID and private key ID for the identity cert.
     ///
     /// If this cert does not exist, it will be requested from the EST server,
     /// with the bootstrap identity cert used as the initial TLS client cert.
-    pub identity: (String, String),
+    #[serde(flatten, with = "prefix_identity")]
+    pub identity: CertAuthority,
 
     /// Cert ID and private key ID for the bootstrap identity cert.
     ///
     /// This is needed if the cert indicated by `identity` does not exist
     /// and thus also needs to be requested from the EST server.
-    pub bootstrap_identity: Option<(String, String)>,
+    #[serde(flatten, with = "prefix_bootstrap_identity")]
+    pub bootstrap_identity: Option<CertAuthority>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub(crate) struct EstInner {
-    #[serde(flatten)]
-    auth: EstAuthInner,
-
-    #[serde(default)]
-    trusted_certs: Vec<String>,
-
-    urls: std::collections::BTreeMap<String, url::Url>,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub(crate) struct EstAuthInner {
-    username: Option<String>,
-    password: Option<String>,
-
-    identity_cert: Option<String>,
-    identity_pk: Option<String>,
-    bootstrap_identity_cert: Option<String>,
-    bootstrap_identity_pk: Option<String>,
-
-    headers: Option<std::collections::BTreeMap<String, String>>
-}
-
-impl<'de> Deserialize<'de> for Est {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        let inner: EstInner = Deserialize::deserialize(deserializer)?;
-
-        let auth = deserialize_auth_inner(inner.auth).map_err(serde::de::Error::missing_field)?;
-
-        let trusted_certs = inner.trusted_certs;
-
-        let urls = inner.urls;
-
-        Ok(Est {
-            auth,
-            trusted_certs,
-            urls,
-        })
-    }
-}
-
-impl Serialize for Est {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        let mut inner = EstInner::default();
-
-        serialize_auth_inner(&self.auth, &mut inner.auth);
-        inner.trusted_certs = self.trusted_certs.clone();
-        inner.urls = self.urls.clone();
-
-        inner.serialize(serializer)
-    }
-}
+with_prefix!(prefix_identity "identity_");
+with_prefix!(prefix_bootstrap_identity "bootstrap_identity_");
 
 /// Configuration of parameters for issuing certs via a local CA cert.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct LocalCa {
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CertAuthority {
     /// Certificate ID.
     pub cert: String,
 
@@ -185,7 +158,7 @@ pub struct LocalCa {
 }
 
 /// Details for issuing a single cert.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CertIssuanceOptions {
     pub common_name: Option<String>,
 
@@ -215,18 +188,14 @@ where
 }
 
 /// The method used to issue a certificate.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
     #[serde(rename = "est")]
     Est {
-        url: Option<url::Url>,
-        #[serde(
-            flatten,
-            deserialize_with = "deserialize_est_auth",
-            serialize_with = "serialize_est_auth"
-        )]
+        url: Option<Url>,
+        #[serde(flatten)]
         auth: Option<EstAuth>,
     },
 
@@ -237,44 +206,14 @@ pub enum CertIssuanceMethod {
     SelfSigned,
 }
 
-fn deserialize_est_auth<'de, D>(deserializer: D) -> Result<Option<EstAuth>, D::Error>
-where
-    D: serde::de::Deserializer<'de>,
-{
-    let inner: Option<EstAuthInner> = Deserialize::deserialize(deserializer)?;
-
-    if let Some(inner) = inner {
-        let auth = deserialize_auth_inner(inner).map_err(serde::de::Error::missing_field)?;
-
-        if auth.headers.is_some() || auth.basic.is_some() || auth.x509.is_some() {
-            return Ok(Some(auth));
-        }
-    }
-
-    Ok(None)
-}
-
-fn serialize_est_auth<S>(auth: &Option<EstAuth>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::ser::Serializer,
-{
-    let mut inner = EstAuthInner::default();
-
-    if let Some(auth) = auth {
-        serialize_auth_inner(auth, &mut inner);
-    }
-
-    inner.serialize(serializer)
-}
-
 /// The location of a preloaded cert.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum PreloadedCert {
     /// A URI for the location.
     ///
     /// Only `file://` URIs are supported.
-    Uri(url::Url),
+    Uri(Url),
 
     /// A list of IDs of other certs, preloaded or otherwise.
     ///
@@ -283,30 +222,30 @@ pub enum PreloadedCert {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Endpoints {
     /// The endpoint that the certd service binds to.
-    pub aziot_certd: http_common::Connector,
+    pub aziot_certd: Connector,
 
     /// The endpoint that the keyd service binds to.
-    pub aziot_keyd: http_common::Connector,
+    pub aziot_keyd: Connector,
 }
 
 impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
-            aziot_certd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/certd.sock").into(),
+            aziot_certd: Connector::Unix {
+                socket_path: Path::new("/run/aziot/certd.sock").into(),
             },
-            aziot_keyd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/keyd.sock").into(),
+            aziot_keyd: Connector::Unix {
+                socket_path: Path::new("/run/aziot/keyd.sock").into(),
             },
         }
     }
 }
 
 /// Map of a Unix UID to certificate IDs with write access.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,
@@ -315,71 +254,11 @@ pub struct Principal {
     pub certs: Vec<String>,
 }
 
-fn deserialize_auth_inner(auth: EstAuthInner) -> Result<EstAuth, &'static str> {
-    let auth_basic = match (auth.username, auth.password) {
-        (Some(username), Some(password)) => Some(EstAuthBasic { username, password }),
-
-        (Some(_), None) => return Err("password"),
-
-        (None, Some(_)) => return Err("username"),
-
-        (None, None) => None,
-    };
-
-    let auth_x509 = match (auth.identity_cert, auth.identity_pk) {
-        (Some(identity_cert), Some(identity_pk)) => {
-            let identity = (identity_cert, identity_pk);
-
-            let bootstrap_identity =
-                match (auth.bootstrap_identity_cert, auth.bootstrap_identity_pk) {
-                    (Some(bootstrap_identity_cert), Some(bootstrap_identity_pk)) => {
-                        Some((bootstrap_identity_cert, bootstrap_identity_pk))
-                    }
-                    (Some(_), None) => return Err("bootstrap_identity_pk"),
-                    (None, Some(_)) => return Err("bootstrap_identity_cert"),
-                    (None, None) => None,
-                };
-
-            Some(EstAuthX509 {
-                identity,
-                bootstrap_identity,
-            })
-        }
-
-        (Some(_), None) => return Err("identity_pk"),
-
-        (None, Some(_)) => return Err("identity_cert"),
-
-        (None, None) => None,
-    };
-
-    Ok(EstAuth {
-        headers: auth.headers,
-        basic: auth_basic,
-        x509: auth_x509,
-    })
-}
-
-fn serialize_auth_inner(auth: &EstAuth, inner: &mut EstAuthInner) {
-    if let Some(basic) = &auth.basic {
-        inner.username = Some(basic.username.clone());
-        inner.password = Some(basic.password.clone());
-    }
-
-    if let Some(x509) = &auth.x509 {
-        inner.identity_cert = Some(x509.identity.0.clone());
-        inner.identity_pk = Some(x509.identity.1.clone());
-
-        if let Some(bootstrap_identity) = &x509.bootstrap_identity {
-            inner.bootstrap_identity_cert = Some(bootstrap_identity.0.clone());
-            inner.bootstrap_identity_pk = Some(bootstrap_identity.1.clone());
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::iter::empty;
 
     #[test]
     fn parse_config() {
@@ -438,14 +317,14 @@ certs = ["test"]
                 cert_issuance: CertIssuance {
                     est: Some(Est {
                         auth: EstAuth {
-                            headers: None,
+                            headers: empty().collect(),
                             basic: None,
                             x509: Some(EstAuthX509 {
-                                identity: ("est-id".to_owned(), "est-id".to_owned()),
-                                bootstrap_identity: Some((
-                                    "bootstrap".to_owned(),
-                                    "bootstrap".to_owned()
-                                )),
+                                identity: CertAuthority { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                                bootstrap_identity: Some(CertAuthority {
+                                    cert: "bootstrap".to_owned(),
+                                    pk: "bootstrap".to_owned()
+                                }),
                             }),
                         },
                         trusted_certs: vec!["est-ca".to_owned(),],
@@ -473,7 +352,11 @@ certs = ["test"]
                             CertIssuanceOptions {
                                 method: CertIssuanceMethod::Est {
                                     url: None,
-                                    auth: None
+                                    auth: Some(EstAuth {
+                                        headers: empty().collect(),
+                                        basic: None,
+                                        x509: None
+                                    })
                                 },
                                 common_name: Some("custom-name".to_owned()),
                                 expiry_days: None,
@@ -489,20 +372,20 @@ certs = ["test"]
                                             .unwrap()
                                     ),
                                     auth: Some(EstAuth {
-                                        headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect()),
+                                        headers: vec![("just".to_owned(), "testing".to_owned())].into_iter().collect(),
                                         basic: Some(EstAuthBasic {
                                             username: "username".to_owned(),
                                             password: "password".to_owned(),
                                         }),
                                         x509: Some(EstAuthX509 {
-                                            identity: (
-                                                "device-id".to_owned(),
-                                                "device-id".to_owned()
-                                            ),
-                                            bootstrap_identity: Some((
-                                                "bootstrap".to_owned(),
-                                                "bootstrap".to_owned()
-                                            )),
+                                            identity: CertAuthority {
+                                                cert: "device-id".to_owned(),
+                                                pk: "device-id".to_owned()
+                                            },
+                                            bootstrap_identity: Some(CertAuthority {
+                                                cert: "bootstrap".to_owned(),
+                                                pk: "bootstrap".to_owned()
+                                            }),
                                         })
                                     })
                                 },
@@ -554,11 +437,11 @@ certs = ["test"]
                 .collect(),
 
                 endpoints: Endpoints {
-                    aziot_certd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/certd.sock").into()
+                    aziot_certd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
-                    aziot_keyd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
+                    aziot_keyd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
 
@@ -592,11 +475,11 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                 preloaded_certs: Default::default(),
 
                 endpoints: Endpoints {
-                    aziot_certd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/certd.sock").into()
+                    aziot_certd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
-                    aziot_keyd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
+                    aziot_keyd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/keyd.sock").into()
                     },
                 },
 

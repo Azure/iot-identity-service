@@ -22,7 +22,7 @@ mod http;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertIssuanceOptions, Config, Endpoints, EstAuthBasic,
-    EstAuthX509, LocalCa, PreloadedCert, Principal,
+    EstAuthX509, CertAuthority, PreloadedCert, Principal,
 };
 
 use config_common::watcher::UpdateConfig;
@@ -447,7 +447,7 @@ fn create_cert<'a>(
                     }
 
                     if let Some(EstAuthX509 {
-                        identity: (identity_cert, identity_private_key),
+                        identity: CertAuthority { cert: identity_cert, pk: identity_private_key},
                         bootstrap_identity,
                     }) = &auth.x509
                     {
@@ -521,10 +521,10 @@ fn create_cert<'a>(
 
                             Err(identity_err) => {
                                 // EST identity cert could not be loaded. We need to issue a new one using the EST bootstrap identity cert.
-                                let bootstrap_identity = if let Some((
-                                    bootstrap_identity_cert,
-                                    bootstrap_identity_private_key,
-                                )) = bootstrap_identity
+                                let bootstrap_identity = if let Some(CertAuthority {
+                                    cert: bootstrap_identity_cert,
+                                    pk: bootstrap_identity_private_key,
+                                }) = bootstrap_identity
                                 {
                                     match get_cert_inner(&api.homedir_path, &api.preloaded_certs, bootstrap_identity_cert) {
                                         Ok(Some(bootstrap_identity_cert)) => match api.key_client.load_key_pair(bootstrap_identity_private_key) {
@@ -803,7 +803,7 @@ fn create_cert<'a>(
                     // Indirect reference to the local CA. Look it up.
 
                     let (issuer_cert, issuer_private_key) = match &api.cert_issuance.local_ca {
-                        Some(LocalCa { cert, pk }) => {
+                        Some(CertAuthority { cert, pk }) => {
                             let private_key =
                                 api.key_client.load_key_pair(pk).map_err(|err| {
                                     Error::Internal(InternalError::CreateCert(Box::new(err)))
