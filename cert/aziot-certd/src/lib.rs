@@ -488,7 +488,7 @@ fn create_cert<'a>(
                                     })?;
 
                                 let x509 = est::create_cert(
-                                    csr.to_owned(),
+                                    csr,
                                     url,
                                     auth_basic,
                                     Some((&identity_cert, &identity_private_key)),
@@ -703,7 +703,7 @@ fn create_cert<'a>(
                                             })?;
 
                                         let x509 = est::create_cert(
-                                            identity_csr,
+                                            &identity_csr,
                                             url,
                                             auth_basic,
                                             Some((
@@ -753,7 +753,7 @@ fn create_cert<'a>(
                         // We need to only use basic auth with the EST server.
 
                         let x509 = est::create_cert(
-                            csr.to_owned(),
+                            csr,
                             url,
                             auth_basic,
                             None,

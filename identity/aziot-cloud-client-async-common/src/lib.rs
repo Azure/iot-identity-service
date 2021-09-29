@@ -78,7 +78,7 @@ pub async fn get_x509_connector(
 
     let proxy_connector = MaybeProxyConnector::new(
         proxy_uri,
-        Some((&device_id_private_key, &device_id_certs)),
+        Some((&device_id_certs, &device_id_private_key)),
         &[],
     )?;
     Ok(proxy_connector)

@@ -99,7 +99,7 @@ pub enum MaybeProxyConnector<C> {
 impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
     pub fn new(
         proxy_uri: Option<hyper::Uri>,
-        identity: Option<(&openssl::pkey::PKeyRef<openssl::pkey::Private>, &[u8])>,
+        identity: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
         trusted_certs: &[openssl::x509::X509],
     ) -> io::Result<Self> {
         let mut http_connector = hyper::client::HttpConnector::new();
@@ -138,7 +138,7 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
 }
 
 fn make_tls_connector(
-    identity: Option<(&openssl::pkey::PKeyRef<openssl::pkey::Private>, &[u8])>,
+    identity: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
     trusted_certs: &[openssl::x509::X509],
 ) -> io::Result<openssl::ssl::SslConnectorBuilder> {
     let mut tls_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls())?;
@@ -148,7 +148,7 @@ fn make_tls_connector(
         cert_store.add_cert(trusted_cert.clone())?;
     }
 
-    if let Some((key, certs)) = identity {
+    if let Some((certs, private_key)) = identity {
         let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
         let client_cert = device_id_certs.next().ok_or_else(|| {
             io::Error::new(io::ErrorKind::Other, "device identity cert not found")
@@ -160,7 +160,7 @@ fn make_tls_connector(
             tls_connector.add_extra_chain_cert(cert)?;
         }
 
-        tls_connector.set_private_key(key)?;
+        tls_connector.set_private_key(private_key)?;
     }
 
     Ok(tls_connector)
