@@ -291,6 +291,7 @@ impl Client {
             }
 
             current_attempt += 1;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         };
 
         Ok(res)

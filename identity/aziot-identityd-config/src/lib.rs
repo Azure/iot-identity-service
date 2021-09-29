@@ -45,7 +45,7 @@ impl Settings {
     }
 
     pub fn default_cloud_retries() -> u32 {
-        0
+        1
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
