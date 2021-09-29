@@ -21,17 +21,8 @@ pub(crate) async fn create_cert(
                 .unwrap_or(csr)
         });
 
-    let proxy_connector = match client_cert {
-        Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
-            proxy_uri,
-            Some((device_id_private_key, device_id_certs)),
-            &trusted_certs,
-        )
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?,
-        None => MaybeProxyConnector::new(proxy_uri, None, &[]).map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?,
-    };
+    let proxy_connector = MaybeProxyConnector::new(proxy_uri, client_cert, &trusted_certs)
+        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
 
     let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(proxy_connector);
 
