@@ -1,3 +1,5 @@
+dps_trust_bundle = "my-dps-trust-bundle"
+
 [provisioning]
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"

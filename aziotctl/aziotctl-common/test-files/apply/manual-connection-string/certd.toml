@@ -3,3 +3,7 @@ homedir_path = "/var/lib/aziot/certd"
 [cert_issuance]
 
 [preloaded_certs]
+
+[[principal]]
+uid = 5556
+certs = ["aziot-dps-trust-bundle"]

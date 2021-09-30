@@ -14,4 +14,4 @@ est-id-device-id = "file:///var/secrets/est-id.pem"
 
 [[principal]]
 uid = 5556
-certs = ["device-id"]
+certs = ["aziot-dps-trust-bundle", "device-id"]
