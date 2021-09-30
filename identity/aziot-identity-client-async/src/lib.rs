@@ -242,6 +242,12 @@ impl Client {
             match http_common::request(&self.inner, method.clone(), uri, body).await {
                 Ok(response) => return Ok(response),
                 Err(err) => {
+                    log::warn!(
+                        "Failed to communicate with Identity Service (attempt {} of {}): {}",
+                        retry_num + 1,
+                        self.max_retries + 1,
+                        err
+                    );
                     if retry_num < self.max_retries {
                         retry_num += 1;
                         continue;
@@ -267,6 +273,12 @@ impl Client {
             match http_common::request_no_content(&self.inner, method.clone(), uri, body).await {
                 Ok(()) => return Ok(()),
                 Err(err) => {
+                    log::warn!(
+                        "Failed to communicate with Identity Service (attempt {} of {}): {}",
+                        retry_num + 1,
+                        self.max_retries + 1,
+                        err
+                    );
                     if retry_num < self.max_retries {
                         retry_num += 1;
                         continue;

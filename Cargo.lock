@@ -245,6 +245,7 @@ dependencies = [
  "http",
  "http-common",
  "hyper",
+ "log",
  "percent-encoding",
  "serde",
 ]
