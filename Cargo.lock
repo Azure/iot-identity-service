@@ -248,6 +248,7 @@ dependencies = [
  "log",
  "percent-encoding",
  "serde",
+ "tokio",
 ]
 
 [[package]]

@@ -250,10 +250,11 @@ impl Client {
                     );
                     if retry_num < self.max_retries {
                         retry_num += 1;
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
                         continue;
-                    } else {
-                        return Err(err);
                     }
+                    return Err(err);
                 }
             }
         }
@@ -281,10 +282,11 @@ impl Client {
                     );
                     if retry_num < self.max_retries {
                         retry_num += 1;
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
                         continue;
-                    } else {
-                        return Err(err);
                     }
+                    return Err(err);
                 }
             }
         }
