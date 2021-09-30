@@ -12,11 +12,13 @@
 pub mod util;
 
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 
 use http_common::Connector;
 use serde::{Deserialize, Serialize};
-use serde_with::with_prefix;
+use serde::de::Error as _;
+use serde_with::{skip_serializing_none, with_prefix};
 use url::Url;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -67,13 +69,14 @@ pub struct CertIssuance {
 /// Configuration of parameters for issuing certs via EST.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Est {
-    /// Authentication parameters for the EST server.
-    #[serde(flatten)]
-    pub auth: EstAuth,
-
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
     #[serde(default)]
     pub trusted_certs: Vec<String>,
+
+    /// Authentication parameters for the EST server.
+    // NOTE: DO NOT MOVE. Tables must be after values!
+    #[serde(flatten)]
+    pub auth: EstAuth,
 
     /// Map of certificate IDs to EST endpoint URLs.
     ///
@@ -84,12 +87,10 @@ pub struct Est {
 /// Authentication parameters for the EST server.
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[skip_serializing_none]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(try_from = "_EstAuth")]
 pub struct EstAuth {
-    // Headers to inject into authentication request.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub headers: BTreeMap<String, String>,
-
     /// Authentication parameters when using basic HTTP authentication.
     #[serde(flatten)]
     pub basic: Option<EstAuthBasic>,
@@ -97,25 +98,32 @@ pub struct EstAuth {
     /// Authentication parameters when using TLS client cert authentication.
     #[serde(flatten)]
     pub x509: Option<EstAuthX509>,
+
+    // Headers to inject into authentication request.
+    pub headers: Option<BTreeMap<String, String>>
+
 }
 
-impl EstAuth {
-    fn merge(mut self, other: &EstAuth) -> Self {
-        for (k, v) in other.headers.iter() {
-            if !self.headers.contains_key(k) {
-                self.headers.insert(k.clone(), v.clone());
-            }
-        }
+#[derive(Deserialize)]
+struct _EstAuth {
+    #[serde(flatten)]
+    pub basic: Option<EstAuthBasic>,
+    #[serde(flatten)]
+    pub x509: Option<EstAuthX509>,
+    pub headers: Option<BTreeMap<String, String>>
+}
 
-        if self.basic.is_none() {
-            self.basic = other.basic.clone();
-        }
+impl TryFrom<_EstAuth> for EstAuth {
+    type Error = serde::de::value::Error;
 
-        if self.x509.is_none() {
-            self.x509 = other.x509.clone();
+    fn try_from(value: _EstAuth) -> Result<Self, Self::Error> {
+        let _EstAuth { basic, x509, headers } = value;
+        if basic.is_none() && x509.is_none() && headers.is_none() {
+            Err(Self::Error::missing_field("empty authentication parameters"))
         }
-
-        self
+        else {
+            Ok(Self { basic, x509, headers })
+        }
     }
 }
 
@@ -192,7 +200,6 @@ where
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
-    #[serde(rename = "est")]
     Est {
         url: Option<Url>,
         #[serde(flatten)]
@@ -244,6 +251,10 @@ impl Default for Endpoints {
     }
 }
 
+// cf. https://github.com/alexcrichton/toml-rs/blob/0.5.8/src/ser.rs#L1580-L1606
+// LICENSE: https://raw.githubusercontent.com/alexcrichton/toml-rs/0.5.8/LICENSE-MIT
+// fn tables_last_opt<'a, I, K, V> { }
+
 /// Map of a Unix UID to certificate IDs with write access.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Principal {
@@ -257,8 +268,6 @@ pub struct Principal {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::iter::empty;
 
     #[test]
     fn parse_config() {
@@ -316,8 +325,8 @@ certs = ["test"]
 
                 cert_issuance: CertIssuance {
                     est: Some(Est {
+                        trusted_certs: vec!["est-ca".to_owned(),],
                         auth: EstAuth {
-                            headers: empty().collect(),
                             basic: None,
                             x509: Some(EstAuthX509 {
                                 identity: CertAuthority { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
@@ -326,8 +335,8 @@ certs = ["test"]
                                     pk: "bootstrap".to_owned()
                                 }),
                             }),
+                            headers: None
                         },
-                        trusted_certs: vec!["est-ca".to_owned(),],
                         urls: vec![
                             (
                                 "default".to_owned(),
@@ -341,7 +350,7 @@ certs = ["test"]
                             ),
                         ]
                         .into_iter()
-                        .collect(),
+                        .collect()
                     }),
 
                     local_ca: None,
@@ -352,11 +361,7 @@ certs = ["test"]
                             CertIssuanceOptions {
                                 method: CertIssuanceMethod::Est {
                                     url: None,
-                                    auth: Some(EstAuth {
-                                        headers: empty().collect(),
-                                        basic: None,
-                                        x509: None
-                                    })
+                                    auth: None
                                 },
                                 common_name: Some("custom-name".to_owned()),
                                 expiry_days: None,
@@ -372,7 +377,6 @@ certs = ["test"]
                                             .unwrap()
                                     ),
                                     auth: Some(EstAuth {
-                                        headers: vec![("just".to_owned(), "testing".to_owned())].into_iter().collect(),
                                         basic: Some(EstAuthBasic {
                                             username: "username".to_owned(),
                                             password: "password".to_owned(),
@@ -386,7 +390,8 @@ certs = ["test"]
                                                 cert: "bootstrap".to_owned(),
                                                 pk: "bootstrap".to_owned()
                                             }),
-                                        })
+                                        }),
+                                        headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
                                     })
                                 },
                                 common_name: Some("test-device".to_owned()),
@@ -485,6 +490,153 @@ aziot_certd = "unix:///run/aziot/certd.sock"
 
                 principal: Default::default(),
             }
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn serialize_config() {
+        let configuration = Config {
+            homedir_path: "/var/lib/aziot/certd".into(),
+
+            cert_issuance: CertIssuance {
+                est: Some(Est {
+                    trusted_certs: vec!["est-ca".to_owned(),],
+                    auth: EstAuth {
+                        basic: None,
+                        x509: Some(EstAuthX509 {
+                            identity: CertAuthority { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                            bootstrap_identity: Some(CertAuthority {
+                                cert: "bootstrap".to_owned(),
+                                pk: "bootstrap".to_owned()
+                            }),
+                        }),
+                        headers: None
+                    },
+                    urls: vec![
+                        (
+                            "default".to_owned(),
+                            "https://estendpoint.com/.well-known/est/".parse().unwrap()
+                        ),
+                        (
+                            "device-ca".to_owned(),
+                            "https://estendpoint.com/.well-known/est/device-ca/"
+                                .parse()
+                                .unwrap()
+                        ),
+                    ]
+                    .into_iter()
+                    .collect()
+                }),
+
+                local_ca: None,
+
+                certs: [
+                    (
+                        "device-ca",
+                        CertIssuanceOptions {
+                            method: CertIssuanceMethod::Est {
+                                url: None,
+                                auth: None
+                            },
+                            common_name: Some("custom-name".to_owned()),
+                            expiry_days: None,
+                        }
+                    ),
+                    (
+                        "device-id",
+                        CertIssuanceOptions {
+                            method: CertIssuanceMethod::Est {
+                                url: Some(
+                                    "https://estendpoint.com/.well-known/est/device-id/"
+                                        .parse()
+                                        .unwrap()
+                                ),
+                                auth: Some(EstAuth {
+                                    basic: Some(EstAuthBasic {
+                                        username: "username".to_owned(),
+                                        password: "password".to_owned(),
+                                    }),
+                                    x509: Some(EstAuthX509 {
+                                        identity: CertAuthority {
+                                            cert: "device-id".to_owned(),
+                                            pk: "device-id".to_owned()
+                                        },
+                                        bootstrap_identity: Some(CertAuthority {
+                                            cert: "bootstrap".to_owned(),
+                                            pk: "bootstrap".to_owned()
+                                        }),
+                                    }),
+                                    headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
+                                })
+                            },
+                            common_name: Some("test-device".to_owned()),
+                            expiry_days: Some(365)
+                        }
+                    ),
+                    (
+                        "module-id",
+                        CertIssuanceOptions {
+                            method: CertIssuanceMethod::SelfSigned,
+                            common_name: Some("custom-name".to_owned()),
+                            expiry_days: Some(90),
+                        }
+                    ),
+                    (
+                        "module-server",
+                        CertIssuanceOptions {
+                            method: CertIssuanceMethod::LocalCa,
+                            common_name: None,
+                            expiry_days: None,
+                        }
+                    ),
+                ]
+                .iter()
+                .map(|(id, options)| ((*id).to_owned(), options.clone()))
+                .collect(),
+            },
+
+            preloaded_certs: vec![
+                (
+                    "bootstrap".to_owned(),
+                    PreloadedCert::Uri(
+                        "file:///var/secrets/bootstrap.cer".parse().unwrap()
+                    )
+                ),
+                (
+                    "est-ca".to_owned(),
+                    PreloadedCert::Uri(
+                        "file:///var/secrets/est-ca.cer".parse().unwrap()
+                    )
+                ),
+                (
+                    "trust-bundle".to_owned(),
+                    PreloadedCert::Ids(vec!["est-ca".to_owned()])
+                ),
+            ]
+            .into_iter()
+            .collect(),
+
+            endpoints: Endpoints {
+                aziot_certd: Connector::Unix {
+                    socket_path: Path::new("/run/aziot/certd.sock").into()
+                },
+                aziot_keyd: Connector::Unix {
+                    socket_path: Path::new("/run/aziot/keyd.sock").into()
+                },
+            },
+
+            principal: vec![Principal {
+                uid: 1000,
+                certs: vec!["test".to_string()]
+            }],
+        };
+
+        let serialized = toml::to_string(&configuration).unwrap();
+
+        assert_eq!(
+            configuration,
+            toml::from_str(&serialized).unwrap()
         );
     }
 }
