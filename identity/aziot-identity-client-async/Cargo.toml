@@ -8,6 +8,7 @@ edition = "2018"
 http = "0.2"
 hyper = "0.14"
 percent-encoding = "2"
+serde = "1"
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }

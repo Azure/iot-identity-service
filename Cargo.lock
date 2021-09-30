@@ -246,6 +246,7 @@ dependencies = [
  "http-common",
  "hyper",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

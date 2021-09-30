@@ -93,6 +93,7 @@ async fn reprovision(uri: &url::Url) -> Result<()> {
     let client = aziot_identity_client_async::Client::new(
         aziot_identity_common_http::ApiVersion::V2020_09_01,
         connector,
+        0,
     );
 
     match client.reprovision().await {
