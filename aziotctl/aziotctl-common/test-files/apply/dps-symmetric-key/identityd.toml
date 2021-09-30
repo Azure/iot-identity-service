@@ -1,5 +1,6 @@
 hostname = "my-device"
 homedir = "/var/lib/aziot/identityd"
+dps_trust_bundle = "my-dps-trust-bundle"
 
 [provisioning]
 source = "dps"
