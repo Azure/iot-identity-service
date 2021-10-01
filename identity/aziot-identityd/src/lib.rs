@@ -135,6 +135,7 @@ impl Api {
             let cert_client = aziot_cert_client_async::Client::new(
                 aziot_cert_common_http::ApiVersion::V2020_09_01,
                 cert_service_connector,
+                1,
             );
             let cert_client = Arc::new(cert_client);
             cert_client

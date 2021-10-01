@@ -52,6 +52,7 @@ async fn main() -> Result<(), Error> {
         let cert_client = aziot_cert_client_async::Client::new(
             aziot_cert_common_http::ApiVersion::V2020_09_01,
             cert_connector,
+            1,
         );
         let cert_client = std::sync::Arc::new(cert_client);
         cert_client
