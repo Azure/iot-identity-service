@@ -56,7 +56,7 @@ pub async fn request_no_content<TRequest>(
 where
     TRequest: serde::Serialize,
 {
-    request_internal(client, method, uri, None, None, body, false).await
+    request_internal::<_, _, ()>(client, method, uri, None, None, body, false).await
 }
 
 pub async fn request_no_content_with_retry<TRequest>(
@@ -69,7 +69,7 @@ pub async fn request_no_content_with_retry<TRequest>(
 where
     TRequest: serde::Serialize,
 {
-    request_internal(client, method, uri, None, Some(max_retries), body, false).await
+    request_internal::<_, _, ()>(client, method, uri, None, Some(max_retries), body, false).await
 }
 
 pub async fn request_with_headers_no_content<TUri, TRequest>(
@@ -85,9 +85,10 @@ where
     TRequest: serde::Serialize,
     TUri: Clone,
 {
-    request_internal(client, method, uri, headers, None, body, false).await
+    request_internal::<_, _, ()>(client, method, uri, headers, None, body, false).await
 }
 
+// Note that if has_response is false, TResponse must be (). This is a workaround until generic specialization is stable.
 async fn request_internal<TUri, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
@@ -145,6 +146,7 @@ where
     }
 }
 
+// Note max_retries only retries ConnectionClosed. ConnectionClosed represents too many requests for IS.
 async fn make_call<TUri, TRequest>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
