@@ -250,6 +250,6 @@ fn validate_json(headers: hyper::HeaderMap) -> std::io::Result<()> {
 mod test {
     #[test]
     fn unit_type_deserializes() {
-        let _: () = serde_json::from_slice(b"null").expect("Deserializing null type cannot fail");
+       serde_json::from_slice::<()>(b"null").expect("Deserializing null type cannot fail");
     }
 }
