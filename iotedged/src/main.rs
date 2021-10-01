@@ -42,6 +42,7 @@ async fn main() -> Result<(), Error> {
         let key_client = aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
             key_connector,
+            1,
         );
         let key_client = std::sync::Arc::new(key_client);
         key_client

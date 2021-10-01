@@ -8,15 +8,21 @@
 pub struct Client {
     api_version: aziot_key_common_http::ApiVersion,
     inner: hyper::Client<http_common::Connector, hyper::Body>,
+    max_retries: u32,
 }
 
 impl Client {
     pub fn new(
         api_version: aziot_key_common_http::ApiVersion,
         connector: http_common::Connector,
+        max_retries: u32,
     ) -> Self {
         let inner = connector.into_client();
-        Client { api_version, inner }
+        Client {
+            api_version,
+            inner,
+            max_retries,
+        }
     }
 
     pub async fn create_key_pair_if_not_exists(
@@ -30,18 +36,19 @@ impl Client {
         };
 
         let res: aziot_key_common_http::create_key_pair_if_not_exists::Response =
-            http_common::request(
+            http_common::request_with_retry(
                 &self.inner,
                 http::Method::POST,
                 &format!("http://keyd.sock/keypair?api-version={}", self.api_version),
                 Some(&body),
+                self.max_retries,
             )
             .await?;
         Ok(res.handle)
     }
 
     pub async fn load_key_pair(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
-        let res: aziot_key_common_http::load::Response = http_common::request::<(), _>(
+        let res: aziot_key_common_http::load::Response = http_common::request_with_retry::<(), _>(
             &self.inner,
             http::Method::GET,
             &format!(
@@ -53,6 +60,7 @@ impl Client {
                 self.api_version,
             ),
             None,
+            self.max_retries,
         )
         .await?;
         Ok(res.handle)
@@ -68,7 +76,7 @@ impl Client {
         };
 
         let res: aziot_key_common_http::get_key_pair_public_parameter::Response =
-            http_common::request(
+            http_common::request_with_retry(
                 &self.inner,
                 http::Method::POST,
                 &format!(
@@ -80,6 +88,7 @@ impl Client {
                     self.api_version,
                 ),
                 Some(&body),
+                self.max_retries,
             )
             .await?;
         Ok(res.value)
@@ -93,11 +102,12 @@ impl Client {
             key_handle: key_handle.clone(),
         };
 
-        http_common::request_no_content(
+        http_common::request_no_content_with_retry(
             &self.inner,
             http::Method::DELETE,
             &format!("http://keyd.sock/keypair?api-version={}", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         Ok(())
@@ -126,18 +136,20 @@ impl Client {
             }
         };
 
-        let res: aziot_key_common_http::create_key_if_not_exists::Response = http_common::request(
-            &self.inner,
-            http::Method::POST,
-            &format!("http://keyd.sock/key?api-version={}", self.api_version),
-            Some(&body),
-        )
-        .await?;
+        let res: aziot_key_common_http::create_key_if_not_exists::Response =
+            http_common::request_with_retry(
+                &self.inner,
+                http::Method::POST,
+                &format!("http://keyd.sock/key?api-version={}", self.api_version),
+                Some(&body),
+                self.max_retries,
+            )
+            .await?;
         Ok(res.handle)
     }
 
     pub async fn load_key(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
-        let res: aziot_key_common_http::load::Response = http_common::request::<(), _>(
+        let res: aziot_key_common_http::load::Response = http_common::request_with_retry::<(), _>(
             &self.inner,
             http::Method::GET,
             &format!(
@@ -149,6 +161,7 @@ impl Client {
                 self.api_version,
             ),
             None,
+            self.max_retries,
         )
         .await?;
         Ok(res.handle)
@@ -162,11 +175,12 @@ impl Client {
             key_handle: key_handle.clone(),
         };
 
-        http_common::request_no_content(
+        http_common::request_no_content_with_retry(
             &self.inner,
             http::Method::DELETE,
             &format!("http://keyd.sock/key?api-version={}", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         Ok(())
@@ -182,16 +196,18 @@ impl Client {
             derivation_data: http_common::ByteString(derivation_data.to_owned()),
         };
 
-        let res: aziot_key_common_http::create_derived_key::Response = http_common::request(
-            &self.inner,
-            http::Method::POST,
-            &format!(
-                "http://keyd.sock/derivedkey?api-version={}",
-                self.api_version
-            ),
-            Some(&body),
-        )
-        .await?;
+        let res: aziot_key_common_http::create_derived_key::Response =
+            http_common::request_with_retry(
+                &self.inner,
+                http::Method::POST,
+                &format!(
+                    "http://keyd.sock/derivedkey?api-version={}",
+                    self.api_version
+                ),
+                Some(&body),
+                self.max_retries,
+            )
+            .await?;
         Ok(res.handle)
     }
 
@@ -203,16 +219,18 @@ impl Client {
             handle: handle.clone(),
         };
 
-        let res: aziot_key_common_http::export_derived_key::Response = http_common::request(
-            &self.inner,
-            http::Method::POST,
-            &format!(
-                "http://keyd.sock/derivedkey/export?api-version={}",
-                self.api_version
-            ),
-            Some(&body),
-        )
-        .await?;
+        let res: aziot_key_common_http::export_derived_key::Response =
+            http_common::request_with_retry(
+                &self.inner,
+                http::Method::POST,
+                &format!(
+                    "http://keyd.sock/derivedkey/export?api-version={}",
+                    self.api_version
+                ),
+                Some(&body),
+                self.max_retries,
+            )
+            .await?;
         Ok(res.key.0)
     }
 
@@ -239,11 +257,12 @@ impl Client {
             },
         };
 
-        let res: aziot_key_common_http::sign::Response = http_common::request(
+        let res: aziot_key_common_http::sign::Response = http_common::request_with_retry(
             &self.inner,
             http::Method::POST,
             &format!("http://keyd.sock/sign?api-version={}", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         let signature = res.signature.0;
@@ -277,11 +296,12 @@ impl Client {
             plaintext: http_common::ByteString(plaintext.to_owned()),
         };
 
-        let res: aziot_key_common_http::encrypt::Response = http_common::request(
+        let res: aziot_key_common_http::encrypt::Response = http_common::request_with_retry(
             &self.inner,
             http::Method::POST,
             &format!("http://keyd.sock/encrypt?api-version={}", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         let ciphertext = res.ciphertext.0;
@@ -315,11 +335,12 @@ impl Client {
             ciphertext: http_common::ByteString(ciphertext.to_owned()),
         };
 
-        let res: aziot_key_common_http::decrypt::Response = http_common::request(
+        let res: aziot_key_common_http::decrypt::Response = http_common::request_with_retry(
             &self.inner,
             http::Method::POST,
             &format!("http://keyd.sock/decrypt?api-version={}", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         let plaintext = res.plaintext.0;
