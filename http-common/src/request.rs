@@ -122,7 +122,7 @@ where
             if res_status_code.is_success()
                 || res_status_code == hyper::StatusCode::NOT_MODIFIED =>
         {
-            let res = serde_json::from_slice(b"").expect("Deserializing null type cannot fail");
+            let res = serde_json::from_slice(b"null").expect("Deserializing null type cannot fail");
             Ok(res)
         }
 
@@ -242,4 +242,12 @@ fn validate_json(headers: hyper::HeaderMap) -> std::io::Result<()> {
         std::io::ErrorKind::Other,
         "malformed HTTP response, expected content type application/json",
     ))
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn unit_type_deserializes() {
+        let _: () = serde_json::from_slice(b"null").expect("Deserializing null type cannot fail");
+    }
 }
