@@ -7,10 +7,7 @@ edition = "2018"
 [dependencies]
 http = "0.2"
 hyper = "0.14"
-log = "0.4"
 percent-encoding = "2"
-serde = "1"
-tokio = { version = "1", features = ["time"] }
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }

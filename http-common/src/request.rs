@@ -16,6 +16,41 @@ where
     request_with_headers(client, method, uri, None, body).await
 }
 
+pub async fn request_with_retry<TRequest, TResponse>(
+    client: &hyper::Client<super::Connector, hyper::Body>,
+    method: http::Method,
+    uri: &str,
+    body: Option<&TRequest>,
+    max_retries: u32,
+) -> std::io::Result<TResponse>
+where
+    TRequest: serde::Serialize,
+    TResponse: serde::de::DeserializeOwned,
+{
+    let mut retry_num = 0;
+    loop {
+        match request(client, method.clone(), uri, body).await {
+            Ok(response) => return Ok(response),
+            Err(err) => {
+                log::warn!(
+                    "Failed request {} (attempt {} of {}): {}",
+                    uri,
+                    retry_num + 1,
+                    max_retries + 1,
+                    err
+                );
+                if retry_num < max_retries {
+                    retry_num += 1;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                    continue;
+                }
+                return Err(err);
+            }
+        }
+    }
+}
+
 pub async fn request_with_headers<TUri, TRequest, TResponse>(
     client: &hyper::Client<super::Connector, hyper::Body>,
     method: http::Method,
@@ -64,6 +99,40 @@ where
     TRequest: serde::Serialize,
 {
     request_with_headers_no_content(client, method, uri, None, body).await
+}
+
+pub async fn request_no_content_with_retry<TRequest>(
+    client: &hyper::Client<super::Connector, hyper::Body>,
+    method: http::Method,
+    uri: &str,
+    body: Option<&TRequest>,
+    max_retries: u32,
+) -> std::io::Result<()>
+where
+    TRequest: serde::Serialize,
+{
+    let mut retry_num = 0;
+    loop {
+        match request_no_content(client, method.clone(), uri, body).await {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                log::warn!(
+                    "Failed request {} (attempt {} of {}): {}",
+                    uri,
+                    retry_num + 1,
+                    max_retries + 1,
+                    err
+                );
+                if retry_num < max_retries {
+                    retry_num += 1;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+                    continue;
+                }
+                return Err(err);
+            }
+        }
+    }
 }
 
 pub async fn request_with_headers_no_content<TUri, TRequest>(

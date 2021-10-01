@@ -59,13 +59,14 @@ impl Client {
     }
 
     pub async fn get_caller_identity(&self) -> Result<Identity, std::io::Error> {
-        let res: get_caller_identity::Response = self
-            .request::<(), _>(
-                http::Method::GET,
-                make_uri!("/identities/identity", self.api_version),
-                None,
-            )
-            .await?;
+        let res: get_caller_identity::Response = http_common::request_with_retry::<(), _>(
+            &self.inner,
+            http::Method::GET,
+            make_uri!("/identities/identity", self.api_version),
+            None,
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
@@ -75,13 +76,14 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let res: get_device_identity::Response = self
-            .request(
-                http::Method::POST,
-                make_uri!("/identities/device", self.api_version),
-                Some(&body),
-            )
-            .await?;
+        let res: get_device_identity::Response = http_common::request_with_retry(
+            &self.inner,
+            http::Method::POST,
+            make_uri!("/identities/device", self.api_version),
+            Some(&body),
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
@@ -91,10 +93,12 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        self.request_no_content(
+        http_common::request_no_content_with_retry(
+            &self.inner,
             http::Method::POST,
             make_uri!("/identities/device/reprovision", self.api_version),
             Some(&body),
+            self.max_retries,
         )
         .await?;
 
@@ -111,13 +115,14 @@ impl Client {
             opts: None,
         };
 
-        let res: create_module_identity::Response = self
-            .request(
-                http::Method::POST,
-                make_uri!("/identities/modules", self.api_version),
-                Some(&body),
-            )
-            .await?;
+        let res: create_module_identity::Response = http_common::request_with_retry(
+            &self.inner,
+            http::Method::POST,
+            make_uri!("/identities/modules", self.api_version),
+            Some(&body),
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
@@ -134,13 +139,14 @@ impl Client {
             opts: opts.map(|opts| create_module_identity::CreateModuleOpts::LocalIdOpts(opts)),
         };
 
-        let res: create_module_identity::Response = self
-            .request(
-                http::Method::POST,
-                make_uri!("/identities/modules", self.api_version),
-                Some(&body),
-            )
-            .await?;
+        let res: create_module_identity::Response = http_common::request_with_retry(
+            &self.inner,
+            http::Method::POST,
+            make_uri!("/identities/modules", self.api_version),
+            Some(&body),
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
@@ -154,53 +160,57 @@ impl Client {
             module_id: module_name.to_string(),
         };
 
-        let res: update_module_identity::Response = self
-            .request(
-                http::Method::PUT,
-                make_uri!(
-                    "/identities/modules",
-                    self.api_version,
-                    ID_TYPE_AZIOT,
-                    module_name
-                ),
-                Some(&body),
-            )
-            .await?;
+        let res: update_module_identity::Response = http_common::request_with_retry(
+            &self.inner,
+            http::Method::PUT,
+            make_uri!(
+                "/identities/modules",
+                self.api_version,
+                ID_TYPE_AZIOT,
+                module_name
+            ),
+            Some(&body),
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
 
     pub async fn get_identities(&self) -> Result<Vec<Identity>, std::io::Error> {
-        let res: get_module_identities::Response = self
-            .request::<(), _>(
-                http::Method::GET,
-                make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
-                None,
-            )
-            .await?;
+        let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
+            &self.inner,
+            http::Method::GET,
+            make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
+            None,
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identities)
     }
 
     pub async fn get_identity(&self, module_name: &str) -> Result<Identity, std::io::Error> {
-        let res: get_module_identity::Response = self
-            .request::<(), _>(
-                http::Method::GET,
-                make_uri!(
-                    "/identities/modules",
-                    self.api_version,
-                    ID_TYPE_AZIOT,
-                    module_name
-                ),
-                None,
-            )
-            .await?;
+        let res: get_module_identity::Response = http_common::request_with_retry::<(), _>(
+            &self.inner,
+            http::Method::GET,
+            make_uri!(
+                "/identities/modules",
+                self.api_version,
+                ID_TYPE_AZIOT,
+                module_name
+            ),
+            None,
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.identity)
     }
 
     pub async fn delete_identity(&self, module_name: &str) -> Result<(), std::io::Error> {
-        self.request_no_content::<()>(
+        http_common::request_no_content_with_retry::<()>(
+            &self.inner,
             http::Method::DELETE,
             make_uri!(
                 "/identities/modules",
@@ -209,6 +219,7 @@ impl Client {
                 module_name
             ),
             None,
+            self.max_retries,
         )
         .await?;
 
@@ -216,79 +227,15 @@ impl Client {
     }
 
     pub async fn get_trust_bundle(&self) -> Result<aziot_cert_common_http::Pem, std::io::Error> {
-        let res: get_trust_bundle::Response = self
-            .request::<(), _>(
-                http::Method::GET,
-                make_uri!("/trust-bundle", self.api_version),
-                None,
-            )
-            .await?;
+        let res: get_trust_bundle::Response = http_common::request_with_retry::<(), _>(
+            &self.inner,
+            http::Method::GET,
+            make_uri!("/trust-bundle", self.api_version),
+            None,
+            self.max_retries,
+        )
+        .await?;
 
         Ok(res.certificate)
-    }
-
-    async fn request<TRequest, TResponse>(
-        &self,
-        method: http::Method,
-        uri: &str,
-        body: Option<&TRequest>,
-    ) -> std::io::Result<TResponse>
-    where
-        TRequest: serde::Serialize,
-        TResponse: serde::de::DeserializeOwned,
-    {
-        let mut retry_num = 0;
-        loop {
-            match http_common::request(&self.inner, method.clone(), uri, body).await {
-                Ok(response) => return Ok(response),
-                Err(err) => {
-                    log::warn!(
-                        "Failed to communicate with Identity Service (attempt {} of {}): {}",
-                        retry_num + 1,
-                        self.max_retries + 1,
-                        err
-                    );
-                    if retry_num < self.max_retries {
-                        retry_num += 1;
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-                        continue;
-                    }
-                    return Err(err);
-                }
-            }
-        }
-    }
-
-    async fn request_no_content<TRequest>(
-        &self,
-        method: http::Method,
-        uri: &str,
-        body: Option<&TRequest>,
-    ) -> std::io::Result<()>
-    where
-        TRequest: serde::Serialize,
-    {
-        let mut retry_num = 0;
-        loop {
-            match http_common::request_no_content(&self.inner, method.clone(), uri, body).await {
-                Ok(()) => return Ok(()),
-                Err(err) => {
-                    log::warn!(
-                        "Failed to communicate with Identity Service (attempt {} of {}): {}",
-                        retry_num + 1,
-                        self.max_retries + 1,
-                        err
-                    );
-                    if retry_num < self.max_retries {
-                        retry_num += 1;
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-                        continue;
-                    }
-                    return Err(err);
-                }
-            }
-        }
     }
 }
