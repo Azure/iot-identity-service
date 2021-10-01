@@ -5,8 +5,10 @@ username = "estuser"
 password = "estpwd"
 identity_cert = "est-id"
 identity_pk = "est-id"
-bootstrap_identity_cert = "est-bootstrap-id"
-bootstrap_identity_pk = "est-bootstrap-id"
+
+[cert_issuance.est.headers]
+just = "testing"
+some = "values"
 
 [cert_issuance.est.urls]
 default = "https://example.org/.well-known/est"
@@ -16,7 +18,7 @@ common_name = "my-device"
 method = "est"
 
 [preloaded_certs]
-est-bootstrap-id = "file:///var/secrets/est-bootstrap-id.pem"
+est-id = "file:///var/secrets/est-id.pem"
 est-server-ca-1 = "file:///var/secrets/est-id-ca.pem"
 
 [[principal]]

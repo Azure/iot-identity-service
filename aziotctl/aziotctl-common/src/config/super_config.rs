@@ -200,8 +200,8 @@ pub enum DpsAttestationMethod {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct CertIssuance {
-    pub est: Option<Est>,
     pub local_ca: Option<LocalCa>,
+    pub est: Option<Est>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -215,13 +215,12 @@ pub struct Est {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EstAuth {
     #[serde(flatten)]
-    pub headers: Option<BTreeMap<String, String>>,
-
-    #[serde(flatten)]
     pub basic: Option<aziot_certd_config::EstAuthBasic>,
 
     #[serde(flatten)]
     pub x509: Option<EstAuthX509>,
+
+    pub headers: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

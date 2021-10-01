@@ -414,8 +414,7 @@ fn create_cert<'a>(
 
                     let headers = auth
                         .headers
-                        .as_ref()
-                        .map(Clone::clone)
+                        .clone()
                         .unwrap_or_default();
 
                     let auth_basic = auth
