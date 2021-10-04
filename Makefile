@@ -258,7 +258,7 @@ deb: dist
 #
 # Ref: https://rpm-packaging-guide.github.io
 RPMBUILDDIR = $(HOME)/rpmbuild
-rpm: contrib/centos/aziot-identity-service.spec
+rpm: contrib/enterprise-linux/aziot-identity-service.spec
 rpm: dist
 rpm:
 	# Move dist tarball to rpmbuild sources directory
@@ -284,14 +284,14 @@ rpm:
 		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
 		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
 	esac; \
-	<contrib/centos/aziot-identity-service.spec sed \
+	<contrib/enterprise-linux/aziot-identity-service.spec sed \
 		-e 's/@version@/$(PACKAGE_VERSION)/g' \
 		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
 		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
 	# Copy preset file to be included in the package
-	cp contrib/centos/00-aziot.preset $(RPMBUILDDIR)/SOURCES
+	cp contrib/enterprise-linux/00-aziot.preset $(RPMBUILDDIR)/SOURCES
 
 	# Build package
 	rpmbuild -ba $(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
@@ -329,7 +329,7 @@ INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = $(INSTALL) -m 644
 
-# Do not invoke directly; this is invoked by `rpmbuild` or `dpkg-buildpackage`. Use `make centos` or `make deb` instead.
+# Do not invoke directly; this is invoked by `dpkg-buildpackage` or `rpmbuild`. Use `make deb` or `make rpm` instead.
 install-common: default
 install-common:
 	# Ref: https://www.gnu.org/software/make/manual/html_node/DESTDIR.html
