@@ -1,6 +1,11 @@
 # Used to run the E2E tests against a branch of your choice from the github.com UI.
 #
-# DEVNOTE: Keep in sync with e2e-tests-scheduled.yaml
+# DEVNOTE:
+#
+# Keep `jobs` in sync with e2e-tests-scheduled.yaml. Differences are:
+#
+# - manual has `on: workflow_dispatch` while scheduled has `on: schedule`
+# - manual uses `github.event.inputs` for the branch while scheduled uses `strategy.matrix`
 
 name: 'e2e-tests-manual'
 
@@ -11,7 +16,29 @@ on:
         default: 'main'
 
 jobs:
-  e2e-tests:
+  suite-setup:
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        ref: "${{ github.event.inputs.branch }}"
+
+    - name: 'Run'
+      run: |
+        timeout 10m ./ci/e2e-tests/suite-setup.sh
+      env:
+        BRANCH: "${{ github.event.inputs.branch }}"
+
+        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
+        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
+        AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
+
+  test-run:
+    needs: 'suite-setup'
+
     runs-on: 'ubuntu-18.04'
 
     strategy:
@@ -32,6 +59,8 @@ jobs:
         - 'dps-symmetric-key'
         - 'dps-x509'
 
+      max-parallel: 10
+
     steps:
     - uses: 'actions/checkout@v1'
       with:
@@ -39,7 +68,8 @@ jobs:
 
     - name: 'Run'
       run: |
-        ./ci/e2e-tests.sh ${{ matrix.test_name }}
+        timeout 15m ./ci/e2e-tests/test-run.sh '${{ matrix.test_name }}' &&
+        timeout 5m ./ci/e2e-tests/test-cleanup.sh '${{ matrix.test_name }}'
       env:
         BRANCH: "${{ github.events.input.branch }}"
 
@@ -52,3 +82,66 @@ jobs:
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
 
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: 'Clean up on failure'
+      run: |
+        timeout 5m ./ci/e2e-tests/test-cleanup.sh ${{ matrix.test_name }}
+        exit 1 # Force the workflow to fail even if this step succeeds
+      if: "${{ failure() }}"
+      env:
+        BRANCH: "${{ github.event.inputs.branch }}"
+
+        OS: "${{ matrix.os }}"
+
+        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
+        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
+        AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
+
+  suite-cleanup:
+    needs: 'test-run'
+    if: "${{ success() }}"
+
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        ref: "${{ github.event.inputs.branch }}"
+
+    - name: 'Clean up'
+      run: |
+        timeout 5m ./ci/e2e-tests/suite-cleanup.sh
+      env:
+        BRANCH: "${{ github.event.inputs.branch }}"
+
+        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
+        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
+        AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
+
+  suite-cleanup-fail:
+    needs: 'test-run'
+    if: "${{ failure() }}"
+
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        ref: "${{ github.event.inputs.branch }}"
+
+    - name: 'Clean up on failure'
+      run: |
+        timeout 5m ./ci/e2e-tests/suite-cleanup.sh
+        exit 1 # Force the workflow to fail even if this step succeeds
+      env:
+        BRANCH: "${{ github.event.inputs.branch }}"
+
+        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
+        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
+        AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
