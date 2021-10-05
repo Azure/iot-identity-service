@@ -99,9 +99,8 @@ pub struct EstAuth {
     #[serde(flatten)]
     pub x509: Option<EstAuthX509>,
 
-    // Headers to inject into authentication request.
+    /// Headers to inject into authentication request.
     pub headers: Option<BTreeMap<String, String>>
-
 }
 
 #[derive(Deserialize)]
@@ -168,7 +167,8 @@ pub struct CertAuthority {
 /// Details for issuing a single cert.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CertIssuanceOptions {
-    pub common_name: Option<String>,
+    #[serde(flatten)]
+    pub subject: Option<CertSubject>,
 
     /// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
     /// If not provided, defaults to 30.
@@ -178,6 +178,13 @@ pub struct CertIssuanceOptions {
     /// The method used to issue a certificate.
     #[serde(flatten)]
     pub method: CertIssuanceMethod,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CertSubject {
+    CommonName(String),
+    Subject(BTreeMap<String, String>)
 }
 
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -281,7 +288,6 @@ module-server = { method = "local_ca" }
 
 [cert_issuance.device-id]
 method = "est"
-common_name = "test-device"
 expiry_days = 365
 url = "https://estendpoint.com/.well-known/est/device-id/"
 username = "username"
@@ -291,6 +297,11 @@ identity_pk = "device-id"
 bootstrap_identity_cert = "bootstrap"
 bootstrap_identity_pk = "bootstrap"
 headers = { just = "testing" }
+
+[cert_issuance.device-id.subject]
+L = "AQ"
+ST = "Antarctica"
+CN = "test-device"
 
 [cert_issuance.est]
 identity_cert = "est-id"
@@ -363,7 +374,7 @@ certs = ["test"]
                                     url: None,
                                     auth: None
                                 },
-                                common_name: Some("custom-name".to_owned()),
+                                subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                                 expiry_days: None,
                             }
                         ),
@@ -394,7 +405,13 @@ certs = ["test"]
                                         headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
                                     })
                                 },
-                                common_name: Some("test-device".to_owned()),
+                                subject: Some(CertSubject::Subject(
+                                    vec![
+                                        ("L".to_owned(), "AQ".to_owned()),
+                                        ("ST".to_owned(), "Antarctica".to_owned()),
+                                        ("CN".to_owned(), "test-device".to_owned())
+                                    ].into_iter().collect()
+                                )),
                                 expiry_days: Some(365)
                             }
                         ),
@@ -402,7 +419,7 @@ certs = ["test"]
                             "module-id",
                             CertIssuanceOptions {
                                 method: CertIssuanceMethod::SelfSigned,
-                                common_name: Some("custom-name".to_owned()),
+                                subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                                 expiry_days: Some(90),
                             }
                         ),
@@ -410,7 +427,7 @@ certs = ["test"]
                             "module-server",
                             CertIssuanceOptions {
                                 method: CertIssuanceMethod::LocalCa,
-                                common_name: None,
+                                subject: None,
                                 expiry_days: None,
                             }
                         ),
@@ -539,7 +556,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 url: None,
                                 auth: None
                             },
-                            common_name: Some("custom-name".to_owned()),
+                            subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                             expiry_days: None,
                         }
                     ),
@@ -570,7 +587,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                     headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
                                 })
                             },
-                            common_name: Some("test-device".to_owned()),
+                            subject: Some(CertSubject::CommonName("test-device".to_owned())),
                             expiry_days: Some(365)
                         }
                     ),
@@ -578,7 +595,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         "module-id",
                         CertIssuanceOptions {
                             method: CertIssuanceMethod::SelfSigned,
-                            common_name: Some("custom-name".to_owned()),
+                            subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                             expiry_days: Some(90),
                         }
                     ),
@@ -586,7 +603,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         "module-server",
                         CertIssuanceOptions {
                             method: CertIssuanceMethod::LocalCa,
-                            common_name: None,
+                            subject: None,
                             expiry_days: None,
                         }
                     ),
