@@ -113,6 +113,7 @@ impl Api {
             let key_client = aziot_key_client_async::Client::new(
                 aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_service_connector.clone(),
+                1,
             );
             let key_client = Arc::new(key_client);
             key_client
@@ -135,6 +136,7 @@ impl Api {
             let cert_client = aziot_cert_client_async::Client::new(
                 aziot_cert_common_http::ApiVersion::V2020_09_01,
                 cert_service_connector,
+                1,
             );
             let cert_client = Arc::new(cert_client);
             cert_client
