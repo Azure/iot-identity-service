@@ -31,6 +31,7 @@ use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertIssuanceOptions, CertSubject, Config, Endpoints, EstAuthBasic,
     EstAuthX509, CertAuthority, PreloadedCert, Principal,
 };
+use aziot_key_common::KeyHandle;
 use config_common::watcher::UpdateConfig;
 use http_common::{Connector, get_proxy_uri};
 
@@ -122,11 +123,10 @@ impl Api {
 
         let x509 = create_cert(
             &mut *this,
-            &id,
-            &csr,
+            id,
+            csr,
             issuer
-                .as_ref()
-                .map(|(issuer_cert, issuer_private_key)| (&**issuer_cert, issuer_private_key)),
+                .map(|(issuer_cert, issuer_private_key)| (issuer_cert, issuer_private_key)),
         )
         .await?;
 
@@ -248,21 +248,46 @@ fn validate_csr(csr: &[u8]) -> Result<(X509Req, PKey<Public>), Box<dyn StdError 
     }
 }
 
-fn sign_with_issuer(
-    api: &Api,
+struct Issuer<'a> {
+    path: &'a Path,
+    id: &'a str,
+    key: &'a KeyHandle
+}
+
+fn create_with_issuer(
+    key_engine: &mut openssl2::FunctionalEngine,
     id: &str,
-    req: (&X509Req, &PKey<Public>),
-    expiry: u32,
-    subject_name: &X509NameRef,
-    issuer: (&str, &PKey<Private>)
+    csr: &[u8],
+    expiry: Option<u32>,
+    subject_override: Option<&CertSubject>,
+    issuer: Issuer<'_>
 ) -> Result<Vec<u8>, Box<dyn StdError + Send + Sync>> {
+    let (req, pubkey) = validate_csr(csr)
+        .map_err(|err| Error::invalid_parameter("csr", err))?;
+
+    let expiry = expiry.unwrap_or(30);
+
+    let subject_override = subject_override
+        .map(build_name)
+        .transpose()?;
+
+    let subject_name = subject_override.as_deref()
+        .unwrap_or_else(|| req.subject_name());
+
+    let issuer_privkey = CString::new(issuer.key.0.to_owned())
+        .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
+
+    let issuer_privkey = key_engine
+        .load_private_key(&issuer_privkey)
+        .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+
     let mut builder = X509::builder()?;
     builder.set_version(2)?;
     builder.set_subject_name(subject_name)?;
-    builder.set_pubkey(&req.1)?;
+    builder.set_pubkey(&pubkey)?;
     builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
-    let _ = req.0.extensions()
+    let _ = req.extensions()
         .map(|exts| -> Result<_, Box<dyn StdError + Send + Sync>> {
             for ext in exts {
                 builder.append_extension(ext)?
@@ -275,15 +300,8 @@ fn sign_with_issuer(
     let expiry = &*Asn1Time::days_from_now(expiry)?;
 
     let issuer_x509_stack: Vec<X509>;
-    let (issuer_name, min_expiry, issuer_pem) = if id != issuer.0 {
-        let issuer_path = aziot_certd_config::util::get_path(
-                &api.homedir_path,
-                &api.preloaded_certs,
-                issuer.0,
-                true
-            )?;
-
-        let issuer_x509_pem = load_inner(&issuer_path)?
+    let (issuer_name, min_expiry, issuer_pem) = if id != issuer.id {
+        let issuer_x509_pem = load_inner(issuer.path)?
             .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
         issuer_x509_stack = X509::stack_from_pem(&issuer_x509_pem)?;
 
@@ -293,11 +311,10 @@ fn sign_with_issuer(
 
         let issuer_expiry = issuer_x509.not_after();
 
-        (issuer_x509.subject_name(),
-         if expiry < issuer_expiry { expiry } else { issuer_expiry },
-         Some(issuer_x509_pem)
+        ( issuer_x509.subject_name()
+        , if expiry < issuer_expiry { expiry } else { issuer_expiry }
+        , Some(issuer_x509_pem)
         )
-
     }
     else {
         (subject_name, expiry, None)
@@ -305,7 +322,7 @@ fn sign_with_issuer(
 
     builder.set_not_after(min_expiry)?;
     builder.set_issuer_name(issuer_name)?;
-    builder.sign(&issuer.1, MessageDigest::sha256())?;
+    builder.sign(&issuer_privkey, MessageDigest::sha256())?;
 
     let mut x509 = builder.build()
         .to_pem()?;
@@ -317,11 +334,152 @@ fn sign_with_issuer(
     Ok(x509)
 }
 
+async fn create_cert_tmp(
+    api: &mut Api,
+    id: String,
+    csr: Vec<u8>,
+    issuer: Option<(String, KeyHandle)>
+) -> Result<Vec<u8>, Error> {
+    // Hints for borrow checker
+    let cert_issuance = &api.cert_issuance;
+    let homedir_path = &api.homedir_path;
+    let preloaded_certs = &api.preloaded_certs;
+    let mut key_engine = &mut api.key_engine;
+
+    let cert_options = cert_issuance.certs.get(&id);
+
+    let mut create_with_issuer = |issuer: &(String, KeyHandle)| -> Result<Vec<u8>, Box<dyn StdError + Send + Sync>> {
+        let expiry = &*Asn1Time::days_from_now(
+                cert_options
+                    .and_then(|opts| opts.expiry_days)
+                    .unwrap_or(30)
+            )?;
+        let name_override = cert_options
+            .and_then(|opts| opts.subject.as_ref())
+            .map(build_name)
+            .transpose()?;
+
+        let (req, pubkey) = validate_csr(&csr)
+            .map_err(|err| Error::invalid_parameter("csr", err))?;
+
+        let subject_name = name_override.as_deref()
+            .unwrap_or_else(|| req.subject_name());
+
+        let issuer_privkey = CString::new(issuer.1.0.to_owned())
+            .map_err::<Box<dyn StdError + Send + Sync>, _>(|err| Error::invalid_parameter("issuer.privateKeyHandle", err).into())
+            .and_then(|pk|
+                key_engine
+                    .load_private_key(&pk)
+                    .map_err(Into::into)
+            )?;
+
+        let mut builder = X509::builder()?;
+        builder.set_version(2)?;
+        builder.set_subject_name(subject_name)?;
+        builder.set_pubkey(&pubkey)?;
+        builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
+
+        let _ = req.extensions()
+            .map(|exts| -> Result<_, Box<dyn StdError + Send + Sync>> {
+                for ext in exts {
+                    builder.append_extension(ext)?
+                }
+                Ok(())
+            })
+            .ok()
+            .transpose()?;
+
+        let issuer_x509_stack: Vec<X509>;
+        let (issuer_name, min_expiry, issuer_pem) = if &id != &issuer.0 {
+            let issuer_path = aziot_certd_config::util::get_path(
+                    homedir_path,
+                    preloaded_certs,
+                    &issuer.0,
+                    true
+                )?;
+            let issuer_x509_pem = load_inner(&issuer_path)?
+                .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
+            issuer_x509_stack = X509::stack_from_pem(&issuer_x509_pem)?;
+
+            let issuer_x509 = issuer_x509_stack
+                .get(0)
+                .ok_or_else(|| Error::invalid_parameter("issuer.certId", "invalid issuer"))?;
+
+            let issuer_expiry = issuer_x509.not_after();
+
+            ( issuer_x509.subject_name()
+            , if expiry < issuer_expiry { expiry } else { issuer_expiry }
+            , Some(issuer_x509_pem)
+            )
+        }
+        else {
+            (subject_name, expiry, None)
+        };
+
+        builder.set_not_after(min_expiry)?;
+        builder.set_issuer_name(issuer_name)?;
+        builder.sign(&issuer_privkey, MessageDigest::sha256())?;
+
+        let mut x509 = builder.build()
+            .to_pem()?;
+
+        if let Some(pem) = issuer_pem.as_ref() {
+            x509.extend_from_slice(pem)
+        }
+
+        Ok(x509)
+    };
+
+    if let Some(ref issuer) = issuer {
+        create_with_issuer(issuer)
+            .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))
+    }
+    else {
+        // Hint for borrow checker
+        let key_client = &api.key_client;
+
+        let cert_options = cert_options
+            .ok_or_else(||
+                Error::invalid_parameter(
+                    "issuer",
+                    "issuer is required for locally-issued certificates"
+                )
+            )?;
+
+        (match &cert_options.method {
+            CertIssuanceMethod::SelfSigned =>
+                key_client
+                    .load_key_pair(&id)
+                    .map_err(Into::into)
+                    .and_then(|pk| create_with_issuer(&(id.clone(), pk))),
+            CertIssuanceMethod::LocalCa =>
+                cert_issuance.local_ca
+                    .as_ref()
+                    .ok_or_else::<Box<dyn StdError + Send + Sync>, _>(||
+                        format!(
+                            "cert {:?} is configured to be issued by local CA, but local CA is not configured",
+                            id
+                        ).into()
+                    )
+                    .and_then(|CertAuthority { cert, pk }|
+                        key_client
+                            .load_key_pair(&pk)
+                            .map(|pk| (cert.clone(), pk))
+                            .map_err(Into::into)
+                    )
+                    .and_then(|issuer| create_with_issuer(&issuer)),
+            CertIssuanceMethod::Est { url, auth } => {
+                Ok(vec![])
+            }
+        }).map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))
+    }
+}
+
 fn create_cert<'a>(
     api: &'a mut Api,
-    id: &'a str,
-    csr: &'a [u8],
-    issuer: Option<(&'a str, &'a aziot_key_common::KeyHandle)>,
+    id: String,
+    csr: Vec<u8>,
+    issuer: Option<(String, KeyHandle)>,
 ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Error>> + Send + 'a>> {
 
     // Creating a cert is recursive in some cases. An async fn cannot recurse because its RPIT Future type would end up being infinitely sized,
@@ -330,67 +488,51 @@ fn create_cert<'a>(
 
     async fn create_cert_inner(
         api: &mut Api,
-        id: &str,
-        csr: &[u8],
-        issuer: Option<(&str, &aziot_key_common::KeyHandle)>,
+        id: String,
+        csr: Vec<u8>,
+        issuer: Option<(String, KeyHandle)>,
     ) -> Result<Vec<u8>, Error> {
         // Look up issuance options for this certificate ID.
-        let cert_options = api.cert_issuance.certs.get(id);
-
-        let self_keyhandle: aziot_key_common::KeyHandle;
-        let issuer = if matches!(cert_options.map(|opts| &opts.method), Some(CertIssuanceMethod::SelfSigned)) {
-                self_keyhandle = api
-                    .key_client
-                    .load_key_pair(id)
-                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
-
-                Some((id, &self_keyhandle))
-            }
-            else {
-                issuer
-            };
-
+        let cert_options = api.cert_issuance.certs.get(&id).to_owned();
+        let method = cert_options.map(|opts| &opts.method);
 
         if let Some((issuer_id, issuer_private_key)) = issuer {
             // Issuer is explicitly specified, so load it and use it to sign the CSR.
 
-            let (x509_req, x509_req_public_key) = validate_csr(csr)
-                .map_err(|err| Error::invalid_parameter("csr", err))?;
-
-            let issuer_private_key = CString::new(issuer_private_key.0.clone())
-                .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
-
-            let issuer_private_key = api
-                .key_engine
-                .load_private_key(&issuer_private_key)
-                .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
+            let issuer_path = aziot_certd_config::util::get_path(
+                    &api.homedir_path,
+                    &api.preloaded_certs,
+                    &issuer_id,
+                    true
+                )
+                .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
 
             // If issuance options are not provided for this certificate ID, use defaults.
             let expiry_days = cert_options
-                .and_then(|opts| opts.expiry_days)
-                .unwrap_or(30);
+                .and_then(|opts| opts.expiry_days);
 
-            let configuration_name = cert_options
-                .and_then(|opts| opts.subject.as_ref())
-                .map(build_name)
-                .transpose()?;
+            let name_override = cert_options
+                .and_then(|opts| opts.subject.as_ref());
 
-            let subject_name = configuration_name.as_deref()
-                .unwrap_or_else(|| x509_req.subject_name());
+            let issuer_params = Issuer {
+                path: &issuer_path,
+                id: &issuer_id,
+                key: &issuer_private_key
+            };
 
-            let x509 = sign_with_issuer(
-                    api,
-                    id,
-                    (&x509_req, &x509_req_public_key),
+            let x509 = create_with_issuer(
+                    &mut api.key_engine,
+                    &id,
+                    &csr,
                     expiry_days,
-                    subject_name,
-                    (issuer_id, &issuer_private_key)
+                    name_override,
+                    issuer_params
                 ).map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
 
             let path = aziot_certd_config::util::get_path(
                     &api.homedir_path,
                     &api.preloaded_certs,
-                    id,
+                    &id,
                     true,
                 )
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -428,7 +570,7 @@ fn create_cert<'a>(
                     let url = cert_url.as_ref().or_else(|| {
                         defaults
                             .map(|default| &default.urls)
-                            .and_then(|urls| urls.get(id).or_else(|| urls.get("default")))
+                            .and_then(|urls| urls.get(&id).or_else(|| urls.get("default")))
                     }).ok_or_else(|| {
                         Error::Internal(InternalError::CreateCert(
                             format!(
@@ -534,7 +676,7 @@ fn create_cert<'a>(
                                 let path = aziot_certd_config::util::get_path(
                                     &api.homedir_path,
                                     &api.preloaded_certs,
-                                    id,
+                                    &id,
                                     true,
                                 )
                                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -784,7 +926,7 @@ fn create_cert<'a>(
 
                                         // EST identity cert was obtained and persisted successfully. Now recurse to retry the original cert request.
 
-                                        let x509 = create_cert(api, id, csr, issuer).await?;
+                                        let x509 = create_cert(api, id, csr, issuer.clone()).await?;
                                         Ok(x509)
                                     }
 
@@ -819,7 +961,7 @@ fn create_cert<'a>(
                         let path = aziot_certd_config::util::get_path(
                             &api.homedir_path,
                             &api.preloaded_certs,
-                            id,
+                            &id,
                             true,
                         )
                         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
@@ -856,7 +998,7 @@ fn create_cert<'a>(
 
                     // Recurse with the local CA set explicitly as the issuer parameter.
 
-                    let x509 = create_cert(api, id, csr, Some((&issuer_cert, &issuer_private_key)))
+                    let x509 = create_cert(api, id, csr, Some((issuer_cert, issuer_private_key)))
                         .await?;
                     Ok(x509)
                 }
@@ -867,11 +1009,11 @@ fn create_cert<'a>(
                     // TODO: Is there a way to not have to assume this?
                     let key_pair_handle = api
                         .key_client
-                        .load_key_pair(id)
+                        .load_key_pair(&id)
                         .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
 
                     // Recurse with explicit issuer.
-                    let x509 = create_cert(api, id, csr, Some((id, &key_pair_handle))).await?;
+                    let x509 = create_cert(api, id.clone(), csr, Some((id, key_pair_handle))).await?;
                     Ok(x509)
                 }
             }
