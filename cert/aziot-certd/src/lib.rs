@@ -124,7 +124,10 @@ impl Api {
         }
 
         let req = X509Req::from_pem(&csr)
-            .or_else(|_| X509Req::from_der(&csr))
+            .or_else(|_| -> Result<_, BoxedError> {
+                let bytes = base64::decode(&csr)?;
+                Ok(X509Req::from_der(&bytes)?)
+            })
             .map_err(|err| Error::invalid_parameter("csr", err))?;
         let pubkey = req.public_key()
             .map_err(|err| Error::invalid_parameter("csr", err))?;
