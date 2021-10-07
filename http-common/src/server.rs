@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[cfg(feature = "tokio1")]
 use crate::DynRangeBounds;
 
 #[macro_export]
@@ -261,7 +260,6 @@ macro_rules! make_service {
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 #[async_trait::async_trait]
 #[allow(clippy::unused_async)]
-#[cfg(feature = "tokio1")]
 pub trait Route: Sized {
     type ApiVersion: std::cmp::PartialOrd;
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
@@ -306,7 +304,6 @@ pub trait Route: Sized {
     }
 }
 
-#[cfg(feature = "tokio1")]
 pub type RouteResponse = Result<hyper::Response<hyper::Body>, Error>;
 
 pub fn error_to_message(err: &impl std::error::Error) -> String {
@@ -330,7 +327,6 @@ pub struct Error {
     pub message: std::borrow::Cow<'static, str>,
 }
 
-#[cfg(feature = "tokio1")]
 impl Error {
     pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
         let body = crate::ErrorBody {
@@ -341,7 +337,6 @@ impl Error {
     }
 }
 
-#[cfg(feature = "tokio1")]
 pub mod response {
     pub fn no_content() -> hyper::Response<hyper::Body> {
         let res = hyper::Response::builder()
@@ -415,7 +410,6 @@ pub mod response {
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
-#[cfg(feature = "tokio1")]
 mod test_server {
     use crate as http_common;
 

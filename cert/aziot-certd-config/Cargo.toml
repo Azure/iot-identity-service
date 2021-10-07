@@ -13,7 +13,7 @@ serde = { version = "1", features = ["derive"] }
 serde_with = "1"
 url = { version = "2", features = ["serde"] }
 
-http-common = { path = "../../http-common", features = [ "tokio1" ] }
+http-common = { path = "../../http-common" }
 
 [dev-dependencies]
 toml = "0.5"

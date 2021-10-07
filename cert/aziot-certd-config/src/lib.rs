@@ -15,13 +15,14 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 
-use http_common::Connector;
 use serde::{Deserialize, Serialize};
 use serde::de::Error as _;
 use serde_with::{skip_serializing_none, with_prefix};
 use url::Url;
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+use http_common::Connector;
+
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Config {
     /// Path of home directory.
     pub homedir_path: PathBuf,
@@ -53,13 +54,13 @@ pub struct Config {
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct CertIssuance {
     /// Configuration of parameters for issuing certs via EST.
     pub est: Option<Est>,
 
     /// Configuration of parameters for issuing certs via a local CA cert.
-    pub local_ca: Option<CertAuthority>,
+    pub local_ca: Option<CertificateWithPrivateKey>,
 
     /// Map of certificate IDs to the details used to issue them.
     #[serde(flatten)]
@@ -67,7 +68,7 @@ pub struct CertIssuance {
 }
 
 /// Configuration of parameters for issuing certs via EST.
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Est {
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
     #[serde(default)]
@@ -88,8 +89,8 @@ pub struct Est {
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(try_from = "_EstAuth")]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(try_from = "EstAuthInner")]
 pub struct EstAuth {
     /// Authentication parameters when using basic HTTP authentication.
     #[serde(flatten)]
@@ -104,7 +105,7 @@ pub struct EstAuth {
 }
 
 #[derive(Deserialize)]
-struct _EstAuth {
+struct EstAuthInner {
     #[serde(flatten)]
     pub basic: Option<EstAuthBasic>,
     #[serde(flatten)]
@@ -112,11 +113,11 @@ struct _EstAuth {
     pub headers: Option<BTreeMap<String, String>>
 }
 
-impl TryFrom<_EstAuth> for EstAuth {
+impl TryFrom<EstAuthInner> for EstAuth {
     type Error = serde::de::value::Error;
 
-    fn try_from(value: _EstAuth) -> Result<Self, Self::Error> {
-        let _EstAuth { basic, x509, headers } = value;
+    fn try_from(value: EstAuthInner) -> Result<Self, Self::Error> {
+        let EstAuthInner { basic, x509, headers } = value;
         if basic.is_none() && x509.is_none() && headers.is_none() {
             Err(Self::Error::missing_field("empty authentication parameters"))
         }
@@ -127,36 +128,36 @@ impl TryFrom<_EstAuth> for EstAuth {
 }
 
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct EstAuthX509 {
     /// Cert ID and private key ID for the identity cert.
     ///
     /// If this cert does not exist, it will be requested from the EST server,
     /// with the bootstrap identity cert used as the initial TLS client cert.
     #[serde(flatten, with = "prefix_identity")]
-    pub identity: CertAuthority,
+    pub identity: CertificateWithPrivateKey,
 
     /// Cert ID and private key ID for the bootstrap identity cert.
     ///
     /// This is needed if the cert indicated by `identity` does not exist
     /// and thus also needs to be requested from the EST server.
     #[serde(flatten, with = "prefix_bootstrap_identity")]
-    pub bootstrap_identity: Option<CertAuthority>,
+    pub bootstrap_identity: Option<CertificateWithPrivateKey>,
 }
 
 with_prefix!(prefix_identity "identity_");
 with_prefix!(prefix_bootstrap_identity "bootstrap_identity_");
 
 /// Configuration of parameters for issuing certs via a local CA cert.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct CertAuthority {
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct CertificateWithPrivateKey {
     /// Certificate ID.
     pub cert: String,
 
@@ -165,7 +166,7 @@ pub struct CertAuthority {
 }
 
 /// Details for issuing a single cert.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct CertIssuanceOptions {
     #[serde(flatten)]
     pub subject: Option<CertSubject>,
@@ -180,7 +181,7 @@ pub struct CertIssuanceOptions {
     pub method: CertIssuanceMethod,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CertSubject {
     CommonName(String),
@@ -203,7 +204,7 @@ where
 }
 
 /// The method used to issue a certificate.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
@@ -221,7 +222,7 @@ pub enum CertIssuanceMethod {
 }
 
 /// The location of a preloaded cert.
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PreloadedCert {
     /// A URI for the location.
@@ -236,7 +237,7 @@ pub enum PreloadedCert {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Endpoints {
     /// The endpoint that the certd service binds to.
     pub aziot_certd: Connector,
@@ -259,7 +260,7 @@ impl Default for Endpoints {
 }
 
 /// Map of a Unix UID to certificate IDs with write access.
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,
@@ -336,8 +337,8 @@ certs = ["test"]
                         auth: EstAuth {
                             basic: None,
                             x509: Some(EstAuthX509 {
-                                identity: CertAuthority { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
-                                bootstrap_identity: Some(CertAuthority {
+                                identity: CertificateWithPrivateKey { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                                bootstrap_identity: Some(CertificateWithPrivateKey {
                                     cert: "bootstrap".to_owned(),
                                     pk: "bootstrap".to_owned()
                                 }),
@@ -389,11 +390,11 @@ certs = ["test"]
                                             password: "password".to_owned(),
                                         }),
                                         x509: Some(EstAuthX509 {
-                                            identity: CertAuthority {
+                                            identity: CertificateWithPrivateKey {
                                                 cert: "device-id".to_owned(),
                                                 pk: "device-id".to_owned()
                                             },
-                                            bootstrap_identity: Some(CertAuthority {
+                                            bootstrap_identity: Some(CertificateWithPrivateKey {
                                                 cert: "bootstrap".to_owned(),
                                                 pk: "bootstrap".to_owned()
                                             }),
@@ -518,8 +519,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                     auth: EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {
-                            identity: CertAuthority { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
-                            bootstrap_identity: Some(CertAuthority {
+                            identity: CertificateWithPrivateKey { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                            bootstrap_identity: Some(CertificateWithPrivateKey {
                                 cert: "bootstrap".to_owned(),
                                 pk: "bootstrap".to_owned()
                             }),
@@ -571,11 +572,11 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                         password: "password".to_owned(),
                                     }),
                                     x509: Some(EstAuthX509 {
-                                        identity: CertAuthority {
+                                        identity: CertificateWithPrivateKey {
                                             cert: "device-id".to_owned(),
                                             pk: "device-id".to_owned()
                                         },
-                                        bootstrap_identity: Some(CertAuthority {
+                                        bootstrap_identity: Some(CertificateWithPrivateKey {
                                             cert: "bootstrap".to_owned(),
                                             pk: "bootstrap".to_owned()
                                         }),

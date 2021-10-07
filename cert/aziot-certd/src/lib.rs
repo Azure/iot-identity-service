@@ -15,12 +15,10 @@ mod error;
 mod est;
 mod http;
 
-use error::{Error, InternalError};
-
 use std::collections::BTreeMap;
 use std::error::Error as StdError;
-use std::ffi::CString;
-use std::fs::{read, remove_file, write};
+use std::ffi::{CString, NulError};
+use std::fs;
 use std::future::Future;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -28,20 +26,22 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use aziot_certd_config::{
-    CertIssuance, CertIssuanceMethod, CertSubject, Config, Endpoints,
-    CertAuthority, PreloadedCert, Principal
-};
-use aziot_key_common::KeyHandle;
-use config_common::watcher::UpdateConfig;
-use http_common::{Connector, get_proxy_uri};
-
 use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
+use openssl::pkey::{PKey, Public};
 use openssl::stack::Stack;
 use openssl::x509::{X509, X509Name, X509Req, extension};
 use openssl2::FunctionalEngine;
+
+use aziot_certd_config::{
+    CertIssuance, CertIssuanceMethod, CertSubject, Config, Endpoints,
+    CertificateWithPrivateKey, PreloadedCert, Principal
+};
+use config_common::watcher::UpdateConfig;
+use http_common::Connector;
+
+use error::{Error, InternalError};
 
 type BoxedError = Box<dyn StdError + Send + Sync>;
 
@@ -76,7 +76,7 @@ pub async fn main(
         let key_engine = aziot_key_openssl_engine::load(key_client.clone())
             .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
-        let proxy_uri = get_proxy_uri(None)
+        let proxy_uri = http_common::get_proxy_uri(None)
             .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
 
         Api {
@@ -124,11 +124,33 @@ impl Api {
             return Err(Error::Unauthorized(user, id));
         }
 
+        let req = X509Req::from_pem(&csr)
+            .or_else(|_| X509Req::from_der(&csr))
+            .map_err(|err| Error::invalid_parameter("csr", err))?;
+        let pubkey = req.public_key()
+            .map_err(|err| Error::invalid_parameter("csr", err))?;
+
+        if !req.verify(&pubkey)
+            .map_err(|err| Error::invalid_parameter("csr", err))?
+        {
+            Err(Error::invalid_parameter(
+                "csr",
+                "CSR failed to be verified with its public key".to_owned()
+            ))?
+        }
+
+        let issuer = issuer
+            .map(|(id, handle)| -> Result<_, NulError> {
+                Ok((id, CString::new(handle.0)?))
+            })
+            .transpose()
+            .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
+
         let x509 = create_cert_inner(
                 &mut *this,
                 &id,
-                &csr,
-                issuer.as_ref().map(|(fst, snd)| (&**fst, snd))
+                (&req, &pubkey),
+                issuer.as_ref().map(|(id, handle)| (&**id, handle))
             )
             .await
             .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?;
@@ -163,7 +185,7 @@ impl Api {
         let path =
             aziot_certd_config::util::get_path(&self.homedir_path, &self.preloaded_certs, id, true)
                 .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
-        match remove_file(path) {
+        match fs::remove_file(path) {
             Ok(()) => Ok(()),
             Err(ref err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(err) => Err(Error::Internal(InternalError::DeleteFile(err))),
@@ -234,8 +256,8 @@ fn build_name(subj: &CertSubject) -> Result<X509Name, Error> {
 fn create_cert_inner<'a>(
     api: &'a mut Api,
     id: &'a str,
-    csr: &'a [u8],
-    issuer: Option<(&'a str, &'a KeyHandle)>
+    csr: (&'a X509Req, &'a PKey<Public>),
+    issuer: Option<(&'a str, &'a CString)>
 ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, BoxedError>> + Send + 'a>> {
 
     // Creating a cert is recursive in some cases. An async fn cannot recurse because its RPIT Future type would end up being infinitely sized,
@@ -244,10 +266,12 @@ fn create_cert_inner<'a>(
     async fn recursion_trampoline(
         api: &mut Api,
         id: &str,
-        csr: &[u8],
-        issuer: Option<(&str, &KeyHandle)>
+        csr: (&X509Req, &PKey<Public>),
+        issuer: Option<(&str, &CString)>
     ) -> Result<Vec<u8>, BoxedError> {
         let cert_options = api.cert_issuance.certs.get(id);
+
+        let (req, pubkey) = csr;
 
         if let Some(ref issuer) = issuer {
             let expiry = &*Asn1Time::days_from_now(
@@ -260,26 +284,16 @@ fn create_cert_inner<'a>(
                 .map(build_name)
                 .transpose()?;
 
-            let req = X509Req::from_pem(csr)
-                .or_else(|_| X509Req::from_der(csr))?;
-            let pubkey = req.public_key()?;
-
-            if !req.verify(&pubkey)? {
-                Err("CSR failed to be verified with its public key".to_owned())?
-            }
-
             let subject_name = name_override.as_deref()
                 .unwrap_or_else(|| req.subject_name());
 
-            let issuer_privkey = CString::new(issuer.1.0.to_owned())
-                .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
             let issuer_privkey = api.key_engine
-                .load_private_key(&issuer_privkey)?;
+                .load_private_key(&issuer.1)?;
 
             let mut builder = X509::builder()?;
             builder.set_version(2)?;
             builder.set_subject_name(subject_name)?;
-            builder.set_pubkey(&pubkey)?;
+            builder.set_pubkey(pubkey)?;
             builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
             let _: Option<_> = req.extensions()
@@ -342,11 +356,11 @@ fn create_cert_inner<'a>(
                 CertIssuanceMethod::SelfSigned => {
                     let pk = api.key_client.load_key_pair(id)?;
 
-                    create_cert_inner(api, id, csr, Some((id, &pk)))
+                    create_cert_inner(api, id, csr, Some((id, &CString::new(pk.0)?)))
                         .await
                 },
                 CertIssuanceMethod::LocalCa => {
-                    let CertAuthority { cert, pk } = api.cert_issuance.local_ca.clone()
+                    let CertificateWithPrivateKey { cert, pk } = api.cert_issuance.local_ca.clone()
                         .ok_or_else(||
                             format!(
                                 "cert {:?} is configured to be issued by local CA, but local CA is not configured",
@@ -356,13 +370,10 @@ fn create_cert_inner<'a>(
 
                     let pk = api.key_client.load_key_pair(&pk)?;
 
-                    create_cert_inner(api, id, csr, Some((&cert, &pk)))
+                    create_cert_inner(api, id, csr, Some((&cert, &CString::new(pk.0)?)))
                         .await
                 },
                 CertIssuanceMethod::Est { url, auth } => {
-                    let req = X509Req::from_pem(csr)
-                        .or_else(|_| X509Req::from_der(csr))?;
-
                     let default = api.cert_issuance.est.as_ref();
 
                     let auth = auth.as_ref()
@@ -408,7 +419,7 @@ fn create_cert_inner<'a>(
                                         )?;
 
                                     acc.extend(X509::stack_from_pem(&pem)?);
-                                    Result::<_, BoxedError>::Ok(acc)
+                                    Ok::<_, BoxedError>(acc)
                                 })
                         )
                         .transpose()?
@@ -416,7 +427,7 @@ fn create_cert_inner<'a>(
 
                     // NOTE: cannot use map due to inner use of `api`
                     let id_opt = match auth.x509.as_ref().map(|x509| &x509.identity) {
-                        Some(CertAuthority { cert: ref cert_path, pk: ref pk_path }) => {
+                        Some(CertificateWithPrivateKey { cert: ref cert_path, pk: ref pk_path }) => {
                             let cert = get_cert_inner(&api.homedir_path, &api.preloaded_certs, cert_path)?
                                 .ok_or_else(||
                                     format!(
@@ -463,7 +474,7 @@ fn create_cert_inner<'a>(
                                     )
                                 )?;
 
-                            let CertAuthority { cert: bcert_path, pk: bpk_path } = auth_x509.bootstrap_identity.as_ref()
+                            let CertificateWithPrivateKey { cert: bcert_path, pk: bpk_path } = auth_x509.bootstrap_identity.as_ref()
                                 .ok_or_else(||
                                     format!(
                                         "cert {:?} is configured to be issued by EST,\
@@ -574,7 +585,7 @@ fn create_cert_inner<'a>(
 }
 
 fn load_inner(path: &Path) -> Result<Option<Vec<u8>>, Error> {
-    match read(path) {
+    match fs::read(path) {
         Ok(cert_bytes) => Ok(Some(cert_bytes)),
         Err(ref err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(err) => Err(Error::Internal(InternalError::ReadFile(err))),
@@ -620,7 +631,7 @@ fn import_cert_inner(
         )
         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
 
-    write(&path, x509)
+    fs::write(&path, x509)
         .map_err(|err| Error::Internal(InternalError::WriteFile(err)))?;
 
     Ok(())

@@ -125,7 +125,7 @@ impl EstIdentityBootstrapCerts {
                     (&x509.identity.cert, "x509 identity"),
                     x509.bootstrap_identity
                         .as_ref()
-                        .map(|aziot_certd_config::CertAuthority { cert, .. }|
+                        .map(|aziot_certd_config::CertificateWithPrivateKey { cert, .. }|
                             (cert, "x509 bootstrap")
                         ),
                 )

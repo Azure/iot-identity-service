@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[cfg(feature = "tokio1")]
 use std::sync::atomic;
 
-#[cfg(feature = "tokio1")]
 use futures_util::future;
 
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
@@ -28,14 +26,12 @@ pub enum Stream {
     Unix(std::os::unix::net::UnixStream),
 }
 
-#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum AsyncStream {
     Tcp(tokio::net::TcpStream),
     Unix(tokio::net::UnixStream),
 }
 
-#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
     Tcp {
@@ -47,7 +43,6 @@ pub enum Incoming {
     },
 }
 
-#[cfg(feature = "tokio1")]
 impl Incoming {
     pub async fn serve<H>(
         &mut self,
@@ -274,7 +269,6 @@ impl Connector {
         }
     }
 
-    #[cfg(feature = "tokio1")]
     pub async fn incoming(
         self,
         unix_socket_permission: u32,
@@ -381,7 +375,6 @@ impl std::str::FromStr for Connector {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
@@ -520,7 +513,6 @@ impl std::io::Write for Stream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
@@ -534,7 +526,6 @@ impl tokio::io::AsyncRead for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncWrite for AsyncStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -586,7 +577,6 @@ impl tokio::io::AsyncWrite for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
@@ -701,7 +691,6 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
     Ok(fd)
 }
 
-#[cfg(feature = "tokio1")]
 fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
     if is_unix_fd(fd)? {
         let listener: std::os::unix::net::UnixListener =
@@ -724,7 +713,6 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
 /// Return a matching systemd socket. Checks if this process has been socket-activated.
 ///
 /// This mimics `sd_listen_fds` from libsystemd, then returns the fd of systemd socket.
-#[cfg(feature = "tokio1")]
 fn get_systemd_socket(
     socket_name: Option<String>,
 ) -> Result<Option<std::os::unix::io::RawFd>, String> {

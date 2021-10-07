@@ -28,5 +28,5 @@ aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common = { path = "../../tpm/aziot-tpm-common" }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }

@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use aziot_certd_config::EstAuthBasic;
-use http_common::MaybeProxyConnector;
-
 use std::collections::BTreeMap;
 use std::convert::AsRef;
 
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use url::Url;
+
+use aziot_certd_config::EstAuthBasic;
+use http_common::MaybeProxyConnector;
 
 pub(crate) async fn create_cert(
     csr: Vec<u8>,

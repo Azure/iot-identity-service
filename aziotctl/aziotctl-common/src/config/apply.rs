@@ -335,11 +335,11 @@ pub fn run(
                     aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                     Some(aziot_certd_config::EstAuthX509 {
-                        identity: aziot_certd_config::CertAuthority {
+                        identity: aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_ID_ID.to_owned(),
                             pk: super::EST_ID_ID.to_owned()
                         },
-                        bootstrap_identity: Some(aziot_certd_config::CertAuthority {
+                        bootstrap_identity: Some(aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_BOOTSTRAP_ID.to_owned(),
                             pk: super::EST_BOOTSTRAP_ID.to_owned(),
                         }),
@@ -359,7 +359,7 @@ pub fn run(
                     aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                     Some(aziot_certd_config::EstAuthX509 {
-                        identity: aziot_certd_config::CertAuthority {
+                        identity: aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_ID_ID.to_owned(),
                             pk: super::EST_ID_ID.to_owned()
                         },
@@ -397,7 +397,7 @@ pub fn run(
                 cert_issuance_certs
                     .insert(super::LOCAL_CA.to_owned(), into_cert_options(cert, None));
 
-                Some(aziot_certd_config::CertAuthority {
+                Some(aziot_certd_config::CertificateWithPrivateKey {
                     cert: super::LOCAL_CA.to_owned(),
                     pk: super::LOCAL_CA.to_owned(),
                 })
@@ -412,7 +412,7 @@ pub fn run(
                 preloaded_keys.insert(super::LOCAL_CA.to_owned(), pk);
                 aziotcs_keys.keys.push(super::LOCAL_CA.to_owned());
 
-                Some(aziot_certd_config::CertAuthority {
+                Some(aziot_certd_config::CertificateWithPrivateKey {
                     cert: super::LOCAL_CA.to_owned(),
                     pk: super::LOCAL_CA.to_owned(),
                 })
@@ -534,7 +534,7 @@ pub fn set_est_auth(
                     preloaded_keys.insert(bootstrap_cert_id.clone(), bootstrap_identity_pk.clone());
                     aziotcs_keys.keys.push(bootstrap_cert_id.clone());
 
-                    Some(aziot_certd_config::CertAuthority {
+                    Some(aziot_certd_config::CertificateWithPrivateKey {
                         cert: bootstrap_cert_id.clone(),
                         pk: bootstrap_cert_id
                     })
@@ -557,7 +557,7 @@ pub fn set_est_auth(
             aziotcs_keys.keys.push(identity_cert_id.clone());
 
             aziot_certd_config::EstAuthX509 {
-                identity: aziot_certd_config::CertAuthority {
+                identity: aziot_certd_config::CertificateWithPrivateKey {
                     cert: identity_cert_id.clone(),
                     pk: identity_cert_id
                 },

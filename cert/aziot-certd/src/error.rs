@@ -48,10 +48,10 @@ impl std::error::Error for Error {
 #[derive(Debug)]
 pub enum InternalError {
     CreateCert(Box<dyn std::error::Error + Send + Sync>),
+    DeleteFile(std::io::Error),
     GetPath(Box<dyn std::error::Error + Send + Sync>),
     InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     LoadKeyOpensslEngine(openssl2::Error),
-    DeleteFile(std::io::Error),
     ReadFile(std::io::Error),
     WriteFile(std::io::Error)
 }
@@ -60,6 +60,7 @@ impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InternalError::CreateCert(_) => f.write_str("could not create cert"),
+            InternalError::DeleteFile(_) => f.write_str("could not delete cert file"),
             InternalError::GetPath(_) => {
                 f.write_str("could not get file path corresponding to cert ID")
             }
@@ -67,7 +68,6 @@ impl std::fmt::Display for InternalError {
             InternalError::LoadKeyOpensslEngine(_) => {
                 f.write_str("could not load aziot-key-openssl-engine")
             }
-            InternalError::DeleteFile(_) => f.write_str("could not delete cert file"),
             InternalError::ReadFile(_) => f.write_str("could not read cert file"),
             InternalError::WriteFile(_) => f.write_str("could not write cert file")
         }
@@ -79,10 +79,10 @@ impl std::error::Error for InternalError {
         #[allow(clippy::match_same_arms)]
         match self {
             InternalError::CreateCert(err) => Some(&**err),
+            InternalError::DeleteFile(err) => Some(err),
             InternalError::GetPath(err) => Some(&**err),
             InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
-            InternalError::DeleteFile(err) => Some(err),
             InternalError::ReadFile(err) => Some(err),
             InternalError::WriteFile(err) => Some(err)
         }
