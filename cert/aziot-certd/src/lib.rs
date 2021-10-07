@@ -233,7 +233,8 @@ fn build_name(subj: &CertSubject) -> Result<X509Name, Error> {
 }
 
 fn validate_csr(csr: &[u8]) -> Result<(X509Req, PKey<Public>), Box<dyn StdError + Send + Sync>> {
-    let x509_req = X509Req::from_pem(csr)?;
+    let x509_req = X509Req::from_pem(csr)
+        .or_else(|_| X509Req::from_der(csr))?;
     let x509_req_public_key = x509_req.public_key()?;
 
     if !x509_req.verify(&x509_req_public_key)? {
@@ -259,6 +260,9 @@ fn create_cert_inner<'a>(
     ) -> Result<Vec<u8>, BoxedError> {
         let cert_options = api.cert_issuance.certs.get(id);
 
+        let (req, pubkey) = validate_csr(csr)
+            .map_err(|err| Error::invalid_parameter("csr", err))?;
+
         if let Some(ref issuer) = issuer {
             let expiry = &*Asn1Time::days_from_now(
                     cert_options
@@ -269,9 +273,6 @@ fn create_cert_inner<'a>(
                 .and_then(|opts| opts.subject.as_ref())
                 .map(build_name)
                 .transpose()?;
-
-            let (req, pubkey) = validate_csr(csr)
-                .map_err(|err| Error::invalid_parameter("csr", err))?;
 
             let subject_name = name_override.as_deref()
                 .unwrap_or_else(|| req.subject_name());
@@ -442,7 +443,7 @@ fn create_cert_inner<'a>(
                     };
 
                     let est_res = est::create_cert(
-                            csr.to_owned(),
+                            req.to_der()?,
                             url,
                             auth.headers.as_ref(),
                             auth.basic.as_ref(),
@@ -533,7 +534,7 @@ fn create_cert_inner<'a>(
                             builder.sign(&privkey, MessageDigest::sha256())?;
 
                             let csr_init = builder.build()
-                                .to_pem()?;
+                                .to_der()?;
 
                             let id_init = est::create_cert(
                                     csr_init,
