@@ -258,10 +258,6 @@ impl Default for Endpoints {
     }
 }
 
-// cf. https://github.com/alexcrichton/toml-rs/blob/0.5.8/src/ser.rs#L1580-L1606
-// LICENSE: https://raw.githubusercontent.com/alexcrichton/toml-rs/0.5.8/LICENSE-MIT
-// fn tables_last_opt<'a, I, K, V> { }
-
 /// Map of a Unix UID to certificate IDs with write access.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Principal {
