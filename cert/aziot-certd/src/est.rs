@@ -142,12 +142,12 @@ async fn get_pkcs7_response(
         )?;
     }
 
-    // openssl::pkcs7::Pkcs7::from_pem requires the blob in PEM format, ie it must be wrapped in BEGIN/END PKCS7
-    // but the EST server response does not contain this wrapper. Add it.
-
     let pkcs7 = Pkcs7::from_pem(&body)
         .or_else(|_| -> Result<_, crate::BoxedError> {
-            let bytes = base64::decode(&body)?;
+            let no_whitespace = body.into_iter()
+                .filter(|c| !(*c as char).is_whitespace())
+                .collect::<Vec<_>>();
+            let bytes = base64::decode(&no_whitespace)?;
             Ok(Pkcs7::from_der(&bytes)?)
         })?;
 

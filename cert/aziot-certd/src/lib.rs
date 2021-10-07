@@ -444,7 +444,7 @@ async fn create_cert_inner<'a>(
                 };
 
                 let est_res = est::create_cert(
-                        req.to_der()?,
+                        base64::encode(req.to_der()?).into_bytes(),
                         url,
                         auth.headers.as_ref(),
                         auth.basic.as_ref(),
@@ -460,8 +460,8 @@ async fn create_cert_inner<'a>(
                         let auth_x509 = auth.x509.as_ref()
                             .ok_or_else(||
                                 format!(
-                                    "cert {:?} is configured to be issued by EST,\
-                                    but EST identity could not be obtained\
+                                    "cert {:?} is configured to be issued by EST, \
+                                    but EST identity could not be obtained \
                                     and EST X509 authentication with bootstrapping is not in use: {}",
                                     id, err
                                 )
@@ -470,8 +470,8 @@ async fn create_cert_inner<'a>(
                         let CertificateWithPrivateKey { cert: bcert_path, pk: bpk_path } = auth_x509.bootstrap_identity.as_ref()
                             .ok_or_else(||
                                 format!(
-                                    "cert {:?} is configured to be issued by EST,\
-                                    but EST identity could not be obtained\
+                                    "cert {:?} is configured to be issued by EST, \
+                                    but EST identity could not be obtained \
                                     and EST bootstrap identity is not configured: {}",
                                     id, err
                                 )
