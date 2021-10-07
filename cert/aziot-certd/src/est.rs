@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::convert::AsRef;
 
+use openssl::pkcs7::Pkcs7;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use url::Url;
@@ -18,20 +19,19 @@ pub(crate) async fn create_cert(
     client_cert: Option<&(Vec<u8>, PKey<Private>)>,
     trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
-) -> Result<Vec<u8>, crate::Error> {
+) -> Result<Vec<u8>, crate::BoxedError> {
     let proxy_connector = match client_cert {
-        Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
-            proxy_uri,
-            Some((&device_id_private_key, device_id_certs.as_ref())),
-            trusted_certs,
-        )
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?,
-        None => MaybeProxyConnector::new(proxy_uri, None, &[]).map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?,
+        Some((device_id_certs, device_id_private_key)) =>
+            MaybeProxyConnector::new(
+                    proxy_uri,
+                    Some((&device_id_private_key, device_id_certs.as_ref())),
+                    trusted_certs,
+                )?,
+        None => MaybeProxyConnector::new(proxy_uri, None, &[])?
     };
 
-    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(proxy_connector);
+    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder()
+        .build(proxy_connector);
 
     let (simple_enroll_uri, ca_certs_uri) = {
         let mut uri = url.to_string();
@@ -77,15 +77,11 @@ pub(crate) async fn create_cert(
 
     let ca_certs_request = ca_certs_request.body(Default::default());
 
-    let (simple_enroll_response, ca_certs_response) = futures_util::future::join(
-        get_pkcs7_response(&client, simple_enroll_request),
-        get_pkcs7_response(&client, ca_certs_request),
-    )
-    .await;
-    let simple_enroll_response = simple_enroll_response
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
-    let ca_certs_response = ca_certs_response
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+    let (simple_enroll_response, ca_certs_response) = futures_util::future::try_join(
+            get_pkcs7_response(&client, simple_enroll_request),
+            get_pkcs7_response(&client, ca_certs_request),
+        )
+        .await?;
 
     let mut result = simple_enroll_response;
     result.extend_from_slice(&ca_certs_response);
@@ -98,14 +94,12 @@ async fn get_pkcs7_response(
         MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     >,
     request: Result<hyper::Request<hyper::Body>, http::Error>,
-) -> Result<Vec<u8>, crate::Error> {
-    let request = request
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+) -> Result<Vec<u8>, crate::BoxedError> {
+    let request = request?;
 
     let response = client
         .request(request)
-        .await
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+        .await?;
 
     let (
         http::response::Parts {
@@ -114,56 +108,49 @@ async fn get_pkcs7_response(
         body,
     ) = response.into_parts();
     let body = hyper::body::to_bytes(body)
-        .await
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+        .await?;
 
     if status != hyper::StatusCode::OK {
-        return Err(crate::Error::Internal(crate::InternalError::CreateCert(
+        Err(
             format!(
                 "EST endpoint did not return successful response: {} {:?}",
                 status, body,
             )
-            .into(),
-        )));
+        )?;
     }
 
     let content_type = headers
         .get(hyper::header::CONTENT_TYPE)
         .ok_or_else(|| {
-            crate::Error::Internal(crate::InternalError::CreateCert(
-                "EST response does not contain content-type header".into(),
-            ))
+            "EST response does not contain content-type header"
         })?
         .to_str()
-        .map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(
-                format!(
-                    "EST response does not contain valid content-type header: {}",
-                    err
-                )
-                .into(),
-            ))
-        })?;
+        .map_err(|err|
+            format!(
+                "EST response does not contain valid content-type header: {}",
+                err
+            )
+        )?;
     if content_type != "application/pkcs7-mime"
         && !content_type.starts_with("application/pkcs7-mime;")
     {
-        return Err(crate::Error::Internal(crate::InternalError::CreateCert(
+        Err(
             format!(
                 "EST response has unexpected content-type header: {}",
                 content_type
             )
-            .into(),
-        )));
+        )?;
     }
 
     // openssl::pkcs7::Pkcs7::from_pem requires the blob in PEM format, ie it must be wrapped in BEGIN/END PKCS7
     // but the EST server response does not contain this wrapper. Add it.
-    let mut pkcs7 = b"-----BEGIN PKCS7-----\n"[..].to_owned();
-    pkcs7.extend_from_slice(&body);
-    pkcs7.extend_from_slice(b"-----END PKCS7-----\n");
 
-    let pkcs7 = openssl::pkcs7::Pkcs7::from_pem(&pkcs7)
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+    let pkcs7 = Pkcs7::from_pem(&body)
+        .or_else(|_| -> Result<_, crate::BoxedError> {
+            let bytes = base64::decode(&body)?;
+            Ok(Pkcs7::from_der(&bytes)?)
+        })?;
+
     // Note: This borrows from pkcs7. Do not drop pkcs7 before this.
     let x509_stack = unsafe {
         let x509_stack =
@@ -177,9 +164,7 @@ async fn get_pkcs7_response(
 
     let mut result = vec![];
     for x509 in x509_stack {
-        let x509 = x509.to_pem().map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?;
+        let x509 = x509.to_pem()?;
         result.extend_from_slice(&x509);
         if !result.ends_with(b"\n") {
             result.extend_from_slice(b"\n");

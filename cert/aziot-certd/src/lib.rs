@@ -42,7 +42,7 @@ use http_common::Connector;
 
 use error::{Error, InternalError};
 
-type BoxedError = Box<dyn StdError + Send + Sync>;
+pub(crate) type BoxedError = Box<dyn StdError + Send + Sync>;
 
 #[allow(clippy::unused_async)]
 pub async fn main(
