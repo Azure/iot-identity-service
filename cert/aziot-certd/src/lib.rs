@@ -238,6 +238,9 @@ fn create_cert_inner<'a>(
     issuer: Option<(&'a str, &'a KeyHandle)>
 ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, BoxedError>> + Send + 'a>> {
 
+    // Creating a cert is recursive in some cases. An async fn cannot recurse because its RPIT Future type would end up being infinitely sized,
+    // so it needs to be boxed. So we have a non-async fn returning a boxed future, where the future being boxed is the result of an inner asyn fn,
+    // and the recursive call is for the outer boxed-future-returning fn.
     async fn recursion_trampoline(
         api: &mut Api,
         id: &str,
