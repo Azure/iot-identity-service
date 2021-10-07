@@ -39,7 +39,6 @@ use http_common::{Connector, get_proxy_uri};
 use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
-use openssl::pkey::{PKey, Public};
 use openssl::stack::Stack;
 use openssl::x509::{X509, X509Name, X509Req, extension};
 use openssl2::FunctionalEngine;
@@ -232,19 +231,6 @@ fn build_name(subj: &CertSubject) -> Result<X509Name, Error> {
     Ok(builder.build())
 }
 
-fn validate_csr(csr: &[u8]) -> Result<(X509Req, PKey<Public>), Box<dyn StdError + Send + Sync>> {
-    let x509_req = X509Req::from_pem(csr)
-        .or_else(|_| X509Req::from_der(csr))?;
-    let x509_req_public_key = x509_req.public_key()?;
-
-    if !x509_req.verify(&x509_req_public_key)? {
-        Err("CSR failed to be verified with its public key".into())
-    }
-    else {
-        Ok((x509_req, x509_req_public_key))
-    }
-}
-
 fn create_cert_inner<'a>(
     api: &'a mut Api,
     id: &'a str,
@@ -260,9 +246,6 @@ fn create_cert_inner<'a>(
     ) -> Result<Vec<u8>, BoxedError> {
         let cert_options = api.cert_issuance.certs.get(id);
 
-        let (req, pubkey) = validate_csr(csr)
-            .map_err(|err| Error::invalid_parameter("csr", err))?;
-
         if let Some(ref issuer) = issuer {
             let expiry = &*Asn1Time::days_from_now(
                     cert_options
@@ -273,6 +256,14 @@ fn create_cert_inner<'a>(
                 .and_then(|opts| opts.subject.as_ref())
                 .map(build_name)
                 .transpose()?;
+
+            let req = X509Req::from_pem(csr)
+                .or_else(|_| X509Req::from_der(csr))?;
+            let pubkey = req.public_key()?;
+
+            if !req.verify(&pubkey)? {
+                Err("CSR failed to be verified with its public key".to_owned())?
+            }
 
             let subject_name = name_override.as_deref()
                 .unwrap_or_else(|| req.subject_name());
@@ -366,6 +357,9 @@ fn create_cert_inner<'a>(
                         .await
                 },
                 CertIssuanceMethod::Est { url, auth } => {
+                    let req = X509Req::from_pem(csr)
+                        .or_else(|_| X509Req::from_der(csr))?;
+
                     let default = api.cert_issuance.est.as_ref();
 
                     let auth = auth.as_ref()
