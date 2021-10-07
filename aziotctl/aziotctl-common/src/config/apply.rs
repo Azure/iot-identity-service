@@ -500,7 +500,7 @@ fn into_cert_options(
     };
 
     aziot_certd_config::CertIssuanceOptions {
-        common_name: opts.common_name,
+        subject: opts.common_name.map(aziot_certd_config::CertSubject::CommonName),
         expiry_days: opts.expiry_days,
         method,
     }
