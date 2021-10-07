@@ -1,24 +1,29 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use aziot_certd_config::EstAuthBasic;
+use http_common::MaybeProxyConnector;
+
 use std::collections::BTreeMap;
 use std::convert::AsRef;
 
-use http_common::MaybeProxyConnector;
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
+use url::Url;
 
 pub(crate) async fn create_cert(
     csr: Vec<u8>,
-    url: &url::Url,
-    headers: &BTreeMap<impl AsRef<str>, impl AsRef<str>>,
-    basic_auth: Option<(&str, &str)>,
-    client_cert: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
-    trusted_certs: Vec<openssl::x509::X509>,
+    url: &Url,
+    headers: Option<&BTreeMap<String, String>>,
+    basic_auth: Option<&EstAuthBasic>,
+    client_cert: Option<&(Vec<u8>, PKey<Private>)>,
+    trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, crate::Error> {
     let proxy_connector = match client_cert {
         Some((device_id_certs, device_id_private_key)) => MaybeProxyConnector::new(
             proxy_uri,
-            Some((device_id_private_key, device_id_certs)),
-            &trusted_certs,
+            Some((&device_id_private_key, device_id_certs.as_ref())),
+            trusted_certs,
         )
         .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?,
         None => MaybeProxyConnector::new(proxy_uri, None, &[]).map_err(|err| {
@@ -46,15 +51,15 @@ pub(crate) async fn create_cert(
     let simple_enroll_request = hyper::Request::post(&simple_enroll_uri);
     let ca_certs_request = hyper::Request::get(&ca_certs_uri);
 
-    let (simple_enroll_request, ca_certs_request) = if let Some((username, password)) = basic_auth {
+    let (simple_enroll_request, ca_certs_request) = if let Some(EstAuthBasic { username, password }) = basic_auth {
         let authorization_header_value = format!("{}:{}", username, password);
         let authorization_header_value = base64::encode(authorization_header_value);
         let authorization_header_value = format!("Basic {}", authorization_header_value);
 
-        let simple_enroll_request =
-            simple_enroll_request.header(hyper::header::AUTHORIZATION, &authorization_header_value);
-        let ca_certs_request =
-            ca_certs_request.header(hyper::header::AUTHORIZATION, authorization_header_value);
+        let simple_enroll_request = simple_enroll_request
+            .header(hyper::header::AUTHORIZATION, &authorization_header_value);
+        let ca_certs_request = ca_certs_request
+            .header(hyper::header::AUTHORIZATION, authorization_header_value);
         (simple_enroll_request, ca_certs_request)
     } else {
         (simple_enroll_request, ca_certs_request)
@@ -62,7 +67,10 @@ pub(crate) async fn create_cert(
 
     let simple_enroll_request = headers
         .into_iter()
-        .fold(simple_enroll_request, |req, (k, v)| req.header(k.as_ref(), v.as_ref()))
+        .flatten()
+        .fold(simple_enroll_request, |req, (k, v)| req.header(k, v));
+    
+    let simple_enroll_request = simple_enroll_request
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
         .body(csr.into());
