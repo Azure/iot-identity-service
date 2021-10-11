@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use std::collections::BTreeMap;
-use std::convert::AsRef;
 
 use openssl::pkcs7::Pkcs7;
 use openssl::pkey::{PKey, Private};
@@ -24,7 +23,7 @@ pub(crate) async fn create_cert(
         Some((device_id_certs, device_id_private_key)) =>
             MaybeProxyConnector::new(
                     proxy_uri,
-                    Some((&device_id_private_key, device_id_certs.as_ref())),
+                    Some((&device_id_certs, device_id_private_key)),
                     trusted_certs,
                 )?,
         None => MaybeProxyConnector::new(proxy_uri, None, &[])?
@@ -73,7 +72,7 @@ pub(crate) async fn create_cert(
     let simple_enroll_request = simple_enroll_request
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
-        .body(csr.into());
+        .body(csr.to_owned().into());
 
     let ca_certs_request = ca_certs_request.body(Default::default());
 
@@ -156,8 +155,8 @@ async fn get_pkcs7_response(
         let x509_stack =
             aziot_certd_pkcs7_to_x509(foreign_types_shared::ForeignType::as_ptr(&pkcs7));
         let x509_stack =
-            x509_stack as *mut <openssl::x509::X509 as openssl::stack::Stackable>::StackType;
-        let x509_stack: &openssl::stack::StackRef<openssl::x509::X509> =
+            x509_stack as *mut <X509 as openssl::stack::Stackable>::StackType;
+        let x509_stack: &openssl::stack::StackRef<X509> =
             foreign_types_shared::ForeignTypeRef::from_ptr(x509_stack);
         x509_stack
     };

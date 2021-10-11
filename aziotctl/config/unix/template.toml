@@ -32,7 +32,7 @@
 # means that the client will make a total of 3 attempts).
 #
 # cloud_timeout_sec = 10
-# cloud_retries = 0
+# cloud_retries = 1
 
 # ==============================================================================
 # Provisioning
