@@ -17,7 +17,7 @@ mod http;
 
 use std::collections::BTreeMap;
 use std::error::Error as StdError;
-use std::ffi::{CStr, CString, NulError};
+use std::ffi::{CStr, CString};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -30,7 +30,7 @@ use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKeyRef, Public};
 use openssl::stack::Stack;
-use openssl::x509::{X509, X509Name, X509Req, extension};
+use openssl::x509::{X509, X509Name, X509Req, X509ReqRef, extension};
 use openssl2::FunctionalEngine;
 
 use aziot_certd_config::{
@@ -124,10 +124,6 @@ impl Api {
         }
 
         let req = X509Req::from_pem(&csr)
-            .or_else(|_| -> Result<_, BoxedError> {
-                let bytes = base64::decode(&csr)?;
-                Ok(X509Req::from_der(&bytes)?)
-            })
             .map_err(|err| Error::invalid_parameter("csr", err))?;
         let pubkey = req.public_key()
             .map_err(|err| Error::invalid_parameter("csr", err))?;
@@ -142,11 +138,30 @@ impl Api {
         }
 
         let issuer = issuer
-            .map(|(id, handle)| -> Result<_, NulError> {
-                Ok((id, CString::new(handle.0)?))
+            .map(|(id, handle)| -> Result<_, Error> {
+                let pem = get_cert_inner(
+                        &this.homedir_path,
+                        &this.preloaded_certs,
+                        &id
+                    )
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?
+                    .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
+                let stack = X509::stack_from_pem(&pem)
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))
+                    .and_then(|stack| {
+                        stack.get(0)
+                            .ok_or_else(||
+                                Error::invalid_parameter("issuer.certId", "invalid issuer")
+                            )?;
+                        Ok(stack)
+                    })?;
+
+                let handle = CString::new(handle.0)
+                    .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
+
+                Ok((stack, handle))
             })
-            .transpose()
-            .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
+            .transpose()?;
 
         let x509 = create_cert_inner(
                 &mut *this,
@@ -231,7 +246,8 @@ impl UpdateConfig for Api {
             cert_issuance,
             preloaded_certs,
             principal,
-            ..
+            homedir_path: _,
+            endpoints: _
         } = new_config;
         self.cert_issuance = cert_issuance;
         self.preloaded_certs = preloaded_certs;
@@ -266,12 +282,12 @@ fn build_name(subj: &CertSubject) -> Result<X509Name, Error> {
 async fn create_cert_inner<'a>(
     api: &'a mut Api,
     id: &'a str,
-    (req, pubkey): (&'a X509Req, &'a PKeyRef<Public>),
-    issuer: Option<(&'a str, &'a CStr)>
+    (req, pubkey): (&'a X509ReqRef, &'a PKeyRef<Public>),
+    issuer: Option<(&'a [X509], &'a CStr)>
 ) -> Result<Vec<u8>, BoxedError> {
     let cert_options = api.cert_issuance.certs.get(id);
 
-    if let Some((ref issuer_id, issuer_pk)) = issuer {
+    if let Some((stack, issuer_handle)) = issuer {
         let expiry = &*Asn1Time::days_from_now(
                 cert_options
                     .and_then(|opts| opts.expiry_days)
@@ -286,7 +302,7 @@ async fn create_cert_inner<'a>(
             .unwrap_or_else(|| req.subject_name());
 
         let issuer_privkey = api.key_engine
-            .load_private_key(issuer_pk)?;
+            .load_private_key(issuer_handle)?;
 
         let mut builder = X509::builder()?;
         builder.set_version(2)?;
@@ -304,41 +320,30 @@ async fn create_cert_inner<'a>(
             .ok()
             .transpose()?;
 
-        let issuer_x509_stack: Vec<X509>;
-        let (issuer_name, min_expiry, issuer_pem) = if &id != issuer_id {
-            let issuer_x509_pem = get_cert_inner(
-                    &api.homedir_path,
-                    &api.preloaded_certs,
-                    issuer_id
-                )?
-                .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
-            issuer_x509_stack = X509::stack_from_pem(&issuer_x509_pem)?;
+        let (issuer_name, min_expiry) = stack.get(0)
+            .map(|base| {
+                let issuer_expiry = base.not_after();
 
-            let issuer_x509 = issuer_x509_stack.get(0)
-                .ok_or_else(|| Error::invalid_parameter("issuer.certId", "invalid issuer"))?;
-
-            let issuer_expiry = issuer_x509.not_after();
-
-            (
-                issuer_x509.subject_name(),
-                if expiry < issuer_expiry { expiry } else { issuer_expiry },
-                Some(issuer_x509_pem)
-            )
-        }
-        else {
-            (subject_name, expiry, None)
-        };
+                (
+                    base.subject_name(),
+                    if expiry < issuer_expiry { expiry } else { issuer_expiry }
+                )
+            })
+            .unwrap_or_else(|| (subject_name, expiry));
 
         builder.set_not_after(min_expiry)?;
         builder.set_issuer_name(issuer_name)?;
         builder.sign(&issuer_privkey, MessageDigest::sha256())?;
 
-        let mut x509 = builder.build()
-            .to_pem()?;
-
-        if let Some(ref pem) = issuer_pem {
-            x509.extend_from_slice(pem)
-        }
+        let x509 = stack
+            .iter()
+            .try_fold(
+                builder.build().to_pem()?,
+                |mut acc, cert| -> Result<Vec<u8>, BoxedError> {
+                    acc.extend_from_slice(&cert.to_pem()?);
+                    Ok(acc)
+                }
+            )?;
 
         Ok(x509)
     }
@@ -353,11 +358,9 @@ async fn create_cert_inner<'a>(
 
         match &cert_options.method {
             CertIssuanceMethod::SelfSigned => {
-                let api_ = std::cell::RefCell::new(api);
-                let pk = api_.borrow().key_client.load_key_pair(id)?;
-                let api = api_.into_inner();
+                let pk = api.key_client.load_key_pair(id)?;
 
-                create_cert_inner(api, id, (req, pubkey), Some((id, &CString::new(pk.0)?)))
+                create_cert_inner(api, id, (req, pubkey), Some((&vec![], &CString::new(pk.0)?)))
                     .await
             },
             CertIssuanceMethod::LocalCa => {
@@ -369,10 +372,17 @@ async fn create_cert_inner<'a>(
                         )
                     )?;
 
-                let cert = cert.clone();
+                let pem = get_cert_inner(
+                        &api.homedir_path,
+                        &api.preloaded_certs,
+                        cert
+                    )?
+                    .ok_or_else(|| format!("cert for issuer id {:?} not found", id))?;
+                let stack = X509::stack_from_pem(&pem)?;
+
                 let pk = api.key_client.load_key_pair(pk)?;
 
-                create_cert_inner(api, id, (req, pubkey), Some((&cert, &CString::new(pk.0)?)))
+                create_cert_inner(api, id, (req, pubkey), Some((&stack, &CString::new(pk.0)?)))
                     .await
             },
             CertIssuanceMethod::Est { url, auth } => {
@@ -532,8 +542,8 @@ async fn create_cert_inner<'a>(
                             )
                             .and_then(|handle| Ok(CString::new(handle.0)?))?;
 
-                        let pubkey = api.key_engine.load_public_key(&handle)?;
-                        let privkey = api.key_engine.load_private_key(&handle)?;
+                        let id_pubkey = api.key_engine.load_public_key(&handle)?;
+                        let id_privkey = api.key_engine.load_private_key(&handle)?;
 
                         let subject_name = build_name(
                                 cert_options.subject.as_ref()
@@ -552,8 +562,8 @@ async fn create_cert_inner<'a>(
                             )?;
 
                         builder.add_extensions(&exts)?;
-                        builder.set_pubkey(&pubkey)?;
-                        builder.sign(&privkey, MessageDigest::sha256())?;
+                        builder.set_pubkey(&id_pubkey)?;
+                        builder.sign(&id_privkey, MessageDigest::sha256())?;
 
                         let csr_init = base64::encode(builder.build().to_der()?);
 
@@ -574,7 +584,7 @@ async fn create_cert_inner<'a>(
                                 &id_init
                             )?;
 
-                        create_cert_inner(api, id, (req, &pubkey), issuer)
+                        create_cert_inner(api, id, (req, pubkey), issuer)
                             .await
                     }
                 }
