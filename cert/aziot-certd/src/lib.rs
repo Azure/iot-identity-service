@@ -135,10 +135,10 @@ impl Api {
         if !req.verify(&pubkey)
             .map_err(|err| Error::invalid_parameter("csr", err))?
         {
-            Err(Error::invalid_parameter(
+            return Err(Error::invalid_parameter(
                 "csr",
                 "CSR failed to be verified with its public key".to_owned()
-            ))?
+            ))
         }
 
         let issuer = issuer

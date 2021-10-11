@@ -111,12 +111,12 @@ async fn get_pkcs7_response(
         .await?;
 
     if status != hyper::StatusCode::OK {
-        Err(
+        return Err(
             format!(
                 "EST endpoint did not return successful response: {} {:?}",
                 status, body,
-            )
-        )?;
+            ).into()
+        );
     }
 
     let content_type = headers
@@ -134,12 +134,12 @@ async fn get_pkcs7_response(
     if content_type != "application/pkcs7-mime"
         && !content_type.starts_with("application/pkcs7-mime;")
     {
-        Err(
+        return Err(
             format!(
                 "EST response has unexpected content-type header: {}",
                 content_type
-            )
-        )?;
+            ).into()
+        );
     }
 
     let pkcs7 = Pkcs7::from_pem(&body)
