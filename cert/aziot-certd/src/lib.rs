@@ -17,7 +17,7 @@ mod http;
 
 use std::collections::BTreeMap;
 use std::error::Error as StdError;
-use std::ffi::{CString, NulError};
+use std::ffi::{CStr, CString, NulError};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ use async_trait::async_trait;
 use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
-use openssl::pkey::{PKey, Public};
+use openssl::pkey::{PKeyRef, Public};
 use openssl::stack::Stack;
 use openssl::x509::{X509, X509Name, X509Req, extension};
 use openssl2::FunctionalEngine;
@@ -152,7 +152,7 @@ impl Api {
                 &mut *this,
                 &id,
                 (&req, &pubkey),
-                issuer.as_ref().map(|(id, handle)| (&**id, handle))
+                issuer.as_ref().map(|(id, handle)| (&**id, &**handle))
             )
             .await
             .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?;
@@ -266,14 +266,12 @@ fn build_name(subj: &CertSubject) -> Result<X509Name, Error> {
 async fn create_cert_inner<'a>(
     api: &'a mut Api,
     id: &'a str,
-    csr: (&'a X509Req, &'a PKey<Public>),
-    issuer: Option<(&'a str, &'a CString)>
+    (req, pubkey): (&'a X509Req, &'a PKeyRef<Public>),
+    issuer: Option<(&'a str, &'a CStr)>
 ) -> Result<Vec<u8>, BoxedError> {
     let cert_options = api.cert_issuance.certs.get(id);
 
-    let (req, pubkey) = csr;
-
-    if let Some(ref issuer) = issuer {
+    if let Some((ref issuer_id, issuer_pk)) = issuer {
         let expiry = &*Asn1Time::days_from_now(
                 cert_options
                     .and_then(|opts| opts.expiry_days)
@@ -288,7 +286,7 @@ async fn create_cert_inner<'a>(
             .unwrap_or_else(|| req.subject_name());
 
         let issuer_privkey = api.key_engine
-            .load_private_key(&issuer.1)?;
+            .load_private_key(issuer_pk)?;
 
         let mut builder = X509::builder()?;
         builder.set_version(2)?;
@@ -307,11 +305,11 @@ async fn create_cert_inner<'a>(
             .transpose()?;
 
         let issuer_x509_stack: Vec<X509>;
-        let (issuer_name, min_expiry, issuer_pem) = if &id != &issuer.0 {
+        let (issuer_name, min_expiry, issuer_pem) = if &id != issuer_id {
             let issuer_x509_pem = get_cert_inner(
                     &api.homedir_path,
                     &api.preloaded_certs,
-                    &issuer.0
+                    issuer_id
                 )?
                 .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
             issuer_x509_stack = X509::stack_from_pem(&issuer_x509_pem)?;
@@ -321,9 +319,10 @@ async fn create_cert_inner<'a>(
 
             let issuer_expiry = issuer_x509.not_after();
 
-            ( issuer_x509.subject_name()
-            , if expiry < issuer_expiry { expiry } else { issuer_expiry }
-            , Some(issuer_x509_pem)
+            (
+                issuer_x509.subject_name(),
+                if expiry < issuer_expiry { expiry } else { issuer_expiry },
+                Some(issuer_x509_pem)
             )
         }
         else {
@@ -358,11 +357,11 @@ async fn create_cert_inner<'a>(
                 let pk = api_.borrow().key_client.load_key_pair(id)?;
                 let api = api_.into_inner();
 
-                create_cert_inner(api, id, csr, Some((id, &CString::new(pk.0)?)))
+                create_cert_inner(api, id, (req, pubkey), Some((id, &CString::new(pk.0)?)))
                     .await
             },
             CertIssuanceMethod::LocalCa => {
-                let CertificateWithPrivateKey { cert, pk } = api.cert_issuance.local_ca.clone()
+                let CertificateWithPrivateKey { cert, pk } = api.cert_issuance.local_ca.as_ref()
                     .ok_or_else(||
                         format!(
                             "cert {:?} is configured to be issued by local CA, but local CA is not configured",
@@ -370,9 +369,10 @@ async fn create_cert_inner<'a>(
                         )
                     )?;
 
-                let pk = api.key_client.load_key_pair(&pk)?;
+                let cert = cert.clone();
+                let pk = api.key_client.load_key_pair(pk)?;
 
-                create_cert_inner(api, id, csr, Some((&cert, &CString::new(pk.0)?)))
+                create_cert_inner(api, id, (req, pubkey), Some((&cert, &CString::new(pk.0)?)))
                     .await
             },
             CertIssuanceMethod::Est { url, auth } => {
@@ -427,39 +427,41 @@ async fn create_cert_inner<'a>(
                     .transpose()?
                     .unwrap_or_default();
 
-                // NOTE: Hints for borrow checker since closure uses mutable reference.
-                let homedir_path = &api.homedir_path;
-                let preloaded_certs = &api.preloaded_certs;
-                let key_client = &api.key_client;
-                let key_engine = &mut api.key_engine;
                 let id_opt = auth.x509.as_ref()
                     .map(|x509| &x509.identity)
-                    .and_then(move |CertificateWithPrivateKey { cert, pk }| {
-                        let cert = get_cert_inner(
-                                homedir_path,
-                                preloaded_certs,
-                                &cert
-                            )
-                            .map_err(|_|
-                                log::warn!(
-                                    "could not get EST identity cert: {}",
-                                    io::Error::from(io::ErrorKind::NotFound)
-                                )
-                            )
-                            .ok()?;
-                        let pk = key_client.load_key_pair(&pk)
-                            .map_err::<BoxedError, _>(Into::into)
-                            .and_then(|handle| Ok(CString::new(handle.0)?))
-                            .and_then(|cstr| Ok(key_engine.load_private_key(&cstr)?))
-                            .map_err(|err|
-                                log::warn!(
-                                    "could not get EST identity cert private key: {}",
-                                    err
-                                )
-                            )
-                            .ok();
+                    .and_then({
+                        let homedir_path = &api.homedir_path;
+                        let preloaded_certs = &api.preloaded_certs;
+                        let key_client = &api.key_client;
+                        let key_engine = &mut api.key_engine;
 
-                        cert.zip(pk)
+                        move |CertificateWithPrivateKey { cert, pk }| {
+                            let cert = get_cert_inner(
+                                    homedir_path,
+                                    preloaded_certs,
+                                    &cert
+                                )
+                                .map_err(|_|
+                                    log::warn!(
+                                        "could not get EST identity cert: {}",
+                                        io::Error::from(io::ErrorKind::NotFound)
+                                    )
+                                )
+                                .ok()?;
+                            let pk = key_client.load_key_pair(&pk)
+                                .map_err::<BoxedError, _>(Into::into)
+                                .and_then(|handle| Ok(CString::new(handle.0)?))
+                                .and_then(|cstr| Ok(key_engine.load_private_key(&cstr)?))
+                                .map_err(|err|
+                                    log::warn!(
+                                        "could not get EST identity cert private key: {}",
+                                        err
+                                    )
+                                )
+                                .ok();
+
+                            cert.zip(pk)
+                        }
                     });
 
                 let est_res = est::create_cert(
@@ -572,7 +574,7 @@ async fn create_cert_inner<'a>(
                                 &id_init
                             )?;
 
-                        create_cert_inner(api, id, csr, issuer)
+                        create_cert_inner(api, id, (req, &pubkey), issuer)
                             .await
                     }
                 }
