@@ -19,15 +19,11 @@ pub(crate) async fn create_cert(
     trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, crate::BoxedError> {
-    let proxy_connector = match client_cert {
-        Some((ref device_id_certs, ref device_id_private_key)) =>
-            MaybeProxyConnector::new(
-                    proxy_uri,
-                    Some((device_id_certs, device_id_private_key)),
-                    trusted_certs
-                )?,
-        None => MaybeProxyConnector::new(proxy_uri, None, &[])?
-    };
+    let proxy_connector = MaybeProxyConnector::new(
+            proxy_uri,
+            client_cert.map(|(certs, pk)| (&**certs, &**pk)),
+            trusted_certs
+        )?;
 
     let client: hyper::Client<_, hyper::Body> = hyper::Client::builder()
         .build(proxy_connector);

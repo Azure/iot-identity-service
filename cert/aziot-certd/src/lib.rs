@@ -518,11 +518,14 @@ async fn create_cert_inner<'a>(
                                 )
                             )?;
 
-                        let key_engine = &mut api.key_engine;
                         let bpk = api.key_client.load_key_pair(&bpk)
                             .map_err::<BoxedError, _>(Into::into)
                             .and_then(|handle| Ok(CString::new(handle.0)?))
-                            .and_then(move |cstr| Ok(key_engine.load_private_key(&cstr)?))
+                            .and_then({
+                                let key_engine = &mut api.key_engine;
+
+                                move |cstr| Ok(key_engine.load_private_key(&cstr)?)
+                            })
                             .map_err(|err|
                                 format!(
                                     "could not get EST bootstrap identity cert private key: {}",
@@ -563,10 +566,8 @@ async fn create_cert_inner<'a>(
                         builder.set_pubkey(&id_pubkey)?;
                         builder.sign(&id_privkey, MessageDigest::sha256())?;
 
-                        let csr_init = base64::encode(builder.build().to_der()?);
-
                         let id_init = est::create_cert(
-                                csr_init.into_bytes(),
+                                base64::encode(builder.build().to_der()?).into_bytes(),
                                 url,
                                 auth.headers.as_ref(),
                                 auth.basic.as_ref(),
@@ -600,7 +601,7 @@ fn load_inner(path: &Path) -> Result<Option<Vec<u8>>, Error> {
 }
 
 fn get_cert_inner(
-    homedir_path: &std::path::Path,
+    homedir_path: &Path,
     preloaded_certs: &BTreeMap<String, PreloadedCert>,
     id: &str,
 ) -> Result<Option<Vec<u8>>, Error> {
