@@ -477,7 +477,7 @@ async fn create_cert_inner<'a>(
                         url,
                         auth.headers.as_ref(),
                         auth.basic.as_ref(),
-                        id_opt.as_ref(),
+                        id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
                         &trusted_certs,
                         api.proxy_uri.clone()
                     )
@@ -571,7 +571,7 @@ async fn create_cert_inner<'a>(
                                 url,
                                 auth.headers.as_ref(),
                                 auth.basic.as_ref(),
-                                Some(&(bcert, bpk)),
+                                Some((&bcert, &bpk)),
                                 &trusted_certs,
                                 api.proxy_uri.clone()
                             )

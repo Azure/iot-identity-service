@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use openssl::pkcs7::Pkcs7;
-use openssl::pkey::{PKey, Private};
+use openssl::pkey::{PKeyRef, Private};
 use openssl::x509::X509;
 use url::Url;
 
@@ -15,13 +15,13 @@ pub(crate) async fn create_cert(
     url: &Url,
     headers: Option<&BTreeMap<String, String>>,
     basic_auth: Option<&EstAuthBasic>,
-    client_cert: Option<&(Vec<u8>, PKey<Private>)>,
+    client_cert: Option<(&[u8], &PKeyRef<Private>)>,
     trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, crate::BoxedError> {
     let proxy_connector = MaybeProxyConnector::new(
             proxy_uri,
-            client_cert.map(|(certs, pk)| (&**certs, &**pk)),
+            client_cert,
             trusted_certs
         )?;
 
