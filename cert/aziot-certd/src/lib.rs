@@ -437,54 +437,54 @@ async fn create_cert_inner<'a>(
 
                 let id_opt = auth.x509.as_ref()
                     .map(|x509| &x509.identity)
-                    .and_then({
+                    .map({
                         let homedir_path = &api.homedir_path;
                         let preloaded_certs = &api.preloaded_certs;
                         let key_client = &api.key_client;
                         let key_engine = &mut api.key_engine;
 
-                        move |CertificateWithPrivateKey { cert, pk }| {
+                        move |CertificateWithPrivateKey { cert, pk }| -> Result<_, BoxedError> {
                             let cert = get_cert_inner(
                                     homedir_path,
                                     preloaded_certs,
                                     &cert
-                                )
-                                .map_err(|_|
-                                    log::warn!(
+                                )?
+                                .ok_or_else(||
+                                    format!(
                                         "could not get EST identity cert: {}",
                                         io::Error::from(io::ErrorKind::NotFound)
                                     )
-                                )
-                                .ok()?;
+                                )?;
                             let pk = key_client.load_key_pair(&pk)
                                 .map_err::<BoxedError, _>(Into::into)
                                 .and_then(|handle| Ok(CString::new(handle.0)?))
                                 .and_then(|cstr| Ok(key_engine.load_private_key(&cstr)?))
                                 .map_err(|err|
-                                    log::warn!(
+                                    format!(
                                         "could not get EST identity cert private key: {}",
                                         err
                                     )
-                                )
-                                .ok();
+                                )?;
 
-                            cert.zip(pk)
+                            Ok((cert, pk))
                         }
-                    });
+                    })
+                    .transpose();
 
-                let est_res = est::create_cert(
-                        base64::encode(req.to_der()?).into_bytes(),
-                        url,
-                        auth.basic.as_ref(),
-                        id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
-                        &trusted_certs,
-                        api.proxy_uri.clone()
-                    )
-                    .await;
-
-                match est_res {
-                    Ok(x509) => Ok(x509),
+                match id_opt {
+                    Ok(id_opt) =>
+                        est::create_cert(
+                                base64::encode(req.to_der()?).into_bytes(),
+                                url,
+                                auth.basic.as_ref(),
+                                id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
+                                &trusted_certs,
+                                api.proxy_uri.clone()
+                            )
+                            .await,
                     Err(err) => {
+                        log::warn!("{}", err);
+
                         let auth_x509 = auth.x509.as_ref()
                             .ok_or_else(||
                                 format!(
