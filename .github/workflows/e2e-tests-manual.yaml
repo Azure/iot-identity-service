@@ -64,14 +64,14 @@ jobs:
     steps:
     - uses: 'actions/checkout@v1'
       with:
-        ref: "${{ github.events.input.branch }}"
+        ref: "${{ github.event.inputs.branch }}"
 
     - name: 'Run'
       run: |
         timeout 15m ./ci/e2e-tests/test-run.sh '${{ matrix.test_name }}' &&
         timeout 5m ./ci/e2e-tests/test-cleanup.sh '${{ matrix.test_name }}'
       env:
-        BRANCH: "${{ github.events.input.branch }}"
+        BRANCH: "${{ github.event.inputs.branch }}"
 
         OS: "${{ matrix.os }}"
 
