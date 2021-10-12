@@ -335,7 +335,7 @@ async fn create_cert_inner<'a>(
         builder.set_issuer_name(issuer_name)?;
         builder.sign(&issuer_privkey, MessageDigest::sha256())?;
 
-        let x509 = stack
+        stack
             .iter()
             .try_fold(
                 builder.build().to_pem()?,
@@ -343,9 +343,7 @@ async fn create_cert_inner<'a>(
                     acc.extend_from_slice(&cert.to_pem()?);
                     Ok(acc)
                 }
-            )?;
-
-        Ok(x509)
+            )
     }
     else {
         let cert_options = cert_options
@@ -360,7 +358,7 @@ async fn create_cert_inner<'a>(
             CertIssuanceMethod::SelfSigned => {
                 let pk = api.key_client.load_key_pair(id)?;
 
-                create_cert_inner(api, id, (req, pubkey), Some((&vec![], &CString::new(pk.0)?)))
+                create_cert_inner(api, id, (req, pubkey), Some((&[], &CString::new(pk.0)?)))
                     .await
             },
             CertIssuanceMethod::LocalCa => {

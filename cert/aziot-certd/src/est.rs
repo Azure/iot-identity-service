@@ -72,13 +72,13 @@ pub(crate) async fn create_cert(
     let simple_enroll_request = simple_enroll_request
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
-        .body(csr.to_owned().into());
+        .body(csr.into());
 
     let ca_certs_request = ca_certs_request.body(Default::default());
 
     let (simple_enroll_response, ca_certs_response) = futures_util::future::try_join(
             get_pkcs7_response(&client, simple_enroll_request),
-            get_pkcs7_response(&client, ca_certs_request),
+            get_pkcs7_response(&client, ca_certs_request)
         )
         .await?;
 
@@ -94,10 +94,8 @@ async fn get_pkcs7_response(
     >,
     request: Result<hyper::Request<hyper::Body>, http::Error>,
 ) -> Result<Vec<u8>, crate::BoxedError> {
-    let request = request?;
-
     let response = client
-        .request(request)
+        .request(request?)
         .await?;
 
     let (
@@ -161,16 +159,12 @@ async fn get_pkcs7_response(
         x509_stack
     };
 
-    let mut result = vec![];
-    for x509 in x509_stack {
-        let x509 = x509.to_pem()?;
-        result.extend_from_slice(&x509);
-        if !result.ends_with(b"\n") {
-            result.extend_from_slice(b"\n");
-        }
-    }
-
-    Ok(result)
+    x509_stack
+        .iter()
+        .try_fold(Vec::new(), |mut acc, x509| {
+            acc.extend_from_slice(&x509.to_pem()?);
+            Ok(acc)
+        })
 }
 
 extern "C" {
