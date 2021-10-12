@@ -475,7 +475,6 @@ async fn create_cert_inner<'a>(
                 let est_res = est::create_cert(
                         base64::encode(req.to_der()?).into_bytes(),
                         url,
-                        auth.headers.as_ref(),
                         auth.basic.as_ref(),
                         id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
                         &trusted_certs,
@@ -569,7 +568,6 @@ async fn create_cert_inner<'a>(
                         let id_init = est::create_cert(
                                 base64::encode(builder.build().to_der()?).into_bytes(),
                                 url,
-                                auth.headers.as_ref(),
                                 auth.basic.as_ref(),
                                 Some((&bcert, &bpk)),
                                 &trusted_certs,

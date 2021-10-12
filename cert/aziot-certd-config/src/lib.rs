@@ -98,10 +98,7 @@ pub struct EstAuth {
 
     /// Authentication parameters when using TLS client cert authentication.
     #[serde(flatten)]
-    pub x509: Option<EstAuthX509>,
-
-    /// Headers to inject into authentication request.
-    pub headers: Option<BTreeMap<String, String>>
+    pub x509: Option<EstAuthX509>
 }
 
 #[derive(Deserialize)]
@@ -109,20 +106,19 @@ struct EstAuthInner {
     #[serde(flatten)]
     pub basic: Option<EstAuthBasic>,
     #[serde(flatten)]
-    pub x509: Option<EstAuthX509>,
-    pub headers: Option<BTreeMap<String, String>>
+    pub x509: Option<EstAuthX509>
 }
 
 impl TryFrom<EstAuthInner> for EstAuth {
     type Error = serde::de::value::Error;
 
     fn try_from(value: EstAuthInner) -> Result<Self, Self::Error> {
-        let EstAuthInner { basic, x509, headers } = value;
-        if basic.is_none() && x509.is_none() && headers.is_none() {
+        let EstAuthInner { basic, x509 } = value;
+        if basic.is_none() && x509.is_none() {
             Err(Self::Error::missing_field("empty authentication parameters"))
         }
         else {
-            Ok(Self { basic, x509, headers })
+            Ok(Self { basic, x509 })
         }
     }
 }
@@ -293,7 +289,6 @@ identity_cert = "device-id"
 identity_pk = "device-id"
 bootstrap_identity_cert = "bootstrap"
 bootstrap_identity_pk = "bootstrap"
-headers = { just = "testing" }
 
 [cert_issuance.device-id.subject]
 L = "AQ"
@@ -342,8 +337,7 @@ certs = ["test"]
                                     cert: "bootstrap".to_owned(),
                                     pk: "bootstrap".to_owned()
                                 }),
-                            }),
-                            headers: None
+                            })
                         },
                         urls: vec![
                             (
@@ -398,8 +392,7 @@ certs = ["test"]
                                                 cert: "bootstrap".to_owned(),
                                                 pk: "bootstrap".to_owned()
                                             }),
-                                        }),
-                                        headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
+                                        })
                                     })
                                 },
                                 subject: Some(CertSubject::Subject(
@@ -524,8 +517,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 cert: "bootstrap".to_owned(),
                                 pk: "bootstrap".to_owned()
                             }),
-                        }),
-                        headers: None
+                        })
                     },
                     urls: vec![
                         (
@@ -580,8 +572,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                             cert: "bootstrap".to_owned(),
                                             pk: "bootstrap".to_owned()
                                         }),
-                                    }),
-                                    headers: Some(vec![("just".to_owned(), "testing".to_owned())].into_iter().collect())
+                                    })
                                 })
                             },
                             subject: Some(CertSubject::CommonName("test-device".to_owned())),

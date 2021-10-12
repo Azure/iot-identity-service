@@ -219,8 +219,6 @@ pub struct EstAuth {
 
     #[serde(flatten)]
     pub x509: Option<EstAuthX509>,
-
-    pub headers: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

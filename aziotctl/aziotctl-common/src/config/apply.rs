@@ -318,7 +318,7 @@ pub fn run(
             urls,
         }) = est
         {
-            let super_config::EstAuth { headers, basic, x509 } = auth;
+            let super_config::EstAuth { basic, x509 } = auth;
             let x509 = match x509 {
                 Some(super_config::EstAuthX509::BootstrapIdentity {
                     bootstrap_identity_cert,
@@ -369,7 +369,7 @@ pub fn run(
 
                 None => None,
             };
-            let auth = aziot_certd_config::EstAuth { headers, basic, x509 };
+            let auth = aziot_certd_config::EstAuth { basic, x509 };
 
             let trusted_certs = trusted_certs
                 .into_iter()
@@ -566,7 +566,6 @@ pub fn set_est_auth(
         });
 
         aziot_certd_config::EstAuth {
-            headers: auth.headers.clone(),
             basic: auth.basic.clone(),
             x509: auth_x509,
         }
