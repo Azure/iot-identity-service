@@ -535,7 +535,7 @@ fn try_parse_response(
         }
     }
 
-    if !is_json {
+    if !is_json && res_status_code != Some(204) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "malformed HTTP response",
