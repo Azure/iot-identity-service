@@ -122,9 +122,28 @@ export GITHUB_RUN_NUMBER='1'
 export OS='ubuntu:18.04'
 
 
+# Suite-level setup for things shared between all tests (IoT Hub, DPS, etc)
+./ci/e2e-tests/suite-setup.sh
+
+
 # The parameter to the script is the name of the test to run.
 # The names can be found in the doc comment at the top of the script.
-./ci/e2e-tests.sh 'manual-symmetric-key'
+./ci/e2e-tests/test-run.sh 'manual-symmetric-key'
 ```
 
-Note: The script deletes the resources on exit. If you want to keep the resources around for debugging, comment out the `trap ... EXIT` command in the script.
+To clean up the test-level resources, run `./ci/e2e-tests/test-cleanup.sh $test_name`
+
+To clean up both suite-level and test-level resources, run `./ci/e2e-tests/suite-cleanup.sh`
+
+
+# Miscellaenous
+
+1. For AlmaLinux runs (`OS=platform:el8`), you must accept the VM image terms before you can deploy a VM.
+
+   ```sh
+   az vm image terms accept --urn '$publisher:$offer:$sku:$version'
+   ```
+
+   Get the URN from `/ci/e2e-tests/test-run.sh`
+
+   The Azure SP does not have permissions to do this. Use your regular Azure account.
