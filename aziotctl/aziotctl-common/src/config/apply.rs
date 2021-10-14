@@ -337,7 +337,7 @@ pub fn run(
                     Some(aziot_certd_config::EstAuthX509 {
                         identity: aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_ID_ID.to_owned(),
-                            pk: super::EST_ID_ID.to_owned()
+                            pk: super::EST_ID_ID.to_owned(),
                         },
                         bootstrap_identity: Some(aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_BOOTSTRAP_ID.to_owned(),
@@ -361,7 +361,7 @@ pub fn run(
                     Some(aziot_certd_config::EstAuthX509 {
                         identity: aziot_certd_config::CertificateWithPrivateKey {
                             cert: super::EST_ID_ID.to_owned(),
-                            pk: super::EST_ID_ID.to_owned()
+                            pk: super::EST_ID_ID.to_owned(),
                         },
                         bootstrap_identity: None,
                     })
@@ -382,8 +382,8 @@ pub fn run(
                 .collect();
 
             Some(aziot_certd_config::Est {
-                auth,
                 trusted_certs,
+                auth,
                 urls,
             })
         } else {
@@ -500,7 +500,9 @@ fn into_cert_options(
     };
 
     aziot_certd_config::CertIssuanceOptions {
-        subject: opts.common_name.map(aziot_certd_config::CertSubject::CommonName),
+        subject: opts
+            .common_name
+            .map(aziot_certd_config::CertSubject::CommonName),
         expiry_days: opts.expiry_days,
         method,
     }
@@ -536,7 +538,7 @@ pub fn set_est_auth(
 
                     Some(aziot_certd_config::CertificateWithPrivateKey {
                         cert: bootstrap_cert_id.clone(),
-                        pk: bootstrap_cert_id
+                        pk: bootstrap_cert_id,
                     })
                 }
 
@@ -559,7 +561,7 @@ pub fn set_est_auth(
             aziot_certd_config::EstAuthX509 {
                 identity: aziot_certd_config::CertificateWithPrivateKey {
                     cert: identity_cert_id.clone(),
-                    pk: identity_cert_id
+                    pk: identity_cert_id,
                 },
                 bootstrap_identity,
             }

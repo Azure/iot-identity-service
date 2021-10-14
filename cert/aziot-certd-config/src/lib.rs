@@ -15,8 +15,8 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
 use serde::de::Error as _;
+use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none, with_prefix};
 use url::Url;
 
@@ -98,7 +98,7 @@ pub struct EstAuth {
 
     /// Authentication parameters when using TLS client cert authentication.
     #[serde(flatten)]
-    pub x509: Option<EstAuthX509>
+    pub x509: Option<EstAuthX509>,
 }
 
 #[derive(Deserialize)]
@@ -106,7 +106,7 @@ struct EstAuthInner {
     #[serde(flatten)]
     pub basic: Option<EstAuthBasic>,
     #[serde(flatten)]
-    pub x509: Option<EstAuthX509>
+    pub x509: Option<EstAuthX509>,
 }
 
 impl TryFrom<EstAuthInner> for EstAuth {
@@ -115,9 +115,10 @@ impl TryFrom<EstAuthInner> for EstAuth {
     fn try_from(value: EstAuthInner) -> Result<Self, Self::Error> {
         let EstAuthInner { basic, x509 } = value;
         if basic.is_none() && x509.is_none() {
-            Err(Self::Error::missing_field("empty authentication parameters"))
-        }
-        else {
+            Err(Self::Error::missing_field(
+                "empty authentication parameters",
+            ))
+        } else {
             Ok(Self { basic, x509 })
         }
     }
@@ -181,7 +182,7 @@ pub struct CertIssuanceOptions {
 #[serde(rename_all = "snake_case")]
 pub enum CertSubject {
     CommonName(String),
-    Subject(BTreeMap<String, String>)
+    Subject(BTreeMap<String, String>),
 }
 
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -332,7 +333,10 @@ certs = ["test"]
                         auth: EstAuth {
                             basic: None,
                             x509: Some(EstAuthX509 {
-                                identity: CertificateWithPrivateKey { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                                identity: CertificateWithPrivateKey {
+                                    cert: "est-id".to_owned(),
+                                    pk: "est-id".to_owned()
+                                },
                                 bootstrap_identity: Some(CertificateWithPrivateKey {
                                     cert: "bootstrap".to_owned(),
                                     pk: "bootstrap".to_owned()
@@ -400,7 +404,9 @@ certs = ["test"]
                                         ("L".to_owned(), "AQ".to_owned()),
                                         ("ST".to_owned(), "Antarctica".to_owned()),
                                         ("CN".to_owned(), "test-device".to_owned())
-                                    ].into_iter().collect()
+                                    ]
+                                    .into_iter()
+                                    .collect()
                                 )),
                                 expiry_days: Some(365)
                             }
@@ -430,15 +436,11 @@ certs = ["test"]
                 preloaded_certs: vec![
                     (
                         "bootstrap".to_owned(),
-                        PreloadedCert::Uri(
-                            "file:///var/secrets/bootstrap.cer".parse().unwrap()
-                        )
+                        PreloadedCert::Uri("file:///var/secrets/bootstrap.cer".parse().unwrap())
                     ),
                     (
                         "est-ca".to_owned(),
-                        PreloadedCert::Uri(
-                            "file:///var/secrets/est-ca.cer".parse().unwrap()
-                        )
+                        PreloadedCert::Uri("file:///var/secrets/est-ca.cer".parse().unwrap())
                     ),
                     (
                         "trust-bundle".to_owned(),
@@ -508,31 +510,34 @@ aziot_certd = "unix:///run/aziot/certd.sock"
 
             cert_issuance: CertIssuance {
                 est: Some(Est {
-                    trusted_certs: vec!["est-ca".to_owned(),],
+                    trusted_certs: vec!["est-ca".to_owned()],
                     auth: EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {
-                            identity: CertificateWithPrivateKey { cert: "est-id".to_owned(), pk: "est-id".to_owned() },
+                            identity: CertificateWithPrivateKey {
+                                cert: "est-id".to_owned(),
+                                pk: "est-id".to_owned(),
+                            },
                             bootstrap_identity: Some(CertificateWithPrivateKey {
                                 cert: "bootstrap".to_owned(),
-                                pk: "bootstrap".to_owned()
+                                pk: "bootstrap".to_owned(),
                             }),
-                        })
+                        }),
                     },
                     urls: vec![
                         (
                             "default".to_owned(),
-                            "https://estendpoint.com/.well-known/est/".parse().unwrap()
+                            "https://estendpoint.com/.well-known/est/".parse().unwrap(),
                         ),
                         (
                             "device-ca".to_owned(),
                             "https://estendpoint.com/.well-known/est/device-ca/"
                                 .parse()
-                                .unwrap()
+                                .unwrap(),
                         ),
                     ]
                     .into_iter()
-                    .collect()
+                    .collect(),
                 }),
 
                 local_ca: None,
@@ -543,11 +548,11 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                         CertIssuanceOptions {
                             method: CertIssuanceMethod::Est {
                                 url: None,
-                                auth: None
+                                auth: None,
                             },
                             subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                             expiry_days: None,
-                        }
+                        },
                     ),
                     (
                         "device-id",
@@ -556,7 +561,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 url: Some(
                                     "https://estendpoint.com/.well-known/est/device-id/"
                                         .parse()
-                                        .unwrap()
+                                        .unwrap(),
                                 ),
                                 auth: Some(EstAuth {
                                     basic: Some(EstAuthBasic {
@@ -566,18 +571,18 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                     x509: Some(EstAuthX509 {
                                         identity: CertificateWithPrivateKey {
                                             cert: "device-id".to_owned(),
-                                            pk: "device-id".to_owned()
+                                            pk: "device-id".to_owned(),
                                         },
                                         bootstrap_identity: Some(CertificateWithPrivateKey {
                                             cert: "bootstrap".to_owned(),
-                                            pk: "bootstrap".to_owned()
+                                            pk: "bootstrap".to_owned(),
                                         }),
-                                    })
-                                })
+                                    }),
+                                }),
                             },
                             subject: Some(CertSubject::CommonName("test-device".to_owned())),
-                            expiry_days: Some(365)
-                        }
+                            expiry_days: Some(365),
+                        },
                     ),
                     (
                         "module-id",
@@ -585,7 +590,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                             method: CertIssuanceMethod::SelfSigned,
                             subject: Some(CertSubject::CommonName("custom-name".to_owned())),
                             expiry_days: Some(90),
-                        }
+                        },
                     ),
                     (
                         "module-server",
@@ -593,7 +598,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                             method: CertIssuanceMethod::LocalCa,
                             subject: None,
                             expiry_days: None,
-                        }
+                        },
                     ),
                 ]
                 .iter()
@@ -604,19 +609,15 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             preloaded_certs: vec![
                 (
                     "bootstrap".to_owned(),
-                    PreloadedCert::Uri(
-                        "file:///var/secrets/bootstrap.cer".parse().unwrap()
-                    )
+                    PreloadedCert::Uri("file:///var/secrets/bootstrap.cer".parse().unwrap()),
                 ),
                 (
                     "est-ca".to_owned(),
-                    PreloadedCert::Uri(
-                        "file:///var/secrets/est-ca.cer".parse().unwrap()
-                    )
+                    PreloadedCert::Uri("file:///var/secrets/est-ca.cer".parse().unwrap()),
                 ),
                 (
                     "trust-bundle".to_owned(),
-                    PreloadedCert::Ids(vec!["est-ca".to_owned()])
+                    PreloadedCert::Ids(vec!["est-ca".to_owned()]),
                 ),
             ]
             .into_iter()
@@ -624,24 +625,21 @@ aziot_certd = "unix:///run/aziot/certd.sock"
 
             endpoints: Endpoints {
                 aziot_certd: Connector::Unix {
-                    socket_path: Path::new("/run/aziot/certd.sock").into()
+                    socket_path: Path::new("/run/aziot/certd.sock").into(),
                 },
                 aziot_keyd: Connector::Unix {
-                    socket_path: Path::new("/run/aziot/keyd.sock").into()
+                    socket_path: Path::new("/run/aziot/keyd.sock").into(),
                 },
             },
 
             principal: vec![Principal {
                 uid: 1000,
-                certs: vec!["test".to_string()]
+                certs: vec!["test".to_string()],
             }],
         };
 
         let serialized = toml::to_string(&configuration).unwrap();
 
-        assert_eq!(
-            configuration,
-            toml::from_str(&serialized).unwrap()
-        );
+        assert_eq!(configuration, toml::from_str(&serialized).unwrap());
     }
 }
