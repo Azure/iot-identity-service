@@ -8,7 +8,7 @@ local-ca = "pkcs11:slot-id=0;object=local%2Dca?pin-value=1234"
 
 [[principal]]
 uid = 5556
-keys = ["aziot_identityd_master_id", "device-id"]
+keys = ["aziot_identityd_master_id", "aziot-dps-identity-cert-key", "device-id"]
 
 [[principal]]
 uid = 5555

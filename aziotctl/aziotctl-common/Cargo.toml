@@ -15,6 +15,7 @@ serde_json = "1.0.59"
 url = { version = "2", features = ["serde"] }
 
 aziot-certd-config = { path = "../../cert/aziot-certd-config" }
+aziot-identity-common = { path = "../../identity/aziot-identity-common" }
 aziot-identityd-config = { path = "../../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../../key/aziot-keys-common", features = ["serde"] }

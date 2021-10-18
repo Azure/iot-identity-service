@@ -59,8 +59,14 @@ pub fn run(
         certs: vec![],
     };
 
-    // Always allow IS to modify the DPS trust bundle certs.
+    // Always allow IS to modify DPS-provided credentials.
     aziotid_certs.certs.push(dps_trust_bundle.clone());
+    aziotid_certs
+        .certs
+        .push(aziot_identity_common::DPS_IDENTITY_CERT.to_string());
+    aziotid_keys
+        .keys
+        .push(aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string());
 
     // Authorization of CS with KS.
     let mut aziotcs_keys = aziot_keyd_config::Principal {
