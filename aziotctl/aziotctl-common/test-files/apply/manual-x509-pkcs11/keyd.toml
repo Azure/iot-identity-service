@@ -8,4 +8,4 @@ device-id = "pkcs11:slot-id=0;object=device%2Did?pin-value=1234"
 
 [[principal]]
 uid = 5556
-keys = ["aziot_identityd_master_id", "device-id"]
+keys = ["aziot_identityd_master_id", "aziot-dps-identity-cert-key", "device-id"]

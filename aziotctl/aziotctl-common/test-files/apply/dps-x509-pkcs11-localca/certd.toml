@@ -12,4 +12,4 @@ local-ca = "file:///var/secrets/local-ca.pem"
 
 [[principal]]
 uid = 5556
-certs = ["aziot-dps-trust-bundle", "device-id"]
+certs = ["aziot-dps-trust-bundle", "aziot-dps-identity-cert", "device-id"]

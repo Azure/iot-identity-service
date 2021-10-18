@@ -607,6 +607,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "aziot-certd-config",
+ "aziot-identity-common",
  "aziot-identityd-config",
  "aziot-keyd-config",
  "aziot-keys-common",
