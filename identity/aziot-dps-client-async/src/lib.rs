@@ -55,6 +55,8 @@ pub struct Client {
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
+
+    client_cert_key: String,
 }
 
 impl Client {
@@ -69,6 +71,7 @@ impl Client {
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
         proxy_uri: Option<hyper::Uri>,
+        client_cert_key: String,
     ) -> Self {
         Client {
             global_endpoint: global_endpoint.clone(),
@@ -82,6 +85,8 @@ impl Client {
             cert_client,
             tpm_client,
             proxy_uri,
+
+            client_cert_key,
         }
     }
 
@@ -94,6 +99,8 @@ impl Client {
             "{}/registrations/{}/register?api-version=2021-11-01-preview",
             self.scope_id, registration_id
         );
+
+        let client_cert_csr = self.generate_client_cert_csr(registration_id).await?;
 
         let body = match auth_kind {
             DpsAuthKind::Tpm => {
@@ -108,11 +115,13 @@ impl Client {
                         endorsement_key: base64::encode(&endorsement_key),
                         storage_root_key: base64::encode(&storage_root_key),
                     }),
+                    client_cert_csr,
                 }
             }
             _ => model::DeviceRegistration {
                 registration_id: Some(registration_id.into()),
                 tpm: None,
+                client_cert_csr,
             },
         };
 
@@ -407,5 +416,58 @@ impl Client {
         };
 
         Ok(res)
+    }
+
+    async fn generate_client_cert_csr(
+        &self,
+        registration_id: &str,
+    ) -> Result<String, std::io::Error> {
+        if let Ok(key_handle) = self.key_client.load_key_pair(&self.client_cert_key).await {
+            if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
+                log::warn!("Failed to delete client cert key: {}", err);
+            }
+        }
+
+        let key_handle = self
+            .key_client
+            .create_key_pair_if_not_exists(&self.client_cert_key, Some("ec-p256:*"))
+            .await?;
+        let key_handle = std::ffi::CString::new(key_handle.0)
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "bad key handle"))?;
+
+        let (private_key, public_key) = {
+            let mut key_engine = self.key_engine.lock().await;
+
+            let private_key = key_engine.load_private_key(&key_handle).map_err(|err| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to load client cert private key: {}", err),
+                )
+            })?;
+            let public_key = key_engine.load_public_key(&key_handle).map_err(|err| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to load client cert public key: {}", err),
+                )
+            })?;
+
+            (private_key, public_key)
+        };
+
+        let mut csr = openssl::x509::X509Req::builder()?;
+        csr.set_version(0)?;
+
+        let mut name = openssl::x509::X509Name::builder()?;
+        name.append_entry_by_text("CN", registration_id)?;
+        let name = name.build();
+        csr.set_subject_name(&name)?;
+
+        csr.set_pubkey(&public_key)?;
+        csr.sign(&private_key, openssl::hash::MessageDigest::sha256())?;
+
+        let csr = csr.build().to_der()?;
+        let csr = base64::encode(csr);
+
+        Ok(csr)
     }
 }

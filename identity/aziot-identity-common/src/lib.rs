@@ -9,6 +9,12 @@ pub const ID_TYPE_AZIOT: &str = "aziot";
 /// URI query parameter that identifies local identity type.
 pub const ID_TYPE_LOCAL: &str = "local";
 
+/// Certificate ID used for DPS-provided identity certificates.
+pub const DPS_IDENTITY_CERT: &str = "aziot-dps-identity-cert";
+
+/// Key ID used for DPS-provided identity certificate keys.
+pub const DPS_IDENTITY_CERT_KEY: &str = "aziot-dps-identity-cert-key";
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeviceId(pub String);
 #[derive(Clone, Debug, Eq, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -145,7 +151,7 @@ pub enum ProvisioningStatus {
     Provisioned(IoTHubDevice),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IoTHubDevice {
     pub iothub_hostname: String,
 
@@ -156,7 +162,7 @@ pub struct IoTHubDevice {
     pub credentials: Credentials,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Credentials {
     SharedPrivateKey(String),
 
