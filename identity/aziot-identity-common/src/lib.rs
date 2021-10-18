@@ -9,10 +9,10 @@ pub const ID_TYPE_AZIOT: &str = "aziot";
 /// URI query parameter that identifies local identity type.
 pub const ID_TYPE_LOCAL: &str = "local";
 
-/// Certificate ID used for DPS-provided identity certificates.
+/// Certificate ID used for DPS-issued identity certificates.
 pub const DPS_IDENTITY_CERT: &str = "aziot-dps-identity-cert";
 
-/// Key ID used for DPS-provided identity certificate keys.
+/// Key ID used for DPS-issued identity certificate keys.
 pub const DPS_IDENTITY_CERT_KEY: &str = "aziot-dps-identity-cert-key";
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

@@ -52,6 +52,7 @@ pub enum ReprovisionTrigger {
     ConfigurationFileUpdate,
     Api,
     Startup,
+    CredentialExpiry,
 }
 
 pub async fn main(
@@ -181,19 +182,23 @@ impl Api {
     }
 
     pub async fn get_caller_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if self.authorizer.authorize(auth::Operation {
             auth_id: auth_id.clone(),
             op_type: auth::OperationType::GetDevice,
         })? {
+            self.check_dps_credential().await?;
+
             return self.id_manager.get_device_identity().await;
         } else if let crate::auth::AuthId::HostProcess(ref caller_principal) = auth_id {
             if self.authorizer.authorize(auth::Operation {
                 auth_id: auth_id.clone(),
                 op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
             })? {
+                self.check_dps_credential().await?;
+
                 return self
                     .id_manager
                     .get_module_identity(&caller_principal.name.0)
@@ -205,7 +210,7 @@ impl Api {
     }
 
     pub async fn get_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
@@ -218,7 +223,11 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.get_module_identity(module_id).await },
+            ID_TYPE_AZIOT => {
+                self.check_dps_credential().await?;
+
+                self.id_manager.get_module_identity(module_id).await
+            },
             ID_TYPE_LOCAL => {
                 // Callers of this API must have a local identity specified in the principals list.
                 match self
@@ -237,7 +246,7 @@ impl Api {
     }
 
     pub async fn get_identities(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         id_type: Option<&str>,
     ) -> Result<Vec<aziot_identity_common::Identity>, Error> {
@@ -249,12 +258,15 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.get_module_identities().await },
+            ID_TYPE_AZIOT => {
+                self.check_dps_credential().await?;
+                self.id_manager.get_module_identities().await
+            },
         })
     }
 
     pub async fn get_device_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         _idtype: &str,
     ) -> Result<aziot_identity_common::Identity, Error> {
@@ -265,11 +277,12 @@ impl Api {
             return Err(Error::Authorization);
         }
 
+        self.check_dps_credential().await?;
         self.id_manager.get_device_identity().await
     }
 
     pub async fn create_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
@@ -283,7 +296,10 @@ impl Api {
         }
 
         match_id_type!( id_type {
-            ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id).await },
+            ID_TYPE_AZIOT => {
+                self.check_dps_credential().await?;
+                self.id_manager.create_module_identity(module_id).await
+            },
             ID_TYPE_LOCAL => {
                 if self.local_identities
                     .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
@@ -309,7 +325,7 @@ impl Api {
     }
 
     pub async fn update_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
@@ -322,12 +338,15 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.update_module_identity(module_id).await },
+            ID_TYPE_AZIOT => {
+                self.check_dps_credential().await?;
+                self.id_manager.update_module_identity(module_id).await
+            },
         })
     }
 
     pub async fn delete_identity(
-        &self,
+        &mut self,
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
@@ -340,7 +359,10 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.delete_module_identity(module_id).await },
+            ID_TYPE_AZIOT => {
+                self.check_dps_credential().await?;
+                self.id_manager.delete_module_identity(module_id).await
+            },
         })
     }
 
@@ -380,9 +402,9 @@ impl Api {
                 // For now, skip reprovisioning if there's a valid backup. This means config file
                 // updates will only reconcile identities.
             }
-            ReprovisionTrigger::Api => {
+            ReprovisionTrigger::Api | ReprovisionTrigger::CredentialExpiry => {
                 // Purge current device information before reprovisioning. This is needed only
-                // when triggered by the reprovision API, since:
+                // when triggered by the reprovision API or credential expiry, since:
                 // - The ConfigurationFileUpdate trigger doesn't reprovision
                 // - The Startup trigger is a new process, so it will not have a device in memory
                 self.id_manager.clear_device();
@@ -437,10 +459,10 @@ impl Api {
                         }
                     }
 
-                    // Don't attempt to reprovision if this function was called by the reprovision API.
-                    // The reprovision API provided a fresh reprovision, so failing to reconcile in this
-                    // scenario should not be retried.
-                    ReprovisionTrigger::Api => {
+                    // Don't attempt to reprovision if this function was called by the reprovision API
+                    // or credential expiry. Both these scenarios provide a fresh reprovision, so failing
+                    // to reconcile should not be retried.
+                    ReprovisionTrigger::Api | ReprovisionTrigger::CredentialExpiry => {
                         return Err(err);
                     }
                 },
@@ -449,6 +471,21 @@ impl Api {
         }
 
         log::info!("Identity reconciliation complete.");
+
+        Ok(())
+    }
+
+    /// Automatically renews a DPS-issued credential if necessary. Does nothing otherwise.
+    async fn check_dps_credential(&mut self) -> Result<(), Error> {
+        if self.id_manager.should_renew_credential().await {
+            log::info!("Detected invalid or expired DPS-issued identity certificate. Renewing.");
+
+            // A DPS-issued device identity certificate must be renewed by reprovisioning.
+            self.reprovision_device(auth::AuthId::Daemon, ReprovisionTrigger::CredentialExpiry)
+                .await?;
+
+            log::info!("Successfully renewed DPS-issued identity certificate.");
+        }
 
         Ok(())
     }
