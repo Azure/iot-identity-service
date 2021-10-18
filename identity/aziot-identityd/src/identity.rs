@@ -673,6 +673,7 @@ impl IdentityManager {
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
                     self.proxy_uri.clone(),
+                    aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
                 );
 
                 let (dps_auth_kind, registration_id, credentials) = match attestation {
@@ -792,8 +793,19 @@ impl IdentityManager {
         };
 
         if let Some(trust_bundle) = state.trust_bundle {
-            self.save_trust_bundle(trust_bundle).await?;
+            self.save_dps_trust_bundle(trust_bundle).await?;
         }
+
+        let credentials = if let Some(identity_cert) = state.identity_cert {
+            self.save_dps_identity_cert(identity_cert).await?;
+
+            aziot_identity_common::Credentials::X509 {
+                identity_cert: aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
+                identity_pk: aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
+            }
+        } else {
+            credentials
+        };
 
         Ok(aziot_identity_common::IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
@@ -804,7 +816,7 @@ impl IdentityManager {
         })
     }
 
-    async fn save_trust_bundle(
+    async fn save_dps_trust_bundle(
         &self,
         trust_bundle: aziot_dps_client_async::model::TrustBundle,
     ) -> Result<(), Error> {
@@ -832,6 +844,29 @@ impl IdentityManager {
         log::info!(
             "Saved DPS-provided trust bundle as {}.",
             &self.dps_trust_bundle
+        );
+
+        Ok(())
+    }
+
+    async fn save_dps_identity_cert(&self, identity_cert: String) -> Result<(), Error> {
+        let identity_cert = base64::decode(identity_cert)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+        let identity_cert = openssl::x509::X509::from_der(&identity_cert)
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        let identity_cert = identity_cert
+            .to_pem()
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        self.cert_client
+            .import_cert(aziot_identity_common::DPS_IDENTITY_CERT, &identity_cert)
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+        log::info!(
+            "Saved DPS-provided identity certificate as {}.",
+            aziot_identity_common::DPS_IDENTITY_CERT
         );
 
         Ok(())

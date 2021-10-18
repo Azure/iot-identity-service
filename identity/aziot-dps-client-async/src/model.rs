@@ -6,6 +6,8 @@ pub struct DeviceRegistration {
     pub registration_id: Option<String>,
     #[serde(rename = "tpm", skip_serializing_if = "Option::is_none")]
     pub tpm: Option<TpmAttestation>,
+    #[serde(rename = "clientCertificateCsr")]
+    pub client_cert_csr: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
@@ -63,6 +65,10 @@ pub struct DeviceRegistrationResult {
     /// Trust bundle provided by DPS.
     #[serde(rename = "trustBundle")]
     pub trust_bundle: Option<TrustBundle>,
+
+    /// DPS-issued client certificate.
+    #[serde(rename = "issuedClientCertificate")]
+    pub identity_cert: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
