@@ -52,6 +52,50 @@ impl IdentityManager {
         }
     }
 
+    pub async fn should_renew_credential(&self) -> bool {
+        // Do not renew credentials that are not managed by DPS.
+        if let Some(device) = &self.iot_hub_device {
+            match &device.credentials {
+                aziot_identity_common::Credentials::X509 {
+                    identity_cert,
+                    identity_pk: _,
+                } => {
+                    if identity_cert != aziot_identity_common::DPS_IDENTITY_CERT {
+                        return false;
+                    }
+                }
+                _ => return false,
+            };
+        } else {
+            return false;
+        };
+
+        // Renew certificates that are invalid, expired, or close to expiry.
+        match self
+            .cert_client
+            .get_cert(aziot_identity_common::DPS_IDENTITY_CERT)
+            .await
+        {
+            Ok(identity_cert) => {
+                let identity_cert = match openssl::x509::X509::from_pem(&identity_cert) {
+                    Ok(identity_cert) => identity_cert,
+                    Err(_) => return true,
+                };
+
+                let now = openssl::asn1::Asn1Time::days_from_now(0)
+                    .expect("current time should be valid");
+
+                let diff = match now.diff(identity_cert.not_after()) {
+                    Ok(diff) => diff,
+                    Err(_) => return true,
+                };
+
+                diff.days < 1
+            }
+            Err(_) => true,
+        }
+    }
+
     pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
         ModuleBackup::set_device(
             &self.homedir_path,
@@ -592,7 +636,7 @@ impl IdentityManager {
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
-        // Remove any DPS-provided credentials, which might not be valid after reprovisioning.
+        // Remove any DPS-issued credentials, which might not be valid after reprovisioning.
         self.delete_dps_credentials().await;
 
         let device = match provisioning.provisioning {
@@ -725,7 +769,6 @@ impl IdentityManager {
 
                 self.set_device(&device);
 
-                log::info!("Successfully provisioned with DPS.");
                 aziot_identity_common::ProvisioningStatus::Provisioned(device)
             }
             config::ProvisioningType::None => {
@@ -774,6 +817,8 @@ impl IdentityManager {
                 )))
             }
         };
+
+        log::info!("Successfully provisioned with DPS.");
 
         if let Some(trust_bundle) = state.trust_bundle {
             self.save_dps_trust_bundle(trust_bundle).await?;
@@ -825,7 +870,7 @@ impl IdentityManager {
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
         log::info!(
-            "Saved DPS-provided trust bundle as {}.",
+            "Saved DPS-issued trust bundle as {}.",
             &self.dps_trust_bundle
         );
 
@@ -848,7 +893,7 @@ impl IdentityManager {
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
         log::info!(
-            "Saved DPS-provided identity certificate as {}.",
+            "Saved DPS-issued identity certificate as {}.",
             aziot_identity_common::DPS_IDENTITY_CERT
         );
 
@@ -868,22 +913,22 @@ impl IdentityManager {
         ] {
             if self.cert_client.get_cert(cert).await.is_ok() {
                 if let Err(err) = self.cert_client.delete_cert(cert).await {
-                    log::warn!("Failed to remove DPS-provided {} {}: {}", name, cert, err);
+                    log::warn!("Failed to remove DPS-issued {} {}: {}", name, cert, err);
                 } else {
-                    log::info!("Removed DPS-provided {} {}.", name, cert);
+                    log::info!("Removed DPS-issued {} {}.", name, cert);
                 }
 
                 if let Some(key_id) = key {
                     if let Ok(key_handle) = self.key_client.load_key_pair(key_id).await {
                         if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
                             log::warn!(
-                                "Failed to remove DPS-provided {} key {}: {}.",
+                                "Failed to remove DPS-issued {} key {}: {}.",
                                 name,
                                 key_id,
                                 err
                             );
                         } else {
-                            log::info!("Removed DPS-provided {} key {}.", name, key_id);
+                            log::info!("Removed DPS-issued {} key {}.", name, key_id);
                         }
                     } else {
                         log::warn!("Failed to load key {}.", key_id);

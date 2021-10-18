@@ -59,7 +59,7 @@ pub fn run(
         certs: vec![],
     };
 
-    // Always allow IS to modify DPS-provided credentials.
+    // Always allow IS to modify DPS-issued credentials.
     aziotid_certs.certs.push(dps_trust_bundle.clone());
     aziotid_certs
         .certs
