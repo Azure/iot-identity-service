@@ -592,25 +592,8 @@ impl IdentityManager {
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
-        // Remove any DPS-provided trust bundle, which might not be valid after reprovisioning.
-        if self
-            .cert_client
-            .get_cert(&self.dps_trust_bundle)
-            .await
-            .is_ok()
-        {
-            match self.cert_client.delete_cert(&self.dps_trust_bundle).await {
-                Ok(()) => log::info!(
-                    "Removed DPS-provided trust bundle {}.",
-                    &self.dps_trust_bundle
-                ),
-                Err(err) => log::warn!(
-                    "Failed to remove DPS-provided trust bundle {}: {}",
-                    &self.dps_trust_bundle,
-                    err
-                ),
-            }
-        }
+        // Remove any DPS-provided credentials, which might not be valid after reprovisioning.
+        self.delete_dps_credentials().await;
 
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
@@ -870,6 +853,44 @@ impl IdentityManager {
         );
 
         Ok(())
+    }
+
+    async fn delete_dps_credentials(&self) {
+        // Check that credentials exist before attempting to delete to avoid
+        // polluting logs with "Failed to remove..." messages when not using DPS.
+        for (cert, key, name) in [
+            (
+                aziot_identity_common::DPS_IDENTITY_CERT,
+                Some(aziot_identity_common::DPS_IDENTITY_CERT_KEY),
+                "identity certificate",
+            ),
+            (&self.dps_trust_bundle, None, "trust bundle"),
+        ] {
+            if self.cert_client.get_cert(cert).await.is_ok() {
+                if let Err(err) = self.cert_client.delete_cert(cert).await {
+                    log::warn!("Failed to remove DPS-provided {} {}: {}", name, cert, err);
+                } else {
+                    log::info!("Removed DPS-provided {} {}.", name, cert);
+                }
+
+                if let Some(key_id) = key {
+                    if let Ok(key_handle) = self.key_client.load_key_pair(key_id).await {
+                        if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
+                            log::warn!(
+                                "Failed to remove DPS-provided {} key {}: {}.",
+                                name,
+                                key_id,
+                                err
+                            );
+                        } else {
+                            log::info!("Removed DPS-provided {} key {}.", name, key_id);
+                        }
+                    } else {
+                        log::warn!("Failed to load key {}.", key_id);
+                    }
+                }
+            }
+        }
     }
 
     fn get_backup_provisioning_info(
