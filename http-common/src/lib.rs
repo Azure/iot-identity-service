@@ -29,7 +29,10 @@ pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 #[cfg(feature = "tokio1")]
 mod request;
 #[cfg(feature = "tokio1")]
-pub use request::{request, request_no_content};
+pub use request::{
+    request, request_no_content, request_no_content_with_retry, request_with_headers,
+    request_with_headers_no_content, request_with_retry,
+};
 
 pub mod server;
 

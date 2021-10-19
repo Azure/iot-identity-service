@@ -43,6 +43,7 @@ impl ReadCerts {
         let cert_client = aziot_cert_client_async::Client::new(
             aziot_cert_common_http::ApiVersion::V2020_09_01,
             aziot_certd.clone(),
+            0,
         );
 
         let mut err_aggregated = String::new();
