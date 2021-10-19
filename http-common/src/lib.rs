@@ -18,18 +18,13 @@ mod dynrange;
 pub use dynrange::DynRangeBounds;
 
 mod connector;
-#[cfg(feature = "tokio1")]
 pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
-#[cfg(feature = "tokio1")]
 mod proxy;
-#[cfg(feature = "tokio1")]
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
-#[cfg(feature = "tokio1")]
 mod request;
-#[cfg(feature = "tokio1")]
 pub use request::{
     request, request_no_content, request_no_content_with_retry, request_with_headers,
     request_with_headers_no_content, request_with_retry,
@@ -37,7 +32,6 @@ pub use request::{
 
 pub mod server;
 
-#[cfg(feature = "tokio1")]
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
