@@ -7,6 +7,7 @@ build = "build/main.rs"
 
 
 [dependencies]
+async-recursion = "0.3"
 async-trait = "0.1"
 base64 = "0.13"
 foreign-types-shared = "0.1"
@@ -35,7 +36,7 @@ aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 config-common = { path = "../../config-common", features = ["watcher"] }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
 

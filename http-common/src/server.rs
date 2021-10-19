@@ -309,7 +309,6 @@ pub struct Error {
     pub message: std::borrow::Cow<'static, str>,
 }
 
-#[cfg(feature = "tokio1")]
 impl Error {
     pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
         let body = crate::ErrorBody {
@@ -320,17 +319,41 @@ impl Error {
     }
 }
 
-#[cfg(feature = "tokio1")]
-pub fn json_response(
-    status_code: hyper::StatusCode,
-    body: Option<&impl serde::Serialize>,
-) -> hyper::Response<hyper::Body> {
-    let res = hyper::Response::builder().status(status_code);
-    // `res` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
-    //
-    // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
-    #[allow(clippy::option_if_let_else)]
-    let res = if let Some(body) = body {
+pub mod response {
+    pub fn no_content() -> hyper::Response<hyper::Body> {
+        let res = hyper::Response::builder()
+            .status(hyper::StatusCode::NO_CONTENT)
+            .body(Default::default())
+            .expect("cannot fail to build hyper response");
+
+        res
+    }
+
+    pub fn chunked<S, O, E>(
+        status_code: hyper::StatusCode,
+        body: S,
+        content_type: &'static str,
+    ) -> hyper::Response<hyper::Body>
+    where
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<hyper::body::Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+    {
+        let body = hyper::Body::wrap_stream(body);
+
+        let res = hyper::Response::builder()
+            .status(status_code)
+            .header(hyper::header::CONTENT_TYPE, content_type)
+            .body(body);
+
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
+
+    pub fn json(
+        status_code: hyper::StatusCode,
+        body: &impl serde::Serialize,
+    ) -> hyper::Response<hyper::Body> {
         let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
         let body = hyper::Body::from(body);
         res.header(hyper::header::CONTENT_TYPE, "application/json")
@@ -344,7 +367,6 @@ pub fn json_response(
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
-#[cfg(feature = "tokio1")]
 mod test_server {
     use crate as http_common;
 

@@ -151,8 +151,8 @@ pub enum DpsAttestationMethod {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct CertIssuance {
-    pub est: Option<Est>,
     pub local_ca: Option<LocalCa>,
+    pub est: Option<Est>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

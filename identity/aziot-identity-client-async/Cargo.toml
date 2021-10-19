@@ -9,4 +9,4 @@ http = "0.2"
 hyper = "0.14"
 
 aziot-identity-common-http = { path = "../aziot-identity-common-http" }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }

@@ -1,28 +1,22 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use openssl::pkcs7::Pkcs7;
+use openssl::pkey::{PKeyRef, Private};
+use openssl::x509::X509;
+use url::Url;
+
+use aziot_certd_config::EstAuthBasic;
 use http_common::MaybeProxyConnector;
 
 pub(crate) async fn create_cert(
-    mut csr: &[u8],
-    url: &url::Url,
-    basic_auth: Option<(&str, &str)>,
-    client_cert: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
-    trusted_certs: Vec<openssl::x509::X509>,
+    csr: Vec<u8>,
+    url: &Url,
+    basic_auth: Option<&EstAuthBasic>,
+    client_cert: Option<(&[u8], &PKeyRef<Private>)>,
+    trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
-) -> Result<Vec<u8>, crate::Error> {
-    // Request body is PKCS#10, which is a PEM without the header and footer, so remove them.
-    if csr.starts_with(b"-----BEGIN CERTIFICATE REQUEST-----\n") {
-        csr = &csr[(b"-----BEGIN CERTIFICATE REQUEST-----\n".len())..];
-        while csr.ends_with(b"\n") {
-            csr = &csr[..(csr.len() - b"\n".len())];
-        }
-        if csr.ends_with(b"-----END CERTIFICATE REQUEST-----") {
-            csr = &csr[..(csr.len() - b"-----END CERTIFICATE REQUEST-----".len())];
-        }
-    }
-
-    let proxy_connector = MaybeProxyConnector::new(proxy_uri, client_cert, &trusted_certs)
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+) -> Result<Vec<u8>, crate::BoxedError> {
+    let proxy_connector = MaybeProxyConnector::new(proxy_uri, client_cert, trusted_certs)?;
 
     let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(proxy_connector);
 
@@ -44,36 +38,33 @@ pub(crate) async fn create_cert(
     let simple_enroll_request = hyper::Request::post(&simple_enroll_uri);
     let ca_certs_request = hyper::Request::get(&ca_certs_uri);
 
-    let (simple_enroll_request, ca_certs_request) = if let Some((username, password)) = basic_auth {
-        let authorization_header_value = format!("{}:{}", username, password);
-        let authorization_header_value = base64::encode(authorization_header_value);
-        let authorization_header_value = format!("Basic {}", authorization_header_value);
+    let (simple_enroll_request, ca_certs_request) =
+        if let Some(EstAuthBasic { username, password }) = basic_auth {
+            let authorization_header_value = format!("{}:{}", username, password);
+            let authorization_header_value = base64::encode(authorization_header_value);
+            let authorization_header_value = format!("Basic {}", authorization_header_value);
 
-        let simple_enroll_request =
-            simple_enroll_request.header(hyper::header::AUTHORIZATION, &authorization_header_value);
-        let ca_certs_request =
-            ca_certs_request.header(hyper::header::AUTHORIZATION, authorization_header_value);
-        (simple_enroll_request, ca_certs_request)
-    } else {
-        (simple_enroll_request, ca_certs_request)
-    };
+            let simple_enroll_request = simple_enroll_request
+                .header(hyper::header::AUTHORIZATION, &authorization_header_value);
+            let ca_certs_request =
+                ca_certs_request.header(hyper::header::AUTHORIZATION, authorization_header_value);
+            (simple_enroll_request, ca_certs_request)
+        } else {
+            (simple_enroll_request, ca_certs_request)
+        };
 
     let simple_enroll_request = simple_enroll_request
         .header(hyper::header::CONTENT_TYPE, "application/pkcs10")
         .header("content-transfer-encoding", "base64")
-        .body(csr.to_owned().into());
+        .body(csr.into());
 
     let ca_certs_request = ca_certs_request.body(Default::default());
 
-    let (simple_enroll_response, ca_certs_response) = futures_util::future::join(
+    let (simple_enroll_response, ca_certs_response) = futures_util::future::try_join(
         get_pkcs7_response(&client, simple_enroll_request),
         get_pkcs7_response(&client, ca_certs_request),
     )
-    .await;
-    let simple_enroll_response = simple_enroll_response
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
-    let ca_certs_response = ca_certs_response
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+    .await?;
 
     let mut result = simple_enroll_response;
     result.extend_from_slice(&ca_certs_response);
@@ -86,14 +77,8 @@ async fn get_pkcs7_response(
         MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
     >,
     request: Result<hyper::Request<hyper::Body>, http::Error>,
-) -> Result<Vec<u8>, crate::Error> {
-    let request = request
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
-
-    let response = client
-        .request(request)
-        .await
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+) -> Result<Vec<u8>, crate::BoxedError> {
+    let response = client.request(request?).await?;
 
     let (
         http::response::Parts {
@@ -101,83 +86,62 @@ async fn get_pkcs7_response(
         },
         body,
     ) = response.into_parts();
-    let body = hyper::body::to_bytes(body)
-        .await
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
+    let body = hyper::body::to_bytes(body).await?;
 
     if status != hyper::StatusCode::OK {
-        return Err(crate::Error::Internal(crate::InternalError::CreateCert(
-            format!(
-                "EST endpoint did not return successful response: {} {:?}",
-                status, body,
-            )
-            .into(),
-        )));
+        return Err(format!(
+            "EST endpoint did not return successful response: {} {:?}",
+            status, body,
+        )
+        .into());
     }
 
     let content_type = headers
         .get(hyper::header::CONTENT_TYPE)
-        .ok_or_else(|| {
-            crate::Error::Internal(crate::InternalError::CreateCert(
-                "EST response does not contain content-type header".into(),
-            ))
-        })?
+        .ok_or("EST response does not contain content-type header")?
         .to_str()
         .map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(
-                format!(
-                    "EST response does not contain valid content-type header: {}",
-                    err
-                )
-                .into(),
-            ))
+            format!(
+                "EST response does not contain valid content-type header: {}",
+                err
+            )
         })?;
     if content_type != "application/pkcs7-mime"
         && !content_type.starts_with("application/pkcs7-mime;")
     {
-        return Err(crate::Error::Internal(crate::InternalError::CreateCert(
-            format!(
-                "EST response has unexpected content-type header: {}",
-                content_type
-            )
-            .into(),
-        )));
+        return Err(format!(
+            "EST response has unexpected content-type header: {}",
+            content_type
+        )
+        .into());
     }
 
-    // openssl::pkcs7::Pkcs7::from_pem requires the blob in PEM format, ie it must be wrapped in BEGIN/END PKCS7
-    // but the EST server response does not contain this wrapper. Add it.
-    let mut pkcs7 = b"-----BEGIN PKCS7-----\n"[..].to_owned();
-    pkcs7.extend_from_slice(&body);
-    if pkcs7.last() != Some(&b'\n') {
-        pkcs7.push(b'\n');
-    }
-    pkcs7.extend_from_slice(b"-----END PKCS7-----\n");
+    let pkcs7 = Pkcs7::from_pem(&body).or_else(|_| -> Result<_, crate::BoxedError> {
+        let no_whitespace = body
+            .into_iter()
+            .filter(|c| !(*c as char).is_whitespace())
+            .collect::<Vec<_>>();
+        let bytes = base64::decode(&no_whitespace)?;
+        Ok(Pkcs7::from_der(&bytes)?)
+    })?;
 
-    let pkcs7 = openssl::pkcs7::Pkcs7::from_pem(&pkcs7)
-        .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err))))?;
     // Note: This borrows from pkcs7. Do not drop pkcs7 before this.
     let x509_stack = unsafe {
         let x509_stack =
             aziot_certd_pkcs7_to_x509(foreign_types_shared::ForeignType::as_ptr(&pkcs7));
-        let x509_stack =
-            x509_stack as *mut <openssl::x509::X509 as openssl::stack::Stackable>::StackType;
-        let x509_stack: &openssl::stack::StackRef<openssl::x509::X509> =
+        let x509_stack = x509_stack as *mut <X509 as openssl::stack::Stackable>::StackType;
+        let x509_stack: &openssl::stack::StackRef<X509> =
             foreign_types_shared::ForeignTypeRef::from_ptr(x509_stack);
         x509_stack
     };
 
-    let mut result = vec![];
+    let mut pem = vec![];
+
     for x509 in x509_stack {
-        let x509 = x509.to_pem().map_err(|err| {
-            crate::Error::Internal(crate::InternalError::CreateCert(Box::new(err)))
-        })?;
-        result.extend_from_slice(&x509);
-        if !result.ends_with(b"\n") {
-            result.extend_from_slice(b"\n");
-        }
+        pem.extend_from_slice(&x509.to_pem()?);
     }
 
-    Ok(result)
+    Ok(pem)
 }
 
 extern "C" {
