@@ -636,15 +636,20 @@ impl IdentityManager {
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
-        // Remove any DPS-issued credentials, which might not be valid after reprovisioning.
-        self.delete_dps_credentials().await;
-
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
                 iothub_hostname,
                 device_id,
                 authentication,
             } => {
+                // Remove any DPS-issued credentials, which won't be valid after changing to manual provisioning.
+                self.delete_credential(&self.dps_trust_bundle, None).await;
+                self.delete_credential(
+                    aziot_identity_common::DPS_IDENTITY_CERT,
+                    Some(aziot_identity_common::DPS_IDENTITY_CERT_KEY),
+                )
+                .await;
+
                 let credentials = match authentication {
                     config::ManualAuthMethod::SharedPrivateKey { device_id_pk } => {
                         aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
@@ -789,7 +794,9 @@ impl IdentityManager {
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-        let backup_device = self.get_backup_provisioning_info(credentials.clone())?;
+        let backup_device = self
+            .get_backup_provisioning_info(credentials.clone())
+            .await?;
 
         if skip_if_backup_is_valid && backup_device.is_some() {
             let backup_device = backup_device.expect("backup device cannot be none");
@@ -822,6 +829,11 @@ impl IdentityManager {
 
         if let Some(trust_bundle) = state.trust_bundle {
             self.save_dps_trust_bundle(trust_bundle).await?;
+        } else {
+            // New provisioning info does not use a DPS-issued trust bundle.
+            // Delete any trust bundle left by any previously provisioned device,
+            // as that won't be valid anymore.
+            self.delete_credential(&self.dps_trust_bundle, None).await;
         }
 
         let credentials = if let Some(identity_cert) = state.identity_cert {
@@ -832,6 +844,15 @@ impl IdentityManager {
                 identity_pk: aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
             }
         } else {
+            // New provisioning info does not use a DPS-issued identity certificate.
+            // Delete any identity certificate left by any previously provisioned device,
+            // as that won't be valid anymore.
+            self.delete_credential(
+                aziot_identity_common::DPS_IDENTITY_CERT,
+                Some(aziot_identity_common::DPS_IDENTITY_CERT_KEY),
+            )
+            .await;
+
             credentials
         };
 
@@ -900,45 +921,31 @@ impl IdentityManager {
         Ok(())
     }
 
-    async fn delete_dps_credentials(&self) {
-        // Check that credentials exist before attempting to delete to avoid
-        // polluting logs with "Failed to remove..." messages when not using DPS.
-        for (cert, key, name) in [
-            (
-                aziot_identity_common::DPS_IDENTITY_CERT,
-                Some(aziot_identity_common::DPS_IDENTITY_CERT_KEY),
-                "identity certificate",
-            ),
-            (&self.dps_trust_bundle, None, "trust bundle"),
-        ] {
-            if self.cert_client.get_cert(cert).await.is_ok() {
-                if let Err(err) = self.cert_client.delete_cert(cert).await {
-                    log::warn!("Failed to remove DPS-issued {} {}: {}", name, cert, err);
-                } else {
-                    log::info!("Removed DPS-issued {} {}.", name, cert);
-                }
+    async fn delete_credential(&self, cert: &str, key: Option<&str>) {
+        // Check that the credential exists before attempting to delete to avoid
+        // polluting logs with "Failed to remove..." messages.
+        if self.cert_client.get_cert(cert).await.is_ok() {
+            if let Err(err) = self.cert_client.delete_cert(cert).await {
+                log::warn!("Failed to remove {}: {}", cert, err);
+            } else {
+                log::info!("Removed {}.", cert);
+            }
 
-                if let Some(key_id) = key {
-                    if let Ok(key_handle) = self.key_client.load_key_pair(key_id).await {
-                        if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
-                            log::warn!(
-                                "Failed to remove DPS-issued {} key {}: {}.",
-                                name,
-                                key_id,
-                                err
-                            );
-                        } else {
-                            log::info!("Removed DPS-issued {} key {}.", name, key_id);
-                        }
+            if let Some(key_id) = key {
+                if let Ok(key_handle) = self.key_client.load_key_pair(key_id).await {
+                    if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
+                        log::warn!("Failed to remove key {}: {}.", key_id, err);
                     } else {
-                        log::warn!("Failed to load key {}.", key_id);
+                        log::info!("Removed key {}.", key_id);
                     }
+                } else {
+                    log::warn!("Failed to load key {}.", key_id);
                 }
             }
         }
     }
 
-    fn get_backup_provisioning_info(
+    async fn get_backup_provisioning_info(
         &self,
         credentials: aziot_identity_common::Credentials,
     ) -> Result<Option<aziot_identity_common::IoTHubDevice>, Error> {
@@ -951,6 +958,23 @@ impl IdentityManager {
 
             match prev_hub_device_info {
                 Some(device_info) => {
+                    // This function is only called for DPS-provisioned devices. Check if DPS-issued
+                    // credentials exist and prefer use of DPS-issued credentials.
+                    let (cert, key) = futures_util::join!(
+                        self.cert_client
+                            .get_cert(aziot_identity_common::DPS_IDENTITY_CERT),
+                        self.key_client
+                            .load_key_pair(aziot_identity_common::DPS_IDENTITY_CERT_KEY)
+                    );
+
+                    let credentials = match (cert, key) {
+                        (Ok(_), Ok(_)) => aziot_identity_common::Credentials::X509 {
+                            identity_cert: aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
+                            identity_pk: aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
+                        },
+                        _ => credentials,
+                    };
+
                     let device = aziot_identity_common::IoTHubDevice {
                         local_gateway_hostname: device_info.local_gateway_hostname,
                         iothub_hostname: device_info.hub_name,
