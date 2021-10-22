@@ -282,8 +282,6 @@ module-server = { method = "local_ca" }
 
 [cert_issuance.device-id]
 method = "est"
-expiry_days = 365
-subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "test-device" }
 url = "https://estendpoint.com/.well-known/est/device-id/"
 username = "username"
 password = "password"
@@ -291,6 +289,8 @@ identity_cert = "device-id"
 identity_pk = "device-id"
 bootstrap_identity_cert = "bootstrap"
 bootstrap_identity_pk = "bootstrap"
+expiry_days = 365
+subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "test-device" }
 
 [cert_issuance.est]
 identity_cert = "est-id"
@@ -551,10 +551,10 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 vec![
                                     ("L".to_owned(), "AQ".to_owned()),
                                     ("ST".to_owned(), "Antarctica".to_owned()),
-                                    ("CN".to_owned(), "test-device".to_owned())
+                                    ("CN".to_owned(), "test-device".to_owned()),
                                 ]
                                 .into_iter()
-                                .collect()
+                                .collect(),
                             )),
                         },
                     ),

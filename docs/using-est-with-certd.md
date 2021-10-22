@@ -62,13 +62,14 @@ password = "password"
 # Identifies this certificate as being issued over EST.
 method = "est"
 
-# Optionally, the DN for this certificate can be overridden through the use of the `common_name` string or
-# the `subject` table. `common_name` sets the DN of the issued certificate to `/CN=${common_name}`. If
-# `subject` is used instead, the DN is set to `/${key}=${value}/..`, where `key` and `value` are entries
-# from the keys and values of `subject`. For example, if `subject` is set to
-# > subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "name" }
-# the issued certificate will have DN `/L=AQ/ST=Antarctica/CN=name`. Setting either option will result in
-# certd ignoring the CSR DN for the configured certificate.
+# Optionally, the Distinguished Name (DN) for this certificate can be overridden through the use of the
+# `common_name` string or the `subject` table. `common_name` sets the DN of the issued certificate to
+# `/CN=${common_name}`. If `subject` is used instead, the DN is set to `/${key}=${value}/..`, where `key`
+# and `value` are entries from the keys and values of `subject`. For example, if `subject` is set to >
+# subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "name" } the issued certificate will have DN
+# `/L=AQ/ST=Antarctica/CN=name`. Setting either option will result in certd ignoring the CSR DN for the
+# configured certificate. Be advised that if both `common_name` and `subject` are specified in this
+# section, the one that appears first will be used to set the DN.
 common_name = "name"
 subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "name" }
 
