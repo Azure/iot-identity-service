@@ -11,4 +11,4 @@ percent-encoding = "2"
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
-http-common = { path = "../../http-common" }
+http-common = { path = "../../http-common", features = ["tokio1"] }

@@ -487,11 +487,6 @@ async fn create_cert_inner<'a>(
                                 )
                             })?;
 
-                        if let Ok(ref handle) = api.key_client.load_key_pair(&auth_x509.identity.pk)
-                        {
-                            api.key_client.delete_key_pair(handle)?;
-                        }
-
                         let handle = api.key_client.create_key_pair_if_not_exists(
                             &auth_x509.identity.pk,
                             Some("ec-p256:rsa-4096:*"),

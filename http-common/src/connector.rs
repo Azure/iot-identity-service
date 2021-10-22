@@ -1,11 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::sync::atomic;
-
-use futures_util::future;
-
-const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
     Tcp {
@@ -23,12 +17,14 @@ pub enum Stream {
     Unix(std::os::unix::net::UnixStream),
 }
 
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum AsyncStream {
     Tcp(tokio::net::TcpStream),
     Unix(tokio::net::UnixStream),
 }
 
+#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
     Tcp {
@@ -40,6 +36,7 @@ pub enum Incoming {
     },
 }
 
+#[cfg(feature = "tokio1")]
 impl Incoming {
     pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
     where
@@ -154,13 +151,9 @@ impl Connector {
         }
     }
 
-    pub async fn incoming(
-        self,
-        unix_socket_permission: u32,
-        socket_name: Option<String>,
-    ) -> std::io::Result<Incoming> {
-        // Check for systemd sockets.
-        let systemd_socket = get_systemd_socket(socket_name)
+    #[cfg(feature = "tokio1")]
+    pub async fn incoming(self) -> std::io::Result<Incoming> {
+        let systemd_socket = get_systemd_socket()
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
         if let Some(fd) = systemd_socket {
             let sock_addr = nix::sys::socket::getsockname(fd)
@@ -276,6 +269,7 @@ impl std::str::FromStr for Connector {
     }
 }
 
+#[cfg(feature = "tokio1")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
@@ -388,6 +382,7 @@ impl std::io::Write for Stream {
     }
 }
 
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
@@ -401,6 +396,7 @@ impl tokio::io::AsyncRead for AsyncStream {
     }
 }
 
+#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncWrite for AsyncStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -452,6 +448,7 @@ impl tokio::io::AsyncWrite for AsyncStream {
     }
 }
 
+#[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
@@ -534,64 +531,7 @@ fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
                 return Err(format!("could not read LISTEN_FDS env var: {}", err))
             }
         };
-
-    // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
-    let fd = index + SD_LISTEN_FDS_START;
-
-    Ok(fd)
-}
-
-fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
-    if is_unix_fd(fd)? {
-        let listener: std::os::unix::net::UnixListener =
-            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-        listener.set_nonblocking(true)?;
-        let listener = tokio::net::UnixListener::from_std(listener)?;
-        Ok(Incoming::Unix {
-            listener,
-            user_state: Default::default(),
-        })
-    } else {
-        let listener: std::net::TcpListener =
-            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-        listener.set_nonblocking(true)?;
-        let listener = tokio::net::TcpListener::from_std(listener)?;
-        Ok(Incoming::Tcp { listener })
-    }
-}
-
-/// Return a matching systemd socket. Checks if this process has been socket-activated.
-///
-/// This mimics `sd_listen_fds` from libsystemd, then returns the fd of systemd socket.
-fn get_systemd_socket(
-    socket_name: Option<String>,
-) -> Result<Option<std::os::unix::io::RawFd>, String> {
-    // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
-    //
-    // Try to find a systemd socket to match when non "fd" path has been provided.
-    // We consider 4 cases:
-    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means
-    // the call is made by identity service which uses only one systemd socket. So matching is simple
-    // 2. There are > 1 systemd sockets and a socket name is provided. It means edged is telling us to match an fd with the provided socket name.
-    // 3. There are > 1 systemd sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
-    // 4. There are > 1 systemd sockets but no socket name is provided. In this case it means there is no corresponding systemd socket we should match
-    //
-    // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
-    // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
-    //
-    // Note that it's not possible to distinguish between fd numbers if a process requires more than one socket.
-    // That is why in edged's case we use the systemd socket name to know which fd the function should return
-    // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
-    // for example.
-    //
-    // The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
-    // would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7 (just like iotedged). This creates more complications,
-    // because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does) which means host modules need to try
-    // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
-    // /run/aziot themselves on startup with ACLs for all three users and all three groups.
-
-    let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
-        Some(listen_fds) => listen_fds
+        let listen_fds: std::os::unix::io::RawFd = listen_fds
             .parse()
             .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?;
         listen_fds
