@@ -70,11 +70,7 @@ method = "est"
 # the issued certificate will have DN `/L=AQ/ST=Antarctica/CN=name`. Setting either option will result in
 # certd ignoring the CSR DN for the configured certificate.
 common_name = "name"
-subject = {
-    "L" = "AQ",
-    "ST" = "Antarctica",
-    "CN" = "name"
-}
+subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "name" }
 
 # Optional EST URL to issue this certificate. Defaults to the `default` URL in `[cert_issuance.est.urls]`
 # if not provided. The URL must be provided either here or in default, i.e. certd will fail if no URL is
