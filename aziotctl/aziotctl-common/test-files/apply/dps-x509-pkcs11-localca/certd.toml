@@ -4,8 +4,8 @@ cert = "local-ca"
 pk = "local-ca"
 
 [cert_issuance.device-id]
-common_name = "my-device"
 method = "local_ca"
+common_name = "my-device"
 
 [preloaded_certs]
 local-ca = "file:///var/secrets/local-ca.pem"

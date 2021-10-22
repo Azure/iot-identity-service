@@ -18,7 +18,11 @@ identity_cert = "est-id-device-id"
 identity_pk = "est-id-device-id"
 bootstrap_identity_cert = "est-bootstrap-id-device-id"
 bootstrap_identity_pk = "est-bootstrap-id-device-id"
-common_name = "my-device"
+
+[cert_issuance.device-id.subject]
+CN = "my-device"
+L = "AQ"
+ST = "Antarctica"
 
 [preloaded_certs]
 est-bootstrap-id = "file:///var/secrets/est-bootstrap-id.pem"

@@ -10,8 +10,8 @@ identity_pk = "est-id"
 default = "https://example.org/.well-known/est"
 
 [cert_issuance.device-id]
-common_name = "my-device"
 method = "est"
+common_name = "my-device"
 
 [preloaded_certs]
 est-id = "file:///var/secrets/est-id.pem"
