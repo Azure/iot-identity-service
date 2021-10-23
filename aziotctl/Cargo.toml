@@ -44,7 +44,7 @@ aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
 aziotctl-common = { path = "./aziotctl-common" }
 config-common = { path = "../config-common" }
-http-common = { path = "../http-common", features = ["tokio1"] }
+http-common = { path = "../http-common" }
 mini-sntp = { path = "../mini-sntp" }
 openssl2 = { path = "../openssl2" }
 openssl-sys2 = { path = "../openssl-sys2" }

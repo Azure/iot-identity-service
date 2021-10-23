@@ -10,4 +10,4 @@ hyper = "0.14"
 
 aziot-tpm-common = { path = "../aziot-tpm-common" }
 aziot-tpm-common-http = { path = "../aziot-tpm-common-http" }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
