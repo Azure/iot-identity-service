@@ -1,16 +1,18 @@
 # Using DPS-provided certificates with Identity Service
 
-As of the `2021-11-01-preview` API version, DPS supports management and issuance of certificates alongside provisioning. This document describes how Identity Service uses DPS-managed trust bundles and DPS-issued identity certificates.
+As of the `2021-11-01-preview` API version, DPS supports management and issuance of certificates alongside provisioning. This document describes how Identity Service supports:
+* DPS-managed trust bundles
+* DPS-issued identity certificates
 
 Documentation on configuring DPS with trust bundles and identity certificates is [here](**TODO: replace with link when available**).
 
 ## Trust Bundle
 
-The trust bundle is a set of trusted root CA certificates that DPS can provided with device information when provisioning. If Identity Service receives a trust bundle from DPS, it will save the trust bundle with Certificates Service.
+The trust bundle is a set of trusted CA certificates. DPS can provide the trust bundle along with device information when provisioning. If Identity Service receives a trust bundle from DPS, it will save the trust bundle with Certificates Service.
 
 ### Setting Trust Bundle Name
 
-The configuration option `dps_trust_bundle` provides the name used for the trust bundle. Specify it in `/etc/aziot/config.toml`.
+Identity Service saves the trust bundle with the name `aziot-dps-trust-bundle` by default. You can override the default name in `/etc/aziot/config.toml` by setting the configuration option `dps_trust_bundle`.
 
 ```toml
 dps_trust_bundle = "aziot-dps-trust-bundle"
@@ -31,7 +33,7 @@ Applications can then install the trust bundle to their trusted root CA certific
 
 ### Trust Bundle and IoT Edge
 
-The IoT Edge daemon `aziot-edged` automatically provides DPS-managed trust bundles to IoT Edge modules through its `/trust-bundle` API. IoT Edge joins the certificates in the DPS-managed trust bundle with its other trust bundle certificates (such as the Edge CA certificate), and provides the resulting set of certificates to modules. IoT Edge will also remove duplicate certificates from this set.
+The IoT Edge daemon `aziot-edged` automatically provides DPS-managed trust bundles to IoT Edge modules through its `/trust-bundle` API. If the customer has configured a trust bundle in IoT Edge as well, then IoT Edge will combine the CA certificates from the locally-configured and DPS-provided trust bundles (after removing duplicates), and create a combined trust bundle which is then used by applications on the Edge device.
 
 ## Identity Certificate
 
