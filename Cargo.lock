@@ -292,7 +292,6 @@ dependencies = [
  "aziot-key-openssl-engine",
  "aziot-tpm-client-async",
  "aziot-tpm-common-http",
- "base64",
  "chrono",
  "config-common",
  "futures-util",

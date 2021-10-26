@@ -899,9 +899,7 @@ impl IdentityManager {
     }
 
     async fn save_dps_identity_cert(&self, identity_cert: String) -> Result<(), Error> {
-        let identity_cert = base64::decode(identity_cert)
-            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-        let identity_cert = openssl::x509::X509::from_der(&identity_cert)
+        let identity_cert = openssl::x509::X509::from_pem(identity_cert.as_bytes())
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
         let identity_cert = identity_cert
