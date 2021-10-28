@@ -84,6 +84,7 @@ cp /src/contrib/mariner/aziot-identity-service.spec aziot-identity-service.spec
 cp /src/contrib/mariner/aziot-identity-service.signatures.json aziot-identity-service.signatures.json
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" aziot-identity-service.signatures.json
 sed -i "s/@@VERSION@@/${PACKAGE_VERSION}/g" aziot-identity-service.spec
+sed -i "s/@@RELEASE@@/${PACKAGE_RELEASE}/g" aziot-identity-service.spec
 
 
 # Build package
@@ -94,6 +95,6 @@ popd
 rm -rf "/src/packages/mariner/$ARCH"
 mkdir -p "/src/packages/mariner/$ARCH"
 cp \
-    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
-    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-2.cm1.x86_64.rpm" \
+    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
+    "/src/Mariner-Build/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
     "/src/packages/mariner/$ARCH/"

@@ -77,7 +77,7 @@ jobs:
       env:
         ARCH: "amd64"
         PACKAGE_VERSION: '1.2.2'
-        PACKAGE_RELEASE: '1'
+        PACKAGE_RELEASE: '2'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |

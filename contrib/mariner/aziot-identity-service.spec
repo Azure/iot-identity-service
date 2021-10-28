@@ -11,7 +11,7 @@
 
 Name: aziot-identity-service
 Version: @@VERSION@@
-Release: 2%{?dist}
+Release: @@RELEASE@@%{?dist}
 Summary: Azure IoT Identity Service and related services
 License: MIT
 URL: https://github.com/azure/iot-identity-service
