@@ -1,0 +1,17 @@
+homedir_path = "/var/lib/aziot/certd"
+[cert_issuance.device-id]
+method = "est"
+url = "https://example.org/.well-known/est"
+username = "user"
+password = "password"
+identity_cert = "est-id-device-id"
+identity_pk = "est-id-device-id"
+expiry_days = 365
+common_name = "my-device"
+
+[preloaded_certs]
+est-id-device-id = "file:///var/secrets/est-id.pem"
+
+[[principal]]
+uid = 5556
+certs = ["device-id"]

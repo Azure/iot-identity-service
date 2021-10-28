@@ -3,14 +3,20 @@
 # This script is meant to be sourced.
 
 
-OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
-
+OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
 
 case "$OS" in
-    'centos:7')
+    'centos:7'|'platform:el8')
         # openssl 1.0
 
-        yum install -y epel-release
+        if [ "$OS" = 'platform:el8' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
+            # If using RHEL 8 UBI images without a subscription then they only have access to a 
+            # subset of packages. Workaround to enable EPEL.
+            yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+        else
+            yum install -y epel-release
+        fi
+
         yum install -y curl jq openssl
 
         case "${PKCS11_BACKEND:-}" in
@@ -32,7 +38,7 @@ case "$OS" in
         esac
         ;;
 
-    'debian:9'|'debian:10'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:9'|'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         # openssl 1.1.0 for Debian 9, 1.1.1 for the others
 
         apt-get update -y

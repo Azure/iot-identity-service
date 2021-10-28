@@ -112,6 +112,7 @@ pub enum ManualProvisioning {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -125,6 +126,7 @@ pub enum ManualAuthMethod {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
@@ -136,7 +138,7 @@ pub enum DpsAttestationMethod {
     },
 
     X509 {
-        registration_id: String,
+        registration_id: Option<String>,
 
         #[serde(flatten)]
         identity: X509Identity,
@@ -149,12 +151,13 @@ pub enum DpsAttestationMethod {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct CertIssuance {
-    pub est: Option<Est>,
     pub local_ca: Option<LocalCa>,
+    pub est: Option<Est>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Est {
+    #[serde(default)]
     pub trusted_certs: Vec<Url>,
     pub auth: EstAuth,
     pub urls: BTreeMap<String, Url>,
@@ -187,7 +190,7 @@ pub enum EstAuthX509 {
 #[serde(untagged)]
 pub enum LocalCa {
     Issued {
-        cert: aziot_certd_config::CertIssuanceOptions,
+        cert: CertIssuanceOptions,
     },
 
     Preloaded {
@@ -213,13 +216,43 @@ pub enum SymmetricKey {
 #[serde(untagged)]
 pub enum X509Identity {
     Issued {
-        identity_cert: aziot_certd_config::CertIssuanceOptions,
+        identity_cert: CertIssuanceOptions,
     },
 
     Preloaded {
         identity_cert: Url,
         identity_pk: aziot_keys_common::PreloadedKeyLocation,
     },
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CertIssuanceOptions {
+    #[serde(flatten)]
+    pub method: CertIssuanceMethod,
+
+    #[serde(
+        default,
+        deserialize_with = "aziot_certd_config::deserialize_expiry_days"
+    )]
+    pub expiry_days: Option<u32>,
+
+    #[serde(flatten)]
+    pub subject: Option<aziot_certd_config::CertSubject>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
+pub enum CertIssuanceMethod {
+    #[serde(rename = "est")]
+    Est {
+        url: Option<url::Url>,
+        #[serde(flatten)]
+        auth: Option<EstAuth>,
+    },
+
+    LocalCa,
+
+    SelfSigned,
 }
 
 mod base64 {

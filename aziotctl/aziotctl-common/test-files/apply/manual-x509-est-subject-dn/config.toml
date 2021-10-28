@@ -1,0 +1,17 @@
+[provisioning]
+source = "manual"
+iothub_hostname = "example.azure-devices.net"
+device_id = "my-device"
+
+[provisioning.authentication]
+method = "x509"
+
+[provisioning.authentication.identity_cert]
+method = "est"
+subject = { L = "AQ", ST = "Antarctica", CN = "my-device" }
+expiry_days = 365
+url = "https://example.org/.well-known/est"
+username = "user"
+password = "password"
+identity_cert = "file:///var/secrets/est-id.pem"
+identity_pk = "pkcs11:slot-id=0;object=est-id?pin-value=1234"
