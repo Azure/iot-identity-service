@@ -25,16 +25,6 @@ popd
 mv out/toolkit-*.tar.gz "/src/CBL-Mariner/toolkit.tar.gz"
 popd
 
-# cargo vendor vendor
-
-# mkdir .cargo
-# cat > .cargo/config << EOF
-# [source.crates-io]
-# replace-with = "vendored-sources"
-# [source.vendored-sources]
-# directory = "vendor"
-# EOF
-
 make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
 MarinerRPMBUILDDIR=/src/Mariner-Build
