@@ -28,7 +28,7 @@ BuildRequires: make
 BuildRequires: cmake
 BuildRequires: openssl-devel
 BuildRequires: pkg-config
-BuildRequires: rust >= 1.47.0
+BuildRequires: rust = 1.47.0
 BuildRequires: tar
 BuildRequires: systemd
 Requires(pre): shadow-utils
