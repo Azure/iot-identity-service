@@ -94,6 +94,37 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 ---
 
+### Get device provisioning information
+
+`GET /identities/provisioning?api-version=2021-12-01`
+
+#### Response (DPS provisioning)
+
+```json
+{
+  "source": "dps",
+  "auth": "string",
+  "endpoint": "string",
+  "scope_id": "string",
+  "registration_id": "string"
+}
+```
+
+`auth` will be either `symmetric_key` or `x509`.
+
+#### Response (Manual provisioning)
+
+```json
+{
+  "source": "manual",
+  "auth": "string"
+}
+```
+
+`auth` will be either `sas` or `x509`.
+
+---
+
 ### Get IoT device provisioning result
 
 `POST /identities/device?api-version=2020-09-01`

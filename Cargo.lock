@@ -265,6 +265,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-cert-common-http",
  "aziot-identity-common",
+ "aziot-identityd-config",
  "aziot-key-common",
  "http-common",
  "serde",
