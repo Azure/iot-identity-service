@@ -110,7 +110,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 }
 ```
 
-`auth` will be either `symmetric_key` or `x509`.
+`auth` will be either `symmetric_key`, `x509`, or `tpm`.
 
 #### Response (Manual provisioning)
 
