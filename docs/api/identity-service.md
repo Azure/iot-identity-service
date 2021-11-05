@@ -4,7 +4,7 @@
 
 ### Get primary cloud identity for authenticated workload
 
-`GET /identities/identity?api-version=2020-09-01`
+`GET /identities/identity?api-version=2021-12-01`
 
 The shape of the response will depend on the principal used to authenticate with the Identity Service. The association between an authorized principal and the identity type to return is based on the `idtype` in the identity service's [configuration](identity-service.md#module-provisioning--re-provisioning).
 
@@ -127,7 +127,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 ### Get IoT device provisioning result
 
-`POST /identities/device?api-version=2020-09-01`
+`POST /identities/device?api-version=2021-12-01`
 
 #### Request
 ```json
@@ -175,7 +175,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 ---
 
 ### List IoT Module Identities
-`GET /identities/modules?api-version=2020-09-01&type={type}`
+`GET /identities/modules?api-version=2021-12-01&type={type}`
 
 The `type` query parameter specifies the identity type to return. Accepted values are:
 - `aziot`: Module identity.
@@ -232,7 +232,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ### Create IoT module identity
 
-`POST /identities/modules?api-version=2020-09-01`
+`POST /identities/modules?api-version=2021-12-01`
 
 #### Request (Module identity)
 ```json
@@ -322,7 +322,7 @@ If `localIdOpts` is not specified, the default `{"type": "x509", "attributes": "
 
 ### Get IoT module identity information
 
-`GET /identities/modules/{module-id}?api-version=2020-09-01&type={type}`
+`GET /identities/modules/{module-id}?api-version=2021-12-01&type={type}`
 
 The `type` query parameter specifies the identity type to return. Accepted values are:
 - `aziot`: Module identity.
@@ -389,7 +389,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ### Update IoT module identity
 
-`PUT /identities/modules/{module-id}?api-version=2020-09-01`
+`PUT /identities/modules/{module-id}?api-version=2021-12-01`
 
 #### Request
 ```json
@@ -443,7 +443,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ### Delete IoT module identity
 
-`DELETE /identities/modules/{module-id}?api-version=2020-09-01&type={type}`
+`DELETE /identities/modules/{module-id}?api-version=2021-12-01&type={type}`
 
 The `type` query parameter specifies the identity type to return. Accepted values are:
 - `aziot`: Module identity.
@@ -458,7 +458,7 @@ The `type` query parameter specifies the identity type to return. Accepted value
 
 ### Trigger IoT device reprovisioning flow
 
-`POST /identities/device/reprovision?api-version=2020-09-01`
+`POST /identities/device/reprovision?api-version=2021-12-01`
 
 #### Request
 
