@@ -4,7 +4,7 @@
 #
 # WARNING: This script is destructive to your machine's environment and globally-installed files. For example, the Ubuntu-specific parts of the script
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
-
+OS="${1-}"
 if [ -z "$OS" ]; then
     OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
 fi

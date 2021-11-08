@@ -28,6 +28,8 @@ jobs:
         - 'amd64'
         - 'arm32v7'
         - 'aarch64'
+        os:
+        - ''
         exclude:
         # CentOS 7 does not have functioning cross compilers. The Azure/iotedge repo builds CentOS 7 arm32v7 and aarch64 packages
         # by running the arm32v7 / aarch64 containers under qemu. For now we don't care to replicate that here.
@@ -71,10 +73,10 @@ jobs:
       run: |
         OS="${{ matrix.os }}"
         if [ -z "$OS" ]; then
-          os_package="$OS"
-          else
           os_package="${{ matrix.container_os }}"
           os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
+          else
+          os_package="$OS"
         fi
         echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
     - name: 'Upload'
