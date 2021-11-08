@@ -5,9 +5,9 @@
 # WARNING: This script is destructive to your machine's environment and globally-installed files. For example, the Ubuntu-specific parts of the script
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
 
-
-OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
-
+if [ -z "$OS" ]; then
+    OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
+fi
 
 # OS packages
 
@@ -24,7 +24,7 @@ case "$OS:$ARCH" in
         exit 1
         ;;
 
-    'debian:9:amd64'|'debian:10:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
+    'debian:9:amd64'|'debian:10:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64'|'mariner:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

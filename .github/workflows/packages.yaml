@@ -33,6 +33,11 @@ jobs:
           arch: 'arm32v7'
         - container_os: 'centos:7'
           arch: 'aarch64'
+        # Include this for mariner package builds. Mariner cannot be built on its own OS so we need an Ubuntu container.
+        include:
+        - container_os: 'ubuntu:18.04'
+          arch: 'amd64'
+          os: 'mariner'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -43,52 +48,30 @@ jobs:
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
+          -e "OS=$OS" \
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
+          --privileged \
           "${{ matrix.container_os }}" \
           '/src/ci/package.sh'
       env:
         ARCH: "${{ matrix.arch }}"
+        OS: "${{ matrix.os }}"
         PACKAGE_VERSION: "${{ env.PACKAGE_VERSION }}"
         PACKAGE_RELEASE: "${{ env.PACKAGE_RELEASE }}"
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
-        container_os="${{ matrix.container_os }}"
-        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::packages_${container_os}_${{ matrix.arch }}"
+        OS="${{ matrix.os }}"
+        if [ -z "$OS" ]; then
+          os_package="$OS"
+          else
+          os_package="${{ matrix.container_os }}"
+          os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
+        fi
+        echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'packages'
-  BuildMarinerRelease:
-    runs-on: 'ubuntu-18.04'
-    steps:
-    - uses: 'actions/checkout@v1'
-      with:
-        submodules: 'recursive'
-    - name: 'Run'
-      run: |
-        docker run --rm \
-          -v "$GITHUB_WORKSPACE:/src" \
-          -e "ARCH=amd64" \
-          -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
-          -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
-          --privileged \
-          "ubuntu:18.04" \
-          '/src/ci/package-mariner.sh'
-      env:
-        ARCH: "amd64"
-        PACKAGE_VERSION: "${{ env.PACKAGE_VERSION }}"
-        PACKAGE_RELEASE: "${{ env.PACKAGE_RELEASE }}"
-    - name: 'Generate artifact properties'
-      id: 'generate-artifact-properties'
-      run: |
-        echo "::set-output name=artifact-name::packages_mariner_amd64"
-    - name: 'Upload'
-      uses: 'actions/upload-artifact@v1'
-      with:
-        name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
-        path: 'packages'
-  
