@@ -5,7 +5,7 @@ on:
 - 'push'
 
 env:
-  PACKAGE_VERSION: '1.2.2'
+  PACKAGE_VERSION: '1.2.3'
   PACKAGE_RELEASE: '1'
 
 jobs:
@@ -20,6 +20,8 @@ jobs:
         - 'centos:7'
         - 'debian:9-slim'
         - 'debian:10-slim'
+        - 'debian:11-slim'
+        - 'redhat/ubi8:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         arch:
@@ -32,6 +34,11 @@ jobs:
         - container_os: 'centos:7'
           arch: 'arm32v7'
         - container_os: 'centos:7'
+          arch: 'aarch64'
+        # More investigation needed for RHEL 8. Excluding for now.
+        - container_os: 'redhat/ubi8:latest'
+          arch: 'arm32v7'
+        - container_os: 'redhat/ubi8:latest'
           arch: 'aarch64'
         # Include this for mariner package builds. Mariner cannot be built on its own OS so we need an Ubuntu container.
         include:

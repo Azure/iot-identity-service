@@ -17,7 +17,7 @@
 /// What this bug means for us is that `make test` recompiles aziot-keys every time even if it hasn't changed,
 /// because `cargo build` and `cargo test` keep marking the build dirty for each other.
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PreloadedKeyLocation {
     Filesystem { path: std::path::PathBuf },
     Pkcs11 { uri: pkcs11::Uri },

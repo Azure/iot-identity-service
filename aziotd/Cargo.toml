@@ -1,6 +1,6 @@
 [package]
 name = "aziotd"
-version = "1.2.2"
+version = "1.2.3"
 authors = ["Azure IoT Edge Devs"]
 edition = "2018"
 
@@ -17,5 +17,5 @@ aziot-identityd = { path = "../identity/aziot-identityd" }
 aziot-keyd = { path = "../key/aziot-keyd" }
 aziot-tpmd = { path = "../tpm/aziot-tpmd" }
 config-common = { path = "../config-common" }
-http-common = { path = "../http-common", features = ["tokio1"] }
+http-common = { path = "../http-common" }
 logger = { path = "../logger" }

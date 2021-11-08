@@ -12,15 +12,21 @@
 pub struct Client {
     api_version: aziot_cert_common_http::ApiVersion,
     inner: hyper::Client<http_common::Connector, hyper::Body>,
+    max_retries: u32,
 }
 
 impl Client {
     pub fn new(
         api_version: aziot_cert_common_http::ApiVersion,
         connector: http_common::Connector,
+        max_retries: u32,
     ) -> Self {
         let inner = hyper::Client::builder().build(connector);
-        Client { api_version, inner }
+        Client {
+            api_version,
+            inner,
+            max_retries,
+        }
     }
 
     pub async fn create_cert(
@@ -40,7 +46,7 @@ impl Client {
             }),
         };
 
-        let res: aziot_cert_common_http::get_cert::Response = http_common::request(
+        let res: aziot_cert_common_http::get_cert::Response = http_common::request_with_retry(
             &self.inner,
             http::Method::POST,
             &format!(
@@ -48,6 +54,7 @@ impl Client {
                 self.api_version
             ),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         Ok(res.pem.0)
@@ -58,7 +65,7 @@ impl Client {
             pem: aziot_cert_common_http::Pem(pem.to_owned()),
         };
 
-        let res: aziot_cert_common_http::import_cert::Response = http_common::request(
+        let res: aziot_cert_common_http::import_cert::Response = http_common::request_with_retry(
             &self.inner,
             http::Method::PUT,
             &format!(
@@ -70,31 +77,34 @@ impl Client {
                 self.api_version,
             ),
             Some(&body),
+            self.max_retries,
         )
         .await?;
         Ok(res.pem.0)
     }
 
     pub async fn get_cert(&self, id: &str) -> Result<Vec<u8>, std::io::Error> {
-        let res: aziot_cert_common_http::get_cert::Response = http_common::request::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            &format!(
-                "http://certd.sock/certificates/{}?api-version={}",
-                percent_encoding::percent_encode(
-                    id.as_bytes(),
-                    http_common::PATH_SEGMENT_ENCODE_SET
+        let res: aziot_cert_common_http::get_cert::Response =
+            http_common::request_with_retry::<(), _>(
+                &self.inner,
+                http::Method::GET,
+                &format!(
+                    "http://certd.sock/certificates/{}?api-version={}",
+                    percent_encoding::percent_encode(
+                        id.as_bytes(),
+                        http_common::PATH_SEGMENT_ENCODE_SET
+                    ),
+                    self.api_version,
                 ),
-                self.api_version,
-            ),
-            None,
-        )
-        .await?;
+                None,
+                self.max_retries,
+            )
+            .await?;
         Ok(res.pem.0)
     }
 
     pub async fn delete_cert(&self, id: &str) -> Result<(), std::io::Error> {
-        let () = http_common::request_no_content::<()>(
+        let () = http_common::request_no_content_with_retry::<()>(
             &self.inner,
             http::Method::DELETE,
             &format!(
@@ -106,6 +116,7 @@ impl Client {
                 self.api_version,
             ),
             None,
+            self.max_retries,
         )
         .await?;
         Ok(())

@@ -58,6 +58,12 @@ pub fn run(
         certs: vec![],
     };
 
+    // Authorization of CS with KS.
+    let mut aziotcs_keys = aziot_keyd_config::Principal {
+        uid: aziotcs_uid.as_raw(),
+        keys: vec![],
+    };
+
     let provisioning = {
         let super_config::Provisioning { provisioning } = provisioning;
 
@@ -106,10 +112,27 @@ pub fn run(
                     super_config::ManualAuthMethod::X509 { identity } => {
                         match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
+                                let auth =
+                                    if let super_config::CertIssuanceMethod::Est { url: _, auth } =
+                                        &identity_cert.method
+                                    {
+                                        set_est_auth(
+                                            &auth,
+                                            &mut preloaded_certs,
+                                            &mut preloaded_keys,
+                                            &mut aziotcs_keys,
+                                            super::DEVICE_ID_ID,
+                                        )
+                                    } else {
+                                        None
+                                    };
+
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
-                                cert_issuance_certs
-                                    .insert(super::DEVICE_ID_ID.to_owned(), identity_cert);
+                                cert_issuance_certs.insert(
+                                    super::DEVICE_ID_ID.to_owned(),
+                                    into_cert_options(identity_cert, auth),
+                                );
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
                             }
 
@@ -171,10 +194,27 @@ pub fn run(
                     } => {
                         match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
+                                let auth =
+                                    if let super_config::CertIssuanceMethod::Est { url: _, auth } =
+                                        &identity_cert.method
+                                    {
+                                        set_est_auth(
+                                            &auth,
+                                            &mut preloaded_certs,
+                                            &mut preloaded_keys,
+                                            &mut aziotcs_keys,
+                                            super::DEVICE_ID_ID,
+                                        )
+                                    } else {
+                                        None
+                                    };
+
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
-                                cert_issuance_certs
-                                    .insert(super::DEVICE_ID_ID.to_owned(), identity_cert);
+                                cert_issuance_certs.insert(
+                                    super::DEVICE_ID_ID.to_owned(),
+                                    into_cert_options(identity_cert, auth),
+                                );
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
                             }
 
@@ -269,12 +309,6 @@ pub fn run(
         super::AZIOT_KEYD_HOMEDIR_PATH.to_owned(),
     );
 
-    // Authorization of CS with KS.
-    let mut aziotcs_keys = aziot_keyd_config::Principal {
-        uid: aziotcs_uid.as_raw(),
-        keys: vec![],
-    };
-
     let certd_config = {
         let super_config::CertIssuance { est, local_ca } = cert_issuance;
 
@@ -301,11 +335,14 @@ pub fn run(
                     aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                     Some(aziot_certd_config::EstAuthX509 {
-                        identity: (super::EST_ID_ID.to_owned(), super::EST_ID_ID.to_owned()),
-                        bootstrap_identity: Some((
-                            super::EST_BOOTSTRAP_ID.to_owned(),
-                            super::EST_BOOTSTRAP_ID.to_owned(),
-                        )),
+                        identity: aziot_certd_config::CertificateWithPrivateKey {
+                            cert: super::EST_ID_ID.to_owned(),
+                            pk: super::EST_ID_ID.to_owned(),
+                        },
+                        bootstrap_identity: Some(aziot_certd_config::CertificateWithPrivateKey {
+                            cert: super::EST_BOOTSTRAP_ID.to_owned(),
+                            pk: super::EST_BOOTSTRAP_ID.to_owned(),
+                        }),
                     })
                 }
 
@@ -322,7 +359,10 @@ pub fn run(
                     aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
                     Some(aziot_certd_config::EstAuthX509 {
-                        identity: (super::EST_ID_ID.to_owned(), super::EST_ID_ID.to_owned()),
+                        identity: aziot_certd_config::CertificateWithPrivateKey {
+                            cert: super::EST_ID_ID.to_owned(),
+                            pk: super::EST_ID_ID.to_owned(),
+                        },
                         bootstrap_identity: None,
                     })
                 }
@@ -342,8 +382,8 @@ pub fn run(
                 .collect();
 
             Some(aziot_certd_config::Est {
-                auth,
                 trusted_certs,
+                auth,
                 urls,
             })
         } else {
@@ -354,9 +394,10 @@ pub fn run(
             Some(super_config::LocalCa::Issued { cert }) => {
                 aziotcs_keys.keys.push(super::LOCAL_CA.to_owned());
 
-                cert_issuance_certs.insert(super::LOCAL_CA.to_owned(), cert);
+                cert_issuance_certs
+                    .insert(super::LOCAL_CA.to_owned(), into_cert_options(cert, None));
 
-                Some(aziot_certd_config::LocalCa {
+                Some(aziot_certd_config::CertificateWithPrivateKey {
                     cert: super::LOCAL_CA.to_owned(),
                     pk: super::LOCAL_CA.to_owned(),
                 })
@@ -371,7 +412,7 @@ pub fn run(
                 preloaded_keys.insert(super::LOCAL_CA.to_owned(), pk);
                 aziotcs_keys.keys.push(super::LOCAL_CA.to_owned());
 
-                Some(aziot_certd_config::LocalCa {
+                Some(aziot_certd_config::CertificateWithPrivateKey {
                     cert: super::LOCAL_CA.to_owned(),
                     pk: super::LOCAL_CA.to_owned(),
                 })
@@ -439,6 +480,98 @@ pub fn run(
         keyd_config,
         tpmd_config,
         preloaded_device_id_pk_bytes,
+    })
+}
+
+fn into_cert_options(
+    opts: super_config::CertIssuanceOptions,
+    auth: Option<aziot_certd_config::EstAuth>,
+) -> aziot_certd_config::CertIssuanceOptions {
+    let method = match opts.method {
+        super_config::CertIssuanceMethod::Est { url, .. } => {
+            aziot_certd_config::CertIssuanceMethod::Est { url, auth }
+        }
+        super_config::CertIssuanceMethod::LocalCa => {
+            aziot_certd_config::CertIssuanceMethod::LocalCa
+        }
+        super_config::CertIssuanceMethod::SelfSigned => {
+            aziot_certd_config::CertIssuanceMethod::SelfSigned
+        }
+    };
+
+    aziot_certd_config::CertIssuanceOptions {
+        method,
+        expiry_days: opts.expiry_days,
+        subject: opts.subject,
+    }
+}
+
+pub fn set_est_auth(
+    auth: &Option<super_config::EstAuth>,
+    preloaded_certs: &mut std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
+    preloaded_keys: &mut std::collections::BTreeMap<
+        String,
+        aziot_keys_common::PreloadedKeyLocation,
+    >,
+    aziotcs_keys: &mut aziot_keyd_config::Principal,
+    cert_name: &str,
+) -> Option<aziot_certd_config::EstAuth> {
+    auth.as_ref().map(|auth| {
+        let auth_x509 = auth.x509.as_ref().map(|x509| {
+            let identity_cert_id = format!("{}-{}", super::EST_ID_ID, cert_name);
+
+            let bootstrap_identity = match x509 {
+                super_config::EstAuthX509::BootstrapIdentity {
+                    bootstrap_identity_cert,
+                    bootstrap_identity_pk,
+                } => {
+                    let bootstrap_cert_id = format!("{}-{}", super::EST_BOOTSTRAP_ID, cert_name);
+
+                    let bootstrap_identity_cert =
+                        aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert.to_owned());
+                    preloaded_certs.insert(bootstrap_cert_id.to_owned(), bootstrap_identity_cert);
+
+                    preloaded_keys.insert(
+                        bootstrap_cert_id.to_owned(),
+                        bootstrap_identity_pk.to_owned(),
+                    );
+                    aziotcs_keys.keys.push(bootstrap_cert_id.to_owned());
+
+                    Some(aziot_certd_config::CertificateWithPrivateKey {
+                        cert: bootstrap_cert_id.clone(),
+                        pk: bootstrap_cert_id,
+                    })
+                }
+
+                super_config::EstAuthX509::Identity {
+                    identity_cert,
+                    identity_pk,
+                } => {
+                    let identity_cert =
+                        aziot_certd_config::PreloadedCert::Uri(identity_cert.to_owned());
+                    preloaded_certs.insert(identity_cert_id.to_owned(), identity_cert);
+
+                    preloaded_keys.insert(identity_cert_id.to_owned(), identity_pk.to_owned());
+
+                    None
+                }
+            };
+
+            aziotcs_keys.keys.push(identity_cert_id.to_owned());
+
+            aziot_certd_config::EstAuthX509 {
+                identity: aziot_certd_config::CertificateWithPrivateKey {
+                    cert: identity_cert_id.clone(),
+                    pk: identity_cert_id,
+                },
+                bootstrap_identity,
+            }
+        });
+
+        aziot_certd_config::EstAuth {
+            basic: auth.basic.to_owned(),
+            x509: auth_x509,
+        }
     })
 }
 

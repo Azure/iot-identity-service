@@ -1,0 +1,13 @@
+[aziot_keys]
+homedir_path = "/var/lib/aziot/keyd"
+
+[preloaded_keys]
+est-id-device-id = "pkcs11:slot-id=0;object=est%2Did?pin-value=1234"
+
+[[principal]]
+uid = 5556
+keys = ["aziot_identityd_master_id", "device-id"]
+
+[[principal]]
+uid = 5555
+keys = ["est-id-device-id"]
