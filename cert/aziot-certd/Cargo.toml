@@ -32,6 +32,7 @@ wildmatch = "1"
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-certd-config = { path = "../aziot-certd-config" }
 aziot-key-client = { path = "../../key/aziot-key-client" }
+aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }

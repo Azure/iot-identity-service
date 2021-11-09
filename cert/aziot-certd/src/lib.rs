@@ -25,6 +25,7 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
+use futures_util::future::OptionFuture;
 use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
@@ -63,16 +64,18 @@ pub async fn main(
     } = config;
 
     let api = {
-        let key_client = {
-            let key_client = aziot_key_client::Client::new(
-                aziot_key_common_http::ApiVersion::V2021_05_01,
-                key_connector,
-            );
-            let key_client = Arc::new(key_client);
-            key_client
-        };
+        let key_client_async = Arc::new(aziot_key_client_async::Client::new(
+            aziot_key_common_http::ApiVersion::V2021_05_01,
+            key_connector.clone(),
+            0,
+        ));
 
-        let key_engine = aziot_key_openssl_engine::load(key_client.clone())
+        let key_client = Arc::new(aziot_key_client::Client::new(
+            aziot_key_common_http::ApiVersion::V2021_05_01,
+            key_connector,
+        ));
+
+        let key_engine = aziot_key_openssl_engine::load(key_client)
             .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
         let proxy_uri = http_common::get_proxy_uri(None)
@@ -84,7 +87,7 @@ pub async fn main(
             preloaded_certs,
             principals: principal_to_map(principal),
 
-            key_client,
+            key_client: key_client_async,
             key_engine,
             proxy_uri,
         }
@@ -104,7 +107,7 @@ struct Api {
     preloaded_certs: BTreeMap<String, PreloadedCert>,
     principals: BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
-    key_client: Arc<aziot_key_client::Client>,
+    key_client: Arc<aziot_key_client_async::Client>,
     key_engine: FunctionalEngine,
     proxy_uri: Option<hyper::Uri>,
 }
@@ -327,7 +330,7 @@ async fn create_cert_inner<'a>(
 
         match &cert_options.method {
             CertIssuanceMethod::SelfSigned => {
-                let pk = api.key_client.load_key_pair(id)?;
+                let pk = api.key_client.load_key_pair(id).await?;
 
                 create_cert_inner(api, id, (req, pubkey), Some((&[], &CString::new(pk.0)?))).await
             }
@@ -344,7 +347,7 @@ async fn create_cert_inner<'a>(
                     .ok_or_else(|| format!("cert for issuer id {:?} not found", id))?;
                 let stack = X509::stack_from_pem(&pem)?;
 
-                let pk = api.key_client.load_key_pair(pk)?;
+                let pk = api.key_client.load_key_pair(pk).await?;
 
                 create_cert_inner(api, id, (req, pubkey), Some((&stack, &CString::new(pk.0)?)))
                     .await
@@ -393,7 +396,7 @@ async fn create_cert_inner<'a>(
                     }
                 }
 
-                let id_opt = auth
+                let id_opt: OptionFuture<_> = auth
                     .x509
                     .as_ref()
                     .map({
@@ -405,8 +408,7 @@ async fn create_cert_inner<'a>(
                         move |EstAuthX509 {
                                   identity: CertificateWithPrivateKey { cert, pk },
                                   ..
-                              }|
-                              -> Result<_, BoxedError> {
+                              }| async move {
                             let cert = get_cert_inner(homedir_path, preloaded_certs, cert)?
                                 .ok_or_else(|| {
                                     format!(
@@ -416,6 +418,7 @@ async fn create_cert_inner<'a>(
                                 })?;
                             let pk = key_client
                                 .load_key_pair(pk)
+                                .await
                                 .map_err(BoxedError::from)
                                 .and_then(|handle| Ok(CString::new(handle.0)?))
                                 .and_then(|cstr| Ok(key_engine.load_private_key(&cstr)?))
@@ -426,7 +429,9 @@ async fn create_cert_inner<'a>(
                             Ok((cert, pk))
                         }
                     })
-                    .transpose();
+                    .into();
+
+                let id_opt: Result<_, BoxedError> = id_opt.await.transpose();
 
                 match id_opt {
                     Ok(id_opt) => {
@@ -475,6 +480,7 @@ async fn create_cert_inner<'a>(
                         let bid_pk = api
                             .key_client
                             .load_key_pair(bid_pk)
+                            .await
                             .map_err(BoxedError::from)
                             .and_then(|handle| Ok(CString::new(handle.0)?))
                             .and_then({
@@ -489,15 +495,19 @@ async fn create_cert_inner<'a>(
                                 )
                             })?;
 
-                        if let Ok(ref handle) = api.key_client.load_key_pair(&auth_x509.identity.pk)
+                        if let Ok(ref handle) =
+                            api.key_client.load_key_pair(&auth_x509.identity.pk).await
                         {
-                            api.key_client.delete_key_pair(handle)?;
+                            api.key_client.delete_key_pair(handle).await?;
                         }
 
-                        let handle = api.key_client.create_key_pair_if_not_exists(
-                            &auth_x509.identity.pk,
-                            Some("ec-p256:rsa-4096:*"),
-                        )?;
+                        let handle = api
+                            .key_client
+                            .create_key_pair_if_not_exists(
+                                &auth_x509.identity.pk,
+                                Some("ec-p256:rsa-4096:*"),
+                            )
+                            .await?;
                         let cstr = CString::new(handle.0)?;
 
                         let id_pubkey = api.key_engine.load_public_key(&cstr)?;
