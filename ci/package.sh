@@ -139,7 +139,7 @@ case "$OS" in
         tar -xzvf toolkit.tar.gz
         popd
 
-        # move tarballed IIS source to building directory
+        # move tarballed iot-identity-service source to building directory
         mkdir -p $MarinerSourceDir
         mv /tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz $MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz
 
