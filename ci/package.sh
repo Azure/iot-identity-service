@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd /src
 
-. ./ci/install-build-deps.sh $OS
+. ./ci/install-build-deps.sh
 
 
 mkdir -p packages
