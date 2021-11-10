@@ -43,12 +43,7 @@ else
 	DPKG_ARCH_FLAGS =
 endif
 
-ifeq ($(SKIP_PRESET), true)
-	INSTALL_PRESET = "false"
-else
-	INSTALL_PRESET = "true"
-endif
-
+INSTALL_PRESET = "true"
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL := /bin/bash
