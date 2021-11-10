@@ -146,20 +146,20 @@ case "$OS" in
         mkdir /temp
         rustup install stable
         rustup default stable
-        wget https://github.com/eqrion/cbindgen/archive/refs/tags/v0.18.0.tar.gz -O /temp/cbindgen-0.18.0.tar.gz
+        wget https://github.com/eqrion/cbindgen/archive/refs/tags/v0.18.0.tar.gz -O /temp/cbindgen-0.15.0.tar.gz
         pushd /temp
-        tar xf cbindgen-0.18.0.tar.gz --no-same-owner
-        pushd /temp/cbindgen-0.18.0
+        tar xf cbindgen-0.15.0.tar.gz --no-same-owner
+        pushd /temp/cbindgen-0.15.0
         cargo vendor vendor
-        mkdir /temp/cbindgen-0.18.0/.cargo
-        cat > /temp/cbindgen-0.18.0/.cargo/config << EOF
+        mkdir /temp/cbindgen-0.15.0/.cargo
+        cat > /temp/cbindgen-0.15.0/.cargo/config << EOF
 [source.crates-io]
 replace-with = "vendored-sources"
 [source.vendored-sources]
 directory = "vendor"
 EOF
         popd
-        tar -cf $MarinerSourceDir/cbindgen-0.18.0.tar.gz cbindgen-0.18.0/
+        tar -cf $MarinerSourceDir/cbindgen-0.15.0.tar.gz cbindgen-0.15.0/
         popd
 
 
