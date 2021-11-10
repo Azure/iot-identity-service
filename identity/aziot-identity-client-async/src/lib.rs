@@ -105,6 +105,21 @@ impl Client {
         Ok(())
     }
 
+    pub async fn get_provisioning_info(
+        &self,
+    ) -> Result<get_provisioning_info::Response, std::io::Error> {
+        let res: get_provisioning_info::Response = http_common::request_with_retry::<(), _>(
+            &self.inner,
+            http::Method::GET,
+            make_uri!("/identities/provisioning", self.api_version),
+            None,
+            self.max_retries,
+        )
+        .await?;
+
+        Ok(res)
+    }
+
     pub async fn create_module_identity(
         &self,
         module_name: &str,
