@@ -96,7 +96,7 @@ make -j \
     RELEASE=1 \
     V=1 \
     ARCH=%{_arch} \
-    SKIP_PRESET=true \
+    INSTALL_PRESET=false \
     install-rpm
 
 %pre
