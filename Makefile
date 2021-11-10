@@ -43,6 +43,12 @@ else
 	DPKG_ARCH_FLAGS =
 endif
 
+ifeq ($(SKIP_PRESET), true)
+	INSTALL_PRESET = "false"
+else
+	INSTALL_PRESET = "true"
+endif
+
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL := /bin/bash
@@ -400,18 +406,9 @@ install-rpm: install-common
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
-	$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset
-
-	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
-
-	# devel
-	$(INSTALL_DATA) -D key/aziot-keys/aziot-keys.h $(DESTDIR)$(includedir)/aziot-identity-service/aziot-keys.h
-
-install-rpm-mariner: install-common
-	# libaziot-key-openssl-engine-shared
-	$(INSTALL_PROGRAM) -D \
-		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
-		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
+	if [$(INSTALL_PRESET) != "true"]; then \
+		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
+	fi
 
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 

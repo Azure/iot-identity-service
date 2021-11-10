@@ -92,11 +92,12 @@ make -j \
     localstatedir=%{_localstatedir} \
     sysconfdir=%{_sysconfdir} \
     unitdir=%{_unitdir} \
-    OPENSSL_ENGINES_DIR=%{_enginesdir} \
+    OPENSSL_ENGINE_FILENAME=%{_enginesdir}/aziot_keys.so \
     RELEASE=1 \
     V=1 \
     ARCH=%{_arch} \
-    install-rpm-mariner
+    SKIP_PRESET=true \
+    install-rpm
 
 %pre
 
