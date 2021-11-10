@@ -4,10 +4,6 @@ on:
 - 'pull_request'
 - 'push'
 
-env:
-  PACKAGE_VERSION: '1.2.3'
-  PACKAGE_RELEASE: '1'
-
 jobs:
   packages:
     runs-on: 'ubuntu-18.04'
@@ -65,9 +61,8 @@ jobs:
           '/src/ci/package.sh'
       env:
         ARCH: "${{ matrix.arch }}"
-        OS: "${{ matrix.os }}"
-        PACKAGE_VERSION: "${{ env.PACKAGE_VERSION }}"
-        PACKAGE_RELEASE: "${{ env.PACKAGE_RELEASE }}"
+        PACKAGE_VERSION: '1.2.4'
+        PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |

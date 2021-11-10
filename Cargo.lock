@@ -551,7 +551,7 @@ dependencies = [
 
 [[package]]
 name = "aziotctl"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "aziotd"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "aziot-certd",
  "aziot-identityd",
