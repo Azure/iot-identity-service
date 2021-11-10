@@ -406,7 +406,7 @@ install-rpm: install-common
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
-	if [$(INSTALL_PRESET) == "true"]; then \
+	if [ $(INSTALL_PRESET) == "true" ]; then \
 		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
 	fi
 
