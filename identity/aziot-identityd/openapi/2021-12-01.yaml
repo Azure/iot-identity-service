@@ -1,0 +1,638 @@
+# Ref: https://spec.openapis.org/oas/v3.0.3
+
+openapi: 3.0.1
+
+info:
+  title: Identity Service API
+
+  version: '2021-12-01'
+
+  description: |
+    This is the specification of the HTTP API of the aziot-identityd service.
+
+  license:
+    name: 'MIT'
+
+servers:
+- url: 'http://identityd.sock/'
+  description: |
+    The server listens on a unix socket `/run/aziot/identityd.sock`
+
+
+paths:
+  /identities/identity?api-version=2021-12-01:
+    get:
+      tags:
+      - Identity operations
+      summary: Get primary cloud identity for authenticated workload (caller)
+      operationId: getIdentity
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AziotIdentityResponse'
+              examples:
+                'Response for principals associated to device identities (SAS case)':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'Response for principals associated to device identities (X.509 case)':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+                'Response for principals associated to module identities (SAS case)':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'Response for principals associated to module identities (X.509 case)':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/device?api-version=2021-12-01:
+    post:
+      tags:
+      - Identity operations
+      summary: Get the IoT device provisioning result
+      operationId: getDeviceIdentity
+      x-codegen-request-body-name: GetDeviceIdentityRequest
+      requestBody:
+        description: The type of provisioned identity
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisioningResultRequest'
+            example:
+              value:
+                type: 'aziot'
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                required: ['spec', 'type']
+                type: object
+                properties:
+                  'type':
+                    $ref: '#/components/schemas/AziotIdentityType'
+                  'spec':
+                    $ref: '#/components/schemas/AziotIdentitySpec'
+              examples:
+                'SAS case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'X.509 case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/provisioning?api-version=2021-12-01:
+      get:
+        tags:
+        - Identity operations
+        summary: Get device provisioning settings
+        operationId: getProvisioningInfo
+        responses:
+          200:
+            description: Ok
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ProvisioningInfo'
+                examples:
+                  'DPS provisioning':
+                    value:
+                      source: 'dps'
+                      auth: 'string'
+                      endpoint: 'string'
+                      scope_id: 'string'
+                      registration_id: 'string'
+                  'Manual provisioning':
+                      value:
+                        source: 'manual'
+                        auth: 'string'
+
+  /identities/modules?api-version=2021-12-01&type={type}:
+    parameters:
+    - $ref: '#/components/parameters/AziotIdentityTypeParameter'
+    get:
+      tags:
+      - Identity operations
+      summary: List IoT module identities
+      operationId: getModuleIdentities
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AziotModuleIdentitiesResponse'
+              examples:
+                'SAS case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'X.509 case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/modules?api-version=2021-12-01:
+    post:
+      tags:
+      - Identity operations
+      summary: Create IoT module identity
+      operationId: createModuleIdentity
+      x-codegen-request-body-name: CreateModuleIdentityRequest
+      requestBody:
+        description: The type of module identity to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModuleRequest'
+            examples:
+              'Module identity':
+                value:
+                  type: 'aziot'
+                  moduleId: 'module01'
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleIdentityResponse'
+              examples:
+                'SAS case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'X.509 case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/modules/{id}?api-version=2021-12-01&type={type}:
+    parameters:
+      - $ref: '#/components/parameters/IdentityName'
+      - $ref: '#/components/parameters/ModuleIdentityKind'
+    get:
+      tags:
+      - Identity operations
+      summary: Get IoT module identity information
+      operationId: getModuleIdentityById
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleIdentityResponse'
+              examples:
+                'SAS case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'sas'
+                        keyHandle: 'string'
+                'X.509 case':
+                  value:
+                    type: 'aziot'
+                    spec:
+                      hubName: 'myhub.net'
+                      gatewayHost: 'parentdevice'
+                      deviceId: 'device01'
+                      moduleId: 'module01'
+                      genId: '12345'
+                      auth:
+                        type: 'x509'
+                        keyHandle: 'string'
+                        certId: 'string'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+      - Identity operations
+      summary: Delete the IoT module identity
+      operationId: deleteModuleIdentity
+      responses:
+        204:
+          description: No Content
+          content: {}
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /identities/device/reprovision?api-version=2021-12-01:
+    post:
+      tags:
+      - Identity operations
+      summary: Trigger an IoT device reprovisioning flow
+      operationId: reprovision
+      x-codegen-request-body-name: ReprovisionRequest
+      requestBody:
+        description: Type of identity to reprovision
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReprovisionRequest'
+      responses:
+        200:
+          description: Ok
+          content: {}
+        204:
+          description: No Content
+          content: {}
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+components:
+  schemas:
+    AuthenticationCredentials:
+      required:
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          description: Indicates the type of authentication credential used.
+          enum:
+          - sas
+          - x509
+      discriminator:
+        propertyName: type
+        mapping:
+          sas: '#/components/schemas/SASAuthenticationCredentials'
+          x509: '#/components/schemas/X509AuthenticationCredentials'
+
+    AziotIdentityResponse:
+      required:
+      - spec
+      - type
+      type: object
+      properties:
+        'type':
+          $ref: '#/components/schemas/AziotIdentityType'
+        'spec':
+          $ref: '#/components/schemas/AziotIdentitySpec'
+
+    AziotModuleIdentitiesResponse:
+      type: object
+      properties:
+        'identities':
+          type: array
+          description: A collection of 'aziot' module identities
+          items:
+            $ref: '#/components/schemas/AziotModuleIdentityResponse'
+
+    AziotIdentitySpec:
+      required:
+      - deviceId
+      - gatewayHost
+      - hubName
+      type: object
+      properties:
+        'hubName':
+          type: string
+          description: The name of the IoT hub where the device is provisioned.
+          example: myhub.net
+        'gatewayHost':
+          type: string
+          description: The hostname of the parent Edge gateway that intermediates
+            all requests for the current device when in a nested configuration. In
+            a single-node deployment (i.e. non-nested) it will match the 'hubName'.
+          example: parentdevice
+        'deviceId':
+          type: string
+          description: The identity name of the provisioned device in the assigned
+            IoT Hub.
+          example: device01
+        'moduleId':
+          type: string
+          description: The identity name of the device workload in the provisioned
+            device in the assigned IoT Hub.
+          example: module01
+        'genId':
+          type: string
+          description: The generation ID of the device workload assigned by IoT Hub.
+          example: "12345"
+        'auth':
+          $ref: '#/components/schemas/AuthenticationCredentials'
+      description: The device identity specification.
+
+    AziotIdentityType:
+      type: string
+      enum:
+      - aziot
+      example:
+        aziot:
+          value: aziot
+          summary: 'Module identity.'
+
+    AziotModuleIdentityResponse:
+      required:
+      - spec
+      - type
+      type: object
+      properties:
+        'type':
+          $ref: '#/components/schemas/AziotIdentityType'
+        'spec':
+          $ref: '#/components/schemas/AziotModuleIdentitySpec'
+
+    AziotModuleIdentitySpec:
+      allOf:
+      - $ref: '#/components/schemas/AziotIdentitySpec'
+      required:
+      - moduleId
+      - genId
+      type: object
+      properties:
+        'moduleId':
+          type: string
+          description: The identity name of the device workload in the provisioned
+            device in the assigned IoT Hub.
+          example: module01
+        'genId':
+          type: string
+          description: The generation ID of the device workload assigned by IoT Hub.
+          example: "12345"
+      description: The module identity specification.
+
+    CreateIdentityRequest:
+      required:
+      - moduleId
+      - type
+      type: object
+      properties:
+        'type':
+          $ref: '#/components/schemas/IdentityKind'
+        'moduleId':
+          type: string
+          description: Name of the module to add to the identity registry.
+          example: module01
+
+    CreateModuleRequest:
+      oneOf:
+      - $ref: '#/components/schemas/CreateIdentityRequest'
+      discriminator:
+        propertyName: type
+        mapping:
+          aziot: '#/components/schemas/CreateIdentityRequest'
+
+    ErrorResponse:
+      required:
+      - message
+      type: object
+      properties:
+        'message':
+          type: string
+
+    IdentityKind:
+      type: string
+      description: The identity type.
+      enum:
+      - aziot
+      example:
+        aziot:
+          value: aziot
+          summary: 'Azure IoT Hub identity.'
+
+    ModuleIdentityResponse:
+      oneOf:
+      - $ref: '#/components/schemas/AziotModuleIdentityResponse'
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          'aziot': '#/components/schemas/AziotModuleIdentityResponse'
+
+    ProvisioningInfo:
+      required:
+        - auth
+        - endpoint
+        - registration_id
+        - scope_id
+        - source
+      type: object
+      properties:
+        'auth':
+          type: string
+          description: Type of authentication used with IoT Hub or DPS.
+          enum:
+            - sas
+            - symmetric_key
+            - tpm
+            - x509
+        'endpoint':
+          type: string
+          description: Endpoint for DPS registration.
+        'registration_id':
+          type: string
+          description: DPS registration ID.
+        'scope_id':
+          type: string
+          description: DPS scope ID.
+        'source':
+          type: string
+          description: Source of information for a provisioned device.
+          enum:
+            - dps
+            - manual
+
+    ProvisioningResultRequest:
+      required:
+      - type
+      type: object
+      properties:
+        'type':
+          $ref: '#/components/schemas/AziotIdentityType'
+
+    ReprovisionRequest:
+      required:
+      - type
+      type: object
+      properties:
+        'type':
+          type: string
+          enum:
+          - aziot
+
+    SASAuthenticationCredentials:
+      allOf:
+      - $ref: '#/components/schemas/AuthenticationCredentials'
+      required:
+      - keyHandle
+      type: object
+      properties:
+        'keyHandle':
+          type: string
+          description: Key handle used for Key Service requests.
+
+    X509AuthenticationCredentials:
+      allOf:
+      - $ref: '#/components/schemas/AuthenticationCredentials'
+      required:
+      - certId
+      - keyHandle
+      type: object
+      properties:
+        'keyHandle':
+          type: string
+          description: Key handle used for Key Service requests.
+        'certId':
+          type: string
+          description: Certificate ID of the identity X.509 certificate.
+
+
+  parameters:
+    AziotIdentityTypeParameter:
+      name: type
+      in: path
+      description: Aziot identity type
+      required: true
+      schema:
+        $ref: '#/components/schemas/AziotIdentityType'
+
+    IdentityName:
+      name: id
+      in: path
+      description: ID
+      example: module01
+      required: true
+      schema:
+        type: string
+
+    ModuleIdentityKind:
+      name: type
+      in: path
+      description: Supported identity types
+      required: true
+      schema:
+        $ref: '#/components/schemas/IdentityKind'

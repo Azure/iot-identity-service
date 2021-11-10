@@ -12,5 +12,6 @@ serde_json = "1"
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }
+aziot-identityd-config = { path = "../aziot-identityd-config" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 http-common = { path = "../../http-common" }
