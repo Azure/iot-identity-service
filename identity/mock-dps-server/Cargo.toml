@@ -1,0 +1,23 @@
+[package]
+name = "mock-dps-server"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+clap = "2.33"
+http = "0.2"
+hyper = { version = "0.14", features = ["http1", "server"] }
+lazy_static = "1.4"
+openssl = "0.10"
+percent-encoding = "2"
+regex = "1"
+serde = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
+tokio-openssl = "0.6"
+uuid = { version = "0.8", features = ["v4"] }
+
+aziot-dps-client-async = { path = "../aziot-dps-client-async" }
+aziot-key-test-common = { path = "../../key/aziot-key-test-common" }
