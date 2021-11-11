@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 >mock_dps_certs.conf cat <<-EOF
 [ root_cert ]
