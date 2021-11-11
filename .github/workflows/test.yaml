@@ -125,6 +125,52 @@ jobs:
         KEY_TYPE: "${{ matrix.key_type }}"
         PKCS11_BACKEND: "${{ matrix.pkcs11_backend }}"
 
+  mock-dps-tests:
+    runs-on: 'ubuntu-18.04'
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container_os:
+        - 'centos:7'
+        - 'debian:10-slim'
+        - 'redhat/ubi8:latest'
+        - 'ubuntu:18.04'
+        arch:
+        - 'amd64'
+
+    needs: 'basic'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        submodules: 'recursive'
+    - name: 'Generate artifact properties'
+      id: 'generate-artifact-properties'
+      run: |
+        container_os="${{ matrix.container_os }}"
+        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
+        echo "::set-output name=artifact-name::aziot-key-openssl-engine-shared-test_${container_os}_${{ matrix.arch }}"
+
+        case "${{ matrix.arch }}" in
+          'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
+          'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
+          'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
+        esac
+        echo "::set-output name=target_dir::$target_dir"
+    - name: 'Download'
+      id: 'download-artifact'
+      uses: 'actions/download-artifact@v2'
+      with:
+        name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
+        path: 'target/${{ steps.generate-artifact-properties.outputs.aziot-key-openssl-engine-shared-test-directory }}/debug'
+    - name: 'Prepare mock-dps-server'
+      run: |
+        cargo build -p mock-dps-server
+        mkdir mock_dps_server_certs
+        cd mock_dps_server_certs
+        ../ci/mock-dps-tests/mock-dps-cert-gen.sh
 
   openapi:
     runs-on: 'ubuntu-18.04'
