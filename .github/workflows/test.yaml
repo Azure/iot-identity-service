@@ -145,14 +145,12 @@ jobs:
 
     steps:
     - uses: 'actions/checkout@v1'
-      with:
-        submodules: 'recursive'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::aziot-key-openssl-engine-shared-test_${container_os}_${{ matrix.arch }}"
+        echo "::set-output name=artifact-name::test-artifacts_${container_os}_${{ matrix.arch }}"
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
