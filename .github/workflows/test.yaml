@@ -177,7 +177,7 @@ jobs:
           -e "CONTAINER_OS=$CONTAINER_OS" \
           -e "ROOT_CERT=$ROOT_CERT" \
           -e "SERVER_CERT_CHAIN=$SERVER_CERT_CHAIN" \
-          -e "SERVER_KEY=$SERVER_KEY"
+          -e "SERVER_KEY=$SERVER_KEY" \
           "${{ matrix.container_os }}" \
           '/src/ci/mock-dps-tests/mock-dps-provision.sh'
       env:
