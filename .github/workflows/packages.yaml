@@ -61,6 +61,7 @@ jobs:
           '/src/ci/package.sh'
       env:
         ARCH: "${{ matrix.arch }}"
+        OS: "${{ matrix.os }}"
         PACKAGE_VERSION: '1.2.4'
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
