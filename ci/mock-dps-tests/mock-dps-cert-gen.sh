@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 >mock_dps_certs.conf cat <<-EOF
 [ root_cert ]
 basicConstraints = critical, CA:TRUE
