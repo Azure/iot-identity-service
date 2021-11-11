@@ -146,7 +146,7 @@ case "$OS" in
         mkdir /temp
         rustup install stable
         rustup default stable
-        wget https://github.com/eqrion/cbindgen/archive/refs/tags/v0.18.0.tar.gz -O /temp/cbindgen-0.15.0.tar.gz
+        wget https://github.com/eqrion/cbindgen/archive/refs/tags/v0.15.0.tar.gz -O /temp/cbindgen-0.15.0.tar.gz
         pushd /temp
         tar xf cbindgen-0.15.0.tar.gz --no-same-owner
         pushd /temp/cbindgen-0.15.0
@@ -163,20 +163,20 @@ EOF
         popd
 
 
-        wget https://github.com/rust-lang/rust-bindgen/archive/refs/tags/v0.57.0.tar.gz -O /temp/rust-bindgen-0.57.0.tar.gz
+        wget https://github.com/rust-lang/rust-bindgen/archive/refs/tags/v0.54.0.tar.gz -O /temp/rust-bindgen-0.54.0.tar.gz
         pushd /temp
-        tar xf rust-bindgen-0.57.0.tar.gz --no-same-owner
-        pushd /temp/rust-bindgen-0.57.0
+        tar xf rust-bindgen-0.54.0.tar.gz --no-same-owner
+        pushd /temp/rust-bindgen-0.54.0
         cargo vendor vendor
-        mkdir /temp/rust-bindgen-0.57.0/.cargo
-        cat > /temp/rust-bindgen-0.57.0/.cargo/config << EOF
+        mkdir /temp/rust-bindgen-0.54.0/.cargo
+        cat > /temp/rust-bindgen-0.54.0/.cargo/config << EOF
 [source.crates-io]
 replace-with = "vendored-sources"
 [source.vendored-sources]
 directory = "vendor"
 EOF
         popd
-        tar -cf $MarinerSourceDir/rust-bindgen-0.57.0.tar.gz rust-bindgen-0.57.0/
+        tar -cf $MarinerSourceDir/rust-bindgen-0.54.0.tar.gz rust-bindgen-0.54.0/
         popd
 
         # Copy spec file to rpmbuild specs directory

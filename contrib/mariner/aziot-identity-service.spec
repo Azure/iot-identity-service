@@ -16,7 +16,7 @@ Summary: Azure IoT Identity Service and related services
 License: MIT
 URL: https://github.com/azure/iot-identity-service
 Source: %{name}-%{version}.tar.gz
-Source1: rust-bindgen-0.57.0.tar.gz
+Source1: rust-bindgen-0.54.0.tar.gz
 Source2: cbindgen-0.15.0.tar.gz
 
 Conflicts: iotedge, libiothsm-std
@@ -62,7 +62,7 @@ This package contains development files for the Azure IoT device runtime.
 mkdir -p $HOME
 pushd $HOME
 tar xf %{SOURCE1} --no-same-owner
-cargo install bindgen --path rust-bindgen-0.57.0 --offline
+cargo install bindgen --path rust-bindgen-0.54.0 --offline
 tar xf %{SOURCE2} --no-same-owner
 cargo install cbindgen --path cbindgen-0.15.0 --offline
 popd

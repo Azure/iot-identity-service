@@ -154,9 +154,9 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-cargo install bindgen --version '^0.54'
+cargo install bindgen --version '=0.54.0'
 
-cargo install cbindgen --version '^0.15'
+cargo install cbindgen --version '=0.15.0'
 
 export CARGO_INCREMENTAL=0
 
