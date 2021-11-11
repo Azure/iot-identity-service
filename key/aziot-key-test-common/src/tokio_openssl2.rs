@@ -9,14 +9,14 @@ type HandshakeFuture = std::pin::Pin<
 >;
 
 /// A stream of incoming TLS connections, for use with a hyper server.
-pub(crate) struct Incoming {
+pub struct Incoming {
     listener: tokio::net::TcpListener,
     tls_acceptor: openssl::ssl::SslAcceptor,
     connections: futures_util::stream::FuturesUnordered<HandshakeFuture>,
 }
 
 impl Incoming {
-    pub(crate) fn new(
+    pub fn new(
         addr: &str,
         port: u16,
         cert_chain_path: &std::path::Path,

@@ -32,6 +32,7 @@ members = [
 	"key/aziot-key-openssl-engine",
 	"key/aziot-key-openssl-engine-shared",
 	"key/aziot-key-openssl-engine-shared-test",
+	"key/aziot-key-test-common",
 	"key/aziot-keys",
 	"key/aziot-keys-common",
 
