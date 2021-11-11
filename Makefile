@@ -13,6 +13,8 @@ RELEASE = 0
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
+INSTALL_PRESET = true
+
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -42,8 +44,6 @@ else
 	CARGO_TARGET = x86_64-unknown-linux-gnu
 	DPKG_ARCH_FLAGS =
 endif
-
-INSTALL_PRESET = "true"
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL := /bin/bash
