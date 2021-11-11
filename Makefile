@@ -48,7 +48,7 @@ endif
 SHELL := /bin/bash
 
 
-.PHONY: aziot-key-openssl-engine-shared-test clean default iotedged test test-release
+.PHONY: aziot-key-openssl-engine-shared-test clean default iotedged mock-dps-server test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
 
 
@@ -107,6 +107,8 @@ iotedged:
 aziot-key-openssl-engine-shared-test:
 	$(CARGO) build -p aziot-key-openssl-engine-shared-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
+mock-dps-server:
+	$(CARGO) build -p mock-dps-server $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 target/openapi-schema-validated: cert/aziot-certd/openapi/*.yaml
 target/openapi-schema-validated: key/aziot-keyd/openapi/*.yaml
@@ -148,7 +150,7 @@ test-release: test
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
 
-test: aziot-key-openssl-engine-shared-test default iotedged
+test: aziot-key-openssl-engine-shared-test default iotedged mock-dps-server
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
