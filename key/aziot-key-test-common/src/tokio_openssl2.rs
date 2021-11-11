@@ -21,6 +21,7 @@ impl Incoming {
         port: u16,
         cert_chain_path: &std::path::Path,
         private_key: &openssl::pkey::PKey<openssl::pkey::Private>,
+        verify_client: bool,
     ) -> std::io::Result<Self> {
         let listener = std::net::TcpListener::bind(&(addr, port))?;
         listener.set_nonblocking(true)?;
@@ -31,41 +32,43 @@ impl Incoming {
         tls_acceptor.set_certificate_chain_file(cert_chain_path)?;
         tls_acceptor.set_private_key(private_key)?;
 
-        // The root of the server cert is the CA, and we expect the client cert to be signed by this same CA.
-        // So add it to the cert store.
-        let ca_cert = {
-            let cert_chain_file = std::fs::read(cert_chain_path)?;
-            let mut cert_chain = openssl::x509::X509::stack_from_pem(&cert_chain_file)?;
-            cert_chain.pop().unwrap()
-        };
-        tls_acceptor.cert_store_mut().add_cert(ca_cert)?;
+        if verify_client {
+            // The root of the server cert is the CA, and we expect the client cert to be signed by this same CA.
+            // So add it to the cert store.
+            let ca_cert = {
+                let cert_chain_file = std::fs::read(cert_chain_path)?;
+                let mut cert_chain = openssl::x509::X509::stack_from_pem(&cert_chain_file)?;
+                cert_chain.pop().unwrap()
+            };
+            tls_acceptor.cert_store_mut().add_cert(ca_cert)?;
 
-        // Log the client cert chain. Does not change the verification result from what openssl already concluded.
-        tls_acceptor.set_verify_callback(
-            openssl::ssl::SslVerifyMode::PEER,
-            |openssl_verification_result, context| {
-                println!("Client cert:");
-                let chain = context.chain().unwrap();
-                for (i, cert) in chain.into_iter().enumerate() {
+            // Log the client cert chain. Does not change the verification result from what openssl already concluded.
+            tls_acceptor.set_verify_callback(
+                openssl::ssl::SslVerifyMode::PEER,
+                |openssl_verification_result, context| {
+                    println!("Client cert:");
+                    let chain = context.chain().unwrap();
+                    for (i, cert) in chain.into_iter().enumerate() {
+                        println!(
+                            "    #{}: {}",
+                            i + 1,
+                            cert.subject_name()
+                                .entries()
+                                .next()
+                                .unwrap()
+                                .data()
+                                .as_utf8()
+                                .unwrap()
+                        );
+                    }
                     println!(
-                        "    #{}: {}",
-                        i + 1,
-                        cert.subject_name()
-                            .entries()
-                            .next()
-                            .unwrap()
-                            .data()
-                            .as_utf8()
-                            .unwrap()
+                        "openssl verification result: {}",
+                        openssl_verification_result
                     );
-                }
-                println!(
-                    "openssl verification result: {}",
                     openssl_verification_result
-                );
-                openssl_verification_result
-            },
-        );
+                },
+            );
+        }
 
         let tls_acceptor = tls_acceptor.build();
 
