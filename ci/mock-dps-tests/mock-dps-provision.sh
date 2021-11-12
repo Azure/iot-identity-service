@@ -13,6 +13,9 @@ set -euo pipefail
 cd "$(find target -type f -name mock-dps-server | head -n 1 | xargs dirname)"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
 
+chmod +x ./aziotd
+chmod +x ./mock-dps-server
+
 # Create directories needed for the tests.
 mkdir -p /run/aziot
 mkdir -p /etc/aziot/keyd/
