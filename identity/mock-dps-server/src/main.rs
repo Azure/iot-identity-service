@@ -24,8 +24,14 @@ struct Options {
 async fn main() {
     let options = Options::from_args();
 
-    println!("Using server certificate chain {}", options.server_cert_chain.to_str().unwrap());
-    println!("Using server private key {}", options.server_key.to_str().unwrap());
+    println!(
+        "Using server certificate chain {}",
+        options.server_cert_chain.to_str().unwrap()
+    );
+    println!(
+        "Using server private key {}",
+        options.server_key.to_str().unwrap()
+    );
 
     let server_key = std::fs::read_to_string(options.server_key).unwrap();
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
