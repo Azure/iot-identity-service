@@ -57,8 +57,8 @@ openssl x509 -req \
 homedir_path = "/var/lib/aziot/keyd"
 
 [preloaded_keys]
-device-id-symkey = "file://$(pwd)/device_id_symkey"
-device-id-certkey = "file://$(pwd)/device_id_certkey.pem"
+device-id-symkey = "file://$PWD/device_id_symkey"
+device-id-certkey = "file://$PWD/device_id_certkey.pem"
 
 [[principal]]
 uid = $uid
@@ -69,7 +69,7 @@ EOF
 homedir_path = "/var/lib/aziot/certd"
 
 [preloaded_certs]
-device-id-cert = "file://$(pwd)/device_id_cert.pem"
+device-id-cert = "file://$PWD/device_id_cert.pem"
 
 [[principal]]
 uid = $uid
