@@ -5,16 +5,11 @@ set -eu
 # Don't modify trusted certificates if not running on a CI container OS.
 case "$CONTAINER_OS" in
     'ubuntu:18.04' | 'debian:10-slim')
-        apt update
-        apt install -y ca-certificates
-
         mkdir -p /usr/local/share/ca-certificates
         cp $ROOT_CERT /usr/local/share/ca-certificates/dps_root_cert.crt
         update-ca-certificates
         ;;
     'centos:7' | 'redhat/ubi8:latest')
-        yum install -y ca-certificates
-
         mkdir -p /etc/pki/ca-trust/source/anchors
         cp $ROOT_CERT /etc/pki/ca-trust/source/anchors/dps_root_cert.crt
         update-ca-trust
