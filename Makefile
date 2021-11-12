@@ -223,6 +223,7 @@ dist:
 		./cert \
 		./identity \
 		./key \
+		./test-common \
 		./tpm \
 		./iotedged \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
