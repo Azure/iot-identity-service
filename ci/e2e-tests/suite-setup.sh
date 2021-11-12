@@ -80,8 +80,13 @@ az iot dps linked-hub create \
 # `az iot dps linked-hub create` deletes the tags on the DPS that
 # were set by `az iot dps create` for some unknown reason, so we
 # need to tag it again.
+#
+# A bug in the latest az CLI causes az resource tag to use an API
+# version not supported by the cloud. For now, we fill manually
+# specify the API version.
 >/dev/null az resource tag \
     --ids "$dps_resource_id" \
-    --tags "suite_id=$suite_id"
+    --tags "suite_id=$suite_id" \
+    --api-version 2020-03-01
 
 echo 'Created DPS' >&2
