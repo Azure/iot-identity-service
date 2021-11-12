@@ -2,116 +2,100 @@
 
 use crate::server::Response;
 
-trait DpsRequest {
-    fn process(self, body: Option<String>, context: &mut crate::server::DpsContext) -> Response;
-}
-
-struct Register {
-    _scope_id: String,
+fn register(
     registration_id: String,
-    headers: std::collections::HashMap<String, String>,
-}
-
-impl DpsRequest for Register {
-    fn process(self, body: Option<String>, context: &mut crate::server::DpsContext) -> Response {
-        let body = if let Some(body) = body {
-            let body: aziot_dps_client_async::model::DeviceRegistration =
-                match serde_json::from_str(&body) {
-                    Ok(body) => body,
-                    Err(_) => return Response::bad_request("failed to parse register body"),
-                };
-
-            if let Some(req_reg_id) = &body.registration_id {
-                if req_reg_id != &self.registration_id {
-                    return Response::bad_request("registration IDs in URI and request mismatch");
-                }
-            }
-
-            body
-        } else {
-            return Response::bad_request("missing required body for register");
-        };
-
-        // Unique value to use for both operation ID and device ID.
-        let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
-
-        let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
-        let mut registration_state = aziot_dps_client_async::model::DeviceRegistrationResult {
-            tpm: None,
-            x509: None,
-            symmetric_key: None,
-            registration_id: Some(self.registration_id),
-            created_date_time_utc: Some(now.clone()),
-            // Use localhost as hubname so devices provisioned with mock-dps-server don't try to
-            // communicate with IoT Hub.
-            assigned_hub: Some("localhost".to_string()),
-            device_id: Some(uuid.clone()),
-            status: Some("assigned".to_string()),
-            substatus: Some("initialAssignment".to_string()),
-            error_code: None,
-            error_message: None,
-            last_updated_date_time_utc: Some(now),
-            etag: Some("mock-dps-etag".to_string()),
-        };
-
-        if body.tpm.is_some() {
-            registration_state.tpm = Some(aziot_dps_client_async::model::TpmRegistrationResult {
-                authentication_key: "mock-dps-tpm-key".to_string(),
-            });
-        } else if self.headers.get("authorization").is_some() {
-            registration_state.symmetric_key = Some(
-                aziot_dps_client_async::model::SymmetricKeyRegistrationResult {
-                    enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
-                },
-            );
-        } else {
-            registration_state.x509 = Some(aziot_dps_client_async::model::X509RegistrationResult {
-                certificate_info: None,
-                enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
-                signing_certificate_info: None,
-            });
-        };
-
-        let operation_id = {
-            let registration = aziot_dps_client_async::model::RegistrationOperationStatus {
-                operation_id: uuid.clone(),
-                status: "assigned".to_string(),
-                registration_state: Some(registration_state),
+    headers: &std::collections::HashMap<String, String>,
+    body: Option<String>,
+    context: &mut crate::server::DpsContext,
+) -> Response {
+    let body = if let Some(body) = body {
+        let body: aziot_dps_client_async::model::DeviceRegistration =
+            match serde_json::from_str(&body) {
+                Ok(body) => body,
+                Err(_) => return Response::bad_request("failed to parse register body"),
             };
 
-            let mut context = context.lock().unwrap();
-            context
-                .in_progress_operations
-                .insert(uuid.clone(), registration);
-
-            uuid
-        };
-
-        let response = aziot_dps_client_async::model::RegistrationOperationStatus {
-            operation_id,
-            status: "assigning".to_string(),
-            registration_state: None,
-        };
-
-        Response::json(hyper::StatusCode::OK, response)
-    }
-}
-
-struct OperationStatus {
-    _scope_id: String,
-    _registration_id: String,
-    operation_id: String,
-    _headers: std::collections::HashMap<String, String>,
-}
-
-impl DpsRequest for OperationStatus {
-    fn process(self, _body: Option<String>, context: &mut crate::server::DpsContext) -> Response {
-        let mut context = context.lock().unwrap();
-
-        match context.in_progress_operations.remove(&self.operation_id) {
-            Some(operation) => Response::json(hyper::StatusCode::OK, operation),
-            None => Response::not_found(format!("operation {} not found", self.operation_id)),
+        if let Some(req_reg_id) = &body.registration_id {
+            if req_reg_id != &registration_id {
+                return Response::bad_request("registration IDs in URI and request mismatch");
+            }
         }
+
+        body
+    } else {
+        return Response::bad_request("missing required body for register");
+    };
+
+    // Unique value to use for both operation ID and device ID.
+    let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
+
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let mut registration_state = aziot_dps_client_async::model::DeviceRegistrationResult {
+        tpm: None,
+        x509: None,
+        symmetric_key: None,
+        registration_id: Some(registration_id),
+        created_date_time_utc: Some(now.clone()),
+        // Use localhost as hubname so devices provisioned with mock-dps-server don't try to
+        // communicate with IoT Hub.
+        assigned_hub: Some("localhost".to_string()),
+        device_id: Some(uuid.clone()),
+        status: Some("assigned".to_string()),
+        substatus: Some("initialAssignment".to_string()),
+        error_code: None,
+        error_message: None,
+        last_updated_date_time_utc: Some(now),
+        etag: Some("mock-dps-etag".to_string()),
+    };
+
+    if body.tpm.is_some() {
+        registration_state.tpm = Some(aziot_dps_client_async::model::TpmRegistrationResult {
+            authentication_key: "mock-dps-tpm-key".to_string(),
+        });
+    } else if headers.get("authorization").is_some() {
+        registration_state.symmetric_key = Some(
+            aziot_dps_client_async::model::SymmetricKeyRegistrationResult {
+                enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
+            },
+        );
+    } else {
+        registration_state.x509 = Some(aziot_dps_client_async::model::X509RegistrationResult {
+            certificate_info: None,
+            enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
+            signing_certificate_info: None,
+        });
+    };
+
+    let operation_id = {
+        let registration = aziot_dps_client_async::model::RegistrationOperationStatus {
+            operation_id: uuid.clone(),
+            status: "assigned".to_string(),
+            registration_state: Some(registration_state),
+        };
+
+        let mut context = context.lock().unwrap();
+        context
+            .in_progress_operations
+            .insert(uuid.clone(), registration);
+
+        uuid
+    };
+
+    let response = aziot_dps_client_async::model::RegistrationOperationStatus {
+        operation_id,
+        status: "assigning".to_string(),
+        registration_state: None,
+    };
+
+    Response::json(hyper::StatusCode::OK, response)
+}
+
+fn operation_status(operation_id: &str, context: &mut crate::server::DpsContext) -> Response {
+    let mut context = context.lock().unwrap();
+
+    match context.in_progress_operations.remove(operation_id) {
+        Some(operation) => Response::json(hyper::StatusCode::OK, operation),
+        None => Response::not_found(format!("operation {} not found", operation_id)),
     }
 }
 
@@ -146,11 +130,6 @@ pub(crate) fn process_dps_request(
 
     let captures = DPS_REGEX.captures(&req.uri).unwrap();
 
-    let scope_id = match get_param(&captures, "scopeId") {
-        Ok(scope_id) => scope_id,
-        Err(response) => return response,
-    };
-
     let registration_id = match get_param(&captures, "registrationId") {
         Ok(registration_id) => registration_id,
         Err(response) => return response,
@@ -172,26 +151,13 @@ pub(crate) fn process_dps_request(
             Err(response) => return response,
         };
 
-        let request = OperationStatus {
-            _scope_id: scope_id,
-            _registration_id: registration_id,
-            operation_id,
-            _headers: req.headers,
-        };
-
-        request.process(req.body, context)
+        operation_status(&operation_id, context)
     } else if action == "register" {
         if req.method != hyper::Method::PUT {
             return Response::method_not_allowed(&req.method);
         }
 
-        let request = Register {
-            _scope_id: scope_id,
-            registration_id,
-            headers: req.headers,
-        };
-
-        request.process(req.body, context)
+        register(registration_id, &req.headers, req.body, context)
     } else {
         Response::not_found(format!("{} not found", req.uri))
     }
