@@ -403,7 +403,6 @@ dependencies = [
 name = "aziot-key-openssl-engine-shared-test"
 version = "0.1.0"
 dependencies = [
- "aziot-key-test-common",
  "backtrace",
  "futures-util",
  "http",
@@ -413,19 +412,8 @@ dependencies = [
  "openssl-sys2",
  "openssl2",
  "structopt",
+ "test-common",
  "tokio",
-]
-
-[[package]]
-name = "aziot-key-test-common"
-version = "0.1.0"
-dependencies = [
- "futures-core",
- "futures-util",
- "hyper",
- "openssl",
- "tokio",
- "tokio-openssl",
 ]
 
 [[package]]
@@ -1701,7 +1689,6 @@ name = "mock-dps-server"
 version = "0.1.0"
 dependencies = [
  "aziot-dps-client-async",
- "aziot-key-test-common",
  "chrono",
  "clap",
  "http",
@@ -1712,6 +1699,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "test-common",
  "tokio",
  "tokio-openssl",
  "uuid",
@@ -2346,6 +2334,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test-common"
+version = "0.1.0"
+dependencies = [
+ "futures-core",
+ "futures-util",
+ "hyper",
+ "openssl",
+ "tokio",
+ "tokio-openssl",
 ]
 
 [[package]]

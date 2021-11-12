@@ -48,7 +48,7 @@ async fn main() {
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
 
     println!("Listening on localhost:{}.", port);
-    let incoming = aziot_key_test_common::tokio_openssl2::Incoming::new(
+    let incoming = test_common::tokio_openssl2::Incoming::new(
         "localhost",
         port,
         server_cert_chain,

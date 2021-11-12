@@ -20,4 +20,4 @@ tokio-openssl = "0.6"
 uuid = { version = "0.8", features = ["v4"] }
 
 aziot-dps-client-async = { path = "../aziot-dps-client-async" }
-aziot-key-test-common = { path = "../../key/aziot-key-test-common" }
+test-common = { path = "../../test-common" }

@@ -136,7 +136,7 @@ async fn main() -> Result<(), Error> {
 
             let key = load_private_key(&mut engine, key_handle)?;
 
-            let incoming = aziot_key_test_common::tokio_openssl2::Incoming::new(
+            let incoming = test_common::tokio_openssl2::Incoming::new(
                 "0.0.0.0", port, &cert, &key, true,
             )?;
 

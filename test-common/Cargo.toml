@@ -1,5 +1,5 @@
 [package]
-name = "aziot-key-test-common"
+name = "test-common"
 version = "0.1.0"
 license = "MIT"
 authors = ["Azure IoT Edge Devs"]

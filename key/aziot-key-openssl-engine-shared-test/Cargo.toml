@@ -19,4 +19,4 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 openssl2 = { path = "../../openssl2/" }
 openssl-sys2 = { path = "../../openssl-sys2/" }
 
-aziot-key-test-common = { path = "../aziot-key-test-common" }
+test-common = { path = "../../test-common" }
