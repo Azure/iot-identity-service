@@ -1690,7 +1690,6 @@ version = "0.1.0"
 dependencies = [
  "aziot-dps-client-async",
  "chrono",
- "clap",
  "http",
  "hyper",
  "lazy_static",
@@ -1699,6 +1698,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "structopt",
  "test-common",
  "tokio",
  "tokio-openssl",

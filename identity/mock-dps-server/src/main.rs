@@ -6,52 +6,35 @@
 mod request;
 mod server;
 
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Options {
+    #[structopt(long, value_name = "PORT")]
+    port: u16,
+
+    #[structopt(long, value_name = "SERVER_CERT_CHAIN")]
+    server_cert_chain: std::path::PathBuf,
+
+    #[structopt(long, value_name = "SERVER_KEY")]
+    server_key: std::path::PathBuf,
+}
+
 #[tokio::main]
 async fn main() {
-    let matches = clap::App::new("mock-dps-server")
-        .arg(
-            clap::Arg::with_name("port")
-                .long("port")
-                .value_name("PORT")
-                .takes_value(true)
-                .required(true)
-                .help("localhost port that server listens on"),
-        )
-        .arg(
-            clap::Arg::with_name("server cert chain")
-                .long("server-cert-chain")
-                .value_name("SERVER_CERT_CHAIN")
-                .takes_value(true)
-                .required(true)
-                .help("path to TLS server cert chain presented to clients"),
-        )
-        .arg(
-            clap::Arg::with_name("server key")
-                .long("server-key")
-                .value_name("SERVER_KEY")
-                .takes_value(true)
-                .required(true)
-                .help("path to TLS server key"),
-        )
-        .get_matches();
+    let options = Options::from_args();
 
-    let port = matches.value_of("port").unwrap();
-    let port: u16 = port.parse().unwrap();
+    println!("Using server certificate chain {}", options.server_cert_chain.to_str().unwrap());
+    println!("Using server private key {}", options.server_key.to_str().unwrap());
 
-    let server_cert_chain = matches.value_of("server cert chain").unwrap();
-    println!("Using server certificate chain {}", server_cert_chain);
-    let server_cert_chain = std::path::Path::new(server_cert_chain);
-
-    let server_key = matches.value_of("server key").unwrap();
-    println!("Using server private key {}", server_key);
-    let server_key = std::fs::read_to_string(server_key).unwrap();
+    let server_key = std::fs::read_to_string(options.server_key).unwrap();
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
 
-    println!("Listening on localhost:{}.", port);
+    println!("Listening on localhost:{}.", options.port);
     let incoming = test_common::tokio_openssl2::Incoming::new(
         "localhost",
-        port,
-        server_cert_chain,
+        options.port,
+        &options.server_cert_chain,
         &server_key,
         false,
     )
