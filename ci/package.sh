@@ -116,7 +116,7 @@ case "$OS" in
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
-        MarinerRPMBUILDDIR="/tmp/Mariner-Build"
+        MarinerRPMBUILDDIR="/src/Mariner-Build"
         MarinerSpecsDir="$MarinerRPMBUILDDIR/SPECS/aziot-identity-service"
         MarinerSourceDir="$MarinerSpecsDir/SOURCES"
 
