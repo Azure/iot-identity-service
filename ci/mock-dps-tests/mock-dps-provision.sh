@@ -131,13 +131,23 @@ if [ "$result" != "$expected" ]; then
 fi
 
 # Get device identity.
-symkey_device_id=$(curl -s \
+device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
     "http://localhost/identities/device?api-version=2021-12-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
     | jq .)
+
+auth_type=$(jq .spec.auth.type <<< "$device_id_response")
+symkey_device_id=$(jq .spec.deviceId <<< "$device_id_response")
+
+if [ "$auth_type" != '"sas"' ]; then
+    echo ""
+    echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: FAIL"
+    echo "Auth type is $auth_type, not 'sas'"
+    exit 1
+fi
 
 echo ""
 echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: PASS"
@@ -189,13 +199,23 @@ if [ "$result" != "$expected" ]; then
 fi
 
 # Get device identity. Check that it changed with the reprovision.
-x509_device_id=$(curl -s \
+device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
     "http://localhost/identities/device?api-version=2021-12-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
     | jq .)
+
+auth_type=$(jq .spec.auth.type <<< "$device_id_response")
+x509_device_id=$(jq .spec.deviceId <<< "$device_id_response")
+
+if [ "$auth_type" != '"x509"' ]; then
+    echo ""
+    echo "X.509 PROVISIONING WITH MOCK DPS: FAIL"
+    echo "Auth type is $auth_type, not 'x509'"
+    exit 1
+fi
 
 if [ "$symkey_device_id" = "$x509_device_id" ]; then
     echo ""
