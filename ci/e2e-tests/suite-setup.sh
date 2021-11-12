@@ -84,6 +84,8 @@ az iot dps linked-hub create \
 # A bug in the latest az CLI causes az resource tag to use an API
 # version not supported by the cloud. For now, we fill manually
 # specify the API version.
+#
+# Ref: https://github.com/Azure/azure-cli/issues/20263
 >/dev/null az resource tag \
     --ids "$dps_resource_id" \
     --tags "suite_id=$suite_id" \
