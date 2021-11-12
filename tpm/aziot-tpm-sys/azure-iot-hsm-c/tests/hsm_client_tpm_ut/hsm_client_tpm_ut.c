@@ -136,7 +136,6 @@ static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 }
 
 static TEST_MUTEX_HANDLE g_testByTest;
-static TEST_MUTEX_HANDLE g_dllByDll;
 
 BEGIN_TEST_SUITE(hsm_client_tpm_ut)
 
@@ -144,7 +143,6 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
     {
         int result;
 
-        TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
         g_testByTest = TEST_MUTEX_CREATE();
         ASSERT_IS_NOT_NULL(g_testByTest);
 
@@ -157,27 +155,24 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         result = umocktypes_bool_register_types();
         ASSERT_ARE_EQUAL(int, 0, result);
 
-        REGISTER_UMOCK_ALIAS_TYPE(XDA_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(BUFFER_HANDLE, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPM_HANDLE, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(UINT, unsigned int);
+        REGISTER_UMOCK_ALIAS_TYPE(TPM_HANDLE, unsigned int);
         REGISTER_UMOCK_ALIAS_TYPE(UINT32, unsigned int);
         REGISTER_UMOCK_ALIAS_TYPE(BOOL, int);
         REGISTER_UMOCK_ALIAS_TYPE(TPM_PT, unsigned int);
 
         REGISTER_UMOCK_ALIAS_TYPE(HSM_CLIENT_HANDLE, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(SECURE_DEVICE_TYPE, int);
         REGISTER_UMOCK_ALIAS_TYPE(STRING_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(OBJECT_ATTR, int);
-        REGISTER_UMOCK_ALIAS_TYPE(TPM_SE, int);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_OBJECT, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_ALG_HASH, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMA_SESSION, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_ENTITY, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_CONTEXT, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(TPM_SE, unsigned char);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_OBJECT, unsigned int);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_ALG_HASH, unsigned short);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMA_SESSION, unsigned int);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_ENTITY, unsigned int);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_CONTEXT, unsigned int);
         REGISTER_UMOCK_ALIAS_TYPE(INT32, int);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_RH_PROVISION, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_PERSISTENT, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_RH_PROVISION, unsigned int);
+        REGISTER_UMOCK_ALIAS_TYPE(TPMI_DH_PERSISTENT, unsigned int);
 
         REGISTER_GLOBAL_MOCK_RETURN(TSS_CreatePwAuthSession, TPM_RC_SUCCESS);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(TSS_CreatePwAuthSession, TPM_RC_FAILURE);
@@ -239,7 +234,6 @@ BEGIN_TEST_SUITE(hsm_client_tpm_ut)
         umock_c_deinit();
 
         TEST_MUTEX_DESTROY(g_testByTest);
-        TEST_DEINITIALIZE_MEMORY_DEBUG(g_dllByDll);
     }
 
     TEST_FUNCTION_INITIALIZE(method_init)
