@@ -46,14 +46,19 @@ while :; do
     # Ref: https://github.com/Azure/azure-cli/issues/20263
     readarray -t ids <<< "$ids"
 
+    dps_ids=""
+    other_ids=""
     for resource in "${ids[@]}"
     do
         if [[ "$resource" == *"/Microsoft.Devices/ProvisioningServices/"* ]]; then
-            timeout 30s az resource delete --api-version 2020-03-01 --ids "$resource" >/dev/null
+            dps_ids+="$resource"$'\n'
         else
-            timeout 30s az resource delete --ids "$resource" >/dev/null
+            other_ids+="$resource"$'\n'
         fi
     done
+
+    <<< "$dps_ids" timeout 30s xargs az resource delete --api-version 2020-03-01 --ids >/dev/null
+    <<< "$other_ids" timeout 30s xargs az resource delete --ids >/dev/null
 
     sleep 1
     echo 'Retrying...' >&2
