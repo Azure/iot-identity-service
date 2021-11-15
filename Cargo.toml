@@ -21,6 +21,7 @@ members = [
 	"identity/aziot-identity-common",
 	"identity/aziot-identity-common-http",
 	"identity/aziot-identityd",
+	"identity/mock-dps-server",
 
 	"iotedged",
 
@@ -43,6 +44,8 @@ members = [
 
 	"pkcs11/pkcs11",
 	"pkcs11/pkcs11-sys",
+
+	"test-common",
 
 	"tpm/aziot-tpm-client-async",
 	"tpm/aziot-tpm-common-http",
