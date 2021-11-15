@@ -46,6 +46,8 @@ fn register(
         error_message: None,
         last_updated_date_time_utc: Some(now),
         etag: Some("mock-dps-etag".to_string()),
+        trust_bundle: None,
+        identity_cert: None,
     };
 
     if body.tpm.is_some() {
