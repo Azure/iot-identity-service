@@ -3,6 +3,7 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+mod certs;
 mod request;
 mod server;
 
@@ -18,6 +19,9 @@ struct Options {
 
     #[structopt(long, value_name = "SERVER_KEY")]
     server_key: std::path::PathBuf,
+
+    #[structopt(long, value_name = "TRUST_BUNDLE_CERTS_DIR")]
+    trust_bundle_certs_dir: Option<std::path::PathBuf>,
 }
 
 #[tokio::main]
@@ -46,7 +50,7 @@ async fn main() {
     )
     .unwrap();
 
-    let dps_context = crate::server::DpsContextInner::default();
+    let dps_context = crate::server::DpsContextInner::new(options.trust_bundle_certs_dir);
     let dps_context = std::sync::Mutex::new(dps_context);
     let dps_context = std::sync::Arc::new(dps_context);
 

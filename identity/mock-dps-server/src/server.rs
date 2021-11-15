@@ -132,12 +132,21 @@ impl Response {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct DpsContextInner {
     pub in_progress_operations: std::collections::BTreeMap<
         String,
         aziot_dps_client_async::model::RegistrationOperationStatus,
     >,
+    pub trust_bundle: Option<aziot_dps_client_async::model::TrustBundle>,
+}
+
+impl DpsContextInner {
+    pub fn new(trust_bundle_certs_dir: Option<std::path::PathBuf>) -> Self {
+        DpsContextInner {
+            in_progress_operations: std::collections::BTreeMap::new(),
+            trust_bundle: crate::certs::trust_bundle::read_trust_bundle(trust_bundle_certs_dir),
+        }
+    }
 }
 
 pub(crate) type DpsContext = std::sync::Arc<std::sync::Mutex<DpsContextInner>>;
