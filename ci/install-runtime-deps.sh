@@ -10,14 +10,14 @@ case "$OS" in
         # openssl 1.0
 
         if [ "$OS" = 'platform:el8' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
-            # If using RHEL 8 UBI images without a subscription then they only have access to a 
+            # If using RHEL 8 UBI images without a subscription then they only have access to a
             # subset of packages. Workaround to enable EPEL.
             yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
         else
             yum install -y epel-release
         fi
 
-        yum install -y curl jq openssl
+        yum install -y curl jq openssl ca-certificates
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
@@ -42,7 +42,7 @@ case "$OS" in
         # openssl 1.1.0 for Debian 9, 1.1.1 for the others
 
         apt-get update -y
-        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl
+        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
