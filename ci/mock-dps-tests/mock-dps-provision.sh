@@ -109,31 +109,10 @@ sleep 1
 identityd_pid="$!"
 sleep 5
 
-# Check provisioning info.
-result=$(curl -s \
-    --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/provisioning?api-version=2021-12-01" \
-    --fail \
-    | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-dps-provision"}')
-
-if [ "$result" != "$expected" ]; then
-    echo ""
-    echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: FAIL"
-    echo ""
-    echo "Symmetric key provisioning information does not match."
-    echo ""
-    echo "Expected: $expected"
-    echo ""
-    echo "Got: $result"
-    echo ""
-    exit 1
-fi
-
 # Get device identity.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2020-09-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
@@ -181,27 +160,10 @@ EOF
 identityd_pid="$!"
 sleep 5
 
-# Check provisioning info.
-result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-dps-provision"}')
-
-if [ "$result" != "$expected" ]; then
-    echo ""
-    echo "X.509 PROVISIONING WITH MOCK DPS: FAIL"
-    echo ""
-    echo "X.509 provisioning information does not match."
-    echo ""
-    echo "Expected: $expected"
-    echo ""
-    echo "Got: $result"
-    echo ""
-    exit 1
-fi
-
 # Get device identity. Check that it changed with the reprovision.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2020-09-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
