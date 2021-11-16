@@ -119,7 +119,7 @@ pub(crate) fn process_dps_request(
 ) -> Response {
     lazy_static::lazy_static! {
         static ref DPS_REGEX: regex::Regex = regex::Regex::new(
-            "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version=\\d{4}-\\d{2}-\\d{2}$"
+            "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version="
         ).unwrap();
 
         static ref OPERATION_STATUS_REGEX: regex::Regex = regex::Regex::new(
