@@ -90,7 +90,7 @@ pub(crate) fn read_trust_bundle(
                 not_before_utc: fmt_time(cert.not_before()),
                 not_after_utc: fmt_time(cert.not_after()),
                 serial_number,
-                version: cert.version() + 1,
+                version: 3,
             };
 
             let trust_bundle_cert = aziot_dps_client_async::model::TrustBundleCertificate {
