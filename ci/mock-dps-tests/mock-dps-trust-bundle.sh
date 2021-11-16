@@ -100,6 +100,8 @@ curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/dev
 
 message=$(curl -s --unix-socket /run/aziot/certd.sock "http://localhost/certificates/aziot-dps-trust-bundle?api-version=2020-09-01" | jq -r .message)
 
+# Use 'echo' to normalize whitespace before string compare.
+# shellcheck disable=2086,2116
 if [ "$(echo $message)" != 'parameter "id" has an invalid value caused by: not found' ]; then
     echo ""
     echo "TRUST BUNDLE REPROVISION WITH MOCK DPS: FAIL"
