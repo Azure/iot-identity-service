@@ -173,7 +173,7 @@ jobs:
         mkdir mock_dps_server_certs
         cd mock_dps_server_certs
         ../ci/mock-dps-tests/mock-dps-cert-gen.sh
-    - name: 'Run mock-dps-provision'
+    - name: 'Run test'
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
