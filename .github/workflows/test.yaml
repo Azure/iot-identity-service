@@ -142,6 +142,7 @@ jobs:
         - 'amd64'
         test:
         - 'mock-dps-provision'
+        - 'mock-dps-trust-bundle'
 
     needs: 'basic'
 
