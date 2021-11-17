@@ -39,7 +39,26 @@ while :; do
         break
     fi
 
-    <<< "$ids" timeout 30s xargs az resource delete --ids >/dev/null
+    # A bug in the latest az CLI causes az resource delete to use an API
+    # version not supported by the cloud for DPS instances. For now, we
+    # will manually specify the API version when deleting DPS instances.
+    #
+    # Ref: https://github.com/Azure/azure-cli/issues/20263
+    readarray -t ids <<< "$ids"
+
+    dps_ids=""
+    other_ids=""
+    for resource in "${ids[@]}"
+    do
+        if [[ "$resource" == *"/Microsoft.Devices/ProvisioningServices/"* ]]; then
+            dps_ids+="$resource"$'\n'
+        else
+            other_ids+="$resource"$'\n'
+        fi
+    done
+
+    <<< "$dps_ids" timeout 30s xargs -r az resource delete --api-version 2020-03-01 --ids >/dev/null
+    <<< "$other_ids" timeout 30s xargs -r az resource delete --ids >/dev/null
 
     sleep 1
     echo 'Retrying...' >&2

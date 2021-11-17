@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -eu
-
 # Don't modify trusted certificates if not running on a CI container OS.
 case "$CONTAINER_OS" in
     'ubuntu:18.04' | 'debian:10-slim')
