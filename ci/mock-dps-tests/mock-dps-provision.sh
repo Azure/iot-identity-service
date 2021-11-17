@@ -1,10 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
 cd /src
 . ./ci/install-runtime-deps.sh
 . ./ci/mock-dps-tests/mock-dps-root-install.sh
-
-set -euo pipefail
 
 # Find the build output directory / the directory where CI extracted the artifact.
 #
