@@ -57,8 +57,8 @@ while :; do
         fi
     done
 
-    <<< "$dps_ids" timeout 30s xargs az resource delete --api-version 2020-03-01 --ids >/dev/null
-    <<< "$other_ids" timeout 30s xargs az resource delete --ids >/dev/null
+    <<< "$dps_ids" timeout 30s xargs -r az resource delete --api-version 2020-03-01 --ids >/dev/null
+    <<< "$other_ids" timeout 30s xargs -r az resource delete --ids >/dev/null
 
     sleep 1
     echo 'Retrying...' >&2
