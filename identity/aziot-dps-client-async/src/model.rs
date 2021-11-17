@@ -63,11 +63,14 @@ pub struct DeviceRegistrationResult {
     pub etag: Option<String>,
 
     /// Trust bundle provided by DPS.
-    #[serde(rename = "trustBundle")]
+    #[serde(rename = "trustBundle", skip_serializing_if = "Option::is_none")]
     pub trust_bundle: Option<TrustBundle>,
 
     /// DPS-issued client certificate.
-    #[serde(rename = "issuedClientCertificate")]
+    #[serde(
+        rename = "issuedClientCertificate",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub identity_cert: Option<String>,
 }
 

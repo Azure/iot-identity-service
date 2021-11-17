@@ -3,6 +3,7 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+mod certs;
 mod request;
 mod server;
 
@@ -18,6 +19,9 @@ struct Options {
 
     #[structopt(long, value_name = "SERVER_KEY")]
     server_key: std::path::PathBuf,
+
+    #[structopt(long, value_name = "TRUST_BUNDLE_CERTS_DIR")]
+    trust_bundle_certs_dir: Option<std::path::PathBuf>,
 }
 
 #[tokio::main]
@@ -36,6 +40,10 @@ async fn main() {
     let server_key = std::fs::read_to_string(options.server_key).unwrap();
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
 
+    let dps_context = crate::server::DpsContextInner::new(options.trust_bundle_certs_dir);
+    let dps_context = std::sync::Mutex::new(dps_context);
+    let dps_context = std::sync::Arc::new(dps_context);
+
     println!("Listening on localhost:{}.", options.port);
     let incoming = test_common::tokio_openssl2::Incoming::new(
         "localhost",
@@ -45,10 +53,6 @@ async fn main() {
         false,
     )
     .unwrap();
-
-    let dps_context = crate::server::DpsContextInner::default();
-    let dps_context = std::sync::Mutex::new(dps_context);
-    let dps_context = std::sync::Arc::new(dps_context);
 
     let server =
         hyper::Server::builder(incoming).serve(hyper::service::make_service_fn(move |_| {

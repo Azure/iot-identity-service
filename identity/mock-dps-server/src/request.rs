@@ -26,6 +26,8 @@ fn register(
         return Response::bad_request("missing required body for register");
     };
 
+    let mut context = context.lock().unwrap();
+
     // Unique value to use for both operation ID and device ID.
     let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
 
@@ -46,7 +48,7 @@ fn register(
         error_message: None,
         last_updated_date_time_utc: Some(now),
         etag: Some("mock-dps-etag".to_string()),
-        trust_bundle: None,
+        trust_bundle: context.trust_bundle.clone(),
         identity_cert: None,
     };
 
@@ -75,7 +77,6 @@ fn register(
             registration_state: Some(registration_state),
         };
 
-        let mut context = context.lock().unwrap();
         context
             .in_progress_operations
             .insert(uuid.clone(), registration);
@@ -118,7 +119,7 @@ pub(crate) fn process_dps_request(
 ) -> Response {
     lazy_static::lazy_static! {
         static ref DPS_REGEX: regex::Regex = regex::Regex::new(
-            "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version=\\d{4}-\\d{2}-\\d{2}$"
+            "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version="
         ).unwrap();
 
         static ref OPERATION_STATUS_REGEX: regex::Regex = regex::Regex::new(
