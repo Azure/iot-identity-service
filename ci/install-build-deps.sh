@@ -4,8 +4,9 @@
 #
 # WARNING: This script is destructive to your machine's environment and globally-installed files. For example, the Ubuntu-specific parts of the script
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
-
-OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
+if [ -z "${OS:-}" ]; then
+    OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
+fi
 
 # OS packages
 
@@ -119,6 +120,37 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
+    'mariner:amd64')
+        export DEBIAN_FRONTEND=noninteractive
+        export TZ=UTC
+
+        apt-get update -y
+        apt-get upgrade -y
+        apt-get install -y software-properties-common
+        add-apt-repository -y ppa:longsleep/golang-backports
+        apt-get update -y
+        apt-get install -y \
+            cmake curl gcc g++ git jq make pkg-config \
+            libclang1 libssl-dev llvm-dev \
+            cpio genisoimage golang-1.13-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+
+        rm -f /usr/bin/go
+        ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+        if [ -f /.dockerenv ]; then
+            mv /.dockerenv /.dockerenv.old
+        fi
+
+        MarinerToolkitDir='/tmp/CBL-Mariner'
+        if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
+            rm -rf "$MarinerToolkitDir"
+            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch '1.0-stable' --depth 1 "$MarinerToolkitDir"
+            pushd "$MarinerToolkitDir/toolkit/"
+            make package-toolkit REBUILD_TOOLS=y
+            popd
+            cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
+        fi
+        ;;
+
     *)
         echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
@@ -152,9 +184,16 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-cargo install bindgen --version '^0.54'
+BINDGEN_VERSION='0.54.0'
+CBINDGEN_VERSION='0.15.0'
 
-cargo install cbindgen --version '^0.15'
+
+# Mariner build installs them as part of the specfile
+if [ "$OS" != 'mariner' ]; then
+    cargo install bindgen --version "=$BINDGEN_VERSION"
+
+    cargo install cbindgen --version "=$CBINDGEN_VERSION"
+fi
 
 export CARGO_INCREMENTAL=0
 
