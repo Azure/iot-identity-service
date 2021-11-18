@@ -13,6 +13,8 @@ RELEASE = 0
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
+INSTALL_PRESET = true
+
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -42,7 +44,6 @@ else
 	CARGO_TARGET = x86_64-unknown-linux-gnu
 	DPKG_ARCH_FLAGS =
 endif
-
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL := /bin/bash
@@ -403,7 +404,9 @@ install-rpm: install-common
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
-	$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset
+	if [ $(INSTALL_PRESET) == "true" ]; then \
+		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
+	fi
 
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 

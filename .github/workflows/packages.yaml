@@ -24,6 +24,8 @@ jobs:
         - 'amd64'
         - 'arm32v7'
         - 'aarch64'
+        os:
+        - ''
         exclude:
         # CentOS 7 does not have functioning cross compilers. The Azure/iotedge repo builds CentOS 7 arm32v7 and aarch64 packages
         # by running the arm32v7 / aarch64 containers under qemu. For now we don't care to replicate that here.
@@ -36,6 +38,11 @@ jobs:
           arch: 'arm32v7'
         - container_os: 'redhat/ubi8:latest'
           arch: 'aarch64'
+        # Include this for mariner package builds. Mariner cannot be built on its own OS so we need an Ubuntu container.
+        include:
+        - container_os: 'ubuntu:18.04'
+          arch: 'amd64'
+          os: 'mariner'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -46,20 +53,28 @@ jobs:
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
+          -e "OS=$OS" \
           -e "PACKAGE_VERSION=$PACKAGE_VERSION" \
           -e "PACKAGE_RELEASE=$PACKAGE_RELEASE" \
+          --privileged \
           "${{ matrix.container_os }}" \
           '/src/ci/package.sh'
       env:
         ARCH: "${{ matrix.arch }}"
+        OS: "${{ matrix.os }}"
         PACKAGE_VERSION: '1.2.4'
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
-        container_os="${{ matrix.container_os }}"
-        container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::packages_${container_os}_${{ matrix.arch }}"
+        OS="${{ matrix.os }}"
+        if [ -z "$OS" ]; then
+          os_package="${{ matrix.container_os }}"
+          os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
+        else
+          os_package="$OS"
+        fi
+        echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:
