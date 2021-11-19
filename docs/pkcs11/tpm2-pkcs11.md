@@ -203,8 +203,8 @@ sudo tpm2_clear
 sudo rm -rf /var/lib/aziot/keyd/.tpm2_pkcs11
 (
     cd ~/src/tpm2-pkcs11/tools &&
-    sudo -u aziotks ./tpm2_ptool init --primary-auth '1234' &&
-    sudo -u aziotks ./tpm2_ptool addtoken \
+    sudo -Hu aziotks ./tpm2_ptool init --primary-auth '1234' &&
+    sudo -Hu aziotks ./tpm2_ptool addtoken \
         --sopin "$SO_PIN" --userpin "$PIN" \
         --label "$TOKEN" --pid '1'
 )
