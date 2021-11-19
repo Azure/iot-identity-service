@@ -22,7 +22,7 @@ pkcs11_base_slot = "<PKCS#11 URI of a slot where dynamically generated keys will
 
 ## Verifying the PKCS#11 library was installed and configured correctly
 
-After you've configured the PKCS#11 library, you can test it with `pkcs11-tool` or `p11tool`. Since the library has been configured for the Keys Service's `aziotks` Linux user, ensure that you always use that user when using `pkcs11-tool`, `p11tool`, etc. For example, prepend those commands with `sudo -u aziotks`.
+After you've configured the PKCS#11 library, you can test it with `pkcs11-tool` or `p11tool`. Since the library has been configured for the Keys Service's `aziotks` Linux user, ensure that you always use that user when using `pkcs11-tool`, `p11tool`, etc. For example, prepend those commands with `sudo -Hu aziotks`.
 
 (`$PKCS11_LIB_PATH` is the path of the PKCS#11 library that you set as the value of `aziot_keys.pkcs11_lib_path` in the `/etc/aziot/config.toml`)
 
