@@ -436,7 +436,7 @@ async fn create_cert_inner<'a>(
                 match id_opt {
                     Ok(id_opt) => {
                         est::create_cert(
-                            base64::encode(req.to_der()?).into_bytes(),
+                            chunked_base64_encode(&req.to_der()?),
                             url,
                             auth.basic.as_ref(),
                             id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
@@ -533,7 +533,7 @@ async fn create_cert_inner<'a>(
                         builder.sign(&id_pk, MessageDigest::sha256())?;
 
                         let id_init = est::create_cert(
-                            base64::encode(builder.build().to_der()?).into_bytes(),
+                            chunked_base64_encode(&builder.build().to_der()?),
                             url,
                             auth.basic.as_ref(),
                             Some((&bid_cert, &bid_pk)),
@@ -626,4 +626,16 @@ fn principal_to_map(principal: Vec<Principal>) -> BTreeMap<libc::uid_t, Vec<wild
     }
 
     result
+}
+
+#[inline]
+fn chunked_base64_encode(bytes: &[u8]) -> Vec<u8> {
+    const PEM_LINE_LENGTH: usize = 64;
+
+    base64::encode(bytes)
+        .into_bytes()
+        .chunks(PEM_LINE_LENGTH)
+        .flat_map(|chunk| chunk.iter().chain(b"\n"))
+        .copied()
+        .collect()
 }
