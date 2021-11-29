@@ -1,10 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
 cd /src
 . ./ci/install-runtime-deps.sh
 . ./ci/mock-dps-tests/mock-dps-setup.sh
-
-set -euo pipefail
 
 # Start mock-dps-server and wait for it to come up.
 ./mock-dps-server --port 8443 --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
