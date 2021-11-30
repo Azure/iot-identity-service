@@ -22,6 +22,9 @@ struct Options {
 
     #[structopt(long, value_name = "TRUST_BUNDLE_CERTS_DIR")]
     trust_bundle_certs_dir: Option<std::path::PathBuf>,
+
+    #[structopt(long)]
+    enable_identity_certs: bool,
 }
 
 #[tokio::main]
@@ -37,10 +40,10 @@ async fn main() {
         options.server_key.to_str().unwrap()
     );
 
-    let server_key = std::fs::read_to_string(options.server_key).unwrap();
+    let server_key = std::fs::read_to_string(&options.server_key).unwrap();
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
 
-    let dps_context = crate::server::DpsContextInner::new(options.trust_bundle_certs_dir);
+    let dps_context = crate::server::DpsContextInner::new(&options);
     let dps_context = std::sync::Mutex::new(dps_context);
     let dps_context = std::sync::Arc::new(dps_context);
 

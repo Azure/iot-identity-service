@@ -12,6 +12,10 @@ Required arguments:
  - `--server-cert-chain`: Path to server cert chain, starting with the leaf and ending with the root.
  - `--server-key`: Server cert key.
 
+Optional arguments:
+ - `--trust-bundle-certs-dir`: Directory of DPS trust bundle certificates. The trust bundle will contain all parsable certificates in this directory.
+ - `--enable-identity-certs`: Enable DPS identity certificate issuance.
+
 ## TLS server certificate
 
 Since DPS only accepts requests over TLS, mock-dps-server needs a TLS server certificate. See [mock-dps-cert-gen.sh](../../ci/mock-dps-tests/mock-dps-cert-gen.sh) for an example on how to generate a root CA certificate and TLS server certificate for mock-dps-server.

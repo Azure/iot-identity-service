@@ -26,19 +26,23 @@ fn register(
         return Response::bad_request("missing required body for register");
     };
 
-    let client_cert_csr = match base64::decode(body.client_cert_csr) {
-        Ok(csr) => csr,
-        Err(_) => return Response::bad_request("bad client cert csr"),
-    };
-
-    let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
-        Ok(csr) => csr,
-        Err(_) => return Response::bad_request("bad client cert csr"),
-    };
-
-    let identity_cert = crate::certs::issuance::issue_cert(&client_cert_csr);
-
     let mut context = context.lock().unwrap();
+
+    let identity_cert = if context.enable_identity_certs {
+        let client_cert_csr = match base64::decode(body.client_cert_csr) {
+            Ok(csr) => csr,
+            Err(_) => return Response::bad_request("bad client cert csr"),
+        };
+
+        let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
+            Ok(csr) => csr,
+            Err(_) => return Response::bad_request("bad client cert csr"),
+        };
+
+        Some(crate::certs::issuance::issue_cert(&client_cert_csr))
+    } else {
+        None
+    };
 
     // Unique value to use for both operation ID and device ID.
     let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
@@ -61,7 +65,7 @@ fn register(
         last_updated_date_time_utc: Some(now),
         etag: Some("mock-dps-etag".to_string()),
         trust_bundle: context.trust_bundle.clone(),
-        identity_cert: Some(identity_cert),
+        identity_cert,
     };
 
     if body.tpm.is_some() {

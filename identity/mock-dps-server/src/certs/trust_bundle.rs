@@ -32,7 +32,7 @@ fn fmt_thumbprint(cert: &openssl::x509::X509, hash_type: openssl::hash::MessageD
 }
 
 pub(crate) fn read_trust_bundle(
-    trust_bundle_certs_dir: Option<std::path::PathBuf>,
+    trust_bundle_certs_dir: Option<&std::path::PathBuf>,
 ) -> Option<aziot_dps_client_async::model::TrustBundle> {
     let trust_bundle_certs_dir = if let Some(dir) = trust_bundle_certs_dir {
         assert!(dir.is_dir());

@@ -138,13 +138,17 @@ pub(crate) struct DpsContextInner {
         aziot_dps_client_async::model::RegistrationOperationStatus,
     >,
     pub trust_bundle: Option<aziot_dps_client_async::model::TrustBundle>,
+    pub enable_identity_certs: bool,
 }
 
 impl DpsContextInner {
-    pub fn new(trust_bundle_certs_dir: Option<std::path::PathBuf>) -> Self {
+    pub fn new(options: &crate::Options) -> Self {
         DpsContextInner {
             in_progress_operations: std::collections::BTreeMap::new(),
-            trust_bundle: crate::certs::trust_bundle::read_trust_bundle(trust_bundle_certs_dir),
+            trust_bundle: crate::certs::trust_bundle::read_trust_bundle(
+                options.trust_bundle_certs_dir.as_ref(),
+            ),
+            enable_identity_certs: options.enable_identity_certs,
         }
     }
 }
