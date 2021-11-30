@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
+use tokio::time::timeout;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
@@ -142,12 +143,13 @@ impl HostConnectIotHub {
             None
         };
 
-        crate::internal::common::resolve_and_tls_handshake(
+        let future = crate::internal::common::resolve_and_tls_handshake(
             iothub_hostname_url,
             iothub_hostname,
             proxy,
-        )
-        .await.map_err( |e| if nested {
+        );
+
+        timeout(std::time::Duration::new(30, 0), future).await.map_err(|e| anyhow::Error::from(e))?.map_err( |e| if nested {
             e.context("Make sure the parent device is reachable using 'curl https://parenthostname'. Make sure the the trust bundle has been added to the trusted store: sudo cp <path>/azure-iot-test-only.root.ca.cert.pem /usr/local/share/ca-certificates/azure-iot-test-only.root.ca.cert.pem.crt
             sudo update-ca-certificates")
         } else {
