@@ -143,6 +143,7 @@ jobs:
         test:
         - 'mock-dps-provision'
         - 'mock-dps-trust-bundle'
+        - 'mock-dps-id-cert-provision'
 
     needs: 'basic'
 

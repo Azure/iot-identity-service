@@ -1,10 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
 cd /src
 . ./ci/install-runtime-deps.sh
 . ./ci/mock-dps-tests/mock-dps-setup.sh
-
-set -euo pipefail
 
 # Generate 2 certificates for trust bundle.
 mkdir -p trust_bundle
