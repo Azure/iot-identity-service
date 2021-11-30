@@ -1690,6 +1690,7 @@ name = "mock-dps-server"
 version = "0.1.0"
 dependencies = [
  "aziot-dps-client-async",
+ "base64",
  "chrono",
  "http",
  "hyper",

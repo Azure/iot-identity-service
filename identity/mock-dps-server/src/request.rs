@@ -26,7 +26,12 @@ fn register(
         return Response::bad_request("missing required body for register");
     };
 
-    let client_cert_csr = match openssl::x509::X509Req::from_pem(body.client_cert_csr.as_bytes()) {
+    let client_cert_csr = match base64::decode(body.client_cert_csr) {
+        Ok(csr) => csr,
+        Err(_) => return Response::bad_request("bad client cert csr"),
+    };
+
+    let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
         Ok(csr) => csr,
         Err(_) => return Response::bad_request("bad client cert csr"),
     };
