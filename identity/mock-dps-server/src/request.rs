@@ -26,6 +26,13 @@ fn register(
         return Response::bad_request("missing required body for register");
     };
 
+    let client_cert_csr = match openssl::x509::X509Req::from_pem(body.client_cert_csr.as_bytes()) {
+        Ok(csr) => csr,
+        Err(_) => return Response::bad_request("bad client cert csr"),
+    };
+
+    let identity_cert = crate::certs::issuance::issue_cert(&client_cert_csr);
+
     let mut context = context.lock().unwrap();
 
     // Unique value to use for both operation ID and device ID.
@@ -49,7 +56,7 @@ fn register(
         last_updated_date_time_utc: Some(now),
         etag: Some("mock-dps-etag".to_string()),
         trust_bundle: context.trust_bundle.clone(),
-        identity_cert: None,
+        identity_cert: Some(identity_cert),
     };
 
     if body.tpm.is_some() {
