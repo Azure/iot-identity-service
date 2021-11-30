@@ -2,10 +2,12 @@
 
 pub(crate) fn issue_cert(csr: &openssl::x509::X509Req) -> String {
     let subject_name = csr.subject_name();
+    let public_key = csr.public_key().unwrap();
 
     let mut cert = openssl::x509::X509::builder().unwrap();
     cert.set_version(2).unwrap();
     cert.set_subject_name(subject_name).unwrap();
+    cert.set_pubkey(&public_key).unwrap();
 
     let mut issuer_name = openssl::x509::X509Name::builder().unwrap();
     issuer_name
