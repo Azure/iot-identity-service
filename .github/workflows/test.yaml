@@ -213,7 +213,7 @@ jobs:
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
           "ubuntu:18.04" \
-          '/src/ci/code-cov.sh'
+          '/src/ci/code-coverage.sh'
       env:
         ARCH: 'amd64'
       
