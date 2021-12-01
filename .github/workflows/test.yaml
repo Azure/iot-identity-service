@@ -29,6 +29,8 @@ jobs:
         submodules: 'recursive'
     - name: 'Run'
       run: |
+        rustup component add llvm-tools-preview
+        export RUSTFLAGS="-Zinstrument-coverage"
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
@@ -194,3 +196,18 @@ jobs:
     - name: 'Test OpenAPI specs'
       run: |
         make target/openapi-schema-validated
+
+  codecoverage:
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        submodules: 'recursive'
+    
+    - name: Run Code Coverage
+      run: |
+        make codecov 
+      
+    - name: Code Coverage Report
+      uses: romeovs/lcov-reporter-action@v0.2.11

@@ -150,6 +150,17 @@ test-release: test
 	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
+codecov: aziot-key-openssl-engine-shared-test default iotedged mock-dps-server
+
+codecov:
+	mkdir coverage
+	cargo install cargo-tarpaulin
+	set -o pipefail; \
+
+	$(CARGO) tarpaulin --all \
+		--exclude aziot-key-openssl-engine-shared \
+		--target $(CARGO_TARGET) --out Lcov \
+		--output-dir ./coverage  --skip-clean
 
 test: aziot-key-openssl-engine-shared-test default iotedged mock-dps-server
 test: target/openapi-schema-validated
