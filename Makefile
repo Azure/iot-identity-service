@@ -150,14 +150,12 @@ test-release: test
 	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
-codecov: default
+codecov: default 
 
 codecov:
-	set -o pipefail; \
-	
 	mkdir coverage
 	cargo install cargo-tarpaulin
-
+	set -o pipefail; \
 
 	$(CARGO) tarpaulin --all \
 		--exclude aziot-key-openssl-engine-shared \

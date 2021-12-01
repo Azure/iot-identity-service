@@ -209,11 +209,13 @@ jobs:
       run: |
         rustup component add llvm-tools-preview
         export RUSTFLAGS="-Zinstrument-coverage"
-        docker run --rm \
+        docker run  \
           -v "$GITHUB_WORKSPACE:/src" \
-          -e "ARCH=amd64" \
+          -e "ARCH=$ARCH" \
           "ubuntu:18.04" \
           '/src/ci/code-cov.sh'
+      env:
+        ARCH: 'amd64'
       
     - name: Code Coverage Report
       uses: romeovs/lcov-reporter-action@v0.2.11
