@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
+use tokio::time::{timeout, Duration};
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
@@ -142,12 +143,20 @@ impl HostConnectIotHub {
             None
         };
 
-        crate::internal::common::resolve_and_tls_handshake(
+        // TLS Handshake behind Proxy takes a long time if the ports are blocked. This causes support bundle operation to fail. Add a timeout to the call.
+        let future = crate::internal::common::resolve_and_tls_handshake(
             iothub_hostname_url,
             iothub_hostname,
             proxy,
-        )
-        .await.map_err( |e| if nested {
+        );
+
+        timeout(Duration::from_secs(identityd_config.cloud_timeout_sec), future).await.map_err(|e| {
+            let context = format!(
+                "Failed to do TLS Handshake, Connection Attempt Timed out in {} Seconds",
+                identityd_config.cloud_timeout_sec,
+            );
+            anyhow::Error::from(e).context(context)
+            })?.map_err( |e| if nested {
             e.context("Make sure the parent device is reachable using 'curl https://parenthostname'. Make sure the the trust bundle has been added to the trusted store: sudo cp <path>/azure-iot-test-only.root.ca.cert.pem /usr/local/share/ca-certificates/azure-iot-test-only.root.ca.cert.pem.crt
             sudo update-ca-certificates")
         } else {
@@ -155,5 +164,87 @@ impl HostConnectIotHub {
         })?;
 
         Ok(CheckResult::Ok)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::internal::check::{CheckerCache, CheckerCfg, CheckerShared, DaemonConfigs};
+
+    use super::HostConnectIotHub;
+    use aziot_identityd_config::{
+        Endpoints, ManualAuthMethod, Provisioning, ProvisioningType, Settings,
+    };
+    use std::path::PathBuf;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn tls_handshake_timesout() -> Result<(), anyhow::Error> {
+        let listener = TcpListener::bind(("::", 0)).await?;
+
+        let mut host = HostConnectIotHub::new(
+            "hostConnectIoTHubMQTT",
+            "Host Can connect to upstream MQTT Port",
+            listener.local_addr()?.port(),
+        );
+
+        let config = CheckerCfg {
+            ntp_server: "pool.ntp.org:123".to_owned(),
+            verbose: true,
+            iothub_hostname: Some("localhost".to_owned()),
+            proxy_uri: None,
+            expected_aziot_version: None,
+        };
+
+        let hostname = "TestHost";
+
+        let shared = CheckerShared::new(config);
+
+        let provisioning_type = ProvisioningType::Manual {
+            iothub_hostname: "localhost".to_owned(),
+            device_id: hostname.to_owned(),
+            authentication: ManualAuthMethod::SharedPrivateKey {
+                device_id_pk: "TestKey".to_owned(),
+            },
+        };
+
+        let device_provisioning = Provisioning {
+            local_gateway_hostname: Some(hostname.to_owned()),
+            provisioning: provisioning_type,
+        };
+
+        let identity_options = Settings {
+            hostname: hostname.to_owned(),
+            homedir: PathBuf::new(),
+            cloud_retries: 1,
+            cloud_timeout_sec: 1,
+            provisioning: device_provisioning,
+            principal: Vec::new(),
+            endpoints: Endpoints::default(),
+            localid: None,
+        };
+
+        let daemoncfg = DaemonConfigs {
+            identityd: Some(identity_options.clone()),
+            certd: None,
+            keyd: None,
+            tpmd: None,
+            identityd_prev: None,
+        };
+
+        let mut cache = CheckerCache::new();
+        cache.cfg = daemoncfg;
+
+        let result = host.inner_execute(&shared, &mut cache).await;
+        assert!(result.is_err());
+
+        let expected_error = format!(
+            "Failed to do TLS Handshake, Connection Attempt Timed out in {} Seconds",
+            identity_options.clone().cloud_timeout_sec,
+        );
+
+        assert_eq!(expected_error, result.unwrap_err().to_string());
+
+        Ok(())
     }
 }
