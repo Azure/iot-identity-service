@@ -180,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn tls_handshake_timesout() -> Result<(), anyhow::Error> {
-        let listener = TcpListener::bind("127.0.0.1:8883").await?;
+        let listener = TcpListener::bind(("::", 0)).await?;
 
         let mut host = HostConnectIotHub::new(
             "hostConnectIoTHubMQTT",
