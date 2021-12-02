@@ -29,8 +29,6 @@ jobs:
         submodules: 'recursive'
     - name: 'Run'
       run: |
-        rustup component add llvm-tools-preview
-        export RUSTFLAGS="-Zinstrument-coverage"
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
@@ -204,7 +202,7 @@ jobs:
     - uses: 'actions/checkout@v1'
       with:
         submodules: 'recursive'
-    
+
     - name: Run Code Coverage
       run: |
         mkdir coverage
@@ -220,6 +218,6 @@ jobs:
         docker cp code-cov:/src/coverage /coverage
       env:
         ARCH: 'amd64'
-      
+
     - name: Code Coverage Report
       uses: romeovs/lcov-reporter-action@v0.2.11
