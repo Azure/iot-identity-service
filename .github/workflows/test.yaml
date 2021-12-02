@@ -207,14 +207,17 @@ jobs:
     
     - name: Run Code Coverage
       run: |
+        mkdir coverage
         # cargo-tarpaulin needs a privileged container because it needs to disable ASLR for its instrumentation,
         # for which it uses seccomp.
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
           --privileged \
+          --name "code-cov" \
           "ubuntu:18.04" \
           '/src/ci/code-coverage.sh'
+        docker cp code-cov:/src/coverage /coverage
       env:
         ARCH: 'amd64'
       
