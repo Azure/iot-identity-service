@@ -176,20 +176,22 @@ mod tests {
         Endpoints, ManualAuthMethod, Provisioning, ProvisioningType, Settings,
     };
     use std::path::PathBuf;
+    use tokio::net::TcpListener;
 
     #[tokio::test]
-    async fn tls_handshake_timesout() {
+    async fn tls_handshake_timesout() -> Result<(), anyhow::Error> {
+        let listener = TcpListener::bind("127.0.0.1:8883").await?;
+
         let mut host = HostConnectIotHub::new(
             "hostConnectIoTHubMQTT",
-            "
-        Host Can connect to upstream MQTT Port",
-            8883,
+            "Host Can connect to upstream MQTT Port",
+            listener.local_addr()?.port(),
         );
 
         let config = CheckerCfg {
             ntp_server: "pool.ntp.org:123".to_owned(),
             verbose: true,
-            iothub_hostname: Some("bing.com".to_owned()),
+            iothub_hostname: Some("localhost".to_owned()),
             proxy_uri: None,
             expected_aziot_version: None,
         };
@@ -199,7 +201,7 @@ mod tests {
         let shared = CheckerShared::new(config);
 
         let provisioning_type = ProvisioningType::Manual {
-            iothub_hostname: "bing.com".to_owned(),
+            iothub_hostname: "localhost".to_owned(),
             device_id: hostname.to_owned(),
             authentication: ManualAuthMethod::SharedPrivateKey {
                 device_id_pk: "TestKey".to_owned(),
@@ -242,5 +244,7 @@ mod tests {
         );
 
         assert_eq!(expected_error, result.unwrap_err().to_string());
+
+        Ok(())
     }
 }
