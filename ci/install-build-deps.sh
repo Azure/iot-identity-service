@@ -193,6 +193,8 @@ if [ "$OS" != 'mariner' ]; then
     cargo install bindgen --version "=$BINDGEN_VERSION"
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
+
+    cargo install cargo-tarpaulin --version '^0.18'
 fi
 
 export CARGO_INCREMENTAL=0

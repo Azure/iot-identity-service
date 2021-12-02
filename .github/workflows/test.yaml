@@ -207,11 +207,12 @@ jobs:
     
     - name: Run Code Coverage
       run: |
-        rustup component add llvm-tools-preview
-        export RUSTFLAGS="-Zinstrument-coverage"
-        docker run  \
+        # cargo-tarpaulin needs a privileged container because it needs to disable ASLR for its instrumentation,
+        # for which it uses seccomp.
+        docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
+          --privileged \
           "ubuntu:18.04" \
           '/src/ci/code-coverage.sh'
       env:
