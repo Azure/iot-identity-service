@@ -150,6 +150,7 @@ test-release: test
 	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
+
 test: aziot-key-openssl-engine-shared-test default iotedged mock-dps-server
 test: target/openapi-schema-validated
 test:
@@ -204,6 +205,7 @@ test:
 				exit 1; \
 			fi; \
 		done
+
 
 codecov: default
 	mkdir -p coverage
