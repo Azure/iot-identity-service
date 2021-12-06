@@ -141,7 +141,10 @@ fn main() {
         println!("cargo:rustc-link-lib=static=umock_c");
     }
 
-    println!("cargo:rustc-link-search=native={}/build/deps/utpm", aziottpm.display());
+    println!(
+        "cargo:rustc-link-search=native={}/build/deps/utpm",
+        aziottpm.display()
+    );
     println!("cargo:rustc-link-lib=static=utpm");
 
     println!("cargo:rustc-link-lib=crypto");
