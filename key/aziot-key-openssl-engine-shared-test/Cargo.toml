@@ -3,7 +3,7 @@ name = "aziot-key-openssl-engine-shared-test"
 version = "0.1.0"
 license = "MIT"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
