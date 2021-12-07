@@ -219,7 +219,7 @@ jobs:
 
     - name: Copy Code Coverage Report
       run: |
-        docker cp code-cov:/src/data-plane/coverage ./coverage
+        docker cp code-cov:/src/coverage ./coverage
         docker rm code-cov
     
     - name: Publish Code Coverage Report
