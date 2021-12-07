@@ -207,7 +207,47 @@ test:
 		done
 
 
-codecov: default
+codecov:
+	# Re-generate aziot-keys.h if necessary
+	set -euo pipefail; \
+	aziot_keys_h_new="$$(mktemp --tmpdir 'aziot-keys.h.new.XXXXXXXXXX')"; \
+	trap "$(RM) '$$aziot_keys_h_new'" EXIT; \
+	cp key/aziot-keys/cbindgen.prelude.h "$$aziot_keys_h_new"; \
+	$(CBINDGEN) --config key/aziot-keys/cbindgen.toml --crate aziot-keys --lockfile "$$PWD/Cargo.lock" --output /dev/stdout $(CBINDGEN_VERBOSE) | \
+		grep -v 'cbindgen_unused_' >> "$$aziot_keys_h_new"; \
+	if ! diff -q key/aziot-keys/aziot-keys.h "$$aziot_keys_h_new"; then \
+		mv "$$aziot_keys_h_new" key/aziot-keys/aziot-keys.h; \
+		$(RM) key/aziot-keyd/src/keys.generated.rs; \
+	fi
+
+	# Re-generate keys.generated.rs if necessary
+	set -euo pipefail; \
+	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
+		$(BINDGEN) \
+			--blacklist-type '__.*' \
+			--whitelist-function 'aziot_keys_.*' \
+			--whitelist-type 'AZIOT_KEYS_.*' \
+			--whitelist-var 'AZIOT_KEYS_.*' \
+			-o key/aziot-keyd/src/keys.generated.rs.tmp \
+			$(BINDGEN_VERBOSE) \
+			key/aziot-keys/aziot-keys.h; \
+		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
+	fi
+
+	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
+	# But we can't do this with Cargo dependencies because of a cargo issue that causes spurious rebuilds.
+	# So instead we do it manually.
+	#
+	# See the doc header of the aziot-keys-common crate for more info.
+	$(CARGO) build \
+		-p aziot-keys \
+		--target $(CARGO_TARGET) $(CARGO_VERBOSE)
+
+	$(CARGO) build \
+		-p aziotctl \
+		-p aziotd \
+		-p aziot-key-openssl-engine-shared \
+		--target $(CARGO_TARGET) $(CARGO_VERBOSE)
 	mkdir -p coverage
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
 	$(CARGO) tarpaulin --all --verbose \
