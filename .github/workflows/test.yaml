@@ -205,7 +205,7 @@ jobs:
 
     - name: Run Code Coverage
       run: |
-        mkdir coverage
+        mkdir /coverage
         # cargo-tarpaulin needs a privileged container because it needs to disable ASLR for its instrumentation,
         # for which it uses seccomp.
         docker run --rm \
@@ -221,3 +221,5 @@ jobs:
 
     - name: Code Coverage Report
       uses: romeovs/lcov-reporter-action@v0.2.11
+      with:
+        lcov-file: /coverage/lcov.info
