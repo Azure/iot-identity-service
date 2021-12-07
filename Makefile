@@ -212,6 +212,7 @@ codecov: default
 
 	$(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
+		--no-fail-fast \
 		--target $(CARGO_TARGET) --out Lcov \
 		--output-dir ./coverage
 
