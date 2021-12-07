@@ -207,7 +207,7 @@ test:
 		done
 
 
-codecov: default
+codecov: default deb
 	mkdir -p coverage
 
 	$(CARGO) tarpaulin --all --verbose \
