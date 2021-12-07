@@ -248,8 +248,8 @@ codecov:
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
 		--target $(CARGO_TARGET) $(CARGO_VERBOSE)
+		
 	mkdir -p coverage
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
 	$(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--no-fail-fast \
