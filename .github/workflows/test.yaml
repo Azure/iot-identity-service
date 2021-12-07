@@ -224,7 +224,7 @@ jobs:
         docker rm code-cov
     
     - name: Publish Code Coverage Report
-      uses: romeovs/lcov-reporter-action@v0.2.11
+      uses: romeovs/lcov-reporter-action@v0.3.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         lcov-file: ./coverage/lcov.info
