@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::env::consts::ARCH;
-use std::str;
-
 use byte_unit::{Byte, ByteUnit};
 use serde::Serialize;
 use sysinfo::{DiskExt, SystemExt};
+
+use aziotctl_common::host_info::OsInfo;
 
 /// Additional info for the JSON output of `aziotctl check`
 #[derive(Clone, Debug, Serialize)]
@@ -26,95 +25,13 @@ impl AdditionalInfo {
     pub fn new(iothub_hostname: Option<String>, local_gateway_hostname: Option<String>) -> Self {
         AdditionalInfo {
             now: chrono::Utc::now(),
-            os: OsInfo::new(),
+            os: OsInfo::default(),
             system_info: SystemInfo::new(),
 
             iothub_hostname,
             local_gateway_hostname,
         }
     }
-}
-
-/// A subset of the fields from /etc/os-release.
-///
-/// Examples:
-///
-/// ```ignore
-///  OS                  | id                  | version_id
-/// ---------------------+---------------------+------------
-///  CentOS 7            | centos              | 7
-///  Debian 9            | debian              | 9
-///  openSUSE Tumbleweed | opensuse-tumbleweed | 20190325
-///  Ubuntu 18.04        | ubuntu              | 18.04
-/// ```
-///
-/// Ref: <https://www.freedesktop.org/software/systemd/man/os-release.html>
-#[derive(Clone, Debug, Serialize)]
-pub struct OsInfo {
-    id: Option<String>,
-    version_id: Option<String>,
-    arch: &'static str,
-    bitness: usize,
-}
-
-impl OsInfo {
-    pub fn new() -> Self {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
-
-        let mut result = OsInfo {
-            id: None,
-            version_id: None,
-            arch: ARCH,
-            // Technically wrong if someone runs an arm32 build on arm64,
-            // but we have dedicated arm64 builds so hopefully they don't.
-            bitness: std::mem::size_of::<usize>() * 8,
-        };
-
-        if let Ok(os_release) = File::open("/etc/os-release") {
-            let mut os_release = BufReader::new(os_release);
-
-            let mut line = String::new();
-            loop {
-                match os_release.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        if let Some((key, value)) = parse_os_release_line(&line) {
-                            if key == "ID" {
-                                result.id = Some(value.to_owned());
-                            } else if key == "VERSION_ID" {
-                                result.version_id = Some(value.to_owned());
-                            }
-                        }
-
-                        line.clear();
-                    }
-                }
-            }
-        }
-
-        result
-    }
-}
-
-fn parse_os_release_line(line: &str) -> Option<(&str, &str)> {
-    let line = line.trim();
-
-    let (key, value) = line.split_once('=')?;
-
-    // The value is essentially a shell string, so it can be quoted in single or
-    // double quotes, and can have escaped sequences using backslash.
-    // For simplicitly, just trim the quotes instead of implementing a full shell
-    // string grammar.
-    let value = if (value.starts_with('\'') && value.ends_with('\''))
-        || (value.starts_with('"') && value.ends_with('"'))
-    {
-        &value[1..(value.len() - 1)]
-    } else {
-        value
-    };
-
-    Some((key, value))
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
