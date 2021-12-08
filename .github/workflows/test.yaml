@@ -205,10 +205,9 @@ jobs:
 
     - name: Run Code Coverage
       run: |
-        mkdir ./coverage
         # cargo-tarpaulin needs a privileged container because it needs to disable ASLR for its instrumentation,
         # for which it uses seccomp.
-        docker run \
+        docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
           --privileged \
@@ -217,14 +216,10 @@ jobs:
           '/src/ci/code-coverage.sh'
       env:
         ARCH: 'amd64'
-
-    - name: Copy Code Coverage Report
-      run: |
-        docker cp code-cov:/src/coverage ./coverage
-        docker rm code-cov
     
     - name: Publish Code Coverage Report
       uses: romeovs/lcov-reporter-action@v0.3.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        lcov-file: ./coverage/lcov.info
+        lcov-file: ${GITHUB_WORKSPACE}/coverage/lcov.info
+        filter-changed-files: true
