@@ -227,6 +227,7 @@ fn sntp_epoch() -> chrono::DateTime<chrono::Utc> {
     )
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Packet {
     leap_indicator: u8,
