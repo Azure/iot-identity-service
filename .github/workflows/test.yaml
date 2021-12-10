@@ -221,5 +221,5 @@ jobs:
       uses: romeovs/lcov-reporter-action@v0.3.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        lcov-file: ${GITHUB_WORKSPACE}/coverage/lcov.info
+        lcov-file: $GITHUB_WORKSPACE/coverage/lcov.info
         filter-changed-files: true
