@@ -1,9 +1,9 @@
-use std::convert::TryFrom;
+use std::convert::AsRef;
 use std::env::consts::ARCH;
 use std::fmt;
 use std::fs;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
+use std::path::Path;
 
 use nix::sys::utsname::UtsName;
 use serde::{Deserialize, Serialize};
@@ -171,16 +171,14 @@ impl From<HardwareInfo> for Product {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(try_from = "PathBuf")]
 pub struct ProductInfo {
     product: Vec<Product>,
 }
 
-impl TryFrom<PathBuf> for ProductInfo {
-    type Error = io::Error;
-
-    fn try_from(p: PathBuf) -> Result<Self, Self::Error> {
-        let bytes = fs::read(p)?;
+impl ProductInfo {
+    #[allow(dead_code)]
+    fn load_file<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
+        let bytes = fs::read(path)?;
 
         toml::de::from_slice(&bytes)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
@@ -252,5 +250,17 @@ mod tests {
         };
 
         assert_eq!("FOO/BAR A/B (C) name/version (comment)", pinfo.to_string());
+    }
+
+    #[test]
+    fn load_file() {
+        let test_load = ProductInfo::load_file("test-files/product_info.toml")
+            .unwrap();
+
+        assert_eq!(ProductInfo {
+            product: vec![
+                ("A", "B", "C").into()
+            ]
+        }, test_load);
     }
 }
