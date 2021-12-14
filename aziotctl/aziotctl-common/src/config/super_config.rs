@@ -295,6 +295,7 @@ pub struct CertIssuanceOptions {
     pub subject: Option<aziot_certd_config::CertSubject>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {

@@ -27,8 +27,6 @@ fn run_ctest() {
     println!("status: {}", test_output.status);
     println!("stdout: {}", String::from_utf8_lossy(&test_output.stdout));
     println!("stderr: {}", String::from_utf8_lossy(&test_output.stderr));
-    if !test_output.status.success() {
-        panic!("Running CTest failed.");
-    }
+    assert!(test_output.status.success(), "Running CTest failed.");
     println!("Done Running ctest for HSM library");
 }

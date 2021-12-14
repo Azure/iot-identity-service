@@ -2,7 +2,7 @@
 name = "aziot-identity-client-async"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 http = "0.2"
