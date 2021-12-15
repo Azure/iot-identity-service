@@ -742,7 +742,7 @@ impl IdentityManager {
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-        let backup_device = self.get_backup_provisioning_info(credentials.clone())?;
+        let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
         if skip_if_backup_is_valid && backup_device.is_some() {
             let backup_device = backup_device.expect("backup device cannot be none");
@@ -783,15 +783,16 @@ impl IdentityManager {
     fn get_backup_provisioning_info(
         &self,
         credentials: aziot_identity_common::Credentials,
-    ) -> Result<Option<aziot_identity_common::IoTHubDevice>, Error> {
+    ) -> Option<aziot_identity_common::IoTHubDevice> {
         let mut prev_device_info_path = self.homedir_path.clone();
         prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
-        if prev_device_info_path.exists() {
-            let prev_hub_device_info =
-                HubDeviceInfo::new(&prev_device_info_path).map_err(Error::Internal)?;
+        if !prev_device_info_path.exists() {
+            return None;
+        }
 
-            match prev_hub_device_info {
+        match HubDeviceInfo::new(&prev_device_info_path) {
+            Ok(device_info) => match device_info {
                 Some(device_info) => {
                     let device = aziot_identity_common::IoTHubDevice {
                         local_gateway_hostname: device_info.local_gateway_hostname,
@@ -800,13 +801,21 @@ impl IdentityManager {
                         credentials,
                     };
 
-                    return Ok(Some(device));
+                    Some(device)
                 }
-                None => return Ok(None),
+                None => None,
+            },
+            Err(err) => {
+                log::warn!("Ignoring invalid device info backup: {}", err);
+
+                // Remove the invalid device info so it's not checked when reconciling identities.
+                if let Err(err) = std::fs::remove_file(&prev_device_info_path) {
+                    log::warn!("Failed to delete invalid device info backup: {}", err);
+                }
+
+                None
             }
         }
-
-        Ok(None)
     }
 
     async fn create_identity_cert_if_not_exist_or_expired(
@@ -923,12 +932,6 @@ impl IdentityManager {
                 // Encapsulate the device_info update along with "module_info" for offline store
                 // Make sure module_info is wiped when device_info is wiped
 
-                let mut prev_settings_path = self.homedir_path.clone();
-                prev_settings_path.push("prev_state");
-
-                let mut prev_device_info_path = self.homedir_path.clone();
-                prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
-
                 let curr_hub_device_info = HubDeviceInfo {
                     hub_name: device.iothub_hostname.clone(),
                     local_gateway_hostname: device.local_gateway_hostname.clone(),
@@ -938,26 +941,17 @@ impl IdentityManager {
                 let device_status = toml::to_string(&curr_hub_device_info)
                     .map_err(|err| Error::Internal(InternalError::SerializeDeviceInfo(err)))?;
 
-                // Only consider the previous Hub modules if the current and previous Hub devices match.
-                let prev_module_set =
-                    if prev_settings_path.exists() && prev_device_info_path.exists() {
-                        let prev_hub_device_info =
-                            HubDeviceInfo::new(&prev_device_info_path).map_err(Error::Internal)?;
+                let mut prev_settings_path = self.homedir_path.clone();
+                prev_settings_path.push("prev_state");
 
-                        if prev_hub_device_info == Some(curr_hub_device_info) {
-                            let prev_settings = crate::configext::load_file(&prev_settings_path)
-                                .map_err(Error::Internal)?;
-                            let (_, prev_hub_modules, _) =
-                                crate::configext::prepare_authorized_principals(
-                                    &prev_settings.principal,
-                                );
-                            prev_hub_modules
-                        } else {
-                            std::collections::BTreeSet::default()
-                        }
-                    } else {
-                        std::collections::BTreeSet::default()
-                    };
+                let mut prev_device_info_path = self.homedir_path.clone();
+                prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
+
+                let prev_module_set = get_prev_modules(
+                    &prev_settings_path,
+                    &prev_device_info_path,
+                    curr_hub_device_info,
+                );
 
                 let hub_module_ids = self.get_module_identities().await?;
 
@@ -1000,6 +994,45 @@ impl IdentityManager {
 
         Ok(())
     }
+}
+
+fn get_prev_modules(
+    prev_settings_path: &std::path::Path,
+    prev_device_info_path: &std::path::Path,
+    curr_hub_device_info: HubDeviceInfo,
+) -> std::collections::BTreeSet<aziot_identity_common::ModuleId> {
+    if !prev_settings_path.exists() || !prev_device_info_path.exists() {
+        return std::collections::BTreeSet::default();
+    }
+
+    let prev_hub_device_info = match HubDeviceInfo::new(prev_device_info_path) {
+        Ok(device_info) => device_info,
+        Err(err) => {
+            log::warn!("Ignoring invalid device info backup: {}", err);
+
+            return std::collections::BTreeSet::default();
+        }
+    };
+
+    // Only consider the previous Hub modules if the current and previous Hub devices match.
+    if prev_hub_device_info != Some(curr_hub_device_info) {
+        return std::collections::BTreeSet::default();
+    }
+
+    let prev_settings =
+        match crate::configext::load_file(prev_settings_path).map_err(Error::Internal) {
+            Ok(settings) => settings,
+            Err(err) => {
+                log::warn!("Ignoring invalid device settings backup: {}", err);
+
+                return std::collections::BTreeSet::default();
+            }
+        };
+
+    let (_, prev_hub_modules, _) =
+        crate::configext::prepare_authorized_principals(&prev_settings.principal);
+
+    prev_hub_modules
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
