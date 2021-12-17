@@ -1002,7 +1002,7 @@ fn get_prev_modules(
     curr_hub_device_info: HubDeviceInfo,
 ) -> std::collections::BTreeSet<aziot_identity_common::ModuleId> {
     if !prev_settings_path.exists() || !prev_device_info_path.exists() {
-        return std::collections::BTreeSet::default();
+        return Default::default();
     }
 
     let prev_hub_device_info = match HubDeviceInfo::new(prev_device_info_path) {
@@ -1010,13 +1010,13 @@ fn get_prev_modules(
         Err(err) => {
             log::warn!("Ignoring invalid device info backup: {}", err);
 
-            return std::collections::BTreeSet::default();
+            return Default::default();
         }
     };
 
     // Only consider the previous Hub modules if the current and previous Hub devices match.
     if prev_hub_device_info != Some(curr_hub_device_info) {
-        return std::collections::BTreeSet::default();
+        return Default::default();
     }
 
     let prev_settings =
@@ -1025,7 +1025,7 @@ fn get_prev_modules(
             Err(err) => {
                 log::warn!("Ignoring invalid device settings backup: {}", err);
 
-                return std::collections::BTreeSet::default();
+                return Default::default();
             }
         };
 
