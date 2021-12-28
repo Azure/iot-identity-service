@@ -31,8 +31,63 @@ pub fn create_dir_all(
 
     let () = std::fs::create_dir_all(path)
         .with_context(|| format!("could not create {} directory", path_displayable))?;
+
+    {
+        // Enforce all parent directories of `path` are readable by `user`, by checking that at least one of these is true:
+        //
+        // - The directory is world-readable.
+        // - The directory is group-readable and `user.gid` is the group.
+        // - The directory is owner-readable and `user.uid` is the owner.
+        //
+        // Note that "readable" means r+x, not just r, because we're talking about directories.
+        //
+        // This is basically reimplementing `access(path, R_OK | X_OK)` but for the `user` user
+        // instead of this process's user (which is root). The alternative would to spawn a child process
+        // as `user` that does the `access` call. If we end up needing this pattern for more places
+        // in the codebase, we can consider that option.
+        //
+        // If none of those conditions are true, we don't know which one is semantically correct to enforce,
+        // so we default to enforcing the first one, ie we make the directory world-readable. `path` itself is still
+        // created with the given `mode`, so it can be as open or closed as the caller wants it to be.
+
+        let mut parent = path.parent();
+        while let Some(dir) = parent {
+            parent = dir.parent();
+
+            let nix::sys::stat::FileStat {
+                st_mode,
+                st_uid,
+                st_gid,
+                ..
+            } = nix::sys::stat::stat(dir)
+                .with_context(|| format!("could not stat {} directory", dir.display()))?;
+            if (st_mode & 0o005) != 0o005 {
+                // World-readable
+                continue;
+            }
+            if st_mode & 0o050 != 0o050 && st_gid == user.gid.as_raw() {
+                // Group-readable by `user.gid`
+                continue;
+            }
+            if st_mode & 0o500 != 0o500 && st_uid == user.uid.as_raw() {
+                // Owner-readable by `user.uid`
+                continue;
+            }
+
+            // Make it world-readable
+            let () = std::fs::set_permissions(
+                dir,
+                std::os::unix::fs::PermissionsExt::from_mode(st_mode | 0o005),
+            )
+            .with_context(|| {
+                format!("could not set permissions on {} directory", dir.display(),)
+            })?;
+        }
+    }
+
     let () = nix::unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {} directory", path_displayable))?;
+
     let () = std::fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(mode))
         .with_context(|| {
             format!(
