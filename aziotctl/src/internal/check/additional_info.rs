@@ -4,7 +4,7 @@ use byte_unit::{Byte, ByteUnit};
 use serde::Serialize;
 use sysinfo::{DiskExt, SystemExt};
 
-use aziotctl_common::host_info::OsInfo;
+use aziotctl_common::host_info::{DmiInfo, OsInfo};
 
 /// Additional info for the JSON output of `aziotctl check`
 #[derive(Clone, Debug, Serialize)]
@@ -12,6 +12,8 @@ pub struct AdditionalInfo {
     // TODO: update https://github.com/Azure/azure-iotedge to include aziotd version
     now: chrono::DateTime<chrono::Utc>,
     os: OsInfo,
+    kernel: KernelInfo,
+    dmi: DmiInfo,
     system_info: SystemInfo,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -26,6 +28,7 @@ impl AdditionalInfo {
         AdditionalInfo {
             now: chrono::Utc::now(),
             os: OsInfo::default(),
+            dmi: DmiInfo::default(),
             system_info: SystemInfo::new(),
 
             iothub_hostname,

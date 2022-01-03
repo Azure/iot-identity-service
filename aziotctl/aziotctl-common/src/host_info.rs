@@ -1,4 +1,3 @@
-use std::convert::AsRef;
 use std::env::consts::ARCH;
 use std::fmt;
 use std::fs;
@@ -6,7 +5,35 @@ use std::io::{self, BufRead};
 use std::path::Path;
 
 use nix::sys::utsname::UtsName;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+
+/// A subset of the DMI variables exposed through /sys/devices/virtual/dmi/id.
+///
+/// Examples:
+///
+/// ```ignore
+///  Host    | name            | version | vendor
+/// ---------+-----------------+---------+-----------------------
+///  Hyper-V | Virtual Machine | 7.0     | Microsoft Corporation
+/// ```
+///
+/// Ref: <https://www.kernel.org/doc/html/latest/filesystems/sysfs.html>
+#[derive(Clone, Debug, Serialize)]
+pub struct DmiInfo {
+    name: Option<String>,
+    version: Option<String>,
+    vendor: Option<String>,
+}
+
+impl Default for DmiInfo {
+    fn default() -> Self {
+        Self {
+            name: try_read_dmi("product_name"),
+            version: try_read_dmi("product_version"),
+            vendor: try_read_dmi("sys_vendor"),
+        }
+    }
+}
 
 /// A subset of the fields from /etc/os-release.
 ///
@@ -51,7 +78,7 @@ impl Default for OsInfo {
 
             for line in os_release.lines() {
                 if let Ok(line) = &line {
-                    match parse_os_release_line(line) {
+                    match parse_shell_line(line) {
                         Some(("ID", value)) => {
                             result.id = Some(value.to_owned());
                         },
@@ -74,7 +101,7 @@ impl Default for OsInfo {
     }
 }
 
-fn parse_os_release_line(line: &str) -> Option<(&str, &str)> {
+fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
 
     let (key, value) = line.split_once('=')?;
@@ -94,22 +121,6 @@ fn parse_os_release_line(line: &str) -> Option<(&str, &str)> {
     Some((key, value))
 }
 
-pub struct HardwareInfo {
-    name: Option<String>,
-    version: Option<String>,
-    vendor: Option<String>,
-}
-
-impl Default for HardwareInfo {
-    fn default() -> Self {
-        Self {
-            name: try_read_dmi("product_name"),
-            version: try_read_dmi("product_version"),
-            vendor: try_read_dmi("sys_vendor"),
-        }
-    }
-}
-
 fn try_read_dmi(entry: &'static str) -> Option<String> {
     let path = format!("/sys/devices/virtual/dmi/id/{}", entry);
 
@@ -119,148 +130,4 @@ fn try_read_dmi(entry: &'static str) -> Option<String> {
         .ok()?
         .trim()
         .to_owned())
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-struct Product {
-    name: String,
-    version: String,
-    comment: Option<String>,
-}
-
-impl fmt::Display for Product {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.name, self.version)?;
-
-        if let Some(comment) = &self.comment {
-            write!(f, " ({})", comment)?;
-        };
-
-        Ok(())
-    }
-}
-
-impl From<UtsName> for Product {
-    fn from(value: UtsName) -> Self {
-        Self {
-            name: value.sysname().to_owned(),
-            version: value.release().to_owned(),
-            comment: Some(value.version().to_owned()),
-        }
-    }
-}
-
-impl From<OsInfo> for Product {
-    fn from(value: OsInfo) -> Self {
-        Self {
-            name: value.id.unwrap_or_else(|| "UNKNOWN_OS".to_owned()),
-            version: value.version_id.unwrap_or_else(|| "UNKNOWN_OS_VERSION".to_owned()),
-            comment: value.pretty_name,
-        }
-    }
-}
-
-impl From<HardwareInfo> for Product {
-    fn from(value: HardwareInfo) -> Self {
-        Self {
-            name: value.name.unwrap_or_else(|| "UNKNOWN_HARDWARE".to_owned()),
-            version: value.version.unwrap_or_else(|| "UNKNOWN_HARDWARE_VERSION".to_owned()),
-            comment: value.vendor
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct ProductInfo {
-    product: Vec<Product>,
-}
-
-impl ProductInfo {
-    #[allow(dead_code)]
-    fn load_file<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
-        let bytes = fs::read(path)?;
-
-        toml::de::from_slice(&bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-    }
-}
-
-impl fmt::Display for ProductInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut products = self.product.iter();
-
-        if let Some(first) = products.next() {
-            write!(f, "{}", first)?;
-
-            for product in products {
-                write!(f, " {}", product)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    impl From<(&str, &str)> for Product {
-        fn from(value: (&str, &str)) -> Self {
-            Product {
-                name: value.0.to_owned(),
-                version: value.1.to_owned(),
-                comment: None,
-            }
-        }
-    }
-
-    impl From<(&str, &str, &str)> for Product {
-        fn from(value: (&str, &str, &str)) -> Self {
-            Product {
-                name: value.0.to_owned(),
-                version: value.1.to_owned(),
-                comment: Some(value.2.to_owned()),
-            }
-        }
-    }
-
-    #[test]
-    fn product_string_no_comment() {
-        let p: Product = ("FOO", "BAR").into();
-
-        assert_eq!("FOO/BAR", p.to_string());
-    }
-
-    #[test]
-    fn product_string_with_comment() {
-        let p: Product = ("FOO", "BAR", "BAZ").into();
-
-        assert_eq!("FOO/BAR (BAZ)", p.to_string());
-    }
-
-    #[test]
-    fn multiple_products() {
-        let pinfo = ProductInfo {
-            product: vec![
-                ("FOO", "BAR").into(),
-                ("A", "B", "C").into(),
-                ("name", "version", "comment").into(),
-            ],
-        };
-
-        assert_eq!("FOO/BAR A/B (C) name/version (comment)", pinfo.to_string());
-    }
-
-    #[test]
-    fn load_file() {
-        let test_load = ProductInfo::load_file("test-files/product_info.toml")
-            .unwrap();
-
-        assert_eq!(ProductInfo {
-            product: vec![
-                ("A", "B", "C").into()
-            ]
-        }, test_load);
-    }
 }
