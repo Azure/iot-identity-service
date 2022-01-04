@@ -12,7 +12,6 @@ pub struct AdditionalInfo {
     // TODO: update https://github.com/Azure/azure-iotedge to include aziotd version
     now: chrono::DateTime<chrono::Utc>,
     os: OsInfo,
-    kernel: KernelInfo,
     dmi: DmiInfo,
     system_info: SystemInfo,
 
