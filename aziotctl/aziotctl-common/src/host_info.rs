@@ -1,11 +1,16 @@
 use std::env::consts::ARCH;
-use std::fmt;
 use std::fs;
 use std::io::{self, BufRead};
-use std::path::Path;
 
-use nix::sys::utsname::UtsName;
 use serde::Serialize;
+use serde_with::skip_serializing_none;
+
+#[cfg(target_pointer_width = "32")]
+const BITNESS: usize = 32;
+#[cfg(target_pointer_width = "64")]
+const BITNESS: usize = 64;
+#[cfg(target_pointer_width = "128")]
+const BITNESS: usize = 128;
 
 /// A subset of the DMI variables exposed through /sys/devices/virtual/dmi/id.
 ///
@@ -20,15 +25,21 @@ use serde::Serialize;
 /// Ref: <https://www.kernel.org/doc/html/latest/filesystems/sysfs.html>
 #[derive(Clone, Debug, Serialize)]
 pub struct DmiInfo {
-    name: Option<String>,
-    version: Option<String>,
-    vendor: Option<String>,
+    pub board: Option<String>,
+    pub family: Option<String>,
+    pub product: Option<String>,
+    pub sku: Option<String>,
+    pub version: Option<String>,
+    pub vendor: Option<String>,
 }
 
 impl Default for DmiInfo {
     fn default() -> Self {
         Self {
-            name: try_read_dmi("product_name"),
+            board: try_read_dmi("board_name"),
+            family: try_read_dmi("product_family"),
+            product: try_read_dmi("product_name"),
+            sku: try_read_dmi("product_sku"),
             version: try_read_dmi("product_version"),
             vendor: try_read_dmi("sys_vendor"),
         }
@@ -49,13 +60,14 @@ impl Default for DmiInfo {
 /// ```
 ///
 /// Ref: <https://www.freedesktop.org/software/systemd/man/os-release.html>
+#[skip_serializing_none]
 #[derive(Clone, Debug, Serialize)]
 pub struct OsInfo {
-    id: Option<String>,
-    version_id: Option<String>,
-    pretty_name: Option<String>,
-    arch: &'static str,
-    bitness: usize,
+    pub id: Option<String>,
+    pub version_id: Option<String>,
+    pub pretty_name: Option<String>,
+    pub arch: &'static str,
+    pub bitness: usize,
 }
 
 impl Default for OsInfo {
@@ -65,9 +77,7 @@ impl Default for OsInfo {
             version_id: None,
             pretty_name: None,
             arch: ARCH,
-            // Technically wrong if someone runs an arm32 build on arm64,
-            // but we have dedicated arm64 builds so hopefully they don't.
-            bitness: std::mem::size_of::<usize>() * 8,
+            bitness: BITNESS,
         };
 
         let os_release = fs::File::open("/etc/os-release")
@@ -101,7 +111,7 @@ impl Default for OsInfo {
     }
 }
 
-fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
+pub fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
 
     let (key, value) = line.split_once('=')?;
