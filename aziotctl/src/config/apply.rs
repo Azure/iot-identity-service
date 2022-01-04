@@ -8,7 +8,7 @@
 //! Inline provisioning symmetric keys are saved to `/var/secrets/aziot/keyd/device-id` in order to be preloaded into the KS.
 //! This command creates the directory structure and ACLs the directory and the file to the KS user.
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 
 use aziotctl_common::config as common_config;
 
@@ -37,38 +37,10 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
     // So when running as root, get the four users appropriately.
     // Otherwise, if this is a debug build, fall back to using the current user.
     // Otherwise, tell the user to re-run as root.
-    let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) =
-        if nix::unistd::Uid::current().is_root() {
-            let aziotks_user = nix::unistd::User::from_name("aziotks")
-                .context("could not query aziotks user information")?
-                .ok_or_else(|| anyhow!("could not query aziotks user information"))?;
-
-            let aziotcs_user = nix::unistd::User::from_name("aziotcs")
-                .context("could not query aziotcs user information")?
-                .ok_or_else(|| anyhow!("could not query aziotcs user information"))?;
-
-            let aziotid_user = nix::unistd::User::from_name("aziotid")
-                .context("could not query aziotid user information")?
-                .ok_or_else(|| anyhow!("could not query aziotid user information"))?;
-
-            let aziottpm_user = nix::unistd::User::from_name("aziottpm")
-                .context("could not query aziottpm user information")?
-                .ok_or_else(|| anyhow!("could not query aziottpm user information"))?;
-
-            (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user)
-        } else if cfg!(debug_assertions) {
-            let current_user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
-                .context("could not query current user information")?
-                .ok_or_else(|| anyhow!("could not query current user information"))?;
-            (
-                current_user.clone(),
-                current_user.clone(),
-                current_user.clone(),
-                current_user,
-            )
-        } else {
-            return Err(anyhow!("this command must be run as root"));
-        };
+    let aziotks_user = crate::internal::common::get_system_user("aziotks")?;
+    let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+    let aziotid_user = crate::internal::common::get_system_user("aziotid")?;
+    let aziottpm_user = crate::internal::common::get_system_user("aziottpm")?;
 
     let common_config::apply::RunOutput {
         keyd_config,
