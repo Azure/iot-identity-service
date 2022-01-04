@@ -62,61 +62,79 @@ impl ReadKeyPairs {
         let mut err_aggregated = vec![];
         let mut warn_aggregated = vec![];
 
-        for id in preloaded_keys.keys() {
-            // We don't know whether `id` is a symmetric or asymmetric key,
-            // and the `load_key_pair` error doesn't tell us whether it failed because it's a symmetric key
-            // or because of some other reason.
-            //
-            // We also can't go behind keyd's back and load the keys ourselves, because the point of this check
-            // is to test keyd's ability to load the keys, but also because only keyd is allowed to load PKCS#11 keys
-            // since PKCS#11 implementations are generally not cross-process-safe.
-            //
-            // So as a best effort, ignore errors from loading key pairs entirely.
-            let key_handle = if let Ok(key_handle) = key_client.load_key_pair(id).await {
-                key_handle
-            } else {
-                continue;
-            };
+        // Check every preloaded key at a file:// URI is readable by the aziotks user and report errors when they aren't.
+        let aziotks_user = crate::internal::common::get_system_user("aziotks")?;
 
-            let key = || {
-                let key_handle = std::ffi::CString::new(key_handle.0)
-                    .context("internal error: key handle is malformed")?;
-                let key = key_engine.load_private_key(&key_handle).with_context(|| {
-                    format!("could not load preloaded private key with ID {:?}", id)
-                })?;
-                Ok::<_, anyhow::Error>(key)
-            };
+        for (id, path) in preloaded_keys {
+            let mut readable = true;
+            if let Ok(aziot_keys_common::PreloadedKeyLocation::Filesystem { path }) = path.parse() {
+                if let Err(err) =
+                    aziotctl_common::config::check_readable(&path, &aziotks_user, false)
+                {
+                    err_aggregated.push(format!("{:?}", err));
+                    readable = false;
+                }
+            }
 
-            match key() {
-                Ok(key) => {
-                    if let Ok(rsa) = key.rsa() {
-                        let key_length = rsa.size() * 8;
+            if readable {
+                // Load the key through the keyd API and collect any errors.
+                //
+                // We don't know whether `id` is a symmetric or asymmetric key,
+                // and the `load_key_pair` error doesn't tell us whether it failed because it's a symmetric key
+                // or because of some other reason.
+                //
+                // We also can't go behind keyd's back and load the keys ourselves, because the point of this check
+                // is to test keyd's ability to load the keys, but also because only keyd is allowed to load PKCS#11 keys
+                // since PKCS#11 implementations are generally not cross-process-safe.
+                //
+                // So as a best effort, ignore errors from loading key pairs entirely.
+                let key_handle = if let Ok(key_handle) = key_client.load_key_pair(id).await {
+                    key_handle
+                } else {
+                    continue;
+                };
 
-                        if key_length < RSA_RECOMMENDED_MIN_BITS {
+                let key = || {
+                    let key_handle = std::ffi::CString::new(key_handle.0)
+                        .context("internal error: key handle is malformed")?;
+                    let key = key_engine.load_private_key(&key_handle).with_context(|| {
+                        format!("could not load preloaded private key with ID {:?}", id)
+                    })?;
+                    Ok::<_, anyhow::Error>(key)
+                };
+
+                match key() {
+                    Ok(key) => {
+                        if let Ok(rsa) = key.rsa() {
+                            let key_length = rsa.size() * 8;
+
+                            if key_length < RSA_RECOMMENDED_MIN_BITS {
+                                warn_aggregated.push(format!(
+                                    "RSA key {} has length {} (min recommended: {})",
+                                    id, key_length, RSA_RECOMMENDED_MIN_BITS
+                                ));
+                            }
+                        } else if let Ok(ec_key) = key.ec_key() {
+                            if ec_key.group().curve_name()
+                                != Some(openssl::nid::Nid::X9_62_PRIME256V1)
+                            {
+                                warn_aggregated.push(format!(
+                                    "EC key {} not using recommended curve (recommended: P-256)",
+                                    id
+                                ));
+                            }
+                        } else {
                             warn_aggregated.push(format!(
-                                "RSA key {} has length {} (min recommended: {})",
-                                id, key_length, RSA_RECOMMENDED_MIN_BITS
-                            ));
-                        }
-                    } else if let Ok(ec_key) = key.ec_key() {
-                        if ec_key.group().curve_name() != Some(openssl::nid::Nid::X9_62_PRIME256V1)
-                        {
-                            warn_aggregated.push(format!(
-                                "EC key {} not using recommended curve (recommended: P-256)",
+                                "Key {} not using recommended algorithm (recommended: RSA, EC)",
                                 id
                             ));
                         }
-                    } else {
-                        warn_aggregated.push(format!(
-                            "Key {} not using recommended algorithm (recommended: RSA, EC)",
-                            id
-                        ));
-                    }
 
-                    cache.private_keys.insert(id.clone(), key);
-                }
-                Err(err) => {
-                    err_aggregated.push(format!("{:?}", err));
+                        cache.private_keys.insert(id.clone(), key);
+                    }
+                    Err(err) => {
+                        err_aggregated.push(format!("{:?}", err));
+                    }
                 }
             }
         }
