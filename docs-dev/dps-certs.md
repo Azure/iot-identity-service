@@ -31,6 +31,12 @@ curl --unix-socket /run/aziot/certd.sock http://localhost/aziot-dps-trust-bundle
 
 Applications can then install the trust bundle to their trusted root CA certificate store.
 
+### Updating the Trust Bundle
+
+DPS currently does not provide a method for a client to automatically update a trust bundle. Therefore, if the trust bundle is updated in DPS, the device must be reprovisioned.
+
+This can be done with `iotedge system reprovision` or `aziotctl system reprovision`.
+
 ### Trust Bundle and IoT Edge
 
 The IoT Edge daemon `aziot-edged` automatically provides DPS-managed trust bundles to IoT Edge modules through its `/trust-bundle` API. If the customer has configured a trust bundle in IoT Edge as well, then IoT Edge will combine the CA certificates from the locally-configured and DPS-provided trust bundles (after removing duplicates), and create a combined trust bundle which is then used by applications on the Edge device.
