@@ -5,7 +5,8 @@ on:
 - 'push'
 
 permissions:
-  actions: write
+  issues: write
+  pull-requests: write
 
 jobs:
   basic:
@@ -221,10 +222,3 @@ jobs:
         sudo chown -R runner:docker $GITHUB_WORKSPACE/coverage
       env:
         ARCH: 'amd64'
-    
-    - name: Publish Code Coverage Report
-      uses: romeovs/lcov-reporter-action@v0.3.1
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        lcov-file: ./coverage/lcov.info
-        filter-changed-files: true
