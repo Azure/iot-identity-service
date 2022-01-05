@@ -193,6 +193,10 @@ if [ "$OS" != 'mariner' ]; then
     cargo install bindgen --version "=$BINDGEN_VERSION"
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
+
+    if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
+        cargo install cargo-tarpaulin --version '^0.18'
+    fi
 fi
 
 export CARGO_INCREMENTAL=0

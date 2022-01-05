@@ -2,8 +2,10 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-//Skip ARM(cross-compile) until I figure out how to run ctest on this.
+// Skip ARM(cross-compile) until I figure out how to run ctest on this.
 #![cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
+// Skip code coverage.
+#![cfg(not(tarpaulin))]
 
 use std::env;
 use std::path::Path;
