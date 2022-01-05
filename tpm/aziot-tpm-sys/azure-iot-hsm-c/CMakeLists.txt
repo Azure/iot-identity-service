@@ -46,6 +46,8 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wtrampolines -fstack-protector-all -Wstack-protector --param ssp-buffer-size=4 ")
 endif()
 
+add_definitions(-DDONT_USE_UPLOADTOBLOB=ON)
+
 add_library(aziottpm STATIC ${source_c_files} ${source_in_mem_store_c_files} ${source_h_files})
 
 if (run_unittests)

@@ -4,6 +4,10 @@ on:
 - 'pull_request'
 - 'push'
 
+permissions:
+  issues: write
+  pull-requests: write
+
 jobs:
   basic:
     runs-on: 'ubuntu-18.04'
@@ -194,3 +198,27 @@ jobs:
     - name: 'Test OpenAPI specs'
       run: |
         make target/openapi-schema-validated
+
+  codecoverage:
+    runs-on: 'ubuntu-18.04'
+
+    steps:
+    - uses: 'actions/checkout@v1'
+      with:
+        submodules: 'recursive'
+
+    - name: Run Code Coverage
+      run: |
+        # cargo-tarpaulin needs a privileged container because it needs to disable ASLR for its instrumentation,
+        # for which it uses seccomp.
+        mkdir $GITHUB_WORKSPACE/coverage
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE:/src" \
+          -e "ARCH=$ARCH" \
+          --privileged \
+          --name "code-cov" \
+          "ubuntu:18.04" \
+          '/src/ci/code-coverage.sh'
+        sudo chown -R runner:docker $GITHUB_WORKSPACE/coverage
+      env:
+        ARCH: 'amd64'
