@@ -82,8 +82,8 @@ impl Default for OsInfo {
             bitness: BITNESS,
         };
 
-        let os_release = fs::File::open("/etc/os-release")
-            .or_else(|_| fs::File::open("/usr/lib/os-release"));
+        let os_release =
+            fs::File::open("/etc/os-release").or_else(|_| fs::File::open("/usr/lib/os-release"));
 
         if let Ok(os_release) = os_release {
             let os_release = io::BufReader::new(os_release);
@@ -93,17 +93,16 @@ impl Default for OsInfo {
                     match parse_shell_line(line) {
                         Some(("ID", value)) => {
                             result.id = Some(value.to_owned());
-                        },
+                        }
                         Some(("VERSION_ID", value)) => {
                             result.version_id = Some(value.to_owned());
-                        },
+                        }
                         Some(("PRETTY_NAME", value)) => {
                             result.pretty_name = Some(value.to_owned());
-                        },
+                        }
                         _ => (),
                     };
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -138,8 +137,5 @@ fn try_read_dmi(entry: &'static str) -> Option<String> {
 
     let bytes = fs::read(path).ok()?;
 
-    Some(String::from_utf8(bytes)
-        .ok()?
-        .trim()
-        .to_owned())
+    Some(std::str::from_utf8(&bytes).ok()?.trim().to_owned())
 }
