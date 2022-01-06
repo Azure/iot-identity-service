@@ -9,6 +9,7 @@ members = [
 	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",
 	"cert/aziot-certd",
+	"cert/cert-renewal",
 
 	"config-common",
 
