@@ -3,6 +3,7 @@ name: 'packages'
 on:
 - 'pull_request'
 - 'push'
+- 'workflow_call'
 
 jobs:
   packages:
