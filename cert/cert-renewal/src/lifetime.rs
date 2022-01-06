@@ -46,6 +46,16 @@ impl Lifetime {
     }
 }
 
+impl std::fmt::Display for Lifetime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Lifetime::Valid(lifetime) => write!(f, "at {:.2}% lifetime", lifetime * 100.0),
+            Lifetime::Expired => write!(f, "expired"),
+            Lifetime::BadCert => write!(f, "not valid"),
+        }
+    }
+}
+
 fn timediff_to_secs(diff: &openssl::asn1::TimeDiff) -> f64 {
     // This function is only called for diffs that should be non-negative.
     assert!(diff.days >= 0);
