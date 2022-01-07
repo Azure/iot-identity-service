@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{anyhow, Result};
+use nix::unistd::User;
 use serde::Serialize;
 use url::Url;
 
@@ -44,8 +45,10 @@ impl CertsPreloaded {
 
         let mut visited: BTreeMap<_, _> = Default::default();
 
+        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+
         for id in preloaded_certs.keys() {
-            match walk_preloaded_certs(id, preloaded_certs, &mut visited).await? {
+            match walk_preloaded_certs(id, preloaded_certs, &aziotcs_user, &mut visited).await? {
                 CheckResult::Ok => {}
                 res => return Ok(res),
             }
@@ -59,6 +62,7 @@ impl CertsPreloaded {
 async fn walk_preloaded_certs<'a>(
     id: &'a str,
     preloaded_certs: &'a BTreeMap<String, PreloadedCert>,
+    aziotcs_user: &'a User,
     visited: &mut BTreeMap<&'a str, &'a Url>,
 ) -> Result<CheckResult> {
     match preloaded_certs.get(id) {
@@ -80,7 +84,7 @@ async fn walk_preloaded_certs<'a>(
                     ));
                 }
 
-                match CertificateValidity::new(uri.path(), "", &id)
+                match CertificateValidity::new(uri.path(), "", id, aziotcs_user)
                     .await?
                     .to_check_result()?
                 {
@@ -92,7 +96,7 @@ async fn walk_preloaded_certs<'a>(
 
         Some(PreloadedCert::Ids(ids)) => {
             for id in ids {
-                match walk_preloaded_certs(id, preloaded_certs, visited).await? {
+                match walk_preloaded_certs(id, preloaded_certs, aziotcs_user, visited).await? {
                     CheckResult::Ok => {}
                     res => return Ok(res),
                 }
