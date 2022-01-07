@@ -1,6 +1,6 @@
 # Socket Throttling
 
-Each of the services' sockets implement a throttling mechanism to prevent a malicious process from making continuous requests and denying service to other processes. This throttling mechanism limits each UNIX user to making 10 simultaneous requests per socket.
+Each of the services' sockets implement a throttling mechanism to prevent a malicious process from making continuous requests and denying service to other processes. This throttling mechanism limits each caller to making 10 simultaneous requests per socket. Each caller is identified by its UID, so two processes sharing the same UNIX user will be throttled together.
 
 If requests on a socket exceed this limit, a service will deny all further requests on its socket until the number of in-progress requests falls below 10. When a service denies a request, it closes the socket connection without sending a reply; this will be reported as an OS-level error (not an HTTP API error) to the caller. It is always the caller's responsibility to retry a request that failed due to throttling.
 
