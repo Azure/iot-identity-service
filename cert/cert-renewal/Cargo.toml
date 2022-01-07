@@ -6,6 +6,8 @@ edition = "2021"
 
 [dependencies]
 openssl = "0.10"
+serde = "1"
 
 [dev-dependencies]
 serial_test = "0.5"
+toml = "0.5"

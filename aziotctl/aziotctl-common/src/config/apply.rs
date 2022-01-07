@@ -190,6 +190,8 @@ pub fn run(
 
                     super_config::DpsAttestationMethod::X509 {
                         registration_id,
+                        renewal_threshold,
+                        renewal_retry,
                         identity,
                     } => {
                         match identity {
@@ -234,6 +236,8 @@ pub fn run(
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
+                            renewal_threshold,
+                            renewal_retry,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
                         }

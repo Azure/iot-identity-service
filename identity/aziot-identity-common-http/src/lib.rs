@@ -154,6 +154,8 @@ pub mod get_provisioning_info {
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
+                            renewal_threshold: _,
+                            renewal_retry: _,
                             identity_pk: _,
                             identity_cert: _,
                         } => ("x509".to_string(), registration_id),

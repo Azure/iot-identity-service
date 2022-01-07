@@ -319,6 +319,7 @@ name = "aziot-identityd-config"
 version = "0.1.0"
 dependencies = [
  "aziot-identity-common",
+ "cert-renewal",
  "http-common",
  "libc",
  "serde",
@@ -614,6 +615,7 @@ dependencies = [
  "aziot-tpmd-config",
  "base64",
  "bytes",
+ "cert-renewal",
  "http-common",
  "log",
  "nix",
@@ -735,7 +737,9 @@ name = "cert-renewal"
 version = "0.1.0"
 dependencies = [
  "openssl",
+ "serde",
  "serial_test",
+ "toml",
 ]
 
 [[package]]

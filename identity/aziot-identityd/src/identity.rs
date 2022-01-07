@@ -670,6 +670,8 @@ impl IdentityManager {
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
+                        renewal_threshold: _,
+                        renewal_retry: _,
                         identity_cert,
                         identity_pk,
                     } => {
@@ -834,17 +836,21 @@ impl IdentityManager {
                 let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
                     Error::Internal(InternalError::CreateCertificate(Box::new(err)))
                 })?;
-
+                let cert_expiration = cert.as_ref().not_after();
                 let cert_subject = cert.as_ref().subject_name();
                 let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
                   .map_or(Err(Error::Internal(InternalError::CreateCertificate("old device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
                     String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
                 });
+                let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
+                let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
+                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                })?;
 
-                let lifetime = cert_renewal::Lifetime::from_cert(&cert);
-
-                if lifetime.should_renew(0.8) {
-                    log::info!("{} {}. Renewing certificate", identity_cert, lifetime);
+                if expiration_time.days < 1 {
+                    log::info!("{} has expired. Renewing certificate", identity_cert);
 
                     (None, cert_subject)
                 } else {

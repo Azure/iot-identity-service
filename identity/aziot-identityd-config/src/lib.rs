@@ -125,6 +125,19 @@ pub enum DpsAttestationMethod {
     },
     X509 {
         registration_id: Option<String>,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_threshold",
+            skip_serializing_if = "cert_renewal::Policy::is_default_threshold"
+        )]
+        renewal_threshold: cert_renewal::Policy,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_retry",
+            skip_serializing_if = "cert_renewal::Policy::is_default_retry"
+        )]
+        renewal_retry: cert_renewal::Policy,
+
         identity_cert: String,
         identity_pk: String,
     },
