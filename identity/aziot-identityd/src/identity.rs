@@ -804,7 +804,7 @@ impl IdentityManager {
         }
 
         let operation = dps_client
-            .register(&registration_id, &dps_auth_kind)
+            .register(&registration_id, dps_auth_kind)
             .await
             .map_err(Error::DpsClient)?;
 

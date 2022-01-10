@@ -93,16 +93,11 @@ impl Client {
     pub async fn register(
         &self,
         registration_id: &str,
-        auth_kind: &DpsAuthKind,
+        auth_kind: DpsAuthKind,
     ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
-        let resource_uri = format!(
-            "{}/registrations/{}/register?api-version=2021-11-01-preview",
-            self.scope_id, registration_id
-        );
-
         let client_cert_csr = self.generate_client_cert_csr(registration_id).await?;
 
-        let body = match auth_kind {
+        let mut body = match auth_kind {
             DpsAuthKind::Tpm => {
                 let aziot_tpm_common::TpmKeys {
                     endorsement_key,
@@ -125,7 +120,36 @@ impl Client {
             },
         };
 
-        let mut auth_kind = auth_kind.clone();
+        let mut res = self
+            .dps_request(registration_id, auth_kind.clone(), &body)
+            .await?;
+
+        // TODO: DPS needs to make a change to allow the client to distinguish this error case from others.
+        // For now, distinguish based on error message.
+        if let Some(registration_state) = &res.registration_state {
+            if Some("Device sent CSR but it is not configured in the service.".to_string())
+                == registration_state.error_message
+            {
+                log::info!("DPS is not configured to accept identity cert CSR. Provisioning without CSR.");
+
+                body.client_cert_csr = None;
+                res = self.dps_request(registration_id, auth_kind, &body).await?;
+            }
+        }
+
+        Ok(res)
+    }
+
+    async fn dps_request(
+        &self,
+        registration_id: &str,
+        mut auth_kind: DpsAuthKind,
+        body: &model::DeviceRegistration,
+    ) -> Result<model::RegistrationOperationStatus, std::io::Error> {
+        let resource_uri = format!(
+            "{}/registrations/{}/register?api-version=2021-11-01-preview",
+            self.scope_id, registration_id
+        );
 
         // kick off the registration
         let res: model::RegistrationOperationStatus = self
@@ -146,6 +170,7 @@ impl Client {
 
         let mut retry_count =
             (DPS_ASSIGNMENT_TIMEOUT_SECS / DPS_ASSIGNMENT_RETRY_INTERVAL_SECS) + 1;
+
         let res = loop {
             if retry_count == 0 {
                 return Err(std::io::Error::new(
@@ -333,7 +358,7 @@ impl Client {
             body,
         ) = res.into_parts();
         log::debug!("DPS response status {:?}", status);
-        log::debug!("DPS response headers{:?}", headers);
+        log::debug!("DPS response headers {:?}", headers);
 
         let mut is_json = false;
         for (header_name, header_value) in headers {
