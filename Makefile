@@ -207,6 +207,16 @@ test:
 		done
 
 
+codecov: default
+	mkdir -p coverage
+	
+	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$$PWD/target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)" $(CARGO) tarpaulin --all --verbose \
+		--exclude aziot-key-openssl-engine-shared \
+		--no-fail-fast \
+		--target $(CARGO_TARGET) --out Lcov \
+		--output-dir ./coverage
+
+
 # Packaging
 #
 # - `make PACKAGE_VERSION='...' PACKAGE_RELEASE='...' deb` builds deb packages for Debian and Ubuntu.
