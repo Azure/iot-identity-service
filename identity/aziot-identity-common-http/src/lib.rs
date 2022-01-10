@@ -144,6 +144,9 @@ pub mod get_provisioning_info {
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id,
+                    auto_renew_device_id: _,
+                    device_id_renewal_threshold: _,
+                    device_id_renewal_retry: _,
                     attestation,
                 } => {
                     let (auth, registration_id) = match attestation {
@@ -154,8 +157,6 @@ pub mod get_provisioning_info {
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
-                            renewal_threshold: _,
-                            renewal_retry: _,
                             identity_pk: _,
                             identity_cert: _,
                         } => ("x509".to_string(), registration_id),

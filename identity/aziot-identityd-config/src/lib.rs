@@ -57,6 +57,12 @@ impl Settings {
     pub fn is_default_retries(retries: &u32) -> bool {
         *retries == Settings::default_cloud_retries()
     }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn is_default_auto_renew(auto_renew: &bool) -> bool {
+        // By default, automatic renewal of device identity certificates is disabled.
+        !auto_renew
+    }
 }
 
 pub fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>
@@ -125,19 +131,6 @@ pub enum DpsAttestationMethod {
     },
     X509 {
         registration_id: Option<String>,
-
-        #[serde(
-            default = "cert_renewal::Policy::default_threshold",
-            skip_serializing_if = "cert_renewal::Policy::is_default_threshold"
-        )]
-        renewal_threshold: cert_renewal::Policy,
-
-        #[serde(
-            default = "cert_renewal::Policy::default_retry",
-            skip_serializing_if = "cert_renewal::Policy::is_default_retry"
-        )]
-        renewal_retry: cert_renewal::Policy,
-
         identity_cert: String,
         identity_pk: String,
     },
@@ -167,6 +160,22 @@ pub enum ProvisioningType {
     Dps {
         global_endpoint: url::Url,
         scope_id: String,
+
+        #[serde(default, skip_serializing_if = "Settings::is_default_auto_renew")]
+        auto_renew_device_id: bool,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_threshold",
+            skip_serializing_if = "cert_renewal::Policy::is_default_threshold"
+        )]
+        device_id_renewal_threshold: cert_renewal::Policy,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_retry",
+            skip_serializing_if = "cert_renewal::Policy::is_default_retry"
+        )]
+        device_id_renewal_retry: cert_renewal::Policy,
+
         attestation: DpsAttestationMethod,
     },
 

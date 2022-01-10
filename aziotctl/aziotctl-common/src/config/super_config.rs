@@ -90,6 +90,25 @@ pub enum ProvisioningType {
     Dps {
         global_endpoint: Url,
         id_scope: String,
+
+        #[serde(
+            default,
+            skip_serializing_if = "aziot_identityd_config::Settings::is_default_auto_renew"
+        )]
+        auto_renew_device_id: bool,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_threshold",
+            skip_serializing_if = "cert_renewal::Policy::is_default_threshold"
+        )]
+        device_id_renewal_threshold: cert_renewal::Policy,
+
+        #[serde(
+            default = "cert_renewal::Policy::default_retry",
+            skip_serializing_if = "cert_renewal::Policy::is_default_retry"
+        )]
+        device_id_renewal_retry: cert_renewal::Policy,
+
         attestation: DpsAttestationMethod,
     },
 
@@ -188,18 +207,6 @@ pub enum DpsAttestationMethod {
 
     X509 {
         registration_id: Option<String>,
-
-        #[serde(
-            default = "cert_renewal::Policy::default_threshold",
-            skip_serializing_if = "cert_renewal::Policy::is_default_threshold"
-        )]
-        renewal_threshold: cert_renewal::Policy,
-
-        #[serde(
-            default = "cert_renewal::Policy::default_retry",
-            skip_serializing_if = "cert_renewal::Policy::is_default_retry"
-        )]
-        renewal_retry: cert_renewal::Policy,
 
         #[serde(flatten)]
         identity: X509Identity,

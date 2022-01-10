@@ -167,6 +167,9 @@ pub fn run(
             super_config::ProvisioningType::Dps {
                 global_endpoint,
                 id_scope,
+                auto_renew_device_id,
+                device_id_renewal_threshold,
+                device_id_renewal_retry,
                 attestation,
             } => {
                 if parent_hostname.is_some() {
@@ -190,8 +193,6 @@ pub fn run(
 
                     super_config::DpsAttestationMethod::X509 {
                         registration_id,
-                        renewal_threshold,
-                        renewal_retry,
                         identity,
                     } => {
                         match identity {
@@ -236,8 +237,6 @@ pub fn run(
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
-                            renewal_threshold,
-                            renewal_retry,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
                         }
@@ -251,6 +250,9 @@ pub fn run(
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id: id_scope,
+                    auto_renew_device_id,
+                    device_id_renewal_threshold,
+                    device_id_renewal_retry,
                     attestation,
                 }
             }

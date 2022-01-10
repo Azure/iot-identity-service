@@ -1,0 +1,16 @@
+hostname = "my-device"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+scope_id = "0ab1234C5D6"
+auto_renew_device_id = true
+device_id_renewal_threshold = "85%"
+device_id_renewal_retry = "5%"
+
+[provisioning.attestation]
+method = "x509"
+registration_id = "my-device"
+identity_cert = "device-id"
+identity_pk = "device-id"

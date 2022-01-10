@@ -90,6 +90,10 @@
 # global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
 #
+# auto_renew_device_id = false
+# device_id_renewal_threshold = "80%"
+# device_id_renewal_retry = "4%"
+#
 # [provisioning.attestation]
 # method = "symmetric_key"
 # registration_id = "my-device"
@@ -104,6 +108,10 @@
 # source = "dps"
 # global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
+#
+# auto_renew_device_id = false
+# device_id_renewal_threshold = "80%"
+# device_id_renewal_retry = "4%"
 #
 # [provisioning.attestation]
 # method = "x509"
@@ -127,6 +135,10 @@
 # source = "dps"
 # global_endpoint = "https://global.azure-devices-provisioning.net/"
 # id_scope = "0ab1234C5D6"
+#
+# auto_renew_device_id = false
+# device_id_renewal_threshold = "80%"
+# device_id_renewal_retry = "4%"
 #
 # [provisioning.attestation]
 # method = "tpm"

@@ -637,6 +637,9 @@ impl IdentityManager {
             config::ProvisioningType::Dps {
                 global_endpoint,
                 scope_id,
+                auto_renew_device_id: _,
+                device_id_renewal_threshold: _,
+                device_id_renewal_retry: _,
                 attestation,
             } => {
                 if provisioning.local_gateway_hostname.is_some() {
@@ -670,8 +673,6 @@ impl IdentityManager {
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
-                        renewal_threshold: _,
-                        renewal_retry: _,
                         identity_cert,
                         identity_pk,
                     } => {
