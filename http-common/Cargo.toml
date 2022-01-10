@@ -15,7 +15,7 @@ hyper-openssl = { version = "0.9", optional = true }
 hyper-proxy = { version = "0.9", features = ["openssl-tls"], default-features = false, optional = true }
 libc = "0.2"
 log = "0.4"
-nix = "0.18"
+nix = "0.23"
 openssl = { version = "0.10", optional = true }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
