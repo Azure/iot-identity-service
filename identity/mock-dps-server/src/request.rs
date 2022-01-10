@@ -28,30 +28,10 @@ fn register(
 
     let mut context = context.lock().unwrap();
 
-    let identity_cert = if let Some(client_cert_csr) = body.client_cert_csr {
-        if context.enable_identity_certs {
-            let client_cert_csr = match base64::decode(client_cert_csr) {
-                Ok(csr) => csr,
-                Err(_) => return Response::bad_request("bad client cert csr"),
-            };
-
-            let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
-                Ok(csr) => csr,
-                Err(_) => return Response::bad_request("bad client cert csr"),
-            };
-
-            Some(crate::certs::issuance::issue_cert(&client_cert_csr))
-        } else {
-            return Response::bad_request("");
-        }
-    } else {
-        None
-    };
-
     // Unique value to use for both operation ID and device ID.
     let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
-
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+
     let mut registration_state = aziot_dps_client_async::model::DeviceRegistrationResult {
         tpm: None,
         x509: None,
@@ -69,7 +49,7 @@ fn register(
         last_updated_date_time_utc: Some(now),
         etag: Some("mock-dps-etag".to_string()),
         trust_bundle: context.trust_bundle.clone(),
-        identity_cert,
+        identity_cert: None,
     };
 
     if body.tpm.is_some() {
@@ -90,10 +70,47 @@ fn register(
         });
     };
 
+    match (body.client_cert_csr, context.enable_identity_certs) {
+        // Issue an identity certificate from the provided CSR.
+        (Some(csr), true) => {
+            let client_cert_csr = match base64::decode(csr) {
+                Ok(csr) => csr,
+                Err(_) => return Response::bad_request("bad client cert csr"),
+            };
+
+            let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
+                Ok(csr) => csr,
+                Err(_) => return Response::bad_request("bad client cert csr"),
+            };
+
+            registration_state.identity_cert =
+                Some(crate::certs::issuance::issue_cert(&client_cert_csr));
+        }
+
+        // DPS returns a specific error when a CSR is provided but identity certificates
+        // aren't enabled.
+        (Some(_), false) => {
+            registration_state.tpm = None;
+            registration_state.x509 = None;
+            registration_state.symmetric_key = None;
+            registration_state.assigned_hub = None;
+            registration_state.device_id = None;
+            registration_state.status = Some("failed".to_string());
+            registration_state.substatus = None;
+            registration_state.error_code = Some(400_000);
+            registration_state.error_message =
+                Some("Device sent CSR but it is not configured in the service.".to_string());
+            registration_state.trust_bundle = None;
+        }
+
+        // Don't issue identity certificate if no CSR is provided.
+        (None, _) => {}
+    }
+
     let operation_id = {
         let registration = aziot_dps_client_async::model::RegistrationOperationStatus {
             operation_id: uuid.clone(),
-            status: "assigned".to_string(),
+            status: registration_state.status.clone().unwrap(),
             registration_state: Some(registration_state),
         };
 

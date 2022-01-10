@@ -130,7 +130,9 @@ impl Client {
             if Some("Device sent CSR but it is not configured in the service.".to_string())
                 == registration_state.error_message
             {
-                log::info!("DPS is not configured to accept identity cert CSR. Provisioning without CSR.");
+                log::info!(
+                    "DPS is not configured to accept identity cert CSR. Provisioning without CSR."
+                );
 
                 body.client_cert_csr = None;
                 res = self.dps_request(registration_id, auth_kind, &body).await?;
