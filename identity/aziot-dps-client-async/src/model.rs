@@ -6,8 +6,11 @@ pub struct DeviceRegistration {
     pub registration_id: Option<String>,
     #[serde(rename = "tpm", skip_serializing_if = "Option::is_none")]
     pub tpm: Option<TpmAttestation>,
-    #[serde(rename = "clientCertificateCsr")]
-    pub client_cert_csr: String,
+    #[serde(
+        rename = "clientCertificateCsr",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub client_cert_csr: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]

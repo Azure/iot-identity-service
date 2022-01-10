@@ -115,13 +115,13 @@ impl Client {
                         endorsement_key: base64::encode(&endorsement_key),
                         storage_root_key: base64::encode(&storage_root_key),
                     }),
-                    client_cert_csr,
+                    client_cert_csr: Some(client_cert_csr),
                 }
             }
             _ => model::DeviceRegistration {
                 registration_id: Some(registration_id.into()),
                 tpm: None,
-                client_cert_csr,
+                client_cert_csr: Some(client_cert_csr),
             },
         };
 

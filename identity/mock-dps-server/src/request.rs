@@ -28,18 +28,22 @@ fn register(
 
     let mut context = context.lock().unwrap();
 
-    let identity_cert = if context.enable_identity_certs {
-        let client_cert_csr = match base64::decode(body.client_cert_csr) {
-            Ok(csr) => csr,
-            Err(_) => return Response::bad_request("bad client cert csr"),
-        };
+    let identity_cert = if let Some(client_cert_csr) = body.client_cert_csr {
+        if context.enable_identity_certs {
+            let client_cert_csr = match base64::decode(client_cert_csr) {
+                Ok(csr) => csr,
+                Err(_) => return Response::bad_request("bad client cert csr"),
+            };
 
-        let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
-            Ok(csr) => csr,
-            Err(_) => return Response::bad_request("bad client cert csr"),
-        };
+            let client_cert_csr = match openssl::x509::X509Req::from_der(&client_cert_csr) {
+                Ok(csr) => csr,
+                Err(_) => return Response::bad_request("bad client cert csr"),
+            };
 
-        Some(crate::certs::issuance::issue_cert(&client_cert_csr))
+            Some(crate::certs::issuance::issue_cert(&client_cert_csr))
+        } else {
+            return Response::bad_request("");
+        }
     } else {
         None
     };
