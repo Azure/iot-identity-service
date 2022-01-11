@@ -19,11 +19,10 @@ jobs:
       - name: 'Download Artifacts'
         uses: actions/download-artifact@v2
         with:
-          path: $GITHUB_WORKSPACE/release-artifacts
+          path: release-artifacts
       - name: 'Generate SBOM'
         id: 'generate-sbom'
         run: |
-          mkdir $GITHUB_WORKSPACE/release-artifacts
           sudo apt-get install -y dotnet-sdk-3.1
           dotnet new console
           dotnet nuget add source https://1essharedassets.pkgs.visualstudio.com/_packaging/Packaging/nuget/v3/index.json --username IoTEdge1-PAT-1esSharedAssets --password ${{ secrets.IOTEDGE1_1ES_SHARED_ASSETS_PAT }} --store-password-in-clear-text
