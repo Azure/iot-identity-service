@@ -291,7 +291,7 @@ pub fn run(
 
         endpoints: aziot_identityd_config::Endpoints {
             aziot_certd: aziot_certd_endpoint.clone(),
-            aziot_identityd: aziot_identityd_endpoint,
+            aziot_identityd: aziot_identityd_endpoint.clone(),
             aziot_keyd: aziot_keyd_endpoint.clone(),
             aziot_tpmd: aziot_tpmd_endpoint.clone(),
         },
@@ -450,6 +450,7 @@ pub fn run(
             preloaded_certs,
 
             endpoints: aziot_certd_config::Endpoints {
+                aziot_identityd: aziot_identityd_endpoint,
                 aziot_certd: aziot_certd_endpoint,
                 aziot_keyd: aziot_keyd_endpoint.clone(),
             },

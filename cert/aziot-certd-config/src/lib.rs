@@ -237,6 +237,9 @@ pub enum PreloadedCert {
 /// Map of service names to endpoint URIs.
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Endpoints {
+    /// The endpoint that the identityd service binds to.
+    pub aziot_identityd: Connector,
+
     /// The endpoint that the certd service binds to.
     pub aziot_certd: Connector,
 
@@ -247,6 +250,9 @@ pub struct Endpoints {
 impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
+            aziot_identityd: Connector::Unix {
+                socket_path: Path::new("/run/aziot/identityd.sock").into(),
+            },
             aziot_certd: Connector::Unix {
                 socket_path: Path::new("/run/aziot/certd.sock").into(),
             },

@@ -75,6 +75,13 @@ pub struct DeviceRegistrationResult {
         skip_serializing_if = "Option::is_none"
     )]
     pub identity_cert: Option<String>,
+
+    /// Configured certificate issuance policies in DPS.
+    #[serde(
+        rename = "certificateIssuancePolicy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]

@@ -11,6 +11,7 @@
     clippy::too_many_lines
 )]
 
+mod dps;
 mod error;
 mod est;
 mod http;
@@ -57,6 +58,7 @@ pub async fn main(
         preloaded_certs,
         endpoints:
             Endpoints {
+                aziot_identityd: identity_connector,
                 aziot_certd: connector,
                 aziot_keyd: key_connector,
             },
@@ -64,6 +66,12 @@ pub async fn main(
     } = config;
 
     let api = {
+        let identity_client = Arc::new(aziot_identity_client_async::Client::new(
+            aziot_identity_common_http::ApiVersion::V2021_12_01,
+            identity_connector,
+            0,
+        ));
+
         let key_client_async = Arc::new(aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
             key_connector.clone(),
@@ -87,6 +95,7 @@ pub async fn main(
             preloaded_certs,
             principals: principal_to_map(principal),
 
+            identity_client,
             key_client: key_client_async,
             key_engine,
             proxy_uri,
@@ -107,6 +116,7 @@ struct Api {
     preloaded_certs: BTreeMap<String, PreloadedCert>,
     principals: BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
+    identity_client: Arc<aziot_identity_client_async::Client>,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: FunctionalEngine,
     proxy_uri: Option<hyper::Uri>,
@@ -139,6 +149,13 @@ impl Api {
                 "csr",
                 "CSR failed to be verified with its public key".to_owned(),
             ));
+        }
+
+        // Issue certificate using DPS if possible. Otherwise, use certd's issuance policy.
+        if let Some(policy) = dps::check_policy(&this.identity_client, &req).await {
+            log::info!("{} will be issued by DPS.", id);
+
+            return dps::issue_cert(&req, policy).await;
         }
 
         let issuer = issuer

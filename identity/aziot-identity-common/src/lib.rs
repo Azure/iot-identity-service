@@ -151,6 +151,29 @@ pub enum ProvisioningStatus {
     Provisioned(IoTHubDevice),
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, PartialOrd)]
+#[serde(rename_all = "camelCase")]
+pub struct CertIssuancePolicy {
+    /// Endpoint for certificate issuance.
+    pub end_point: String,
+
+    /// Type of certificate supported by this policy.
+    pub certificate_issuance_type: CertIssuanceType,
+
+    /// Minimum length of private key supported.
+    pub key_length_in_bits: u32,
+
+    /// Supported EC curve. Omitted for RSA keys.
+    pub key_curve: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, PartialOrd)]
+#[serde(rename_all = "camelCase")]
+pub enum CertIssuanceType {
+    ServerCertificate,
+    None,
+}
+
 #[derive(Clone, Debug)]
 pub struct IoTHubDevice {
     pub iothub_hostname: String,
@@ -158,6 +181,8 @@ pub struct IoTHubDevice {
     pub local_gateway_hostname: String,
 
     pub device_id: String,
+
+    pub certificate_issuance_policy: Option<CertIssuancePolicy>,
 
     pub credentials: Credentials,
 }

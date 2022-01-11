@@ -679,6 +679,7 @@ impl IdentityManager {
                         .unwrap_or_else(|| iothub_hostname.clone()),
                     iothub_hostname,
                     device_id,
+                    certificate_issuance_policy: None,
                     credentials,
                 };
                 self.set_device(&device);
@@ -859,6 +860,7 @@ impl IdentityManager {
                 .unwrap_or_else(|| iothub_hostname.clone()),
             iothub_hostname,
             device_id,
+            certificate_issuance_policy: state.certificate_issuance_policy,
             credentials,
         })
     }
@@ -976,6 +978,7 @@ impl IdentityManager {
                         local_gateway_hostname: device_info.local_gateway_hostname,
                         iothub_hostname: device_info.hub_name,
                         device_id: device_info.device_id,
+                        certificate_issuance_policy: device_info.certificate_issuance_policy,
                         credentials,
                     };
 
@@ -1114,6 +1117,7 @@ impl IdentityManager {
                     hub_name: device.iothub_hostname.clone(),
                     local_gateway_hostname: device.local_gateway_hostname.clone(),
                     device_id: device.device_id.clone(),
+                    certificate_issuance_policy: device.certificate_issuance_policy.clone(),
                 };
 
                 let device_status = toml::to_string(&curr_hub_device_info)
@@ -1220,6 +1224,9 @@ pub struct HubDeviceInfo {
     pub local_gateway_hostname: String,
 
     pub device_id: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
 }
 
 impl HubDeviceInfo {

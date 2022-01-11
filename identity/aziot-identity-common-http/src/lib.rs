@@ -131,6 +131,7 @@ pub mod get_provisioning_info {
             endpoint: String,
             scope_id: String,
             registration_id: Option<String>,
+            certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
         },
         Manual {
             auth: String,
@@ -170,6 +171,7 @@ pub mod get_provisioning_info {
                         endpoint,
                         scope_id,
                         registration_id,
+                        certificate_issuance_policy: None,
                     }
                 }
 
