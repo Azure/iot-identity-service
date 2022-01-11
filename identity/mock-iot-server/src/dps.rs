@@ -6,12 +6,12 @@ use crate::server::Response;
 fn register(
     registration_id: String,
     headers: &std::collections::HashMap<String, String>,
-    body: Option<String>,
-    context: &mut crate::server::DpsContext,
+    body: &Option<String>,
+    context: &mut crate::server::Context,
 ) -> Response {
     let body = if let Some(body) = body {
         let body: aziot_dps_client_async::model::DeviceRegistration =
-            match serde_json::from_str(&body) {
+            match serde_json::from_str(body) {
                 Ok(body) => body,
                 Err(_) => return Response::bad_request("failed to parse register body"),
             };
@@ -143,7 +143,7 @@ fn register(
     Response::json(hyper::StatusCode::OK, response)
 }
 
-fn operation_status(operation_id: &str, context: &mut crate::server::DpsContext) -> Response {
+fn operation_status(operation_id: &str, context: &mut crate::server::Context) -> Response {
     let mut context = context.lock().unwrap();
 
     match context.in_progress_operations.remove(operation_id) {
@@ -163,10 +163,10 @@ fn get_param(captures: &regex::Captures<'_>, name: &str) -> Result<String, Respo
     Ok(value)
 }
 
-pub(crate) fn process_dps_request(
-    req: crate::server::ParsedRequest,
-    context: &mut crate::server::DpsContext,
-) -> Response {
+pub(crate) fn process_request(
+    req: &crate::server::ParsedRequest,
+    context: &mut crate::server::Context,
+) -> Option<Response> {
     lazy_static::lazy_static! {
         static ref DPS_REGEX: regex::Regex = regex::Regex::new(
             "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version="
@@ -178,40 +178,40 @@ pub(crate) fn process_dps_request(
     }
 
     if !DPS_REGEX.is_match(&req.uri) {
-        return Response::not_found(format!("{} not found", req.uri));
+        return None;
     }
 
     let captures = DPS_REGEX.captures(&req.uri).unwrap();
 
     let registration_id = match get_param(&captures, "registrationId") {
         Ok(registration_id) => registration_id,
-        Err(response) => return response,
+        Err(response) => return Some(response),
     };
 
     let action = match get_param(&captures, "action") {
         Ok(action) => action,
-        Err(response) => return response,
+        Err(response) => return Some(response),
     };
 
     if OPERATION_STATUS_REGEX.is_match(&action) {
         if req.method != hyper::Method::GET {
-            return Response::method_not_allowed(&req.method);
+            return Some(Response::method_not_allowed(&req.method));
         }
 
         let captures = OPERATION_STATUS_REGEX.captures(&action).unwrap();
         let operation_id = match get_param(&captures, "operationId") {
             Ok(operation_id) => operation_id,
-            Err(response) => return response,
+            Err(response) => return Some(response),
         };
 
-        operation_status(&operation_id, context)
+        Some(operation_status(&operation_id, context))
     } else if action == "register" {
         if req.method != hyper::Method::PUT {
-            return Response::method_not_allowed(&req.method);
+            return Some(Response::method_not_allowed(&req.method));
         }
 
-        register(registration_id, &req.headers, req.body, context)
+        Some(register(registration_id, &req.headers, &req.body, context))
     } else {
-        Response::not_found(format!("{} not found", req.uri))
+        Some(Response::not_found(format!("{} not found", req.uri)))
     }
 }

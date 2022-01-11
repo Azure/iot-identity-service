@@ -4,7 +4,8 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 mod certs;
-mod request;
+mod dps;
+mod hub;
 mod server;
 
 use structopt::StructOpt;
@@ -46,7 +47,7 @@ async fn main() {
     let server_key = std::fs::read_to_string(&options.server_key).unwrap();
     let server_key = openssl::pkey::PKey::private_key_from_pem(server_key.as_bytes()).unwrap();
 
-    let dps_context = crate::server::DpsContextInner::new(&options);
+    let dps_context = crate::server::ContextInner::new(&options);
     let dps_context = std::sync::Mutex::new(dps_context);
     let dps_context = std::sync::Arc::new(dps_context);
 

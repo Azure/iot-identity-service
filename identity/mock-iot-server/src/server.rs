@@ -132,7 +132,7 @@ impl Response {
     }
 }
 
-pub(crate) struct DpsContextInner {
+pub(crate) struct ContextInner {
     pub in_progress_operations: std::collections::BTreeMap<
         String,
         aziot_dps_client_async::model::RegistrationOperationStatus,
@@ -143,9 +143,9 @@ pub(crate) struct DpsContextInner {
     pub endpoint: String,
 }
 
-impl DpsContextInner {
+impl ContextInner {
     pub fn new(options: &crate::Options) -> Self {
-        DpsContextInner {
+        ContextInner {
             in_progress_operations: std::collections::BTreeMap::new(),
             trust_bundle: crate::certs::trust_bundle::read_trust_bundle(
                 options.trust_bundle_certs_dir.as_ref(),
@@ -157,10 +157,10 @@ impl DpsContextInner {
     }
 }
 
-pub(crate) type DpsContext = std::sync::Arc<std::sync::Mutex<DpsContextInner>>;
+pub(crate) type Context = std::sync::Arc<std::sync::Mutex<ContextInner>>;
 
 pub(crate) async fn serve_request(
-    mut context: DpsContext,
+    mut context: Context,
     req: hyper::Request<hyper::Body>,
 ) -> Result<hyper::Response<hyper::Body>, std::convert::Infallible> {
     let req = match ParsedRequest::from_http(req).await {
@@ -168,5 +168,13 @@ pub(crate) async fn serve_request(
         Err(response) => return Ok(response.to_http()),
     };
 
-    Ok(crate::request::process_dps_request(req, &mut context).to_http())
+    if let Some(response) = crate::dps::process_request(&req, &mut context) {
+        return Ok(response.to_http());
+    }
+
+    if let Some(response) = crate::hub::process_request(&req, &mut context) {
+        return Ok(response.to_http());
+    }
+
+    Ok(Response::not_found(format!("{} not found", req.uri)).to_http())
 }
