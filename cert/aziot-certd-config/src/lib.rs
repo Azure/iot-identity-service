@@ -454,6 +454,9 @@ certs = ["test"]
                 .collect(),
 
                 endpoints: Endpoints {
+                    aziot_identityd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/identityd.sock").into()
+                    },
                     aziot_certd: Connector::Unix {
                         socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
@@ -477,6 +480,7 @@ certs = ["test"]
 homedir_path = "/var/lib/aziot/certd"
 
 [endpoints]
+aziot_identityd = "unix:///run/aziot/identityd.sock"
 aziot_keyd = "unix:///run/aziot/keyd.sock"
 aziot_certd = "unix:///run/aziot/certd.sock"
 "#;
@@ -492,6 +496,9 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                 preloaded_certs: Default::default(),
 
                 endpoints: Endpoints {
+                    aziot_identityd: Connector::Unix {
+                        socket_path: Path::new("/run/aziot/identityd.sock").into()
+                    },
                     aziot_certd: Connector::Unix {
                         socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
@@ -635,6 +642,9 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             .collect(),
 
             endpoints: Endpoints {
+                aziot_identityd: Connector::Unix {
+                    socket_path: Path::new("/run/aziot/identityd.sock").into(),
+                },
                 aziot_certd: Connector::Unix {
                     socket_path: Path::new("/run/aziot/certd.sock").into(),
                 },
