@@ -107,28 +107,30 @@ make -j \
 if ! %{_bindir}/getent group aziotks >/dev/null; then
     %{_sbindir}/groupadd -r aziotks
 fi
+if ! %{_bindir}/getent group aziottpm >/dev/null; then
+    %{_sbindir}/groupadd -r aziottpm
+fi
+if ! %{_bindir}/getent group aziotcs >/dev/null; then
+    %{_sbindir}/groupadd -r aziotcs
+fi
+if ! %{_bindir}/getent group aziotid >/dev/null; then
+    %{_sbindir}/groupadd -r aziotid
+fi
+
 if ! %{_bindir}/getent passwd aziotks >/dev/null; then
     %{_sbindir}/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
 fi
 
-if ! %{_bindir}/getent group aziottpm >/dev/null; then
-    %{_sbindir}/groupadd -r aziottpm
-fi
 if ! %{_bindir}/getent passwd aziottpm >/dev/null; then
     %{_sbindir}/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
 fi
 
-if ! %{_bindir}/getent group aziotcs >/dev/null; then
-    %{_sbindir}/groupadd -r aziotcs
-fi
 if ! %{_bindir}/getent passwd aziotcs >/dev/null; then
     %{_sbindir}/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
     %{_sbindir}/usermod -aG aziotks aziotcs
+    %{_sbindir}/usermod -aG aziotid aziotcs
 fi
 
-if ! %{_bindir}/getent group aziotid >/dev/null; then
-    %{_sbindir}/groupadd -r aziotid
-fi
 if ! %{_bindir}/getent passwd aziotid >/dev/null; then
     %{_sbindir}/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
     %{_sbindir}/usermod -aG aziotcs aziotid
