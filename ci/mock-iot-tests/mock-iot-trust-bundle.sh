@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd /src
 . ./ci/install-runtime-deps.sh
-. ./ci/mock-dps-tests/mock-dps-setup.sh
+. ./ci/mock-iot-tests/mock-iot-setup.sh
 
 # Generate 2 certificates for trust bundle.
 mkdir -p trust_bundle
@@ -45,7 +45,7 @@ scope_id = "scope123"
 
 [provisioning.attestation]
 method = "symmetric_key"
-registration_id = "mock-dps-provision"
+registration_id = "mock-iot-provision"
 symmetric_key = "device-id-symkey"
 
 [[principal]]
@@ -53,8 +53,8 @@ uid = $UID
 name = "aziot-edged"
 EOF
 
-# Start mock-dps-server with the specified trust bundle and wait for it to come up.
-./mock-dps-server --port 8443 \
+# Start mock-iot-server with the specified trust bundle and wait for it to come up.
+./mock-iot-server --port 8443 \
     --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" \
     --trust-bundle-certs-dir trust_bundle &
 server_pid="$!"
@@ -85,11 +85,11 @@ echo ""
 echo "GET TRUST BUNDLE WITH MOCK DPS: PASS"
 echo ""
 
-# Restart mock-dps-server without a trust bundle.
+# Restart mock-iot-server without a trust bundle.
 kill -TERM "$server_pid"
 wait "$server_pid" || :
 
-./mock-dps-server --port 8443 \
+./mock-iot-server --port 8443 \
     --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
 server_pid="$!"
 sleep 1

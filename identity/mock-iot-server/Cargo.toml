@@ -1,5 +1,5 @@
 [package]
-name = "mock-dps-server"
+name = "mock-iot-server"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"

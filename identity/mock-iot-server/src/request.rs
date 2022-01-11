@@ -39,7 +39,7 @@ fn register(
         symmetric_key: None,
         registration_id: Some(registration_id),
         created_date_time_utc: Some(now.clone()),
-        // Use localhost as hubname so devices provisioned with mock-dps-server don't try to
+        // Use localhost as hubname so devices provisioned with mock-iot-server don't try to
         // communicate with IoT Hub.
         assigned_hub: Some(context.endpoint.clone()),
         device_id: Some(uuid.clone()),
@@ -48,7 +48,7 @@ fn register(
         error_code: None,
         error_message: None,
         last_updated_date_time_utc: Some(now),
-        etag: Some("mock-dps-etag".to_string()),
+        etag: Some("mock-iot-etag".to_string()),
         trust_bundle: context.trust_bundle.clone(),
         identity_cert: None,
         certificate_issuance_policy: None,
@@ -56,18 +56,18 @@ fn register(
 
     if body.tpm.is_some() {
         registration_state.tpm = Some(aziot_dps_client_async::model::TpmRegistrationResult {
-            authentication_key: "mock-dps-tpm-key".to_string(),
+            authentication_key: "mock-iot-tpm-key".to_string(),
         });
     } else if headers.get("authorization").is_some() {
         registration_state.symmetric_key = Some(
             aziot_dps_client_async::model::SymmetricKeyRegistrationResult {
-                enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
+                enrollment_group_id: Some("mock-iot-enrollment-group".to_string()),
             },
         );
     } else {
         registration_state.x509 = Some(aziot_dps_client_async::model::X509RegistrationResult {
             certificate_info: None,
-            enrollment_group_id: Some("mock-dps-enrollment-group".to_string()),
+            enrollment_group_id: Some("mock-iot-enrollment-group".to_string()),
             signing_certificate_info: None,
         });
     };

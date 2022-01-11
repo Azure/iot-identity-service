@@ -2,7 +2,7 @@
 
 set -eu
 
-# Install mock-dps-server's root CA certificate.
+# Install mock-iot-server's root CA certificate.
 # Don't modify trusted certificates if not running on a CI container OS.
 case "$CONTAINER_OS" in
     'ubuntu:18.04' | 'debian:10-slim')
@@ -22,11 +22,11 @@ echo "Added mock DPS root certificate to system root store."
 #
 # For a local build, this would be target/x86_64-unknown-linux-gnu/debug.
 # For CI, this would be target/debug.
-cd "$(find target -type f -name mock-dps-server | head -n 1 | xargs dirname)"
+cd "$(find target -type f -name mock-iot-server | head -n 1 | xargs dirname)"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
 
 chmod +x ./aziotd
-chmod +x ./mock-dps-server
+chmod +x ./mock-iot-server
 
 # Create directories needed for the tests.
 mkdir -p /run/aziot
@@ -38,8 +38,8 @@ mkdir -p /etc/aziot/identityd
 mkdir -p /var/lib/aziot/identityd
 
 # Generate test credentials.
-# mock-dps-server does not authenticate, so tests can use any arbitrary credentials.
-echo 'mock-dps-provision' | base64 > device_id_symkey
+# mock-iot-server does not authenticate, so tests can use any arbitrary credentials.
+echo 'mock-iot-provision' | base64 > device_id_symkey
 
 touch ~/.rnd
 >device_id_cert.conf cat <<-EOF
@@ -50,7 +50,7 @@ extendedKeyUsage = clientAuth, emailProtection
 EOF
 
 openssl genrsa -out device_id_certkey.pem
-openssl req -new -key device_id_certkey.pem -subj "/CN=mock-dps-provision" -out device_id_certreq.pem
+openssl req -new -key device_id_certkey.pem -subj "/CN=mock-iot-provision" -out device_id_certreq.pem
 
 openssl x509 -req \
     -in device_id_certreq.pem \

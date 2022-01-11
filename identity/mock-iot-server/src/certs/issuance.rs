@@ -11,7 +11,7 @@ pub(crate) fn issue_cert(csr: &openssl::x509::X509Req) -> String {
 
     let mut issuer_name = openssl::x509::X509Name::builder().unwrap();
     issuer_name
-        .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, "mock-dps-server ca")
+        .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, "mock-iot-server ca")
         .unwrap();
     let issuer_name = issuer_name.build();
     cert.set_issuer_name(&issuer_name).unwrap();
@@ -40,7 +40,7 @@ pub(crate) fn issue_cert(csr: &openssl::x509::X509Req) -> String {
     let ext_key_usage = ext_key_usage.build().unwrap();
     cert.append_extension(ext_key_usage).unwrap();
 
-    // mock-dps-server does not authenticate the client. So it's fine to sign
+    // mock-iot-server does not authenticate the client. So it's fine to sign
     // the identity certificate with any arbitrary key.
     let rsa = openssl::rsa::Rsa::generate(2048).unwrap();
     let issuer_key = openssl::pkey::PKey::from_rsa(rsa).unwrap();

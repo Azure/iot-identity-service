@@ -4,10 +4,10 @@ set -euo pipefail
 
 cd /src
 . ./ci/install-runtime-deps.sh
-. ./ci/mock-dps-tests/mock-dps-setup.sh
+. ./ci/mock-iot-tests/mock-iot-setup.sh
 
-# Start mock-dps-server and wait for it to come up.
-./mock-dps-server --port 8443 --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
+# Start mock-iot-server and wait for it to come up.
+./mock-iot-server --port 8443 --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
 server_pid="$!"
 sleep 1
 
@@ -23,7 +23,7 @@ scope_id = "scope123"
 
 [provisioning.attestation]
 method = "symmetric_key"
-registration_id = "mock-dps-provision"
+registration_id = "mock-iot-provision"
 symmetric_key = "device-id-symkey"
 
 [[principal]]
@@ -50,7 +50,7 @@ result=$(curl -s \
     "http://localhost/identities/provisioning?api-version=2021-12-01" \
     --fail \
     | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-dps-provision"}')
+expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
 
 if [ "$result" != "$expected" ]; then
     echo ""
@@ -103,7 +103,7 @@ scope_id = "scope123"
 
 [provisioning.attestation]
 method = "x509"
-registration_id = "mock-dps-provision"
+registration_id = "mock-iot-provision"
 identity_cert = "device-id-cert"
 identity_pk = "device-id-certkey"
 
@@ -118,7 +118,7 @@ sleep 5
 
 # Check provisioning info.
 result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-dps-provision"}')
+expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
 
 if [ "$result" != "$expected" ]; then
     echo ""
