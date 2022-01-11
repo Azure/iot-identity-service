@@ -25,6 +25,9 @@ struct Options {
 
     #[structopt(long)]
     enable_identity_certs: bool,
+
+    #[structopt(long)]
+    enable_server_certs: bool,
 }
 
 #[tokio::main]

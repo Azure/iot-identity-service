@@ -855,6 +855,10 @@ impl IdentityManager {
             credentials
         };
 
+        if state.certificate_issuance_policy.is_some() {
+            log::info!("DPS provided server certificate issuance policy.");
+        }
+
         Ok(aziot_identity_common::IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
                 .unwrap_or_else(|| iothub_hostname.clone()),

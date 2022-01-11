@@ -139,6 +139,8 @@ pub(crate) struct DpsContextInner {
     >,
     pub trust_bundle: Option<aziot_dps_client_async::model::TrustBundle>,
     pub enable_identity_certs: bool,
+    pub enable_server_certs: bool,
+    pub endpoint: String,
 }
 
 impl DpsContextInner {
@@ -149,6 +151,8 @@ impl DpsContextInner {
                 options.trust_bundle_certs_dir.as_ref(),
             ),
             enable_identity_certs: options.enable_identity_certs,
+            enable_server_certs: options.enable_server_certs,
+            endpoint: format!("localhost:{}", options.port),
         }
     }
 }

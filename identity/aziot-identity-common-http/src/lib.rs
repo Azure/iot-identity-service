@@ -131,6 +131,8 @@ pub mod get_provisioning_info {
             endpoint: String,
             scope_id: String,
             registration_id: Option<String>,
+
+            #[serde(skip_serializing_if = "Option::is_none")]
             certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
         },
         Manual {

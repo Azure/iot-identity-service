@@ -1693,6 +1693,7 @@ name = "mock-dps-server"
 version = "0.1.0"
 dependencies = [
  "aziot-dps-client-async",
+ "aziot-identity-common",
  "base64",
  "chrono",
  "http",

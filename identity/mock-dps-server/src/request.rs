@@ -2,6 +2,7 @@
 
 use crate::server::Response;
 
+#[allow(clippy::too_many_lines)]
 fn register(
     registration_id: String,
     headers: &std::collections::HashMap<String, String>,
@@ -40,7 +41,7 @@ fn register(
         created_date_time_utc: Some(now.clone()),
         // Use localhost as hubname so devices provisioned with mock-dps-server don't try to
         // communicate with IoT Hub.
-        assigned_hub: Some("localhost".to_string()),
+        assigned_hub: Some(context.endpoint.clone()),
         device_id: Some(uuid.clone()),
         status: Some("assigned".to_string()),
         substatus: Some("initialAssignment".to_string()),
@@ -50,6 +51,7 @@ fn register(
         etag: Some("mock-dps-etag".to_string()),
         trust_bundle: context.trust_bundle.clone(),
         identity_cert: None,
+        certificate_issuance_policy: None,
     };
 
     if body.tpm.is_some() {
@@ -69,6 +71,17 @@ fn register(
             signing_certificate_info: None,
         });
     };
+
+    if context.enable_server_certs {
+        registration_state.certificate_issuance_policy =
+            Some(aziot_identity_common::CertIssuancePolicy {
+                end_point: context.endpoint.clone(),
+                certificate_issuance_type:
+                    aziot_identity_common::CertIssuanceType::ServerCertificate,
+                key_length_in_bits: 2048,
+                key_curve: None,
+            });
+    }
 
     match (body.client_cert_csr, context.enable_identity_certs) {
         // Issue an identity certificate from the provided CSR.
