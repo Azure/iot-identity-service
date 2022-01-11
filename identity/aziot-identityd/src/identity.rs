@@ -52,6 +52,14 @@ impl IdentityManager {
         }
     }
 
+    pub fn get_dps_cert_policy(&self) -> Option<aziot_identity_common::CertIssuancePolicy> {
+        if let Some(device) = &self.iot_hub_device {
+            device.certificate_issuance_policy.clone()
+        } else {
+            None
+        }
+    }
+
     pub async fn should_renew_credential(&self) -> bool {
         // Do not renew credentials that are not managed by DPS.
         if let Some(device) = &self.iot_hub_device {

@@ -31,7 +31,10 @@ impl http_common::server::Route for Route {
         let provisioning = {
             let api = self.api.lock().await;
 
-            api.settings.provisioning.provisioning.clone()
+            (
+                api.settings.provisioning.provisioning.clone(),
+                api.id_manager.get_dps_cert_policy(),
+            )
         };
 
         let res: aziot_identity_common_http::get_provisioning_info::Response = provisioning.into();

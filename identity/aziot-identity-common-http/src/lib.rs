@@ -141,9 +141,19 @@ pub mod get_provisioning_info {
         None,
     }
 
-    impl std::convert::From<aziot_identityd_config::ProvisioningType> for Response {
-        fn from(config: aziot_identityd_config::ProvisioningType) -> Self {
-            match config {
+    impl
+        std::convert::From<(
+            aziot_identityd_config::ProvisioningType,
+            Option<aziot_identity_common::CertIssuancePolicy>,
+        )> for Response
+    {
+        fn from(
+            config: (
+                aziot_identityd_config::ProvisioningType,
+                Option<aziot_identity_common::CertIssuancePolicy>,
+            ),
+        ) -> Self {
+            match config.0 {
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id,
@@ -173,7 +183,7 @@ pub mod get_provisioning_info {
                         endpoint,
                         scope_id,
                         registration_id,
-                        certificate_issuance_policy: None,
+                        certificate_issuance_policy: config.1,
                     }
                 }
 
