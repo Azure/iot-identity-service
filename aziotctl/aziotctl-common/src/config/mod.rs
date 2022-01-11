@@ -28,7 +28,7 @@ const EST_ID_ID: &str = "est-id";
 const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
 
 pub fn create_dir_all(
-    path: &(impl AsRef<Path> + ?Sized),
+    path: impl AsRef<Path>,
     user: &User,
     mode: u32,
 ) -> anyhow::Result<()> {
@@ -58,7 +58,7 @@ pub fn create_dir_all(
 }
 
 pub fn write_file(
-    path: &(impl AsRef<Path> + ?Sized),
+    path: impl AsRef<Path>,
     content: &[u8],
     user: &User,
     mode: u32,
