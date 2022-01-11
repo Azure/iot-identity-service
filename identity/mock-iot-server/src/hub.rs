@@ -21,6 +21,7 @@ fn module_action(
 ) -> Response {
     // Current tests do not require these to be implemented, but they may be
     // needed in the future.
+    #[allow(clippy::match_same_arms)]
     match *method {
         hyper::Method::DELETE => unimplemented!(),
         hyper::Method::GET => unimplemented!(),
