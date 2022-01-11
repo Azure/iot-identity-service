@@ -147,20 +147,25 @@ fn operation_status(operation_id: &str, context: &mut crate::server::Context) ->
     let mut context = context.lock().unwrap();
 
     match context.in_progress_operations.remove(operation_id) {
-        Some(operation) => Response::json(hyper::StatusCode::OK, operation),
+        Some(operation) => {
+            // Add new device with empty module set for successful registrations.
+            if operation.status == "assigned" {
+                let device_id = operation
+                    .registration_state
+                    .clone()
+                    .unwrap()
+                    .device_id
+                    .unwrap();
+
+                context
+                    .devices
+                    .insert(device_id, std::collections::BTreeSet::new());
+            }
+
+            Response::json(hyper::StatusCode::OK, operation)
+        }
         None => Response::not_found(format!("operation {} not found", operation_id)),
     }
-}
-
-fn get_param(captures: &regex::Captures<'_>, name: &str) -> Result<String, Response> {
-    let value = &captures[name];
-
-    let value = percent_encoding::percent_decode_str(value)
-        .decode_utf8()
-        .map_err(|_| Response::bad_request(format!("bad {}", name)))?
-        .to_string();
-
-    Ok(value)
 }
 
 pub(crate) fn process_request(
@@ -183,12 +188,12 @@ pub(crate) fn process_request(
 
     let captures = DPS_REGEX.captures(&req.uri).unwrap();
 
-    let registration_id = match get_param(&captures, "registrationId") {
+    let registration_id = match crate::server::get_param(&captures, "registrationId") {
         Ok(registration_id) => registration_id,
         Err(response) => return Some(response),
     };
 
-    let action = match get_param(&captures, "action") {
+    let action = match crate::server::get_param(&captures, "action") {
         Ok(action) => action,
         Err(response) => return Some(response),
     };
@@ -199,7 +204,7 @@ pub(crate) fn process_request(
         }
 
         let captures = OPERATION_STATUS_REGEX.captures(&action).unwrap();
-        let operation_id = match get_param(&captures, "operationId") {
+        let operation_id = match crate::server::get_param(&captures, "operationId") {
             Ok(operation_id) => operation_id,
             Err(response) => return Some(response),
         };

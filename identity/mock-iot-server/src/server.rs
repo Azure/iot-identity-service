@@ -137,6 +137,10 @@ pub(crate) struct ContextInner {
         String,
         aziot_dps_client_async::model::RegistrationOperationStatus,
     >,
+    pub devices: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeSet<aziot_identity_common::hub::Module>,
+    >,
     pub trust_bundle: Option<aziot_dps_client_async::model::TrustBundle>,
     pub enable_identity_certs: bool,
     pub enable_server_certs: bool,
@@ -147,6 +151,7 @@ impl ContextInner {
     pub fn new(options: &crate::Options) -> Self {
         ContextInner {
             in_progress_operations: std::collections::BTreeMap::new(),
+            devices: std::collections::BTreeMap::new(),
             trust_bundle: crate::certs::trust_bundle::read_trust_bundle(
                 options.trust_bundle_certs_dir.as_ref(),
             ),
@@ -177,4 +182,15 @@ pub(crate) async fn serve_request(
     }
 
     Ok(Response::not_found(format!("{} not found", req.uri)).to_http())
+}
+
+pub(crate) fn get_param(captures: &regex::Captures<'_>, name: &str) -> Result<String, Response> {
+    let value = &captures[name];
+
+    let value = percent_encoding::percent_decode_str(value)
+        .decode_utf8()
+        .map_err(|_| Response::bad_request(format!("bad {}", name)))?
+        .to_string();
+
+    Ok(value)
 }
