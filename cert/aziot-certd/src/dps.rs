@@ -4,7 +4,7 @@ use aziot_identity_common_http::get_provisioning_info::Response as ProvisioningI
 
 pub(crate) async fn check_policy(
     client: &aziot_identity_client_async::Client,
-    csr: &openssl::x509::X509Req,
+    _csr: &openssl::x509::X509Req,
 ) -> Option<ProvisioningInfo> {
     let provisioning_info = client.get_provisioning_info().await.ok()?;
 
@@ -16,7 +16,7 @@ pub(crate) async fn check_policy(
             registration_id: _,
             certificate_issuance_policy,
         } => {
-            let policy = match certificate_issuance_policy {
+            let _policy = match certificate_issuance_policy {
                 Some(policy) => policy,
                 None => return None,
             };
@@ -27,9 +27,9 @@ pub(crate) async fn check_policy(
     }
 }
 
-pub(crate) async fn issue_cert(
-    csr: &openssl::x509::X509Req,
-    policy: ProvisioningInfo,
-) -> Result<Vec<u8>, crate::Error> {
-    todo!()
-}
+// pub(crate) async fn issue_cert(
+//     _csr: &openssl::x509::X509Req,
+//     _policy: ProvisioningInfo,
+// ) -> Result<Vec<u8>, crate::Error> {
+//     todo!()
+// }

@@ -152,10 +152,10 @@ impl Api {
         }
 
         // Issue certificate using DPS if possible. Otherwise, use certd's issuance policy.
-        if let Some(policy) = dps::check_policy(&this.identity_client, &req).await {
+        if let Some(_policy) = dps::check_policy(&this.identity_client, &req).await {
             log::info!("{} will be issued by DPS.", id);
 
-            return dps::issue_cert(&req, policy).await;
+            //return dps::issue_cert(&req, policy).await;
         }
 
         let issuer = issuer
