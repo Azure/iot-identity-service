@@ -414,8 +414,13 @@ impl Api {
                     .await?;
             }
             ReprovisionTrigger::Startup => {
+                // Ignore the provisioning backup and reprovision if provisioning information
+                // has changed since the last run.
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        self.check_prev_provisioning(),
+                    )
                     .await?;
             }
         }
@@ -488,6 +493,29 @@ impl Api {
         }
 
         Ok(())
+    }
+
+    fn check_prev_provisioning(&self) -> bool {
+        let mut prev_settings_path = self.settings.homedir.clone();
+        prev_settings_path.push("prev_state");
+
+        if !prev_settings_path.exists() {
+            return true;
+        }
+
+        let prev_settings = if let Ok(settings) = crate::configext::load_file(&prev_settings_path) {
+            settings
+        } else {
+            return true;
+        };
+
+        if prev_settings.provisioning == self.settings.provisioning {
+            true
+        } else {
+            log::info!("Detected change in provisioning settings since last run. Reprovisioning.");
+
+            false
+        }
     }
 
     async fn issue_local_identity(

@@ -116,7 +116,7 @@ pub struct LocalId {
     pub domain: String,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
 pub enum ManualAuthMethod {
@@ -128,7 +128,7 @@ pub enum ManualAuthMethod {
     },
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
 pub enum DpsAttestationMethod {
@@ -147,7 +147,7 @@ pub enum DpsAttestationMethod {
     },
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
     pub local_gateway_hostname: Option<String>,
@@ -156,7 +156,7 @@ pub struct Provisioning {
     pub provisioning: ProvisioningType,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
 pub enum ProvisioningType {

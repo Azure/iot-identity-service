@@ -134,6 +134,12 @@ impl Client {
                     "DPS is not configured to accept identity cert CSR. Provisioning without CSR."
                 );
 
+                if let Ok(key_handle) = self.key_client.load_key_pair(&self.client_cert_key).await {
+                    if let Err(err) = self.key_client.delete_key_pair(&key_handle).await {
+                        log::warn!("Failed to delete client cert key: {}", err);
+                    }
+                }
+
                 body.client_cert_csr = None;
                 res = self.dps_request(registration_id, auth_kind, &body).await?;
             }

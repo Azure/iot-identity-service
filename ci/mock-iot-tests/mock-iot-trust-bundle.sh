@@ -35,7 +35,7 @@ openssl x509 -req \
 
 # Set up for DPS provisioning with symmetric key.
 >/etc/aziot/identityd/config.toml cat<<-EOF
-hostname = "$(hostname)"
+hostname = "$HOSTNAME"
 homedir = "/var/lib/aziot/identityd"
 
 [provisioning]
