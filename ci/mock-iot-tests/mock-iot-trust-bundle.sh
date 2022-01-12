@@ -82,7 +82,7 @@ curl -s \
 openssl crl2pkcs7 -nocrl -certfile certs.pem | openssl pkcs7 -print_certs -noout
 
 echo ""
-echo "GET TRUST BUNDLE WITH MOCK DPS: PASS"
+echo "GET TRUST BUNDLE WITH MOCK IoT: PASS"
 echo ""
 
 # Restart mock-iot-server without a trust bundle.
@@ -104,14 +104,14 @@ message=$(curl -s --unix-socket /run/aziot/certd.sock "http://localhost/certific
 # shellcheck disable=2086,2116
 if [ "$(echo $message)" != 'parameter "id" has an invalid value caused by: not found' ]; then
     echo ""
-    echo "TRUST BUNDLE REPROVISION WITH MOCK DPS: FAIL"
+    echo "TRUST BUNDLE REPROVISION WITH MOCK IoT: FAIL"
     echo "Out-of-date trust bundle was not deleted."
     echo ""
     exit 1
 fi
 
 echo ""
-echo "TRUST BUNDLE REPROVISION WITH MOCK DPS: PASS"
+echo "TRUST BUNDLE REPROVISION WITH MOCK IoT: PASS"
 echo ""
 
 # Clean up.

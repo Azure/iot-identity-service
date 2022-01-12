@@ -54,7 +54,7 @@ expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://
 
 if [ "$result" != "$expected" ]; then
     echo ""
-    echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: FAIL"
+    echo "SYMMETRIC KEY PROVISIONING WITH MOCK IoT: FAIL"
     echo ""
     echo "Symmetric key provisioning information does not match."
     echo ""
@@ -79,13 +79,13 @@ symkey_device_id=$(jq .spec.deviceId <<< "$device_id_response")
 
 if [ "$auth_type" != '"sas"' ]; then
     echo ""
-    echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: FAIL"
+    echo "SYMMETRIC KEY PROVISIONING WITH MOCK IoT: FAIL"
     echo "Auth type is $auth_type, not 'sas'"
     exit 1
 fi
 
 echo ""
-echo "SYMMETRIC KEY PROVISIONING WITH MOCK DPS: PASS"
+echo "SYMMETRIC KEY PROVISIONING WITH MOCK IoT: PASS"
 echo ""
 
 # Change to DPS provisioning with X.509 credential.
@@ -122,7 +122,7 @@ expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost
 
 if [ "$result" != "$expected" ]; then
     echo ""
-    echo "X.509 PROVISIONING WITH MOCK DPS: FAIL"
+    echo "X.509 PROVISIONING WITH MOCK IoT: FAIL"
     echo ""
     echo "X.509 provisioning information does not match."
     echo ""
@@ -147,21 +147,21 @@ x509_device_id=$(jq .spec.deviceId <<< "$device_id_response")
 
 if [ "$auth_type" != '"x509"' ]; then
     echo ""
-    echo "X.509 PROVISIONING WITH MOCK DPS: FAIL"
+    echo "X.509 PROVISIONING WITH MOCK IoT: FAIL"
     echo "Auth type is $auth_type, not 'x509'"
     exit 1
 fi
 
 if [ "$symkey_device_id" = "$x509_device_id" ]; then
     echo ""
-    echo "MOCK DPS REPROVISION: FAIL"
+    echo "MOCK IoT REPROVISION: FAIL"
     echo "Device identity did not change."
     echo ""
     exit 1
 fi
 
 echo ""
-echo "X.509 PROVISIONING WITH MOCK DPS: PASS"
+echo "X.509 PROVISIONING WITH MOCK IoT: PASS"
 echo ""
 
 # Clean up.

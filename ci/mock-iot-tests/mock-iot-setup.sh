@@ -16,7 +16,7 @@ case "$CONTAINER_OS" in
         update-ca-trust
     ;;
 esac
-echo "Added mock DPS root certificate to system root store."
+echo "Added mock IoT root certificate to system root store."
 
 # Find the build output directory / the directory where CI extracted the artifact.
 #

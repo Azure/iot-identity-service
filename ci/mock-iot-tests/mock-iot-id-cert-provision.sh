@@ -67,13 +67,13 @@ auth_type=$(jq .spec.auth.type <<< "$device_id_response")
 
 if [ "$auth_type" != '"x509"' ]; then
     echo ""
-    echo "MOCK DPS PROVISION WITH DPS IDENTITY CERT: FAIL"
+    echo "MOCK IoT PROVISION WITH DPS IDENTITY CERT: FAIL"
     echo "Auth type is $auth_type, not 'x509'"
     exit 1
 fi
 
 echo ""
-echo "MOCK DPS PROVISION WITH DPS IDENTITY CERT: PASS"
+echo "MOCK IoT PROVISION WITH DPS IDENTITY CERT: PASS"
 echo ""
 
 # Restart mock-iot-server without identity certificates.
@@ -95,7 +95,7 @@ message=$(curl -s --unix-socket /run/aziot/certd.sock "http://localhost/certific
 # shellcheck disable=2086,2116
 if [ "$(echo $message)" != 'parameter "id" has an invalid value caused by: not found' ]; then
     echo ""
-    echo "MOCK DPS REPROVISION WITH DPS IDENTITY CERT: FAIL"
+    echo "MOCK IoT REPROVISION WITH DPS IDENTITY CERT: FAIL"
     echo "Out-of-date identity certificate was not deleted."
     echo ""
     exit 1
@@ -113,13 +113,13 @@ auth_type=$(jq .spec.auth.type <<< "$device_id_response")
 
 if [ "$auth_type" != '"sas"' ]; then
     echo ""
-    echo "MOCK DPS REPROVISION WITH DPS IDENTITY CERT: FAIL"
+    echo "MOCK IoT REPROVISION WITH DPS IDENTITY CERT: FAIL"
     echo "Reprovisioning did not reset device identity type."
     exit 1
 fi
 
 echo ""
-echo "MOCK DPS REPROVISION WITH DPS IDENTITY CERT: PASS"
+echo "MOCK IoT REPROVISION WITH DPS IDENTITY CERT: PASS"
 echo ""
 
 # Clean up.
