@@ -1,17 +1,16 @@
+# This workflow is intended to be run manually when cutting an official release.
+# The workflow calls the reusable packages workflow from packages.yaml and then
+# generates an SBOM (Software Bill of Materials).
 name: 'packages-release'
 
 on:
   workflow_dispatch:
     branches: [release/1.2]
 
-env:
-  PACKAGE_VERSION: '1.2.0~rc4'
-  PACKAGE_RELEASE: '1'
-
 jobs:
   packages:
     # TODO: Replace sbom-generation branch w/ release/1.2
-    uses: nlcamp/iot-identity-service/.github/workflows/packages.yaml@sbom-generation
+    uses: nlcamp/iot-identity-service/.github/workflows/packages.yaml@sbom-generation-1.2
   sbom:
     needs: packages
     runs-on: ubuntu-latest
@@ -27,7 +26,7 @@ jobs:
           dotnet new console
           dotnet nuget add source https://1essharedassets.pkgs.visualstudio.com/_packaging/Packaging/nuget/v3/index.json --username IoTEdge1-PAT-1esSharedAssets --password ${{ secrets.IOTEDGE1_1ES_SHARED_ASSETS_PAT }} --store-password-in-clear-text
           dotnet add package Microsoft.ManifestTool.CrossPlatform --version 2.0.100
-          dotnet ~/.nuget/packages/microsoft.manifesttool.crossplatform/2.0.100/Content/Microsoft.ManifestTool.dll generate -b $GITHUB_WORKSPACE/release-artifacts -bc $GITHUB_WORKSPACE -pn aziot-identity-service -pv "${{ env.PACKAGE_VERSION }}-${{ env.PACKAGE_RELEASE }}" -V Verbose
+          dotnet ~/.nuget/packages/microsoft.manifesttool.crossplatform/2.0.100/Content/Microsoft.ManifestTool.dll generate -b $GITHUB_WORKSPACE/release-artifacts -bc $GITHUB_WORKSPACE -pn aziot-identity-service -pv "${{ needs.packages.outputs.version }}-${{ needs.packages.outputs.release }}" -V Verbose
       - name: 'Upload SBOM'
         uses: 'actions/upload-artifact@v1'
         with:

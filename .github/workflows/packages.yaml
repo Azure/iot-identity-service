@@ -1,9 +1,14 @@
 name: 'packages'
 
 on:
-- 'pull_request'
-- 'push'
-- 'workflow_call'
+  pull_request:
+  push:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.packages.steps.run.env.PACKAGE_VERSION }}
+      release:
+        value: ${{ jobs.packages.steps.run.env.PACKAGE_RELEASE }}
 
 jobs:
   packages:
