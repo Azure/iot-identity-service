@@ -103,7 +103,7 @@ pub fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
 
     let pos = line.find('=')?;
-    let (key, value) = (&line[..pos], &line[pos+1..]);
+    let (key, value) = (&line[..pos], &line[pos + 1..]);
 
     // The value is essentially a shell string, so it can be quoted in single or
     // double quotes, and can have escaped sequences using backslash.
