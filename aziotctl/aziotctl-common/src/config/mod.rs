@@ -27,11 +27,7 @@ const EST_ID_ID: &str = "est-id";
 /// The ID used for the private key and cert that is used as the client cert to authenticate with the EST server for the initial bootstrap.
 const EST_BOOTSTRAP_ID: &str = "est-bootstrap-id";
 
-pub fn create_dir_all(
-    path: impl AsRef<Path>,
-    user: &User,
-    mode: u32,
-) -> anyhow::Result<()> {
+pub fn create_dir_all(path: impl AsRef<Path>, user: &User, mode: u32) -> anyhow::Result<()> {
     let path = path.as_ref();
     let path_displayable = path.display();
 
