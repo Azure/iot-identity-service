@@ -68,7 +68,6 @@ impl Default for OsInfo {
         let mut result = Self {
             id: None,
             version_id: None,
-            pretty_name: None,
             arch: ARCH,
             bitness: BITNESS,
         };
@@ -88,9 +87,6 @@ impl Default for OsInfo {
                         Some(("VERSION_ID", value)) => {
                             result.version_id = Some(value.to_owned());
                         }
-                        Some(("PRETTY_NAME", value)) => {
-                            result.pretty_name = Some(value.to_owned());
-                        }
                         _ => (),
                     };
                 } else {
@@ -106,7 +102,8 @@ impl Default for OsInfo {
 pub fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
 
-    let (key, value) = line.split_once('=')?;
+    let pos = line.find('=')?;
+    let (key, value) = (&line[..pos], &line[pos+1..]);
 
     // The value is essentially a shell string, so it can be quoted in single or
     // double quotes, and can have escaped sequences using backslash.
