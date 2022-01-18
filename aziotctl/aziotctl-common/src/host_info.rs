@@ -19,30 +19,22 @@ const BITNESS: usize = 128;
 /// Examples:
 ///
 /// ```ignore
-///  Host    | name            | version | vendor
-/// ---------+-----------------+---------+-----------------------
-///  Hyper-V | Virtual Machine | 7.0     | Microsoft Corporation
+///  Host    | name            | vendor
+/// ---------+-----------------+-----------------------
+///  Hyper-V | Virtual Machine | Microsoft Corporation
 /// ```
 ///
 /// Ref: <https://www.kernel.org/doc/html/latest/filesystems/sysfs.html>
 #[derive(Clone, Debug, Serialize)]
 pub struct DmiInfo {
-    pub board: Option<String>,
-    pub family: Option<String>,
     pub product: Option<String>,
-    pub sku: Option<String>,
-    pub version: Option<String>,
     pub vendor: Option<String>,
 }
 
 impl Default for DmiInfo {
     fn default() -> Self {
         Self {
-            board: try_read_dmi("board_name"),
-            family: try_read_dmi("product_family"),
             product: try_read_dmi("product_name"),
-            sku: try_read_dmi("product_sku"),
-            version: try_read_dmi("product_version"),
             vendor: try_read_dmi("sys_vendor"),
         }
     }
@@ -67,7 +59,6 @@ impl Default for DmiInfo {
 pub struct OsInfo {
     pub id: Option<String>,
     pub version_id: Option<String>,
-    pub pretty_name: Option<String>,
     pub arch: &'static str,
     pub bitness: usize,
 }
@@ -77,7 +68,6 @@ impl Default for OsInfo {
         let mut result = Self {
             id: None,
             version_id: None,
-            pretty_name: None,
             arch: ARCH,
             bitness: BITNESS,
         };
@@ -96,9 +86,6 @@ impl Default for OsInfo {
                         }
                         Some(("VERSION_ID", value)) => {
                             result.version_id = Some(value.to_owned());
-                        }
-                        Some(("PRETTY_NAME", value)) => {
-                            result.pretty_name = Some(value.to_owned());
                         }
                         _ => (),
                     };
