@@ -20,25 +20,6 @@
 
 1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
 
-1. Create a self-signed device CA cert.
-
-1. Create a workload CA cert signed by the device CA cert.
-
-1. Connect to IoT Hub using the device identity, using an auth method based on the parameters given to it:
-
-    - When `--sas-key` is provided:
-        1. Import the IoT Hub SAS key into `aziot-keyd`
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The SAS token for this request is signed using the SAS key imported into `aziot-keyd`.
-
-    - When `--preloaded-device-id-cert` is provided:
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The key and cert preloaded into `aziot-keyd` and `aziot-certd` respectively are used for TLS client authentication.
-
-    - When `--preloaded-device-id-ca-cert` is provided:
-        1. Obtain the device ID CA cert whose ID is specified by the parameter.
-        1. Create a new device ID certificate using `aziot-certd` that is signed by the device ID CA cert.
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The device ID cert created in the previous step is used for TLS client authentication.
-
-
 ## Miscellaneous
 
 ### Create IoT Device identity with X.509-CA auth mode
