@@ -20,43 +20,6 @@
 
 1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
 
-1. Run `iotedged` in another shell.
-
-    - If the device identity is set to use the `shared_private_key` auth method, run the program with the SAS key:
-
-        ```sh
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --sas-key 'QXp1cmUgSW9UIEVkZ2U='
-        ```
-
-    - If the device identity is set to use the `x509_thumbprint` auth method, run the program with the identifier of the device ID cert and private key:
-
-        ```sh
-        # The value of `--preloaded-device-id-cert` matches
-        # the name of the key preloaded into keyd and
-        # the name of the cert preloaded into certd.
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --preloaded-device-id-cert 'device-id'
-        ```
-
-    - If the device identity is set to use the `x509_ca` auth method, run the program with the identifier of the device ID CA cert and private key:
-
-        ```sh
-        # The value of `--preloaded-device-id-ca-cert` matches
-        # the name of the key preloaded into keyd and
-        # the name of the cert preloaded into certd.
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --preloaded-device-id-ca-cert 'device-id-ca'
-        ```
-
-`iotedged` is a test binary that performs some operations that would be done by the Identity Service or Edge Module Runtime. Specifically, it connects to `aziot-keyd` and `aziot-certd` and does the following:
-
 1. Create a self-signed device CA cert.
 
 1. Create a workload CA cert signed by the device CA cert.
