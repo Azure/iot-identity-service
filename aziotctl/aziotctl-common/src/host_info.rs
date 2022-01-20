@@ -59,6 +59,8 @@ impl Default for DmiInfo {
 pub struct OsInfo {
     pub id: Option<String>,
     pub version_id: Option<String>,
+    pub variant_id: Option<String>,
+    pub build_id: Option<String>,
     pub arch: &'static str,
     pub bitness: usize,
 }
@@ -68,6 +70,8 @@ impl Default for OsInfo {
         let mut result = Self {
             id: None,
             version_id: None,
+            variant_id: None,
+            build_id: None,
             arch: ARCH,
             bitness: BITNESS,
         };
@@ -86,6 +90,12 @@ impl Default for OsInfo {
                         }
                         Some(("VERSION_ID", value)) => {
                             result.version_id = Some(value.to_owned());
+                        }
+                        Some(("VARIANT_ID", value)) => {
+                            result.variant_id = Some(value.to_owned());
+                        }
+                        Some(("BUILD_ID", value)) => {
+                            result.build_id = Some(value.to_owned());
                         }
                         _ => (),
                     };
