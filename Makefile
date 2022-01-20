@@ -215,7 +215,7 @@ codecov: default
 		--exclude openssl-build --exclude test-common --exclude iotedged \
 		--exclude-files identity/mock-dps-server/* \
 		--exclude-files key/aziot-key-openssl-engine-shared-test/* \
-		--exclude-files tpm/aziot-tpm-sys/aziot-iot-hsm-c/deps/* \
+		--exclude-files tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/* \
 		--exclude-files tpm/aziot-tpm-sys/tests/* \
 		--no-fail-fast \
 		--target $(CARGO_TARGET) --out Lcov \
