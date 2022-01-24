@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod check_last_modified;
 pub mod config;
+pub mod host_info;
 pub mod system;
 
 #[derive(Debug, Serialize, Deserialize)]
