@@ -23,8 +23,6 @@ members = [
 	"identity/aziot-identityd",
 	"identity/mock-iot-server",
 
-	"iotedged",
-
 	"key/aziot-key-client",
 	"key/aziot-key-client-async",
 	"key/aziot-key-common",
