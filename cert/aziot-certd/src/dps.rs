@@ -99,6 +99,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::field_reassign_with_default)]
     async fn no_cert_policy() {
         let csr = server_cert_csr();
 
