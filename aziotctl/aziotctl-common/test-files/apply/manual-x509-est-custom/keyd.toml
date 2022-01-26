@@ -10,4 +10,4 @@ keys = ["aziot_identityd_master_id", "aziot-dps-identity-cert-key", "device-id"]
 
 [[principal]]
 uid = 5555
-keys = ["est-id-device-id"]
+keys = ["aziot-dps-identity-cert-key", "est-id-device-id"]
