@@ -106,11 +106,19 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "auth": "string",
   "endpoint": "string",
   "scope_id": "string",
-  "registration_id": "string"
+  "registration_id": "string",
+  "certificate_issuance_policy" : {
+    "endPoint": "url",
+    "certificateIssuanceType": "serverCertificate",
+    "keyLengthInBits": 2048,
+    "keyCurve": "string"
+  },
 }
 ```
 
 `auth` will be either `symmetric_key`, `x509`, or `tpm`.
+
+`certificate_issuance_policy` is provided if a policy to issue server certificates has been configured in DPS.
 
 #### Response (Manual provisioning)
 

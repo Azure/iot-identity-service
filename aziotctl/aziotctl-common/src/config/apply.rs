@@ -74,6 +74,12 @@ pub fn run(
         keys: vec![],
     };
 
+    // Allow CS to access the DPS identity cert key. It's needed to issue
+    // server certs from DPS.
+    aziotcs_keys
+        .keys
+        .push(aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string());
+
     let provisioning = {
         let super_config::Provisioning { provisioning } = provisioning;
 
