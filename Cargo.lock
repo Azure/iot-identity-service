@@ -157,84 +157,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "aziot-cloud-client-async-common"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "aziot-cert-client-async",
- "aziot-key-client-async",
- "aziot-key-common",
- "aziot-tpm-client-async",
- "base64",
- "bytes",
- "chrono",
- "http",
- "http-common",
- "hyper",
- "hyper-openssl",
- "log",
- "openssl",
- "openssl2",
- "percent-encoding",
- "serde",
- "serde_json",
- "url",
-]
-
-[[package]]
-name = "aziot-dps-client-async"
-version = "0.1.0"
-dependencies = [
- "async-recursion",
- "aziot-cert-client-async",
- "aziot-cloud-client-async-common",
- "aziot-key-client-async",
- "aziot-key-common",
- "aziot-tpm-client-async",
- "aziot-tpm-common",
- "base64",
- "bytes",
- "chrono",
- "futures-util",
- "http",
- "http-common",
- "hyper",
- "log",
- "openssl",
- "openssl2",
- "percent-encoding",
- "serde",
- "serde_json",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "aziot-hub-client-async"
+name = "aziot-cloud-client-async"
 version = "0.1.0"
 dependencies = [
  "aziot-cert-client-async",
- "aziot-cert-common-http",
- "aziot-cloud-client-async-common",
  "aziot-identity-common",
  "aziot-key-client-async",
- "aziot-key-common",
  "aziot-tpm-client-async",
- "aziot-tpm-common",
- "base64",
- "chrono",
  "futures-util",
- "http",
- "http-common",
  "hyper",
- "hyper-openssl",
- "log",
- "openssl",
  "openssl2",
- "percent-encoding",
- "serde",
- "serde_json",
- "tokio",
  "url",
 ]
 
@@ -280,8 +212,7 @@ dependencies = [
  "async-trait",
  "aziot-cert-client-async",
  "aziot-cert-common-http",
- "aziot-dps-client-async",
- "aziot-hub-client-async",
+ "aziot-cloud-client-async",
  "aziot-identity-common",
  "aziot-identity-common-http",
  "aziot-identityd-config",
@@ -1650,7 +1581,7 @@ dependencies = [
 name = "mock-dps-server"
 version = "0.1.0"
 dependencies = [
- "aziot-dps-client-async",
+ "aziot-cloud-client-async",
  "chrono",
  "http",
  "hyper",

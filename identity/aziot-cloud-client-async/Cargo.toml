@@ -1,0 +1,18 @@
+[package]
+name = "aziot-cloud-client-async"
+version = "0.1.0"
+authors = ["Azure IoT Edge Devs"]
+edition = "2021"
+publish = false
+
+[dependencies]
+futures-util = "0.3"
+hyper = "0.14"
+url = "2"
+
+aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
+aziot-identity-common = { path = "../aziot-identity-common" }
+aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
+aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
+
+openssl2 = { path = "../../openssl2" }
