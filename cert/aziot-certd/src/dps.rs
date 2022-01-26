@@ -64,9 +64,6 @@ pub(crate) async fn check_policy(
         aziot_identity_common::CertIssuanceType::None => return None,
     }
 
-    // Check CSR key against issuance policy.
-    // TODO
-
     Some(provisioning_info)
 }
 
