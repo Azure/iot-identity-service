@@ -113,6 +113,7 @@ dependencies = [
  "aziot-cert-common-http",
  "aziot-certd-config",
  "aziot-identity-client-async",
+ "aziot-identity-common",
  "aziot-identity-common-http",
  "aziot-key-client",
  "aziot-key-client-async",

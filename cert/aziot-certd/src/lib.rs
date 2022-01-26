@@ -151,39 +151,71 @@ impl Api {
             ));
         }
 
-        // Issue certificate using DPS if possible. Otherwise, use certd's issuance policy.
-        if let Some(_policy) = dps::check_policy(&this.identity_client, &req).await {
+        // Check for DPS certificate issuance policy and credentials. DPS certificate
+        // issuance should be used if a matching policy and credentials exist.
+        let dps = {
+            if let Some(policy) = dps::check_policy(&this.identity_client, &req).await {
+                if let Ok(cert) = this.get_cert(aziot_identity_common::DPS_IDENTITY_CERT) {
+                    let key = {
+                        if let Ok(handle) = this
+                            .key_client
+                            .load_key_pair(aziot_identity_common::DPS_IDENTITY_CERT_KEY)
+                            .await
+                        {
+                            let handle = std::ffi::CString::new(handle.0)
+                                .expect("key handle should be valid CString");
+                            if let Ok(key) = this.key_engine.load_private_key(&handle) {
+                                Some(key)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    };
+
+                    key.map(|key| (policy, cert, key))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        let x509 = if let Some((_policy, _cert, _key)) = dps {
             log::info!("{} will be issued by DPS.", id);
 
-            //return dps::issue_cert(&req, policy).await;
-        }
+            // TODO: DPS client call.
+            return Err(Error::Internal(InternalError::Dps("TODO".into())))
+        } else {
+            let issuer = issuer
+                .map(|(id, handle)| -> Result<_, Error> {
+                    let pem = get_cert_inner(&this.homedir_path, &this.preloaded_certs, &id)
+                        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?
+                        .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
+                    let stack = X509::stack_from_pem(&pem)
+                        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
+                    if stack.is_empty() {
+                        return Err(Error::invalid_parameter("issuer.certId", "invalid issuer"));
+                    }
 
-        let issuer = issuer
-            .map(|(id, handle)| -> Result<_, Error> {
-                let pem = get_cert_inner(&this.homedir_path, &this.preloaded_certs, &id)
-                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?
-                    .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
-                let stack = X509::stack_from_pem(&pem)
-                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
-                if stack.is_empty() {
-                    return Err(Error::invalid_parameter("issuer.certId", "invalid issuer"));
-                }
+                    let handle = CString::new(handle.0)
+                        .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
 
-                let handle = CString::new(handle.0)
-                    .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
+                    Ok((stack, handle))
+                })
+                .transpose()?;
 
-                Ok((stack, handle))
-            })
-            .transpose()?;
-
-        let x509 = create_cert_inner(
-            &mut *this,
-            &id,
-            (&req, &pubkey),
-            issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),
-        )
-        .await
-        .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?;
+            create_cert_inner(
+                &mut *this,
+                &id,
+                (&req, &pubkey),
+                issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),
+            )
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?
+        };
 
         write_cert(&this.homedir_path, &this.preloaded_certs, &id, &x509)?;
 

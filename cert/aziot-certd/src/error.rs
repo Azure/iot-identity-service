@@ -54,6 +54,7 @@ pub enum InternalError {
     LoadKeyOpensslEngine(openssl2::Error),
     ReadFile(std::io::Error),
     WriteFile(std::io::Error),
+    Dps(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl std::fmt::Display for InternalError {
@@ -70,6 +71,7 @@ impl std::fmt::Display for InternalError {
             }
             InternalError::ReadFile(_) => f.write_str("could not read cert file"),
             InternalError::WriteFile(_) => f.write_str("could not write cert file"),
+            InternalError::Dps(_) => f.write_str("could not communicate with DPS"),
         }
     }
 }
@@ -85,6 +87,7 @@ impl std::error::Error for InternalError {
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
             InternalError::ReadFile(err) => Some(err),
             InternalError::WriteFile(err) => Some(err),
+            InternalError::Dps(err) => Some(&**err),
         }
     }
 }

@@ -38,6 +38,7 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-identity-client-async = { path = "../../identity/aziot-identity-client-async" }
 aziot-identity-common-http = { path = "../../identity/aziot-identity-common-http" }
+aziot-identity-common = { path = "../../identity/aziot-identity-common" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
