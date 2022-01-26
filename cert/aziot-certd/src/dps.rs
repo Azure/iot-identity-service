@@ -69,3 +69,102 @@ pub(crate) async fn check_policy(
 
     Some(provisioning_info)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::check_policy;
+    use super::{IdentityClient, ProvisioningInfo};
+
+    const CSR_NAME: &str = "testCsr";
+
+    /// Generate a CSR with serverAuth set.
+    fn server_cert_csr() -> openssl::x509::X509Req {
+        let (csr, _) = test_common::credential::test_csr(
+            CSR_NAME,
+            Some(|csr| {
+                let mut extensions = openssl::stack::Stack::new().unwrap();
+
+                let ext_key_usage = openssl::x509::extension::ExtendedKeyUsage::new()
+                    .server_auth()
+                    .build()
+                    .unwrap();
+
+                extensions.push(ext_key_usage).unwrap();
+
+                csr.add_extensions(&extensions).unwrap();
+            }),
+        );
+
+        csr
+    }
+
+    #[tokio::test]
+    async fn no_cert_policy() {
+        let csr = server_cert_csr();
+
+        // Error getting provisioning info.
+        let mut client = IdentityClient::default();
+        client.get_provisioning_info_ok = false;
+        assert!(check_policy(&client, &csr).await.is_none());
+
+        // Provisioning is not DPS-based.
+        let mut client = IdentityClient::default();
+        client.provisioning_info = ProvisioningInfo::Manual {
+            auth: "x509".to_string(),
+        };
+        assert!(check_policy(&client, &csr).await.is_none());
+
+        // Provisioning info does not have cert issuance policy.
+        let mut client = IdentityClient::default();
+        if let ProvisioningInfo::Dps {
+            auth,
+            endpoint,
+            scope_id,
+            registration_id,
+            certificate_issuance_policy: _,
+        } = client.provisioning_info
+        {
+            client.provisioning_info = ProvisioningInfo::Dps {
+                auth,
+                endpoint,
+                scope_id,
+                registration_id,
+                certificate_issuance_policy: None,
+            }
+        } else {
+            panic!("Default identity client has wrong provisioning policy");
+        }
+        assert!(check_policy(&client, &csr).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn ext_key_usage_match() {
+        let client = IdentityClient::default();
+
+        // CSR with no extKeyUsage.
+        let (csr, _) = test_common::credential::test_csr(CSR_NAME, None);
+        assert!(check_policy(&client, &csr).await.is_none());
+
+        // CSR with irrelevant extKeyUsage.
+        let (csr, _) = test_common::credential::test_csr(
+            CSR_NAME,
+            Some(|csr| {
+                let mut extensions = openssl::stack::Stack::new().unwrap();
+
+                let ext_key_usage = openssl::x509::extension::ExtendedKeyUsage::new()
+                    .client_auth()
+                    .build()
+                    .unwrap();
+
+                extensions.push(ext_key_usage).unwrap();
+
+                csr.add_extensions(&extensions).unwrap();
+            }),
+        );
+        assert!(check_policy(&client, &csr).await.is_none());
+
+        // CSR with serverAuth extKeyUsage.
+        let csr = server_cert_csr();
+        assert!(check_policy(&client, &csr).await.is_some());
+    }
+}

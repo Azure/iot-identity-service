@@ -5,11 +5,14 @@ use aziot_identity_common_http::get_provisioning_info::Response as ProvisioningI
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct IdentityClient {
+    pub get_provisioning_info_ok: bool,
     pub create_identity_ok: bool,
     pub get_identities_ok: bool,
     pub get_identity_ok: bool,
     pub update_identity_ok: bool,
     pub delete_identity_ok: bool,
+
+    pub provisioning_info: ProvisioningInfo,
 
     // Because the signatures of this test client must match the real client, the test client's
     // functions cannot use `mut self` as a parameter.
@@ -28,12 +31,14 @@ impl Default for IdentityClient {
         let identities = futures_util::lock::Mutex::new(std::cell::RefCell::new(identities));
 
         IdentityClient {
+            get_provisioning_info_ok: true,
             create_identity_ok: true,
             get_identities_ok: true,
             get_identity_ok: true,
             update_identity_ok: true,
             delete_identity_ok: true,
 
+            provisioning_info: provisioning_info(),
             identities,
         }
     }
@@ -50,7 +55,11 @@ impl IdentityClient {
     }
 
     pub async fn get_provisioning_info(&self) -> Result<ProvisioningInfo, std::io::Error> {
-        todo!()
+        if self.get_provisioning_info_ok {
+            Ok(self.provisioning_info.clone())
+        } else {
+            Err(super::client_error())
+        }
     }
 
     pub async fn create_module_identity(
@@ -155,4 +164,20 @@ fn test_identity(module_name: &str) -> Identity {
             cert_id: Some(format!("{}-cert", module_name)),
         }),
     })
+}
+
+/// Generate a ProvisioningInfo with CertIssuancePolicy.
+fn provisioning_info() -> ProvisioningInfo {
+    ProvisioningInfo::Dps {
+        auth: "x509".to_string(),
+        endpoint: "localhost".to_string(),
+        scope_id: "scope".to_string(),
+        registration_id: Some("registrationId".to_string()),
+        certificate_issuance_policy: Some(aziot_identity_common::CertIssuancePolicy {
+            end_point: "localhost".to_string(),
+            certificate_issuance_type: aziot_identity_common::CertIssuanceType::ServerCertificate,
+            key_length_in_bits: 2048,
+            key_curve: None,
+        }),
+    }
 }

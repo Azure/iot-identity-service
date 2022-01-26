@@ -14,7 +14,36 @@ pub fn new_keys() -> (
     (private_key, public_key)
 }
 
-/// Generates a self-signed cert for testing.
+/// Generate a CSR for testing.
+///
+/// The `customize` parameter is an optional function that can be used to
+/// override the test defaults before the CSR is signed.
+pub fn test_csr(
+    common_name: &str,
+    customize: Option<fn(&mut openssl::x509::X509ReqBuilder)>,
+) -> (
+    openssl::x509::X509Req,
+    openssl::pkey::PKey<openssl::pkey::Private>,
+) {
+    let name = name(common_name);
+    let (private_key, public_key) = new_keys();
+
+    let mut csr = openssl::x509::X509Req::builder().unwrap();
+
+    csr.set_subject_name(&name).unwrap();
+    csr.set_pubkey(&public_key).unwrap();
+
+    if let Some(customize) = customize {
+        customize(&mut csr);
+    }
+
+    csr.sign(&private_key, openssl::hash::MessageDigest::sha256())
+        .unwrap();
+
+    (csr.build(), private_key)
+}
+
+/// Generate a self-signed cert for testing.
 ///
 /// The `customize` parameter is an optional function that can be used to
 /// override the test defaults before the certificate is signed.
@@ -25,10 +54,7 @@ pub fn test_certificate(
     openssl::x509::X509,
     openssl::pkey::PKey<openssl::pkey::Private>,
 ) {
-    let mut name = openssl::x509::X509Name::builder().unwrap();
-    name.append_entry_by_text("CN", common_name).unwrap();
-    let name = name.build();
-
+    let name = name(common_name);
     let (private_key, public_key) = new_keys();
 
     let mut cert = openssl::x509::X509::builder().unwrap();
@@ -51,4 +77,11 @@ pub fn test_certificate(
         .unwrap();
 
     (cert.build(), private_key)
+}
+
+fn name(common_name: &str) -> openssl::x509::X509Name {
+    let mut name = openssl::x509::X509Name::builder().unwrap();
+    name.append_entry_by_text("CN", common_name).unwrap();
+
+    name.build()
 }
