@@ -166,7 +166,7 @@ fn test_identity(module_name: &str) -> Identity {
     })
 }
 
-/// Generate a ProvisioningInfo with CertIssuancePolicy.
+/// Generate a `ProvisioningInfo` with `CertIssuancePolicy`.
 fn provisioning_info() -> ProvisioningInfo {
     ProvisioningInfo::Dps {
         auth: "x509".to_string(),
