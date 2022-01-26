@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 /// Extended Key Usage.
+///
+/// See [RFC 5280](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.12)
+/// for more information.
 #[derive(Debug)]
 pub struct ExtKeyUsage {
     /// Server authentication.
-    server_auth: bool,
+    pub server_auth: bool,
     // extKeyUsage contains other fields, but only serverAuth is used in Certs Service.
     // Unused other fields are omitted.
 }
@@ -47,11 +50,6 @@ impl ExtKeyUsage {
 
         Some(ext_key_usage)
     }
-
-    /// Check if this `extKeyUsage` has serverAuth set.
-    pub fn server_auth(&self) -> bool {
-        self.server_auth
-    }
 }
 
 fn parse_extension(
@@ -85,7 +83,7 @@ mod tests {
             .unwrap();
 
         let extension = ExtKeyUsage::from_ext(&ext_key_usage).unwrap();
-        assert!(extension.server_auth());
+        assert!(extension.server_auth);
 
         // extKeyUsage = critical, serverAuth
         let ext_key_usage = openssl::x509::extension::ExtendedKeyUsage::new()
@@ -95,7 +93,7 @@ mod tests {
             .unwrap();
 
         let extension = ExtKeyUsage::from_ext(&ext_key_usage).unwrap();
-        assert!(extension.server_auth());
+        assert!(extension.server_auth);
 
         // extKeyUsage = clientAuth, serverAuth, codeSigning, emailProtection
         let ext_key_usage = openssl::x509::extension::ExtendedKeyUsage::new()
@@ -107,7 +105,7 @@ mod tests {
             .unwrap();
 
         let extension = ExtKeyUsage::from_ext(&ext_key_usage).unwrap();
-        assert!(extension.server_auth());
+        assert!(extension.server_auth);
 
         // extKeyUsage = clientAuth, codeSigning, emailProtection
         let ext_key_usage = openssl::x509::extension::ExtendedKeyUsage::new()
@@ -118,6 +116,6 @@ mod tests {
             .unwrap();
 
         let extension = ExtKeyUsage::from_ext(&ext_key_usage).unwrap();
-        assert!(!extension.server_auth());
+        assert!(!extension.server_auth);
     }
 }
