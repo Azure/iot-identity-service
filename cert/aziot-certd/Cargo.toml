@@ -43,6 +43,8 @@ config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
-
 [build-dependencies]
 openssl-build = { path = "../../openssl-build/" }
+
+[dev-dependencies]
+test-common = { path = "../../test-common" }

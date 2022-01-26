@@ -44,6 +44,12 @@ use http_common::Connector;
 
 use error::{Error, InternalError};
 
+#[cfg(not(test))]
+use aziot_identity_client_async::Client as IdentityClient;
+
+#[cfg(test)]
+use test_common::client::IdentityClient;
+
 pub(crate) type BoxedError = Box<dyn StdError + Send + Sync>;
 
 #[allow(clippy::unused_async)]
@@ -66,7 +72,7 @@ pub async fn main(
     } = config;
 
     let api = {
-        let identity_client = Arc::new(aziot_identity_client_async::Client::new(
+        let identity_client = Arc::new(IdentityClient::new(
             aziot_identity_common_http::ApiVersion::V2021_12_01,
             identity_connector,
             0,
@@ -116,7 +122,7 @@ struct Api {
     preloaded_certs: BTreeMap<String, PreloadedCert>,
     principals: BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
-    identity_client: Arc<aziot_identity_client_async::Client>,
+    identity_client: Arc<IdentityClient>,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: FunctionalEngine,
     proxy_uri: Option<hyper::Uri>,
@@ -187,7 +193,7 @@ impl Api {
             log::info!("{} will be issued by DPS.", id);
 
             // TODO: DPS client call.
-            return Err(Error::Internal(InternalError::Dps("TODO".into())))
+            return Err(Error::Internal(InternalError::Dps("TODO".into())));
         } else {
             let issuer = issuer
                 .map(|(id, handle)| -> Result<_, Error> {

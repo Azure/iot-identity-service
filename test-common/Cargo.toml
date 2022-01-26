@@ -12,3 +12,9 @@ hyper = { version = "0.14", features = ["server"] }
 openssl = "0.10"
 tokio = { version = "1", features = ["net"] }
 tokio-openssl = "0.6"
+
+aziot-key-client = { path = "../key/aziot-key-client" }
+aziot-key-common = { path = "../key/aziot-key-common" }
+aziot-identity-common = { path = "../identity/aziot-identity-common" }
+aziot-identity-common-http = { path = "../identity/aziot-identity-common-http" }
+http-common = { path = "../http-common" }

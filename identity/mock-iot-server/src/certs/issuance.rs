@@ -42,8 +42,7 @@ pub(crate) fn issue_cert(csr: &openssl::x509::X509Req) -> String {
 
     // mock-iot-server does not authenticate the client. So it's fine to sign
     // the identity certificate with any arbitrary key.
-    let rsa = openssl::rsa::Rsa::generate(2048).unwrap();
-    let issuer_key = openssl::pkey::PKey::from_rsa(rsa).unwrap();
+    let (issuer_key, _) = test_common::credential::new_keys();
     cert.sign(&issuer_key, openssl::hash::MessageDigest::sha256())
         .unwrap();
 

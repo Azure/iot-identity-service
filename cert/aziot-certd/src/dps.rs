@@ -2,8 +2,14 @@
 
 use aziot_identity_common_http::get_provisioning_info::Response as ProvisioningInfo;
 
+#[cfg(not(test))]
+use aziot_identity_client_async::Client as IdentityClient;
+
+#[cfg(test)]
+use test_common::client::IdentityClient;
+
 pub(crate) async fn check_policy(
-    client: &aziot_identity_client_async::Client,
+    client: &IdentityClient,
     csr: &openssl::x509::X509Req,
 ) -> Option<ProvisioningInfo> {
     let provisioning_info = match client.get_provisioning_info().await {
