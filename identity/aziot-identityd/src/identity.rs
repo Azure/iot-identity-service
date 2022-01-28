@@ -724,7 +724,7 @@ impl IdentityManager {
         }
 
         let dps_request = aziot_cloud_client_async::DpsClient::new(
-            &credentials,
+            credentials.clone(),
             self.key_client.clone(),
             self.key_engine.clone(),
             self.cert_client.clone(),

@@ -4,24 +4,41 @@ use std::io::Error;
 
 use aziot_identity_common::hub::{AuthMechanism, Module};
 
-pub struct Client {}
+pub struct Client {
+    auth: aziot_identity_common::Credentials,
+
+    timeout: std::time::Duration,
+    retries: u32,
+
+    proxy: Option<hyper::Uri>,
+}
 
 impl Client {
     pub fn new(
-        _device: &aziot_identity_common::IoTHubDevice,
+        device: &aziot_identity_common::IoTHubDevice,
         _key_client: crate::KeyClient,
         _key_engine: crate::KeyEngine,
         _cert_client: crate::CertClient,
     ) -> Self {
-        todo!()
+        Client {
+            auth: device.credentials.clone(),
+            timeout: std::time::Duration::from_secs(30),
+            retries: 0,
+            proxy: None,
+        }
     }
 
-    pub fn with_retry(self, _timeout: std::time::Duration, _retries: u32) -> Self {
-        todo!()
+    pub fn with_retry(mut self, timeout: std::time::Duration, retries: u32) -> Self {
+        self.timeout = timeout;
+        self.retries = retries;
+
+        self
     }
 
-    pub fn with_proxy(self, _proxy: Option<hyper::Uri>) -> Self {
-        todo!()
+    pub fn with_proxy(mut self, proxy: Option<hyper::Uri>) -> Self {
+        self.proxy = proxy;
+
+        self
     }
 
     pub async fn create_module(
