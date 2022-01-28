@@ -37,8 +37,33 @@ pub(crate) async fn from_auth(
     }
 }
 
+pub(crate) async fn auth_header(
+    audience: &str,
+    auth: &aziot_identity_common::Credentials,
+    key_client: &crate::KeyClient,
+    tpm_client: &crate::TpmClient,
+) -> Result<Option<String>, Error> {
+    match auth {
+        aziot_identity_common::Credentials::Tpm => {
+            let token = generate_token(audience, None, tpm_client).await?;
+
+            Ok(Some(token))
+        }
+
+        aziot_identity_common::Credentials::SharedPrivateKey(key_id) => {
+            let key_handle = key_client.load_key(key_id).await?;
+
+            let token = generate_token(&audience, Some(&key_handle), key_client).await?;
+
+            Ok(Some(token))
+        }
+
+        aziot_identity_common::Credentials::X509 { .. } => Ok(None),
+    }
+}
+
 #[async_trait::async_trait]
-pub(crate) trait SignData {
+trait SignData {
     async fn sign_data(
         &self,
         key_handle: Option<&aziot_key_common::KeyHandle>,
@@ -76,7 +101,7 @@ impl SignData for crate::TpmClient {
     }
 }
 
-pub(crate) async fn auth_header(
+async fn generate_token(
     audience: &str,
     key_handle: Option<&aziot_key_common::KeyHandle>,
     client: &impl SignData,
@@ -84,12 +109,10 @@ pub(crate) async fn auth_header(
     let expiry = chrono::Utc::now() + chrono::Duration::seconds(30);
     let expiry = expiry.timestamp().to_string();
 
-    const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
-    let resource_uri =
-        percent_encoding::percent_encode(audience.to_lowercase().as_bytes(), ENCODE_SET)
-            .to_string();
+    let audience = audience.to_lowercase();
+    let resource_uri = percent_encoding::percent_encode(audience.as_bytes(), crate::ENCODE_SET);
 
-    let sig_data = format!("{}\n{}", &resource_uri, expiry);
+    let sig_data = format!("{}\n{}", resource_uri, expiry);
     let signature = client.sign_data(key_handle, sig_data.as_bytes()).await?;
     let signature = base64::encode(&signature);
 

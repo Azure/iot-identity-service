@@ -18,3 +18,5 @@ type TpmClient = std::sync::Arc<aziot_tpm_client_async::Client>;
 
 type CloudConnector =
     http_common::MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>;
+
+const ENCODE_SET: &percent_encoding::AsciiSet = &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');

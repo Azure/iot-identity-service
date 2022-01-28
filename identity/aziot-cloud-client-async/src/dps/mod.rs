@@ -181,32 +181,15 @@ impl Client {
         register_uri: &str,
         register_body: schema::request::DeviceRegistration,
     ) -> Result<Result<schema::Device, schema::response::ServiceError>, Error> {
-        // Determine whether to include an Authorization header.
+        // Determine the Authorization header to include.
         let audience = format!("{}/registrations/{}", scope_id, registration_id);
-
-        let auth_header = match &self.auth {
-            aziot_identity_common::Credentials::Tpm => {
-                let auth_header =
-                    crate::connector::auth_header(&audience, None, &self.tpm_client).await?;
-
-                Some(auth_header)
-            }
-
-            aziot_identity_common::Credentials::SharedPrivateKey(key_id) => {
-                let key_handle = self.key_client.load_key(key_id).await?;
-
-                let auth_header =
-                    crate::connector::auth_header(&audience, Some(&key_handle), &self.key_client)
-                        .await?;
-
-                Some(auth_header)
-            }
-
-            aziot_identity_common::Credentials::X509 { .. } => {
-                // No authorization header is needed when using X.509 credentials.
-                None
-            }
-        };
+        let auth_header = crate::connector::auth_header(
+            &audience,
+            &self.auth,
+            &self.key_client,
+            &self.tpm_client,
+        )
+        .await?;
 
         // Send the DPS registration request.
         let mut register_request = HttpRequest::put(connector.clone(), register_uri, register_body)

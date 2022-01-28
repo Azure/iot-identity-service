@@ -124,6 +124,9 @@ where
             }
 
             current_attempt += 1;
+
+            // Wait a short time between failed requests.
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
         };
 
         let (
