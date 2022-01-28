@@ -60,7 +60,12 @@ pub mod response {
         rename_all = "lowercase"
     )]
     pub enum DeviceRegistration {
-        Assigned(super::Device),
+        Assigned {
+            #[serde(flatten)]
+            device: super::Device,
+
+            tpm: Option<TpmAuthKey>,
+        },
         Assigning {
             #[serde(rename = "registrationId")]
             registration_id: String,

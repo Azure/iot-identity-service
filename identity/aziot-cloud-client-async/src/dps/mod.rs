@@ -91,14 +91,6 @@ impl Client {
             register_uri
         };
 
-        // Registration with TPM has an additional step to get an authentication key
-        // from DPS. After importing the authentication key, the remaining registration
-        // steps are the same as registration with SAS key.
-        if let aziot_identity_common::Credentials::Tpm = &self.auth {
-            self.get_tpm_auth_key(connector.clone(), register_uri.as_str(), registration_id)
-                .await?;
-        }
-
         // Perform the DPS registration.
         let register_body = schema::request::DeviceRegistration {
             registration_id: registration_id.to_string(),
@@ -120,14 +112,12 @@ impl Client {
         Ok(device)
     }
 
-    async fn get_tpm_auth_key(
+    async fn get_tpm_nonce(
         &self,
         connector: crate::CloudConnector,
         uri: &str,
         registration_id: &str,
     ) -> Result<(), Error> {
-        log::info!("Retrieving authentication key from DPS.");
-
         let request_body = {
             let tpm_keys = self.tpm_client.get_tpm_keys().await?;
 
@@ -142,7 +132,7 @@ impl Client {
             .json_response()
             .await?;
 
-        // DPS should respond with 401 Unauthorized and present the authentication key.
+        // DPS should respond with 401 Unauthorized and present the encrypted nonce.
         if response_status != hyper::StatusCode::UNAUTHORIZED {
             return Err(Error::new(
                 ErrorKind::InvalidData,
@@ -158,8 +148,9 @@ impl Client {
                 .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
         };
 
+        // Decrypt and import the nonce into the TPM. This nonce will be used to sign a SAS token
+        // for the second part of provisioning.
         self.tpm_client.import_auth_key(auth_key).await?;
-        log::info!("Imported DPS authentication key into TPM.");
 
         Ok(())
     }
@@ -181,6 +172,14 @@ impl Client {
         register_uri: &str,
         register_body: schema::request::DeviceRegistration,
     ) -> Result<Result<schema::Device, schema::response::ServiceError>, Error> {
+        // Registration with TPM has an additional step to get an encrypted nonce
+        // from DPS. After decrypting and importing the nonce, the remaining registration
+        // steps are the same as registration with SAS key.
+        if let aziot_identity_common::Credentials::Tpm = &self.auth {
+            self.get_tpm_nonce(connector.clone(), register_uri, registration_id)
+                .await?;
+        }
+
         // Determine the Authorization header to include.
         let auth_header = crate::connector::auth_header(
             crate::connector::Audience::Registration {
@@ -275,7 +274,15 @@ impl Client {
             };
 
             match registration {
-                schema::response::DeviceRegistration::Assigned(device) => {
+                schema::response::DeviceRegistration::Assigned { device, tpm } => {
+                    if let Some(tpm) = tpm {
+                        let auth_key = base64::decode(tpm.authentication_key)
+                            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+
+                        self.tpm_client.import_auth_key(auth_key).await?;
+                        log::info!("Imported DPS authentication key into TPM.");
+                    }
+
                     return Ok(Ok(device));
                 }
 
