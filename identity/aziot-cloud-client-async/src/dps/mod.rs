@@ -104,15 +104,20 @@ impl Client {
             registration_id: registration_id.to_string(),
         };
 
-        self.register_once(
-            connector,
-            scope_id,
-            registration_id,
-            register_uri.as_str(),
-            register_body,
-        )
-        .await?
-        .map_err(|err| Error::new(ErrorKind::Other, err.message))
+        let device = self
+            .register_once(
+                connector,
+                scope_id,
+                registration_id,
+                register_uri.as_str(),
+                register_body,
+            )
+            .await?
+            .map_err(|err| Error::new(ErrorKind::Other, err.message))?;
+
+        log::info!("DPS registration complete.");
+
+        Ok(device)
     }
 
     async fn get_tpm_auth_key(
@@ -249,6 +254,9 @@ impl Client {
         };
 
         // Query the status URI until the registration finishes.
+        const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
+        tokio::time::sleep(POLL_PERIOD).await;
+
         loop {
             // Since this request is already in a retry loop, with_retry() is not used
             // with this request.
@@ -263,7 +271,6 @@ impl Client {
             let (response_status, response_body) = status_request.json_response().await?;
 
             let registration = if response_status.is_success() {
-                println!("{:?}", response_body);
                 let response_body: schema::response::DeviceRegistration =
                     serde_json::from_slice(&response_body)
                         .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
@@ -282,35 +289,22 @@ impl Client {
                 ));
             };
 
-            match registration.operation.status {
-                schema::EnrollmentStatus::Assigned => {
-                    if let schema::RegistrationState::Assigned(device) =
-                        registration.registration_state
-                    {
-                        log::info!("DPS registration complete.");
-                        return Ok(Ok(device));
-                    } else {
-                        return Err(Error::new(
-                            ErrorKind::Other,
-                            "DPS registration failed; invalid registration state",
-                        ));
-                    }
+            match registration {
+                schema::response::DeviceRegistration::Assigned(device) => {
+                    return Ok(Ok(device));
                 }
 
-                schema::EnrollmentStatus::Assigning => {
+                schema::response::DeviceRegistration::Assigning { .. } => {
                     log::info!("DPS registration is still in progress.");
 
-                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    tokio::time::sleep(POLL_PERIOD).await;
                 }
 
-                _ => {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        format!(
-                            "DPS registration failed; status is {:?}",
-                            registration.operation.status
-                        ),
-                    ));
+                schema::response::DeviceRegistration::Failed(error) => {
+                    // Some failures mean the registration should be retried with a different request
+                    // body. Return the error and let the caller of this function determine if retry
+                    // is necessary.
+                    return Ok(Err(error));
                 }
             }
         }

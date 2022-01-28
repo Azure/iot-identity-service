@@ -35,8 +35,9 @@ pub mod response {
     #[derive(Debug, serde::Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ServiceError {
-        #[serde(alias = "code")]
-        pub error_code: i32,
+        #[serde(alias = "errorCode")]
+        pub code: i32,
+        #[serde(alias = "errorMessage")]
         pub message: String,
     }
 
@@ -50,38 +51,22 @@ pub mod response {
     #[serde(rename_all = "camelCase")]
     pub struct OperationStatus {
         pub operation_id: String,
-        pub status: super::EnrollmentStatus,
     }
 
     #[derive(Debug, serde::Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    pub struct DeviceRegistration {
-        #[serde(flatten)]
-        pub operation: OperationStatus,
-
-        pub registration_state: super::RegistrationState,
+    #[serde(
+        tag = "status",
+        content = "registrationState",
+        rename_all = "lowercase"
+    )]
+    pub enum DeviceRegistration {
+        Assigned(super::Device),
+        Assigning {
+            #[serde(rename = "registrationId")]
+            registration_id: String,
+        },
+        Failed(ServiceError),
     }
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EnrollmentStatus {
-    Assigned,
-    Assigning,
-    Disabled,
-    Failed,
-    Unassigned,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(
-    tag = "status",
-    content = "registrationState",
-    rename_all = "lowercase"
-)]
-pub enum RegistrationState {
-    Assigning,
-    Assigned(Device),
 }
 
 #[derive(Debug, serde::Deserialize)]
