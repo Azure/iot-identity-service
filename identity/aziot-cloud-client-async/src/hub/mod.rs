@@ -57,33 +57,61 @@ impl Client {
 
     pub async fn create_module(
         &self,
-        _module_id: &str,
-        _authentication_type: Option<AuthMechanism>,
-        _managed_by: Option<String>,
+        module_id: &str,
+        authentication_type: Option<AuthMechanism>,
+        managed_by: Option<String>,
     ) -> Result<Module, Error> {
-        todo!()
+        let body = Module {
+            module_id: module_id.to_string(),
+            managed_by,
+            device_id: self.device.device_id.clone(),
+            generation_id: None,
+            authentication: authentication_type,
+        };
+
+        let request = self
+            .build_request(hyper::Method::PUT, Some(module_id), Some(body))
+            .await?;
+        let response = request.json_response().await?;
+
+        parse_response(response)
     }
 
     pub async fn update_module(
         &self,
         module_id: &str,
-        _authentication_type: Option<AuthMechanism>,
-        _managed_by: Option<String>,
+        authentication_type: Option<AuthMechanism>,
+        managed_by: Option<String>,
     ) -> Result<Module, Error> {
-        let mut request: HttpRequest<()> = self
-            .build_request(hyper::Method::PUT, Some(module_id))
+        let body = Module {
+            module_id: module_id.to_string(),
+            managed_by,
+            device_id: self.device.device_id.clone(),
+            generation_id: None,
+            authentication: authentication_type,
+        };
+
+        let mut request = self
+            .build_request(hyper::Method::PUT, Some(module_id), Some(body))
             .await?;
         request.add_header(hyper::header::IF_MATCH, "*")?;
 
-        todo!()
+        let response = request.json_response().await?;
+
+        parse_response(response)
     }
 
-    pub async fn get_module(&self, _module_id: &str) -> Result<Module, Error> {
-        todo!()
+    pub async fn get_module(&self, module_id: &str) -> Result<Module, Error> {
+        let request: HttpRequest<()> = self
+            .build_request(hyper::Method::GET, Some(module_id), None)
+            .await?;
+        let response = request.json_response().await?;
+
+        parse_response(response)
     }
 
     pub async fn list_modules(&self) -> Result<Vec<Module>, Error> {
-        let request: HttpRequest<()> = self.build_request(hyper::Method::GET, None).await?;
+        let request: HttpRequest<()> = self.build_request(hyper::Method::GET, None, None).await?;
         let response = request.json_response().await?;
 
         parse_response(response)
@@ -91,17 +119,18 @@ impl Client {
 
     pub async fn delete_module(&self, module_id: &str) -> Result<(), Error> {
         let mut request: HttpRequest<()> = self
-            .build_request(hyper::Method::DELETE, Some(module_id))
+            .build_request(hyper::Method::DELETE, Some(module_id), None)
             .await?;
         request.add_header(hyper::header::IF_MATCH, "*")?;
 
-        todo!()
+        request.no_content_response().await
     }
 
     async fn build_request<TRequest>(
         &self,
         method: hyper::Method,
         module_id: Option<&str>,
+        body: Option<TRequest>,
     ) -> Result<HttpRequest<TRequest>, Error>
     where
         TRequest: serde::Serialize,
@@ -141,7 +170,11 @@ impl Client {
         uri.set_query(Some(API_VERSION));
 
         let mut request = match method {
+            hyper::Method::DELETE => HttpRequest::delete(connector, uri.as_str()),
             hyper::Method::GET => HttpRequest::get(connector, uri.as_str()),
+            hyper::Method::PUT => {
+                HttpRequest::put(connector, uri.as_str(), body.expect("missing PUT body"))
+            }
 
             // No other methods are used with IoT Hub.
             _ => unreachable!(),

@@ -11,7 +11,7 @@ where
     connector: crate::CloudConnector,
     method: hyper::Method,
     uri: String,
-    headers: http::header::HeaderMap<http::header::HeaderValue>,
+    headers: http::HeaderMap<http::HeaderValue>,
     body: Option<TBody>,
     timeout: std::time::Duration,
     retries: u32,
@@ -21,12 +21,24 @@ impl<TBody> HttpRequest<TBody>
 where
     TBody: serde::Serialize,
 {
+    pub fn delete(connector: crate::CloudConnector, uri: &str) -> Self {
+        HttpRequest {
+            connector,
+            method: hyper::Method::DELETE,
+            uri: uri.to_string(),
+            headers: http::HeaderMap::default(),
+            body: None,
+            timeout: std::time::Duration::from_secs(30),
+            retries: 0,
+        }
+    }
+
     pub fn get(connector: crate::CloudConnector, uri: &str) -> Self {
         HttpRequest {
             connector,
             method: hyper::Method::GET,
             uri: uri.to_string(),
-            headers: http::header::HeaderMap::default(),
+            headers: http::HeaderMap::default(),
             body: None,
             timeout: std::time::Duration::from_secs(30),
             retries: 0,
@@ -38,7 +50,7 @@ where
             connector,
             method: hyper::Method::PUT,
             uri: uri.to_string(),
-            headers: http::header::HeaderMap::default(),
+            headers: http::HeaderMap::default(),
             body: Some(body),
             timeout: std::time::Duration::from_secs(30),
             retries: 0,
@@ -57,7 +69,7 @@ where
         name: hyper::header::HeaderName,
         value: &str,
     ) -> Result<(), Error> {
-        let value = http::header::HeaderValue::from_str(value)
+        let value = http::HeaderValue::from_str(value)
             .map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
 
         self.headers.insert(name, value);
@@ -65,7 +77,51 @@ where
         Ok(())
     }
 
+    pub async fn no_content_response(self) -> Result<(), Error> {
+        let (response_status, _, _) = self.process_request(false).await?;
+
+        if response_status == hyper::StatusCode::NO_CONTENT {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::Other, "invalid HTTP status code"))
+        }
+    }
+
     pub async fn json_response(self) -> Result<(hyper::StatusCode, hyper::body::Bytes), Error> {
+        let (status, headers, body) = self.process_request(true).await?;
+
+        let is_json_response = if let Some(content_type) = headers.get(hyper::header::CONTENT_TYPE)
+        {
+            let content_type = content_type
+                .to_str()
+                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+
+            content_type.contains(CONTENT_TYPE_JSON)
+        } else {
+            false
+        };
+
+        if !is_json_response {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "invalid Content-Type; expected JSON",
+            ));
+        }
+
+        Ok((status, body.expect("make_request did not return body")))
+    }
+
+    async fn process_request(
+        self,
+        has_response: bool,
+    ) -> Result<
+        (
+            hyper::StatusCode,
+            http::HeaderMap<http::HeaderValue>,
+            Option<hyper::body::Bytes>,
+        ),
+        Error,
+    > {
         let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(self.connector);
 
         let mut current_attempt = 1;
@@ -138,28 +194,16 @@ where
             response_body,
         ) = response.into_parts();
 
-        let is_json_response =
-            if let Some(content_type) = response_headers.get(hyper::header::CONTENT_TYPE) {
-                let content_type = content_type
-                    .to_str()
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+        let response_body = if has_response {
+            let response_body = hyper::body::to_bytes(response_body)
+                .await
+                .map_err(|err| Error::new(ErrorKind::Other, err))?;
 
-                content_type.contains(CONTENT_TYPE_JSON)
-            } else {
-                false
-            };
+            Some(response_body)
+        } else {
+            None
+        };
 
-        if !is_json_response {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "invalid Content-Type; expected JSON",
-            ));
-        }
-
-        let response_body = hyper::body::to_bytes(response_body)
-            .await
-            .map_err(|err| Error::new(ErrorKind::Other, err))?;
-
-        Ok((response_status, response_body))
+        Ok((response_status, response_headers, response_body))
     }
 }
