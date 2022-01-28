@@ -37,15 +37,41 @@ pub(crate) async fn from_auth(
     }
 }
 
+pub(crate) enum Audience<'a> {
+    Registration {
+        scope_id: &'a str,
+        registration_id: &'a str,
+    },
+    Hub {
+        hub_hostname: &'a str,
+        device_id: &'a str,
+    },
+}
+
 pub(crate) async fn auth_header(
-    audience: &str,
+    audience: Audience<'_>,
     auth: &aziot_identity_common::Credentials,
     key_client: &crate::KeyClient,
     tpm_client: &crate::TpmClient,
 ) -> Result<Option<String>, Error> {
+    let (audience, is_registration) = match audience {
+        Audience::Registration {
+            scope_id,
+            registration_id,
+        } => (
+            format!("{}/registrations/{}", scope_id, registration_id),
+            true,
+        ),
+
+        Audience::Hub {
+            hub_hostname,
+            device_id,
+        } => (format!("{}/devices/{}", hub_hostname, device_id), false),
+    };
+
     match auth {
         aziot_identity_common::Credentials::Tpm => {
-            let token = generate_token(audience, None, tpm_client).await?;
+            let token = generate_token(&audience, None, tpm_client, is_registration).await?;
 
             Ok(Some(token))
         }
@@ -53,7 +79,8 @@ pub(crate) async fn auth_header(
         aziot_identity_common::Credentials::SharedPrivateKey(key_id) => {
             let key_handle = key_client.load_key(key_id).await?;
 
-            let token = generate_token(&audience, Some(&key_handle), key_client).await?;
+            let token =
+                generate_token(&audience, Some(&key_handle), key_client, is_registration).await?;
 
             Ok(Some(token))
         }
@@ -105,6 +132,7 @@ async fn generate_token(
     audience: &str,
     key_handle: Option<&aziot_key_common::KeyHandle>,
     client: &impl SignData,
+    is_registration: bool,
 ) -> Result<String, Error> {
     let expiry = chrono::Utc::now() + chrono::Duration::seconds(30);
     let expiry = expiry.timestamp().to_string();
@@ -123,8 +151,7 @@ async fn generate_token(
             .append_pair("sig", &signature)
             .append_pair("se", &expiry);
 
-        // Absence of a key handle means TPM registration.
-        if key_handle.is_none() {
+        if is_registration {
             token.append_pair("skn", "registration");
         }
 

@@ -182,9 +182,11 @@ impl Client {
         register_body: schema::request::DeviceRegistration,
     ) -> Result<Result<schema::Device, schema::response::ServiceError>, Error> {
         // Determine the Authorization header to include.
-        let audience = format!("{}/registrations/{}", scope_id, registration_id);
         let auth_header = crate::connector::auth_header(
-            &audience,
+            crate::connector::Audience::Registration {
+                scope_id,
+                registration_id,
+            },
             &self.auth,
             &self.key_client,
             &self.tpm_client,

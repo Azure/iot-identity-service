@@ -6,7 +6,7 @@ use aziot_identity_common::hub::{AuthMechanism, Module};
 
 use crate::request::HttpRequest;
 
-const API_VERSION: &str = "api-version=2020-05-31-preview";
+const API_VERSION: &str = "api-version=2017-11-08-preview";
 
 pub struct Client {
     device: aziot_identity_common::IoTHubDevice,
@@ -148,12 +148,11 @@ impl Client {
         }
         .with_retry(self.timeout, self.retries);
 
-        let audience = format!(
-            "{}/devices/{}",
-            self.device.iothub_hostname, self.device.device_id
-        );
         let auth_header = crate::connector::auth_header(
-            &audience,
+            crate::connector::Audience::Hub {
+                hub_hostname: &self.device.iothub_hostname,
+                device_id: &self.device.device_id,
+            },
             &self.device.credentials,
             &self.key_client,
             &self.tpm_client,
