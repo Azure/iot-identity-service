@@ -3,7 +3,7 @@
 use crate::server::Response;
 
 fn register(
-    registration_id: String,
+    registration_id: &str,
     body: Option<String>,
     context: &mut crate::server::DpsContext,
 ) -> Response {
@@ -125,7 +125,7 @@ pub(crate) fn process_dps_request(
             return Response::method_not_allowed(&req.method);
         }
 
-        register(registration_id, req.body, context)
+        register(&registration_id, req.body, context)
     } else {
         Response::not_found(format!("{} not found", req.uri))
     }
