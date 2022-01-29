@@ -35,6 +35,7 @@ pub struct Client {
 }
 
 impl Client {
+    #[must_use]
     pub fn new(
         device: &aziot_identity_common::IoTHubDevice,
         key_client: crate::KeyClient,

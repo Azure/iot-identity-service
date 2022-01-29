@@ -24,6 +24,7 @@ pub struct Client {
 }
 
 impl Client {
+    #[must_use]
     pub fn new(
         credentials: aziot_identity_common::Credentials,
         key_client: crate::KeyClient,
@@ -171,6 +172,8 @@ impl Client {
         register_uri: &str,
         register_body: schema::request::DeviceRegistration,
     ) -> Result<Result<schema::Device, schema::response::ServiceError>, Error> {
+        const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
+
         // Registration with TPM has an additional step to get an encrypted nonce
         // from DPS. After decrypting and importing the nonce, the remaining registration
         // steps are the same as registration with SAS key.
@@ -225,7 +228,6 @@ impl Client {
         };
 
         // Query the status URI until the registration finishes.
-        const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
         tokio::time::sleep(POLL_PERIOD).await;
 
         loop {

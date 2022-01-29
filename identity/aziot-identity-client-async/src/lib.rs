@@ -63,7 +63,7 @@ impl Client {
         let uri = make_uri!("/identities/identity", self.api_version);
 
         let request: HttpRequest<(), _> =
-            HttpRequest::get(self.connector.clone(), &uri).with_retry(self.max_retries);
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_caller_identity::Response =
@@ -79,7 +79,7 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), &uri, Some(body))
+        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
             .with_retry(self.max_retries);
 
         let response = request.json_response().await?;
@@ -96,7 +96,7 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), &uri, Some(body))
+        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
             .with_retry(self.max_retries);
 
         request.no_content_response().await
@@ -108,7 +108,7 @@ impl Client {
         let uri = make_uri!("/identities/provisioning", self.api_version);
 
         let request: HttpRequest<(), _> =
-            HttpRequest::get(self.connector.clone(), &uri).with_retry(self.max_retries);
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_provisioning_info::Response =
@@ -129,7 +129,7 @@ impl Client {
             opts: None,
         };
 
-        let request = HttpRequest::post(self.connector.clone(), &uri, Some(body))
+        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
             .with_retry(self.max_retries);
 
         let response = request.json_response().await?;
@@ -153,7 +153,7 @@ impl Client {
             opts: opts.map(|opts| create_module_identity::CreateModuleOpts::LocalIdOpts(opts)),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), &uri, Some(body))
+        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
             .with_retry(self.max_retries);
 
         let response = request.json_response().await?;
@@ -180,7 +180,7 @@ impl Client {
         };
 
         let request =
-            HttpRequest::put(self.connector.clone(), &uri, body).with_retry(self.max_retries);
+            HttpRequest::put(self.connector.clone(), uri, body).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: update_module_identity::Response =
@@ -193,7 +193,7 @@ impl Client {
         let uri = make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT);
 
         let request: HttpRequest<(), _> =
-            HttpRequest::get(self.connector.clone(), &uri).with_retry(self.max_retries);
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_module_identities::Response =
@@ -211,7 +211,7 @@ impl Client {
         );
 
         let request: HttpRequest<(), _> =
-            HttpRequest::get(self.connector.clone(), &uri).with_retry(self.max_retries);
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_module_identity::Response =
@@ -229,7 +229,7 @@ impl Client {
         );
 
         let request: HttpRequest<(), _> =
-            HttpRequest::delete(self.connector.clone(), &uri, None).with_retry(self.max_retries);
+            HttpRequest::delete(self.connector.clone(), uri, None).with_retry(self.max_retries);
 
         request.no_content_response().await
     }
@@ -238,7 +238,7 @@ impl Client {
         let uri = make_uri!("/trust-bundle", self.api_version);
 
         let request: HttpRequest<(), _> =
-            HttpRequest::get(self.connector.clone(), &uri).with_retry(self.max_retries);
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_trust_bundle::Response =
