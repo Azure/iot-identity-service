@@ -79,8 +79,8 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
-            .with_retry(self.max_retries);
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: get_device_identity::Response =
@@ -96,8 +96,8 @@ impl Client {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
-            .with_retry(self.max_retries);
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
         request.no_content_response().await
     }
@@ -129,8 +129,8 @@ impl Client {
             opts: None,
         };
 
-        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
-            .with_retry(self.max_retries);
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: create_module_identity::Response =
@@ -153,8 +153,8 @@ impl Client {
             opts: opts.map(|opts| create_module_identity::CreateModuleOpts::LocalIdOpts(opts)),
         };
 
-        let request = HttpRequest::post(self.connector.clone(), uri, Some(body))
-            .with_retry(self.max_retries);
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
         let response = request.json_response().await?;
         let response: create_module_identity::Response =
