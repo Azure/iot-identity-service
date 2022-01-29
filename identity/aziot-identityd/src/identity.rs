@@ -29,9 +29,7 @@ pub struct IdentityManager {
 
 impl IdentityManager {
     pub fn new(
-        homedir_path: std::path::PathBuf,
-        req_timeout: std::time::Duration,
-        req_retries: u32,
+        settings: &aziot_identityd_config::Settings,
         key_client: Arc<aziot_key_client_async::Client>,
         key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
@@ -40,9 +38,9 @@ impl IdentityManager {
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
-            homedir_path,
-            req_timeout,
-            req_retries,
+            homedir_path: settings.homedir.clone(),
+            req_timeout: std::time::Duration::from_secs(settings.cloud_timeout_sec),
+            req_retries: settings.cloud_retries,
             key_client,
             key_engine,
             cert_client,
