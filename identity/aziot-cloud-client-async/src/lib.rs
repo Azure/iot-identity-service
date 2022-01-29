@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+
 mod connector;
-mod request;
 
 pub mod dps;
 pub use dps::schema::request as DpsRequest;

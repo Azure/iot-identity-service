@@ -4,9 +4,21 @@ use std::io::{Error, ErrorKind};
 
 use aziot_identity_common::hub::{AuthMechanism, Module};
 
-use crate::request::HttpRequest;
+use http_common::HttpRequest;
 
 const API_VERSION: &str = "api-version=2017-11-08-preview";
+
+#[derive(Debug, serde::Deserialize)]
+struct HubError {
+    #[serde(rename = "Message")]
+    pub message: String,
+}
+
+impl std::convert::From<HubError> for Error {
+    fn from(err: HubError) -> Error {
+        Error::new(ErrorKind::Other, err.message)
+    }
+}
 
 pub struct Client {
     device: aziot_identity_common::IoTHubDevice,
@@ -42,9 +54,14 @@ impl Client {
         }
     }
 
-    pub fn with_retry(mut self, timeout: std::time::Duration, retries: u32) -> Self {
-        self.timeout = timeout;
+    pub fn with_retry(mut self, retries: u32) -> Self {
         self.retries = retries;
+
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = timeout;
 
         self
     }
@@ -72,9 +89,9 @@ impl Client {
         let request = self
             .build_request(hyper::Method::PUT, Some(module_id), Some(body))
             .await?;
-        let response = request.json_response().await?;
 
-        parse_response(response)
+        let response = request.json_response().await?;
+        response.parse::<Module, HubError>(hyper::StatusCode::CREATED)
     }
 
     pub async fn update_module(
@@ -97,28 +114,28 @@ impl Client {
         request.add_header(hyper::header::IF_MATCH, "*")?;
 
         let response = request.json_response().await?;
-
-        parse_response(response)
+        response.parse_expect_ok::<Module, HubError>()
     }
 
     pub async fn get_module(&self, module_id: &str) -> Result<Module, Error> {
-        let request: HttpRequest<()> = self
+        let request: HttpRequest<(), _> = self
             .build_request(hyper::Method::GET, Some(module_id), None)
             .await?;
-        let response = request.json_response().await?;
 
-        parse_response(response)
+        let response = request.json_response().await?;
+        response.parse_expect_ok::<Module, HubError>()
     }
 
     pub async fn list_modules(&self) -> Result<Vec<Module>, Error> {
-        let request: HttpRequest<()> = self.build_request(hyper::Method::GET, None, None).await?;
+        let request: HttpRequest<(), _> =
+            self.build_request(hyper::Method::GET, None, None).await?;
         let response = request.json_response().await?;
 
-        parse_response(response)
+        response.parse_expect_ok::<Vec<Module>, HubError>()
     }
 
     pub async fn delete_module(&self, module_id: &str) -> Result<(), Error> {
-        let mut request: HttpRequest<()> = self
+        let mut request: HttpRequest<(), _> = self
             .build_request(hyper::Method::DELETE, Some(module_id), None)
             .await?;
         request.add_header(hyper::header::IF_MATCH, "*")?;
@@ -131,7 +148,7 @@ impl Client {
         method: hyper::Method,
         module_id: Option<&str>,
         body: Option<TRequest>,
-    ) -> Result<HttpRequest<TRequest>, Error>
+    ) -> Result<HttpRequest<TRequest, crate::CloudConnector>, Error>
     where
         TRequest: serde::Serialize,
     {
@@ -170,7 +187,7 @@ impl Client {
         uri.set_query(Some(API_VERSION));
 
         let mut request = match method {
-            hyper::Method::DELETE => HttpRequest::delete(connector, uri.as_str()),
+            hyper::Method::DELETE => HttpRequest::delete(connector, uri.as_str(), None),
             hyper::Method::GET => HttpRequest::get(connector, uri.as_str()),
             hyper::Method::PUT => {
                 HttpRequest::put(connector, uri.as_str(), body.expect("missing PUT body"))
@@ -179,7 +196,8 @@ impl Client {
             // No other methods are used with IoT Hub.
             _ => unreachable!(),
         }
-        .with_retry(self.timeout, self.retries);
+        .with_retry(self.retries)
+        .with_timeout(self.timeout);
 
         let auth_header = crate::connector::auth_header(
             crate::connector::Audience::Hub {
@@ -197,37 +215,5 @@ impl Client {
         }
 
         Ok(request)
-    }
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct HubError {
-    #[serde(rename = "Message")]
-    pub message: String,
-}
-
-fn parse_response<TResponse>(
-    response: (hyper::StatusCode, hyper::body::Bytes),
-) -> Result<TResponse, Error>
-where
-    TResponse: serde::de::DeserializeOwned,
-{
-    let (status, body) = response;
-
-    if status == hyper::StatusCode::OK || status == hyper::StatusCode::CREATED {
-        let response =
-            serde_json::from_slice(&body).map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-        Ok(response)
-    } else if status.is_client_error() || status.is_server_error() {
-        let error: HubError =
-            serde_json::from_slice(&body).map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-        Err(Error::new(ErrorKind::Other, error.message))
-    } else {
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            "invalid HTTP status code",
-        ))
     }
 }

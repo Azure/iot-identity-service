@@ -80,3 +80,9 @@ pub struct Device {
     pub assigned_hub: String,
     pub device_id: String,
 }
+
+impl From<response::ServiceError> for std::io::Error {
+    fn from(err: response::ServiceError) -> std::io::Error {
+        std::io::Error::new(std::io::ErrorKind::Other, err.message)
+    }
+}

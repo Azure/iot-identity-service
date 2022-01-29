@@ -118,7 +118,8 @@ impl IdentityManager {
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
-                .with_retry(self.req_timeout, self.req_retries)
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
                 .with_proxy(self.proxy_uri.clone());
 
                 let new_module = client
@@ -200,7 +201,8 @@ impl IdentityManager {
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
-                .with_retry(self.req_timeout, self.req_retries)
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
                 .with_proxy(self.proxy_uri.clone());
 
                 let curr_module = client
@@ -299,7 +301,8 @@ impl IdentityManager {
                         self.cert_client.clone(),
                         self.tpm_client.clone(),
                     )
-                    .with_retry(self.req_timeout, self.req_retries)
+                    .with_retry(self.req_retries)
+                    .with_timeout(self.req_timeout)
                     .with_proxy(self.proxy_uri.clone());
 
                     match client.get_module(module_id).await {
@@ -384,7 +387,8 @@ impl IdentityManager {
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
-                .with_retry(self.req_timeout, self.req_retries)
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
                 .with_proxy(self.proxy_uri.clone());
 
                 let response = client.list_modules().await.map_err(Error::HubClient)?;
@@ -441,7 +445,8 @@ impl IdentityManager {
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
-                .with_retry(self.req_timeout, self.req_retries)
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
                 .with_proxy(self.proxy_uri.clone());
 
                 client
@@ -736,7 +741,8 @@ impl IdentityManager {
             self.tpm_client.clone(),
         )
         .with_endpoint(global_endpoint)
-        .with_retry(self.req_timeout, self.req_retries)
+        .with_retry(self.req_retries)
+        .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
         let response = dps_request

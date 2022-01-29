@@ -4,7 +4,7 @@ pub mod schema;
 
 use std::io::{Error, ErrorKind};
 
-use crate::request::HttpRequest;
+use http_common::HttpRequest;
 
 const API_VERSION: &str = "api-version=2021-06-01";
 
@@ -54,9 +54,14 @@ impl Client {
         self
     }
 
-    pub fn with_retry(mut self, timeout: std::time::Duration, retries: u32) -> Self {
-        self.timeout = timeout;
+    pub fn with_retry(mut self, retries: u32) -> Self {
         self.retries = retries;
+
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = timeout;
 
         self
     }
@@ -127,26 +132,20 @@ impl Client {
             }
         };
 
-        let (response_status, response_body) = HttpRequest::put(connector, uri, request_body)
-            .with_retry(self.timeout, self.retries)
+        let response = HttpRequest::put(connector, uri, request_body)
+            .with_retry(self.retries)
+            .with_timeout(self.timeout)
             .json_response()
             .await?;
 
         // DPS should respond with 401 Unauthorized and present the encrypted nonce.
-        if response_status != hyper::StatusCode::UNAUTHORIZED {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "invalid HTTP status code for TPM registration",
-            ));
-        }
+        let response = response
+            .parse::<schema::response::TpmAuthKey, schema::response::ServiceError>(
+                hyper::StatusCode::UNAUTHORIZED,
+            )?;
 
-        let auth_key = {
-            let auth_key: schema::response::TpmAuthKey = serde_json::from_slice(&response_body)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-            base64::decode(auth_key.authentication_key)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
-        };
+        let auth_key = base64::decode(response.authentication_key)
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
         // Decrypt and import the nonce into the TPM. This nonce will be used to sign a SAS token
         // for the second part of provisioning.
@@ -194,33 +193,21 @@ impl Client {
 
         // Send the DPS registration request.
         let mut register_request = HttpRequest::put(connector.clone(), register_uri, register_body)
-            .with_retry(self.timeout, self.retries);
+            .with_retry(self.retries)
+            .with_timeout(self.timeout);
 
         if let Some(auth_header) = &auth_header {
             register_request.add_header(hyper::header::AUTHORIZATION, auth_header)?;
         }
 
         log::info!("Sending DPS registration request.");
-        let (response_status, response_body) = register_request.json_response().await?;
+        let response = register_request.json_response().await?;
 
         // Determine the registration request's operation ID.
-        let operation_id = if response_status.is_success() {
-            let response_body: schema::response::OperationStatus =
-                serde_json::from_slice(&response_body)
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+        let operation_id = {
+            let response = response.parse_expect_ok::<schema::response::OperationStatus, schema::response::ServiceError>()?;
 
-            response_body.operation_id
-        } else if response_status.is_client_error() || response_status.is_server_error() {
-            let response_body: schema::response::ServiceError =
-                serde_json::from_slice(&response_body)
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-            return Err(Error::new(ErrorKind::Other, response_body.message));
-        } else {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "invalid HTTP status code",
-            ));
+            response.operation_id
         };
 
         // Determine the registration request's status URI.
@@ -244,7 +231,7 @@ impl Client {
         loop {
             // Since this request is already in a retry loop, with_retry() is not used
             // with this request.
-            let mut status_request: HttpRequest<()> =
+            let mut status_request: HttpRequest<(), _> =
                 HttpRequest::get(connector.clone(), status_uri.as_str());
 
             if let Some(auth_header) = &auth_header {
@@ -252,26 +239,9 @@ impl Client {
             }
 
             log::info!("Checking DPS registration status.");
-            let (response_status, response_body) = status_request.json_response().await?;
+            let response = status_request.json_response().await?;
 
-            let registration = if response_status.is_success() {
-                let response_body: schema::response::DeviceRegistration =
-                    serde_json::from_slice(&response_body)
-                        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-                response_body
-            } else if response_status.is_client_error() || response_status.is_server_error() {
-                let response_body: schema::response::ServiceError =
-                    serde_json::from_slice(&response_body)
-                        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-
-                return Ok(Err(response_body));
-            } else {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    "invalid HTTP status code",
-                ));
-            };
+            let registration = response.parse_expect_ok::<schema::response::DeviceRegistration, schema::response::ServiceError>()?;
 
             match registration {
                 schema::response::DeviceRegistration::Assigned { device, tpm } => {
