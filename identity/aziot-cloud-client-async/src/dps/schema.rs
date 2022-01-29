@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 pub mod request {
-    #[derive(Debug, serde::Serialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct DeviceRegistration {
         pub registration_id: String,
     }
 
-    #[derive(Debug, serde::Serialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TpmRegistration {
         pub registration_id: String,
@@ -15,7 +15,7 @@ pub mod request {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TpmAttestation {
     pub endorsement_key: String,
@@ -32,7 +32,7 @@ impl std::convert::From<aziot_tpm_common::TpmKeys> for TpmAttestation {
 }
 
 pub mod response {
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct ServiceError {
         #[serde(alias = "errorCode")]
@@ -41,19 +41,19 @@ pub mod response {
         pub message: String,
     }
 
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TpmAuthKey {
         pub authentication_key: String,
     }
 
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct OperationStatus {
         pub operation_id: String,
     }
 
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(
         tag = "status",
         content = "registrationState",
@@ -74,7 +74,7 @@ pub mod response {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
     pub assigned_hub: String,

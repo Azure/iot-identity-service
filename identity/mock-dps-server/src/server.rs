@@ -3,7 +3,6 @@
 pub(crate) struct ParsedRequest {
     pub method: hyper::Method,
     pub uri: String,
-    pub headers: std::collections::HashMap<String, String>,
     pub body: Option<String>,
 }
 
@@ -15,18 +14,6 @@ impl ParsedRequest {
         let method = req.method().clone();
         let uri = req.uri().to_string();
         println!("> {} {} {:?}", method, uri, req.version());
-
-        let mut headers = std::collections::HashMap::with_capacity(req.headers().len());
-        for (key, value) in req.headers() {
-            let key = key.to_string();
-            let value = value
-                .to_str()
-                .map_err(|_| Response::bad_request("bad header value"))?
-                .to_string();
-
-            println!("> {}: {}", key, value);
-            headers.insert(key, value);
-        }
 
         let body = hyper::body::to_bytes(req.into_body())
             .await
@@ -46,12 +33,7 @@ impl ParsedRequest {
             Some(body)
         };
 
-        Ok(ParsedRequest {
-            method,
-            uri,
-            headers,
-            body,
-        })
+        Ok(ParsedRequest { method, uri, body })
     }
 }
 
@@ -136,7 +118,7 @@ impl Response {
 pub(crate) struct DpsContextInner {
     pub in_progress_operations: std::collections::BTreeMap<
         String,
-        aziot_dps_client_async::model::RegistrationOperationStatus,
+        aziot_cloud_client_async::DpsResponse::DeviceRegistration,
     >,
 }
 
