@@ -208,7 +208,10 @@ impl Client {
 
         // Determine the registration request's operation ID.
         let operation_id = {
-            let response = response.parse_expect_ok::<schema::response::OperationStatus, schema::response::ServiceError>()?;
+            let response = response
+                .parse::<schema::response::OperationStatus, schema::response::ServiceError>(
+                    hyper::StatusCode::ACCEPTED,
+                )?;
 
             response.operation_id
         };

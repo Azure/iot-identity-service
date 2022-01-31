@@ -92,7 +92,7 @@ impl Client {
             .await?;
 
         let response = request.json_response().await?;
-        response.parse::<Module, HubError>(hyper::StatusCode::CREATED)
+        response.parse_expect_ok::<Module, HubError>()
     }
 
     pub async fn update_module(

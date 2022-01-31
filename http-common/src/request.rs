@@ -226,6 +226,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct HttpResponse {
     status: hyper::StatusCode,
     body: hyper::body::Bytes,
@@ -264,8 +265,8 @@ impl HttpResponse {
             Err(error.into())
         } else {
             Err(Error::new(
-                ErrorKind::InvalidData,
-                "invalid HTTP status code",
+                ErrorKind::Other,
+                format!("Expected {}, got {}", expected_status, self.status),
             ))
         }
     }
