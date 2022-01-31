@@ -39,8 +39,7 @@ fn register(
         symmetric_key: None,
         registration_id: Some(registration_id),
         created_date_time_utc: Some(now.clone()),
-        // Use localhost as hubname so devices provisioned with mock-iot-server don't try to
-        // communicate with IoT Hub.
+        // Direct all Hub requests to be handled by this process's endpoint.
         assigned_hub: Some(context.endpoint.clone()),
         device_id: Some(uuid.clone()),
         status: Some("assigned".to_string()),
