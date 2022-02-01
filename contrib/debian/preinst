@@ -44,7 +44,7 @@ case "$1" in
 		if ! /usr/bin/getent passwd aziotcs >/dev/null; then
 			/usr/sbin/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
 			/usr/sbin/usermod -aG aziotks aziotcs
-			/usr/sbin/usermod -aF aziotid aziotcs
+			/usr/sbin/usermod -aG aziotid aziotcs
 		fi
 		mkdir -p /var/lib/aziot/certd
 
