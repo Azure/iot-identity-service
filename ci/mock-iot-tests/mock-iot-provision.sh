@@ -96,7 +96,7 @@ identityd_pid="$!"
 sleep 5
 
 # Provisioning info has changed, so reprovision.
-curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2021-12-01" \
+curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2020-09-01" \
     -H "content-type: application/json" --data '{"type": "aziot"}' &> /dev/null
 
 # Get device identity. Check that it changed with the reprovision.
