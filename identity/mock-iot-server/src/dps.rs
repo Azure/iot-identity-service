@@ -5,12 +5,12 @@ use crate::server::Response;
 #[allow(clippy::too_many_lines)]
 fn register(
     registration_id: &str,
-    body: &Option<String>,
+    body: Option<&String>,
     context: &mut crate::server::Context,
 ) -> Response {
     let body = if let Some(body) = body {
         let body: aziot_cloud_client_async::DpsRequest::TpmRegistration =
-            match serde_json::from_str(&body) {
+            match serde_json::from_str(body) {
                 Ok(body) => body,
                 Err(_) => return Response::bad_request("failed to parse register body"),
             };
@@ -129,7 +129,7 @@ pub(crate) fn process_request(
             return Some(Response::method_not_allowed(&req.method));
         }
 
-        Some(register(&registration_id, &req.body, context))
+        Some(register(&registration_id, req.body.as_ref(), context))
     } else {
         Some(Response::not_found(format!("{} not found", req.uri)))
     }
