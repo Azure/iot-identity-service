@@ -1,6 +1,6 @@
 # mock-iot-server
 
-mock-iot-server provides a subset of DPS server and IoT Hub functionality for testing. In its current form, it is *not* a substitute for testing with the real IoT.
+mock-iot-server provides a subset of DPS server and IoT Hub functionality for testing. In its current form, it is *not* a substitute for testing with a real DPS or IoT Hub.
  - Does not verify any client credentials
  - May return the same hardcoded responses to all clients
  - May panic on error
