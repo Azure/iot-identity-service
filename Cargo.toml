@@ -21,7 +21,7 @@ members = [
 	"identity/aziot-identity-common",
 	"identity/aziot-identity-common-http",
 	"identity/aziot-identityd",
-	"identity/mock-dps-server",
+	"identity/mock-iot-server",
 
 	"iotedged",
 
