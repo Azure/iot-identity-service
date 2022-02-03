@@ -56,7 +56,7 @@ fn register(
 
     let response = aziot_cloud_client_async::DpsResponse::OperationStatus { operation_id };
 
-    Response::json(hyper::StatusCode::OK, response)
+    Response::json(hyper::StatusCode::ACCEPTED, response)
 }
 
 fn operation_status(operation_id: &str, context: &mut crate::server::Context) -> Response {
