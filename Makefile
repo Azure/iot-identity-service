@@ -49,7 +49,7 @@ endif
 SHELL := /bin/bash
 
 
-.PHONY: aziot-key-openssl-engine-shared-test clean default mock-dps-server test test-release
+.PHONY: aziot-key-openssl-engine-shared-test clean default mock-iot-server test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
 
 
@@ -105,8 +105,8 @@ clean:
 aziot-key-openssl-engine-shared-test:
 	$(CARGO) build -p aziot-key-openssl-engine-shared-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
-mock-dps-server:
-	$(CARGO) build -p mock-dps-server $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+mock-iot-server:
+	$(CARGO) build -p mock-iot-server $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 target/openapi-schema-validated: cert/aziot-certd/openapi/*.yaml
 target/openapi-schema-validated: key/aziot-keyd/openapi/*.yaml
@@ -148,7 +148,7 @@ test-release: test
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
 
-test: aziot-key-openssl-engine-shared-test default mock-dps-server
+test: aziot-key-openssl-engine-shared-test default mock-iot-server
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
@@ -206,11 +206,11 @@ test:
 
 codecov: default
 	mkdir -p coverage
-	
+
 	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$$PWD/target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)" $(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--exclude openssl-build --exclude test-common \
-		--exclude mock-dps-server \
+		--exclude mock-iot-server \
 		--exclude aziot-key-openssl-engine-shared-test \
 		--exclude-files tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/* \
 		--exclude-files tpm/aziot-tpm-sys/tests/* \

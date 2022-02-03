@@ -1590,10 +1590,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-dps-server"
+name = "mock-iot-server"
 version = "0.1.0"
 dependencies = [
  "aziot-cloud-client-async",
+ "aziot-identity-common",
  "chrono",
  "http",
  "hyper",
