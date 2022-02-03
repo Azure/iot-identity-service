@@ -116,6 +116,10 @@ EOF
 identityd_pid="$!"
 sleep 5
 
+# Provisioning info has changed, so reprovision.
+curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2021-12-01" \
+    -H "content-type: application/json" --data '{"type": "aziot"}' &> /dev/null
+
 # Check provisioning info.
 result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
 expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
