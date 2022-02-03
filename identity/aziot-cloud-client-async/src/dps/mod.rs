@@ -110,8 +110,7 @@ impl Client {
                 register_uri.as_str(),
                 register_body,
             )
-            .await?
-            .map_err(|err| Error::new(ErrorKind::Other, err.message))?;
+            .await?;
 
         log::info!("DPS registration complete.");
 
@@ -157,13 +156,8 @@ impl Client {
 
     /// Performs a single round of DPS registration.
     ///
-    /// Some DPS configurations may require multiple rounds. Note that this function returns a
-    /// nested `Result`.
-    /// - The first layer error (`std::io::Error`) is returned if DPS could not be reached or
-    /// another unrecoverable error occurred.
-    /// - The second layer error (`schema::response::ServiceError`) is returned if the DPS
-    /// service rejected the registration. The caller of this function will determine whether
-    /// to perform another round of DPS registration based on this error.
+    /// Some DPS configurations may require multiple rounds, so this function may be called
+    /// multiple times for a single DPS registration request.
     async fn register_once(
         &self,
         connector: crate::CloudConnector,
@@ -171,7 +165,7 @@ impl Client {
         registration_id: &str,
         register_uri: &str,
         register_body: schema::request::DeviceRegistration,
-    ) -> Result<Result<schema::Device, schema::response::ServiceError>, Error> {
+    ) -> Result<schema::Device, Error> {
         const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
 
         // Registration with TPM has an additional step to get an encrypted nonce
@@ -258,7 +252,7 @@ impl Client {
                         log::info!("Imported DPS authentication key into TPM.");
                     }
 
-                    return Ok(Ok(device));
+                    return Ok(device);
                 }
 
                 schema::response::DeviceRegistration::Assigning { .. } => {
@@ -271,7 +265,7 @@ impl Client {
                     // Some failures mean the registration should be retried with a different request
                     // body. Return the error and let the caller of this function determine if retry
                     // is necessary.
-                    return Ok(Err(error));
+                    return Err(error.into());
                 }
             }
         }
