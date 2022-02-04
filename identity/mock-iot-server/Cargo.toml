@@ -1,5 +1,5 @@
 [package]
-name = "mock-dps-server"
+name = "mock-iot-server"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
@@ -20,4 +20,5 @@ tokio-openssl = "0.6"
 uuid = { version = "0.8", features = ["v4"] }
 
 aziot-dps-client-async = { path = "../aziot-dps-client-async" }
+aziot-identity-common = { path = "../aziot-identity-common" }
 test-common = { path = "../../test-common" }
