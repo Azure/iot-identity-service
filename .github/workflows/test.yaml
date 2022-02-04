@@ -58,7 +58,7 @@ jobs:
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/aziot-key-openssl-engine-shared-test
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/libaziot_key_openssl_engine_shared.so
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/libaziot_keys.so
-          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/mock-dps-server
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/mock-iot-server
         if-no-files-found: 'error'
 
 
@@ -126,7 +126,7 @@ jobs:
         KEY_TYPE: "${{ matrix.key_type }}"
         PKCS11_BACKEND: "${{ matrix.pkcs11_backend }}"
 
-  mock-dps-tests:
+  mock-iot-tests:
     runs-on: 'ubuntu-18.04'
 
     strategy:
@@ -140,6 +140,8 @@ jobs:
         - 'ubuntu:18.04'
         arch:
         - 'amd64'
+        test:
+        - 'mock-iot-provision'
 
     needs: 'basic'
 
@@ -167,10 +169,10 @@ jobs:
     - name: 'Generate certificates'
       run: |
         touch ~/.rnd
-        mkdir mock_dps_server_certs
-        cd mock_dps_server_certs
-        ../ci/mock-dps-tests/mock-dps-cert-gen.sh
-    - name: 'Run mock-dps-provision'
+        mkdir mock_iot_server_certs
+        cd mock_iot_server_certs
+        ../ci/mock-iot-tests/mock-iot-cert-gen.sh
+    - name: 'Run test'
       run: |
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
@@ -179,12 +181,12 @@ jobs:
           -e "SERVER_CERT_CHAIN=$SERVER_CERT_CHAIN" \
           -e "SERVER_KEY=$SERVER_KEY" \
           "${{ matrix.container_os }}" \
-          '/src/ci/mock-dps-tests/mock-dps-provision.sh'
+          '/src/ci/mock-iot-tests/${{ matrix.test }}.sh'
       env:
         CONTAINER_OS: "${{ matrix.container_os }}"
-        ROOT_CERT: '/src/mock_dps_server_certs/root_cert.pem'
-        SERVER_CERT_CHAIN: '/src/mock_dps_server_certs/server_cert_chain.pem'
-        SERVER_KEY: '/src/mock_dps_server_certs/server_cert_key.pem'
+        ROOT_CERT: '/src/mock_iot_server_certs/root_cert.pem'
+        SERVER_CERT_CHAIN: '/src/mock_iot_server_certs/server_cert_chain.pem'
+        SERVER_KEY: '/src/mock_iot_server_certs/server_cert_key.pem'
 
   openapi:
     runs-on: 'ubuntu-18.04'
