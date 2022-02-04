@@ -156,9 +156,7 @@ impl Api {
             .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
 
         let id_manager = identity::IdentityManager::new(
-            settings.homedir.clone(),
-            std::time::Duration::from_secs(settings.cloud_timeout_sec),
-            settings.cloud_retries,
+            &settings,
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),

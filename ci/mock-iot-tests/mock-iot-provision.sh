@@ -42,7 +42,7 @@ sleep 1
 
 ./aziotd aziot-identityd &
 identityd_pid="$!"
-sleep 5
+sleep 10
 
 # Check provisioning info.
 result=$(curl -s \
