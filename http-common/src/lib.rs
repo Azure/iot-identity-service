@@ -25,10 +25,7 @@ mod proxy;
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
 mod request;
-pub use request::{
-    request, request_no_content, request_no_content_with_retry, request_with_headers,
-    request_with_headers_no_content, request_with_retry,
-};
+pub use request::HttpRequest;
 
 pub mod server;
 
@@ -89,4 +86,10 @@ impl serde::Serialize for ByteString {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ErrorBody<'a> {
     pub message: std::borrow::Cow<'a, str>,
+}
+
+impl std::convert::From<ErrorBody<'_>> for std::io::Error {
+    fn from(err: ErrorBody<'_>) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Other, err.message)
+    }
 }

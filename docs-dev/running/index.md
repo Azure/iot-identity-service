@@ -20,62 +20,6 @@
 
 1. Start `aziot-identityd` in another shell. See [Configuring and running `aziot-identityd`](aziot-identityd.md)
 
-1. Run `iotedged` in another shell.
-
-    - If the device identity is set to use the `shared_private_key` auth method, run the program with the SAS key:
-
-        ```sh
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --sas-key 'QXp1cmUgSW9UIEVkZ2U='
-        ```
-
-    - If the device identity is set to use the `x509_thumbprint` auth method, run the program with the identifier of the device ID cert and private key:
-
-        ```sh
-        # The value of `--preloaded-device-id-cert` matches
-        # the name of the key preloaded into keyd and
-        # the name of the cert preloaded into certd.
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --preloaded-device-id-cert 'device-id'
-        ```
-
-    - If the device identity is set to use the `x509_ca` auth method, run the program with the identifier of the device ID CA cert and private key:
-
-        ```sh
-        # The value of `--preloaded-device-id-ca-cert` matches
-        # the name of the key preloaded into keyd and
-        # the name of the cert preloaded into certd.
-        cargo run -p iotedged -- \
-            --hub-id 'example.azure-devices.net' \
-            --device-id 'example-1' \
-            --preloaded-device-id-ca-cert 'device-id-ca'
-        ```
-
-`iotedged` is a test binary that performs some operations that would be done by the Identity Service or Edge Module Runtime. Specifically, it connects to `aziot-keyd` and `aziot-certd` and does the following:
-
-1. Create a self-signed device CA cert.
-
-1. Create a workload CA cert signed by the device CA cert.
-
-1. Connect to IoT Hub using the device identity, using an auth method based on the parameters given to it:
-
-    - When `--sas-key` is provided:
-        1. Import the IoT Hub SAS key into `aziot-keyd`
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The SAS token for this request is signed using the SAS key imported into `aziot-keyd`.
-
-    - When `--preloaded-device-id-cert` is provided:
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The key and cert preloaded into `aziot-keyd` and `aziot-certd` respectively are used for TLS client authentication.
-
-    - When `--preloaded-device-id-ca-cert` is provided:
-        1. Obtain the device ID CA cert whose ID is specified by the parameter.
-        1. Create a new device ID certificate using `aziot-certd` that is signed by the device ID CA cert.
-        1. Connect to the IoT Hub and perform a list modules HTTP request. The device ID cert created in the previous step is used for TLS client authentication.
-
-
 ## Miscellaneous
 
 ### Create IoT Device identity with X.509-CA auth mode

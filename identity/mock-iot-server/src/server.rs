@@ -3,7 +3,6 @@
 pub(crate) struct ParsedRequest {
     pub method: hyper::Method,
     pub uri: String,
-    pub headers: std::collections::HashMap<String, String>,
     pub body: Option<String>,
 }
 
@@ -15,18 +14,6 @@ impl ParsedRequest {
         let method = req.method().clone();
         let uri = req.uri().to_string();
         println!("> {} {} {:?}", method, uri, req.version());
-
-        let mut headers = std::collections::HashMap::with_capacity(req.headers().len());
-        for (key, value) in req.headers() {
-            let key = key.to_string();
-            let value = value
-                .to_str()
-                .map_err(|_| Response::bad_request("bad header value"))?
-                .to_string();
-
-            println!("> {}: {}", key, value);
-            headers.insert(key, value);
-        }
 
         let body = hyper::body::to_bytes(req.into_body())
             .await
@@ -46,12 +33,7 @@ impl ParsedRequest {
             Some(body)
         };
 
-        Ok(ParsedRequest {
-            method,
-            uri,
-            headers,
-            body,
-        })
+        Ok(ParsedRequest { method, uri, body })
     }
 }
 
@@ -132,18 +114,32 @@ impl Response {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct DpsContextInner {
+pub(crate) struct ContextInner {
     pub in_progress_operations: std::collections::BTreeMap<
         String,
-        aziot_dps_client_async::model::RegistrationOperationStatus,
+        aziot_cloud_client_async::DpsResponse::DeviceRegistration,
     >,
+    pub devices: std::collections::BTreeMap<
+        String,
+        std::collections::HashSet<aziot_identity_common::hub::Module>,
+    >,
+    pub endpoint: String,
 }
 
-pub(crate) type DpsContext = std::sync::Arc<std::sync::Mutex<DpsContextInner>>;
+impl ContextInner {
+    pub fn new(options: &crate::Options) -> Self {
+        ContextInner {
+            in_progress_operations: std::collections::BTreeMap::new(),
+            devices: std::collections::BTreeMap::new(),
+            endpoint: format!("localhost:{}", options.port),
+        }
+    }
+}
+
+pub(crate) type Context = std::sync::Arc<std::sync::Mutex<ContextInner>>;
 
 pub(crate) async fn serve_request(
-    mut context: DpsContext,
+    mut context: Context,
     req: hyper::Request<hyper::Body>,
 ) -> Result<hyper::Response<hyper::Body>, std::convert::Infallible> {
     let req = match ParsedRequest::from_http(req).await {
@@ -151,5 +147,24 @@ pub(crate) async fn serve_request(
         Err(response) => return Ok(response.to_http()),
     };
 
-    Ok(crate::request::process_dps_request(req, &mut context).to_http())
+    if let Some(response) = crate::dps::process_request(&req, &mut context) {
+        return Ok(response.to_http());
+    }
+
+    if let Some(response) = crate::hub::process_request(&req, &mut context) {
+        return Ok(response.to_http());
+    }
+
+    Ok(Response::not_found(format!("{} not found", req.uri)).to_http())
+}
+
+pub(crate) fn get_param(captures: &regex::Captures<'_>, name: &str) -> Result<String, Response> {
+    let value = &captures[name];
+
+    let value = percent_encoding::percent_decode_str(value)
+        .decode_utf8()
+        .map_err(|_| Response::bad_request(format!("bad {}", name)))?
+        .to_string();
+
+    Ok(value)
 }
