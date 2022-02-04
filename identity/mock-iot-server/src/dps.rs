@@ -107,7 +107,7 @@ fn operation_status(operation_id: &str, context: &mut crate::server::Context) ->
 
                 context
                     .devices
-                    .insert(device_id, std::collections::BTreeSet::new());
+                    .insert(device_id, std::collections::HashSet::new());
             }
 
             Response::json(hyper::StatusCode::OK, operation)

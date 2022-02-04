@@ -61,9 +61,11 @@ openssl x509 -req \
 >/etc/aziot/keyd/config.toml cat <<-EOF
 [aziot_keys]
 homedir_path = "/var/lib/aziot/keyd"
+
 [preloaded_keys]
 device-id-symkey = "file://$PWD/device_id_symkey"
 device-id-certkey = "file://$PWD/device_id_certkey.pem"
+
 [[principal]]
 uid = $UID
 keys = ["*"]
@@ -71,8 +73,10 @@ EOF
 
 >/etc/aziot/certd/config.toml cat<<-EOF
 homedir_path = "/var/lib/aziot/certd"
+
 [preloaded_certs]
 device-id-cert = "file://$PWD/device_id_cert.pem"
+
 [[principal]]
 uid = $UID
 certs = ["*"]

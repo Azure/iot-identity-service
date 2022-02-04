@@ -3,7 +3,7 @@
 use crate::server::Response;
 
 fn list_modules(
-    modules: &std::collections::BTreeSet<aziot_identity_common::hub::Module>,
+    modules: &std::collections::HashSet<aziot_identity_common::hub::Module>,
 ) -> Response {
     let mut response = vec![];
 
@@ -17,7 +17,7 @@ fn list_modules(
 fn module_action(
     method: &hyper::Method,
     _module_id: &str,
-    _modules: &mut std::collections::BTreeSet<aziot_identity_common::hub::Module>,
+    _modules: &mut std::collections::HashSet<aziot_identity_common::hub::Module>,
 ) -> Response {
     // Current tests do not require these to be implemented, but they may be
     // needed in the future.
