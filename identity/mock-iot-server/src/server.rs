@@ -139,7 +139,7 @@ pub(crate) struct ContextInner {
     >,
     pub devices: std::collections::BTreeMap<
         String,
-        std::collections::BTreeSet<aziot_identity_common::hub::Module>,
+        std::collections::HashSet<aziot_identity_common::hub::Module>,
     >,
     pub trust_bundle: Option<aziot_dps_client_async::model::TrustBundle>,
     pub enable_identity_certs: bool,
