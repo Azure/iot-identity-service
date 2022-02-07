@@ -17,7 +17,7 @@ pub mod request {
     #[serde(rename_all = "camelCase")]
     pub struct TpmRegistration {
         pub registration_id: String,
-        pub tpm: Option<super::TpmAttestation>,
+        pub tpm: super::TpmAttestation,
     }
 }
 
@@ -70,6 +70,7 @@ pub mod response {
             #[serde(flatten)]
             device: super::Device,
 
+            #[serde(skip_serializing_if = "Option::is_none")]
             tpm: Option<TpmAuthKey>,
         },
         Assigning {

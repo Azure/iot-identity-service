@@ -177,7 +177,7 @@ impl Client {
 
             schema::request::TpmRegistration {
                 registration_id: registration_id.to_string(),
-                tpm: Some(tpm_keys.into()),
+                tpm: tpm_keys.into(),
             }
         };
 
