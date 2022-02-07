@@ -115,7 +115,7 @@ mod tests {
             endpoint,
             scope_id,
             registration_id,
-            certificate_issuance_policy: _,
+            cert_policy: _,
         } = client.provisioning_info
         {
             client.provisioning_info = ProvisioningInfo::Dps {
@@ -123,7 +123,7 @@ mod tests {
                 endpoint,
                 scope_id,
                 registration_id,
-                certificate_issuance_policy: None,
+                cert_policy: None,
             }
         } else {
             panic!("Default identity client has wrong provisioning policy");
