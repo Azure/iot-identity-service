@@ -44,7 +44,7 @@ sleep 1
 
 ./aziotd aziot-identityd &
 identityd_pid="$!"
-sleep 5
+sleep 20
 
 # Query and parse identity certificate.
 curl -s \
