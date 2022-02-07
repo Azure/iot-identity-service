@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 
 use http_common::HttpRequest;
 
-const API_VERSION: &str = "api-version=2021-06-01";
+const API_VERSION: &str = "api-version=2021-11-01-preview";
 
 pub struct Client {
     endpoint: url::Url,
