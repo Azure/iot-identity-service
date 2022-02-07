@@ -10,6 +10,8 @@ use aziot_identity_common::{Identity, ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 #[allow(clippy::wildcard_imports)]
 use aziot_identity_common_http::*;
 
+use http_common::{ErrorBody, HttpRequest};
+
 macro_rules! make_uri {
     ($path:literal, $api_version:expr) => {
         &format!(
@@ -40,7 +42,7 @@ macro_rules! make_uri {
 #[derive(Debug)]
 pub struct Client {
     api_version: ApiVersion,
-    inner: hyper::Client<http_common::Connector, hyper::Body>,
+    connector: http_common::Connector,
     max_retries: u32,
 }
 
@@ -50,96 +52,91 @@ impl Client {
         connector: http_common::Connector,
         max_retries: u32,
     ) -> Self {
-        let inner = connector.into_client();
         Client {
             api_version,
-            inner,
+            connector,
             max_retries,
         }
     }
 
     pub async fn get_caller_identity(&self) -> Result<Identity, std::io::Error> {
-        let res: get_caller_identity::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/identities/identity", self.api_version),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!("/identities/identity", self.api_version);
 
-        Ok(res.identity)
+        let request: HttpRequest<(), _> =
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
+
+        let response = request.json_response().await?;
+        let response: get_caller_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn get_device_identity(&self) -> Result<Identity, std::io::Error> {
+        let uri = make_uri!("/identities/device", self.api_version);
+
         let body = get_device_identity::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        let res: get_device_identity::Response = http_common::request_with_retry(
-            &self.inner,
-            http::Method::POST,
-            make_uri!("/identities/device", self.api_version),
-            Some(&body),
-            self.max_retries,
-        )
-        .await?;
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
-        Ok(res.identity)
+        let response = request.json_response().await?;
+        let response: get_device_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn reprovision(&self) -> Result<(), std::io::Error> {
+        let uri = make_uri!("/identities/device/reprovision", self.api_version);
+
         let body = reprovision_device::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
         };
 
-        http_common::request_no_content_with_retry(
-            &self.inner,
-            http::Method::POST,
-            make_uri!("/identities/device/reprovision", self.api_version),
-            Some(&body),
-            self.max_retries,
-        )
-        .await?;
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
-        Ok(())
+        request.no_content_response().await
     }
 
     pub async fn get_provisioning_info(
         &self,
     ) -> Result<get_provisioning_info::Response, std::io::Error> {
-        let res: get_provisioning_info::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/identities/provisioning", self.api_version),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!("/identities/provisioning", self.api_version);
 
-        Ok(res)
+        let request: HttpRequest<(), _> =
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
+
+        let response = request.json_response().await?;
+        let response: get_provisioning_info::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response)
     }
 
     pub async fn create_module_identity(
         &self,
         module_name: &str,
     ) -> Result<Identity, std::io::Error> {
+        let uri = make_uri!("/identities/modules", self.api_version);
+
         let body = create_module_identity::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
             module_id: module_name.to_string(),
             opts: None,
         };
 
-        let res: create_module_identity::Response = http_common::request_with_retry(
-            &self.inner,
-            http::Method::POST,
-            make_uri!("/identities/modules", self.api_version),
-            Some(&body),
-            self.max_retries,
-        )
-        .await?;
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
-        Ok(res.identity)
+        let response = request.json_response().await?;
+        let response: create_module_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn create_local_identity(
@@ -147,6 +144,8 @@ impl Client {
         module_name: &str,
         opts: Option<aziot_identity_common::LocalIdOpts>,
     ) -> Result<Identity, std::io::Error> {
+        let uri = make_uri!("/identities/modules", self.api_version);
+
         #[allow(clippy::redundant_closure)] // closure needed for map()
         let body = create_module_identity::Request {
             id_type: ID_TYPE_LOCAL.to_string(),
@@ -154,103 +153,97 @@ impl Client {
             opts: opts.map(|opts| create_module_identity::CreateModuleOpts::LocalIdOpts(opts)),
         };
 
-        let res: create_module_identity::Response = http_common::request_with_retry(
-            &self.inner,
-            http::Method::POST,
-            make_uri!("/identities/modules", self.api_version),
-            Some(&body),
-            self.max_retries,
-        )
-        .await?;
+        let request =
+            HttpRequest::post(self.connector.clone(), uri, Some(body)).with_retry(self.max_retries);
 
-        Ok(res.identity)
+        let response = request.json_response().await?;
+        let response: create_module_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn update_module_identity(
         &self,
         module_name: &str,
     ) -> Result<Identity, std::io::Error> {
+        let uri = make_uri!(
+            "/identities/modules",
+            self.api_version,
+            ID_TYPE_AZIOT,
+            module_name
+        );
+
         let body = update_module_identity::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
             module_id: module_name.to_string(),
         };
 
-        let res: update_module_identity::Response = http_common::request_with_retry(
-            &self.inner,
-            http::Method::PUT,
-            make_uri!(
-                "/identities/modules",
-                self.api_version,
-                ID_TYPE_AZIOT,
-                module_name
-            ),
-            Some(&body),
-            self.max_retries,
-        )
-        .await?;
+        let request =
+            HttpRequest::put(self.connector.clone(), uri, body).with_retry(self.max_retries);
 
-        Ok(res.identity)
+        let response = request.json_response().await?;
+        let response: update_module_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn get_identities(&self) -> Result<Vec<Identity>, std::io::Error> {
-        let res: get_module_identities::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!("/identities/modules", self.api_version, ID_TYPE_AZIOT);
 
-        Ok(res.identities)
+        let request: HttpRequest<(), _> =
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
+
+        let response = request.json_response().await?;
+        let response: get_module_identities::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identities)
     }
 
     pub async fn get_identity(&self, module_name: &str) -> Result<Identity, std::io::Error> {
-        let res: get_module_identity::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!(
-                "/identities/modules",
-                self.api_version,
-                ID_TYPE_AZIOT,
-                module_name
-            ),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!(
+            "/identities/modules",
+            self.api_version,
+            ID_TYPE_AZIOT,
+            module_name
+        );
 
-        Ok(res.identity)
+        let request: HttpRequest<(), _> =
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
+
+        let response = request.json_response().await?;
+        let response: get_module_identity::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.identity)
     }
 
     pub async fn delete_identity(&self, module_name: &str) -> Result<(), std::io::Error> {
-        http_common::request_no_content_with_retry::<()>(
-            &self.inner,
-            http::Method::DELETE,
-            make_uri!(
-                "/identities/modules",
-                self.api_version,
-                ID_TYPE_AZIOT,
-                module_name
-            ),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!(
+            "/identities/modules",
+            self.api_version,
+            ID_TYPE_AZIOT,
+            module_name
+        );
 
-        Ok(())
+        let request: HttpRequest<(), _> =
+            HttpRequest::delete(self.connector.clone(), uri, None).with_retry(self.max_retries);
+
+        request.no_content_response().await
     }
 
     pub async fn get_trust_bundle(&self) -> Result<aziot_cert_common_http::Pem, std::io::Error> {
-        let res: get_trust_bundle::Response = http_common::request_with_retry::<(), _>(
-            &self.inner,
-            http::Method::GET,
-            make_uri!("/trust-bundle", self.api_version),
-            None,
-            self.max_retries,
-        )
-        .await?;
+        let uri = make_uri!("/trust-bundle", self.api_version);
 
-        Ok(res.certificate)
+        let request: HttpRequest<(), _> =
+            HttpRequest::get(self.connector.clone(), uri).with_retry(self.max_retries);
+
+        let response = request.json_response().await?;
+        let response: get_trust_bundle::Response =
+            response.parse_expect_ok::<_, ErrorBody<'_>>()?;
+
+        Ok(response.certificate)
     }
 }

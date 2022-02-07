@@ -1,39 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-fn fmt_common_name(name: &openssl::x509::X509NameRef) -> String {
-    let common_name = name
-        .entries_by_nid(openssl::nid::Nid::COMMONNAME)
-        .next()
-        .unwrap()
-        .data();
-
-    format!("CN={}", common_name.as_utf8().unwrap())
-}
-
-fn fmt_time(time: &openssl::asn1::Asn1TimeRef) -> String {
-    let epoch = openssl::asn1::Asn1Time::from_unix(0).unwrap();
-    let diff = epoch.diff(time).unwrap();
-
-    assert!(diff.days > 0);
-    assert!(diff.secs > 0);
-    let timestamp = i64::from(diff.days) * 86400 + i64::from(diff.secs);
-
-    let time = chrono::NaiveDateTime::from_timestamp(timestamp, 0);
-    let time = chrono::DateTime::<chrono::Utc>::from_utc(time, chrono::Utc);
-
-    time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-}
-
-fn fmt_thumbprint(cert: &openssl::x509::X509, hash_type: openssl::hash::MessageDigest) -> String {
-    let thumbprint = cert.digest(hash_type).unwrap();
-    let thumbprint = openssl::bn::BigNum::from_slice(&thumbprint).unwrap();
-
-    thumbprint.to_hex_str().unwrap().to_string()
-}
-
 pub(crate) fn read_trust_bundle(
     trust_bundle_certs_dir: Option<&std::path::PathBuf>,
-) -> Option<aziot_dps_client_async::model::TrustBundle> {
+) -> Option<aziot_cloud_client_async::dps::schema::TrustBundle> {
     let trust_bundle_certs_dir = if let Some(dir) = trust_bundle_certs_dir {
         assert!(dir.is_dir());
 
@@ -75,28 +44,8 @@ pub(crate) fn read_trust_bundle(
             let certificate = cert.to_pem().unwrap();
             let certificate = String::from_utf8(certificate).unwrap();
 
-            let subject_name = fmt_common_name(cert.subject_name());
-            let issuer_name = fmt_common_name(cert.issuer_name());
-            println!(" - {}", subject_name);
-
-            let serial_number = cert.serial_number().to_bn().unwrap();
-            let serial_number = serial_number.to_hex_str().unwrap().to_string();
-
-            let metadata = aziot_dps_client_async::model::X509CertificateInfo {
-                subject_name,
-                sha1_thumbprint: fmt_thumbprint(&cert, openssl::hash::MessageDigest::sha1()),
-                sha256_thumbprint: fmt_thumbprint(&cert, openssl::hash::MessageDigest::sha256()),
-                issuer_name,
-                not_before_utc: fmt_time(cert.not_before()),
-                not_after_utc: fmt_time(cert.not_after()),
-                serial_number,
-                version: 3,
-            };
-
-            let trust_bundle_cert = aziot_dps_client_async::model::TrustBundleCertificate {
-                certificate,
-                metadata,
-            };
+            let trust_bundle_cert =
+                aziot_cloud_client_async::dps::schema::Certificate { certificate };
 
             certificates.push(trust_bundle_cert);
         }
@@ -111,5 +60,5 @@ pub(crate) fn read_trust_bundle(
         certificates.len()
     );
 
-    Some(aziot_dps_client_async::model::TrustBundle { certificates })
+    Some(aziot_cloud_client_async::dps::schema::TrustBundle { certificates })
 }

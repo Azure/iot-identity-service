@@ -22,14 +22,10 @@ pub(crate) async fn check_policy(
     };
 
     // Check for issuance policy.
-    // if lets cannot be collapsed because of dependency on certificate_issuance_policy.
+    // if lets cannot be collapsed because of dependency on cert_policy.
     #[allow(clippy::collapsible_match)]
-    let policy = if let ProvisioningInfo::Dps {
-        certificate_issuance_policy,
-        ..
-    } = &provisioning_info
-    {
-        if let Some(policy) = certificate_issuance_policy {
+    let policy = if let ProvisioningInfo::Dps { cert_policy, .. } = &provisioning_info {
+        if let Some(policy) = cert_policy {
             policy
         } else {
             return None;
@@ -41,8 +37,8 @@ pub(crate) async fn check_policy(
     // Check CSR extended key usage against policy type.
     let extensions = csr.extensions().ok()?;
 
-    match policy.certificate_issuance_type {
-        aziot_identity_common::CertIssuanceType::ServerCertificate => {
+    match policy.cert_type {
+        aziot_identity_common::CertType::Server => {
             // Check that extended key usage has serverAuth set for server certificates.
             let mut has_server_auth = false;
 
@@ -61,7 +57,7 @@ pub(crate) async fn check_policy(
                 return None;
             }
         }
-        aziot_identity_common::CertIssuanceType::None => return None,
+        aziot_identity_common::CertType::None => return None,
     }
 
     Some(provisioning_info)

@@ -52,9 +52,9 @@ impl IdentityManager {
         }
     }
 
-    pub fn get_dps_cert_policy(&self) -> Option<aziot_identity_common::CertIssuancePolicy> {
+    pub fn get_dps_cert_policy(&self) -> Option<aziot_identity_common::CertPolicy> {
         if let Some(device) = &self.iot_hub_device {
-            device.certificate_issuance_policy.clone()
+            device.cert_policy.clone()
         } else {
             None
         }
@@ -163,18 +163,19 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let client = aziot_hub_client_async::Client::new(
-                    device.clone(),
-                    self.req_timeout,
-                    self.req_retries,
+                let client = aziot_cloud_client_async::HubClient::new(
+                    device,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                );
+                )
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
+                .with_proxy(self.proxy_uri.clone());
+
                 let new_module = client
-                    .create_module(&*module_id, None, None)
+                    .create_module(module_id, None, None)
                     .await
                     .map_err(Error::HubClient)?;
 
@@ -187,7 +188,7 @@ impl IdentityManager {
 
                 let response = client
                     .update_module(
-                        &*new_module.module_id,
+                        &new_module.module_id,
                         Some(aziot_identity_common::hub::AuthMechanism {
                             symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
                                 primary_key: Some(http_common::ByteString(primary_key)),
@@ -245,18 +246,19 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let client = aziot_hub_client_async::Client::new(
-                    device.clone(),
-                    self.req_timeout,
-                    self.req_retries,
+                let client = aziot_cloud_client_async::HubClient::new(
+                    device,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                );
+                )
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
+                .with_proxy(self.proxy_uri.clone());
+
                 let curr_module = client
-                    .get_module(&*module_id)
+                    .get_module(module_id)
                     .await
                     .map_err(Error::HubClient)?;
 
@@ -269,7 +271,7 @@ impl IdentityManager {
 
                 let response = client
                     .update_module(
-                        &*curr_module.module_id,
+                        &curr_module.module_id,
                         Some(aziot_identity_common::hub::AuthMechanism {
                             symmetric_key: Some(aziot_identity_common::hub::SymmetricKey {
                                 primary_key: Some(http_common::ByteString(primary_key)),
@@ -343,20 +345,19 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let client = aziot_hub_client_async::Client::new(
-                    device.clone(),
-                    self.req_timeout,
-                    self.req_retries,
-                    self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
-                    self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                );
                 let module = {
-                    let result = client.get_module(&*module_id).await;
+                    let client = aziot_cloud_client_async::HubClient::new(
+                        device,
+                        self.key_client.clone(),
+                        self.key_engine.clone(),
+                        self.cert_client.clone(),
+                        self.tpm_client.clone(),
+                    )
+                    .with_retry(self.req_retries)
+                    .with_timeout(self.req_timeout)
+                    .with_proxy(self.proxy_uri.clone());
 
-                    match result {
+                    match client.get_module(module_id).await {
                         Ok(module) => {
                             ModuleBackup::set_module_backup(
                                 &self.homedir_path,
@@ -431,18 +432,18 @@ impl IdentityManager {
     ) -> Result<Vec<aziot_identity_common::Identity>, Error> {
         match &self.iot_hub_device {
             Some(device) => {
-                let client = aziot_hub_client_async::Client::new(
-                    device.clone(),
-                    self.req_timeout,
-                    self.req_retries,
+                let client = aziot_cloud_client_async::HubClient::new(
+                    device,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                );
+                )
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
+                .with_proxy(self.proxy_uri.clone());
 
-                let response = client.get_modules().await.map_err(Error::HubClient)?;
+                let response = client.list_modules().await.map_err(Error::HubClient)?;
 
                 let identities = response
                     .into_iter()
@@ -489,18 +490,19 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let client = aziot_hub_client_async::Client::new(
-                    device.clone(),
-                    self.req_timeout,
-                    self.req_retries,
+                let client = aziot_cloud_client_async::HubClient::new(
+                    device,
                     self.key_client.clone(),
                     self.key_engine.clone(),
                     self.cert_client.clone(),
                     self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                );
-                let () = client
-                    .delete_module(&*module_id)
+                )
+                .with_retry(self.req_retries)
+                .with_timeout(self.req_timeout)
+                .with_proxy(self.proxy_uri.clone());
+
+                client
+                    .delete_module(module_id)
                     .await
                     .map_err(Error::HubClient)?;
 
@@ -687,7 +689,7 @@ impl IdentityManager {
                         .unwrap_or_else(|| iothub_hostname.clone()),
                     iothub_hostname,
                     device_id,
-                    certificate_issuance_policy: None,
+                    cert_policy: None,
                     credentials,
                 };
                 self.set_device(&device);
@@ -704,31 +706,15 @@ impl IdentityManager {
                     return Err(Error::DpsNotSupportedInNestedMode);
                 }
 
-                let dps_client = aziot_dps_client_async::Client::new(
-                    &global_endpoint,
-                    &scope_id,
-                    self.req_timeout,
-                    self.req_retries,
-                    self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
-                    self.tpm_client.clone(),
-                    self.proxy_uri.clone(),
-                    aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
-                );
-
-                let (dps_auth_kind, registration_id, credentials) = match attestation {
+                let (registration_id, credentials) = match attestation {
                     config::DpsAttestationMethod::SymmetricKey {
                         registration_id,
                         symmetric_key,
                     } => {
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::SymmetricKey {
-                            sas_key: symmetric_key.clone(),
-                        };
                         let credentials =
                             aziot_identity_common::Credentials::SharedPrivateKey(symmetric_key);
 
-                        (dps_auth_kind, registration_id, credentials)
+                        (registration_id, credentials)
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
@@ -751,31 +737,26 @@ impl IdentityManager {
                             })?,
                         };
 
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::X509 {
-                            identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
-                        };
                         let credentials = aziot_identity_common::Credentials::X509 {
                             identity_cert: identity_cert.clone(),
                             identity_pk: identity_pk.clone(),
                         };
 
-                        (dps_auth_kind, registration_id, credentials)
+                        (registration_id, credentials)
                     }
                     config::DpsAttestationMethod::Tpm { registration_id } => {
-                        let dps_auth_kind = aziot_dps_client_async::DpsAuthKind::Tpm;
                         let credentials = aziot_identity_common::Credentials::Tpm;
 
-                        (dps_auth_kind, registration_id, credentials)
+                        (registration_id, credentials)
                     }
                 };
 
                 let device = self
                     .dps_provision(
                         skip_if_backup_is_valid,
-                        dps_client,
-                        dps_auth_kind,
-                        registration_id,
+                        global_endpoint,
+                        &scope_id,
+                        &registration_id,
                         credentials,
                         provisioning.local_gateway_hostname,
                     )
@@ -797,9 +778,9 @@ impl IdentityManager {
     async fn dps_provision(
         &self,
         skip_if_backup_is_valid: bool,
-        dps_client: aziot_dps_client_async::Client,
-        dps_auth_kind: aziot_dps_client_async::DpsAuthKind,
-        registration_id: String,
+        global_endpoint: url::Url,
+        scope_id: &str,
+        registration_id: &str,
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
@@ -812,29 +793,24 @@ impl IdentityManager {
             return Ok(backup_device);
         }
 
-        let operation = dps_client
-            .register(&registration_id, dps_auth_kind)
+        let dps_request = aziot_cloud_client_async::DpsClient::new(
+            credentials.clone(),
+            self.key_client.clone(),
+            self.key_engine.clone(),
+            self.cert_client.clone(),
+            self.tpm_client.clone(),
+        )
+        .with_endpoint(global_endpoint)
+        .with_retry(self.req_retries)
+        .with_timeout(self.req_timeout)
+        .with_proxy(self.proxy_uri.clone());
+
+        let response = dps_request
+            .register(scope_id, registration_id)
             .await
             .map_err(Error::DpsClient)?;
 
-        // DPS client registration won't return if the status is "assigning".
-        assert!(!operation.status.eq_ignore_ascii_case("assigning"));
-
-        let state = operation.registration_state.ok_or(Error::DeviceNotFound)?;
-
-        let (iothub_hostname, device_id) = match (state.assigned_hub, state.device_id) {
-            (Some(iothub_hostname), Some(device_id)) => (iothub_hostname, device_id),
-            _ => {
-                return Err(Error::DpsClient(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    state.error_message.unwrap_or_default(),
-                )))
-            }
-        };
-
-        log::info!("Successfully provisioned with DPS.");
-
-        if let Some(trust_bundle) = state.trust_bundle {
+        if let Some(trust_bundle) = response.trust_bundle {
             self.save_dps_trust_bundle(trust_bundle).await?;
         } else {
             // New provisioning info does not use a DPS-issued trust bundle.
@@ -843,7 +819,7 @@ impl IdentityManager {
             self.delete_credential(&self.dps_trust_bundle, None).await;
         }
 
-        let credentials = if let Some(identity_cert) = state.identity_cert {
+        let credentials = if let Some(identity_cert) = response.identity_cert {
             self.save_dps_identity_cert(identity_cert).await?;
 
             aziot_identity_common::Credentials::X509 {
@@ -863,23 +839,19 @@ impl IdentityManager {
             credentials
         };
 
-        if state.certificate_issuance_policy.is_some() {
-            log::info!("DPS provided server certificate issuance policy.");
-        }
-
         Ok(aziot_identity_common::IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
-                .unwrap_or_else(|| iothub_hostname.clone()),
-            iothub_hostname,
-            device_id,
-            certificate_issuance_policy: state.certificate_issuance_policy,
+                .unwrap_or_else(|| response.assigned_hub.clone()),
+            iothub_hostname: response.assigned_hub,
+            device_id: response.device_id,
+            cert_policy: response.cert_policy,
             credentials,
         })
     }
 
     async fn save_dps_trust_bundle(
         &self,
-        trust_bundle: aziot_dps_client_async::model::TrustBundle,
+        trust_bundle: aziot_cloud_client_async::dps::schema::TrustBundle,
     ) -> Result<(), Error> {
         let mut certificates = String::new();
 
@@ -990,7 +962,7 @@ impl IdentityManager {
                         local_gateway_hostname: device_info.local_gateway_hostname,
                         iothub_hostname: device_info.hub_name,
                         device_id: device_info.device_id,
-                        certificate_issuance_policy: device_info.certificate_issuance_policy,
+                        cert_policy: device_info.cert_policy,
                         credentials,
                     };
 
@@ -1129,7 +1101,7 @@ impl IdentityManager {
                     hub_name: device.iothub_hostname.clone(),
                     local_gateway_hostname: device.local_gateway_hostname.clone(),
                     device_id: device.device_id.clone(),
-                    certificate_issuance_policy: device.certificate_issuance_policy.clone(),
+                    cert_policy: device.cert_policy.clone(),
                 };
 
                 let device_status = toml::to_string(&curr_hub_device_info)
@@ -1238,7 +1210,7 @@ pub struct HubDeviceInfo {
     pub device_id: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
+    pub cert_policy: Option<aziot_identity_common::CertPolicy>,
 }
 
 impl HubDeviceInfo {

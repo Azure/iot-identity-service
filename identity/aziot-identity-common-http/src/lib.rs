@@ -133,7 +133,7 @@ pub mod get_provisioning_info {
             registration_id: Option<String>,
 
             #[serde(skip_serializing_if = "Option::is_none")]
-            certificate_issuance_policy: Option<aziot_identity_common::CertIssuancePolicy>,
+            cert_policy: Option<aziot_identity_common::CertPolicy>,
         },
         Manual {
             auth: String,
@@ -144,13 +144,13 @@ pub mod get_provisioning_info {
     impl
         std::convert::From<(
             aziot_identityd_config::ProvisioningType,
-            Option<aziot_identity_common::CertIssuancePolicy>,
+            Option<aziot_identity_common::CertPolicy>,
         )> for Response
     {
         fn from(
             config: (
                 aziot_identityd_config::ProvisioningType,
-                Option<aziot_identity_common::CertIssuancePolicy>,
+                Option<aziot_identity_common::CertPolicy>,
             ),
         ) -> Self {
             match config.0 {
@@ -183,7 +183,7 @@ pub mod get_provisioning_info {
                         endpoint,
                         scope_id,
                         registration_id,
-                        certificate_issuance_policy: config.1,
+                        cert_policy: config.1,
                     }
                 }
 

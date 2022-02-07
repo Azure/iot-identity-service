@@ -2,24 +2,34 @@
 
 use crate::server::Response;
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistrationRequest {
+    pub registration_id: String,
+
+    pub tpm: Option<aziot_cloud_client_async::dps::schema::TpmAttestation>,
+
+    #[serde(
+        rename = "clientCertificateCsr",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub client_cert_csr: Option<String>,
+}
+
 #[allow(clippy::too_many_lines)]
 fn register(
-    registration_id: String,
-    headers: &std::collections::HashMap<String, String>,
-    body: &Option<String>,
+    registration_id: &str,
+    body: Option<&String>,
     context: &mut crate::server::Context,
 ) -> Response {
     let body = if let Some(body) = body {
-        let body: aziot_dps_client_async::model::DeviceRegistration =
-            match serde_json::from_str(body) {
-                Ok(body) => body,
-                Err(_) => return Response::bad_request("failed to parse register body"),
-            };
+        let body: RegistrationRequest = match serde_json::from_str(body) {
+            Ok(body) => body,
+            Err(_) => return Response::bad_request("failed to parse register body"),
+        };
 
-        if let Some(req_reg_id) = &body.registration_id {
-            if req_reg_id != &registration_id {
-                return Response::bad_request("registration IDs in URI and request mismatch");
-            }
+        if body.registration_id != registration_id {
+            return Response::bad_request("registration IDs in URI and request mismatch");
         }
 
         body
@@ -31,58 +41,35 @@ fn register(
 
     // Unique value to use for both operation ID and device ID.
     let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
-    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
 
-    let mut registration_state = aziot_dps_client_async::model::DeviceRegistrationResult {
-        tpm: None,
-        x509: None,
-        symmetric_key: None,
-        registration_id: Some(registration_id),
-        created_date_time_utc: Some(now.clone()),
+    let tpm = if body.tpm.is_some() {
+        Some(aziot_cloud_client_async::DpsResponse::TpmAuthKey {
+            authentication_key: "mock-dps-tpm-key".to_string(),
+        })
+    } else {
+        None
+    };
+
+    let cert_policy = if context.enable_server_certs {
+        Some(aziot_identity_common::CertPolicy {
+            cert_type: aziot_identity_common::CertType::Server,
+            key_length: 2048,
+            key_curve: None,
+        })
+    } else {
+        None
+    };
+
+    let mut device = aziot_cloud_client_async::dps::schema::Device {
         // Direct all Hub requests to be handled by this process's endpoint.
-        assigned_hub: Some(context.endpoint.clone()),
-        device_id: Some(uuid.clone()),
-        status: Some("assigned".to_string()),
-        substatus: Some("initialAssignment".to_string()),
-        error_code: None,
-        error_message: None,
-        last_updated_date_time_utc: Some(now),
-        etag: Some("mock-iot-etag".to_string()),
+        assigned_hub: context.endpoint.clone(),
+        device_id: uuid.clone(),
         trust_bundle: context.trust_bundle.clone(),
         identity_cert: None,
-        certificate_issuance_policy: None,
+        cert_policy,
     };
 
-    if body.tpm.is_some() {
-        registration_state.tpm = Some(aziot_dps_client_async::model::TpmRegistrationResult {
-            authentication_key: "mock-iot-tpm-key".to_string(),
-        });
-    } else if headers.get("authorization").is_some() {
-        registration_state.symmetric_key = Some(
-            aziot_dps_client_async::model::SymmetricKeyRegistrationResult {
-                enrollment_group_id: Some("mock-iot-enrollment-group".to_string()),
-            },
-        );
-    } else {
-        registration_state.x509 = Some(aziot_dps_client_async::model::X509RegistrationResult {
-            certificate_info: None,
-            enrollment_group_id: Some("mock-iot-enrollment-group".to_string()),
-            signing_certificate_info: None,
-        });
-    };
-
-    if context.enable_server_certs {
-        registration_state.certificate_issuance_policy =
-            Some(aziot_identity_common::CertIssuancePolicy {
-                end_point: context.endpoint.clone(),
-                certificate_issuance_type:
-                    aziot_identity_common::CertIssuanceType::ServerCertificate,
-                key_length_in_bits: 2048,
-                key_curve: None,
-            });
-    }
-
-    match (body.client_cert_csr, context.enable_identity_certs) {
+    let registration = match (body.client_cert_csr, context.enable_identity_certs) {
         // Issue an identity certificate from the provided CSR.
         (Some(csr), true) => {
             let client_cert_csr = match base64::decode(csr) {
@@ -95,37 +82,29 @@ fn register(
                 Err(_) => return Response::bad_request("bad client cert csr"),
             };
 
-            registration_state.identity_cert =
-                Some(crate::certs::issuance::issue_cert(&client_cert_csr));
+            device.identity_cert = Some(crate::certs::issuance::issue_cert(&client_cert_csr));
+
+            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { tpm, device }
         }
 
         // DPS returns a specific error when a CSR is provided but identity certificates
         // aren't enabled.
         (Some(_), false) => {
-            registration_state.tpm = None;
-            registration_state.x509 = None;
-            registration_state.symmetric_key = None;
-            registration_state.assigned_hub = None;
-            registration_state.device_id = None;
-            registration_state.status = Some("failed".to_string());
-            registration_state.substatus = None;
-            registration_state.error_code = Some(400_000);
-            registration_state.error_message =
-                Some("Device sent CSR but it is not configured in the service.".to_string());
-            registration_state.trust_bundle = None;
+            let error = aziot_cloud_client_async::DpsResponse::ServiceError {
+                code: 400_000,
+                message: "Device sent CSR but it is not configured in the service.".to_string(),
+            };
+
+            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Failed(error)
         }
 
         // Don't issue identity certificate if no CSR is provided.
-        (None, _) => {}
-    }
+        (None, _) => {
+            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { tpm, device }
+        }
+    };
 
     let operation_id = {
-        let registration = aziot_dps_client_async::model::RegistrationOperationStatus {
-            operation_id: uuid.clone(),
-            status: registration_state.status.clone().unwrap(),
-            registration_state: Some(registration_state),
-        };
-
         context
             .in_progress_operations
             .insert(uuid.clone(), registration);
@@ -133,38 +112,32 @@ fn register(
         uuid
     };
 
-    let response = aziot_dps_client_async::model::RegistrationOperationStatus {
-        operation_id,
-        status: "assigning".to_string(),
-        registration_state: None,
-    };
+    let response = aziot_cloud_client_async::DpsResponse::OperationStatus { operation_id };
 
-    Response::json(hyper::StatusCode::OK, response)
+    Response::json(hyper::StatusCode::ACCEPTED, response)
 }
 
 fn operation_status(operation_id: &str, context: &mut crate::server::Context) -> Response {
     let mut context = context.lock().unwrap();
 
-    match context.in_progress_operations.remove(operation_id) {
-        Some(operation) => {
-            // Add new device with empty module set for successful registrations.
-            if operation.status == "assigned" {
-                let device_id = operation
-                    .registration_state
-                    .clone()
-                    .unwrap()
-                    .device_id
-                    .unwrap();
+    let operation = if let Some(operation) = context.in_progress_operations.remove(operation_id) {
+        operation
+    } else {
+        return Response::not_found(format!("operation {} not found", operation_id));
+    };
 
-                context
-                    .devices
-                    .insert(device_id, std::collections::HashSet::new());
-            }
+    // Add new device with empty module set for successful registrations.
+    if let aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { device, .. } =
+        &operation
+    {
+        let device_id = device.device_id.clone();
 
-            Response::json(hyper::StatusCode::OK, operation)
-        }
-        None => Response::not_found(format!("operation {} not found", operation_id)),
+        context
+            .devices
+            .insert(device_id, std::collections::HashSet::new());
     }
+
+    Response::json(hyper::StatusCode::OK, operation)
 }
 
 pub(crate) fn process_request(
@@ -214,7 +187,7 @@ pub(crate) fn process_request(
             return Some(Response::method_not_allowed(&req.method));
         }
 
-        Some(register(registration_id, &req.headers, &req.body, context))
+        Some(register(&registration_id, req.body.as_ref(), context))
     } else {
         Some(Response::not_found(format!("{} not found", req.uri)))
     }
