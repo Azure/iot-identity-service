@@ -241,9 +241,11 @@ impl Api {
                             .subject_name()
                             .entries_by_nid(openssl::nid::Nid::COMMONNAME)
                             .next()
-                            .ok_or(Error::Internal(InternalError::CreateCertificate(
-                                "identity certificate missing common name".into(),
-                            )))?;
+                            .ok_or_else(|| {
+                                Error::Internal(InternalError::CreateCertificate(
+                                    "identity certificate missing common name".into(),
+                                ))
+                            })?;
 
                         let registration_id =
                             String::from_utf8(cert_subject.data().as_slice().to_vec()).map_err(
