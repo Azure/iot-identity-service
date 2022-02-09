@@ -102,6 +102,15 @@ where
         }
     }
 
+    pub async fn response(self) -> Result<HttpResponse, Error> {
+        let (status, _, body) = self.process_request(true).await?;
+
+        Ok(HttpResponse {
+            status,
+            body: body.expect("process_request did not return body"),
+        })
+    }
+
     pub async fn json_response(self) -> Result<HttpResponse, Error> {
         let (status, headers, body) = self.process_request(true).await?;
 
