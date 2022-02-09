@@ -102,13 +102,16 @@ where
         }
     }
 
-    pub async fn response(self) -> Result<HttpResponse, Error> {
-        let (status, _, body) = self.process_request(true).await?;
+    pub async fn response(self, has_body: bool) -> Result<HttpResponse, Error> {
+        let (status, _, body) = self.process_request(has_body).await?;
 
-        Ok(HttpResponse {
-            status,
-            body: body.expect("process_request did not return body"),
-        })
+        let body = if let Some(body) = body {
+            body
+        } else {
+            hyper::body::Bytes::new()
+        };
+
+        Ok(HttpResponse { status, body })
     }
 
     pub async fn json_response(self) -> Result<HttpResponse, Error> {
