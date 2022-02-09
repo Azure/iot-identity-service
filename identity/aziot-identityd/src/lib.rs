@@ -220,37 +220,49 @@ impl Api {
                     config::DpsAttestationMethod::Tpm { registration_id } => {
                         ("tpm".to_string(), registration_id.to_string())
                     }
-                    config::DpsAttestationMethod::X509 { identity_cert, .. } => {
-                        // This API call is only available after a successful provision, which means
-                        // that the device ID certificate was used. The registration ID is taken from
-                        // the CN of the device ID certificate.
-                        let identity_cert = self
-                            .cert_client
-                            .get_cert(identity_cert)
-                            .await
-                            .map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(err.into()))
-                            })?;
+                    config::DpsAttestationMethod::X509 {
+                        registration_id,
+                        identity_cert,
+                        ..
+                    } => {
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id.to_string()
+                        } else {
+                            // Get the registration ID from the identity certificate if it was not provided
+                            // in the config.
+                            let identity_cert = self
+                                .cert_client
+                                .get_cert(identity_cert)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
 
-                        let identity_cert =
-                            openssl::x509::X509::from_pem(&identity_cert).map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(err.into()))
-                            })?;
+                            let identity_cert = openssl::x509::X509::from_pem(&identity_cert)
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
 
-                        let cert_subject = identity_cert
-                            .subject_name()
-                            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
-                            .next()
-                            .ok_or_else(|| {
-                                Error::Internal(InternalError::CreateCertificate(
-                                    "identity certificate missing common name".into(),
-                                ))
-                            })?;
+                            let cert_subject = identity_cert
+                                .subject_name()
+                                .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+                                .next()
+                                .ok_or_else(|| {
+                                    Error::Internal(InternalError::CreateCertificate(
+                                        "identity certificate missing common name".into(),
+                                    ))
+                                })?;
 
-                        let registration_id =
-                            String::from_utf8(cert_subject.data().as_slice().to_vec()).map_err(
-                                |err| Error::Internal(InternalError::CreateCertificate(err.into())),
-                            )?;
+                            let registration_id =
+                                String::from_utf8(cert_subject.data().as_slice().to_vec())
+                                    .map_err(|err| {
+                                        Error::Internal(InternalError::CreateCertificate(
+                                            err.into(),
+                                        ))
+                                    })?;
+
+                            registration_id
+                        };
 
                         ("x509".to_string(), registration_id)
                     }
