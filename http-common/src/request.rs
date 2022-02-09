@@ -92,6 +92,18 @@ where
         Ok(())
     }
 
+    pub async fn response(self, has_body: bool) -> Result<HttpResponse, Error> {
+        let (status, _, body) = self.process_request(has_body).await?;
+
+        let body = if let Some(body) = body {
+            body
+        } else {
+            hyper::body::Bytes::new()
+        };
+
+        Ok(HttpResponse { status, body })
+    }
+
     pub async fn no_content_response(self) -> Result<(), Error> {
         let (response_status, _, _) = self.process_request(false).await?;
 
@@ -131,7 +143,7 @@ where
 
     async fn process_request(
         self,
-        has_response: bool,
+        has_response_body: bool,
     ) -> Result<
         (
             hyper::StatusCode,
@@ -212,7 +224,7 @@ where
             response_body,
         ) = response.into_parts();
 
-        let response_body = if has_response {
+        let response_body = if has_response_body {
             let response_body = hyper::body::to_bytes(response_body)
                 .await
                 .map_err(|err| Error::new(ErrorKind::Other, err))?;
@@ -242,18 +254,18 @@ impl HttpResponse {
         TResponse: serde::de::DeserializeOwned,
         TError: serde::de::DeserializeOwned + Into<Error>,
     {
-        self.parse::<TResponse, TError>(hyper::StatusCode::OK)
+        self.parse::<TResponse, TError>(&[hyper::StatusCode::OK])
     }
 
     pub fn parse<TResponse, TError>(
         self,
-        expected_status: hyper::StatusCode,
+        expected_statuses: &[hyper::StatusCode],
     ) -> Result<TResponse, Error>
     where
         TResponse: serde::de::DeserializeOwned,
         TError: serde::de::DeserializeOwned + Into<Error>,
     {
-        if self.status == expected_status {
+        if expected_statuses.contains(&self.status) {
             let response: TResponse = serde_json::from_slice(&self.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
@@ -266,7 +278,10 @@ impl HttpResponse {
         } else {
             Err(Error::new(
                 ErrorKind::Other,
-                format!("Expected {}, got {}", expected_status, self.status),
+                format!(
+                    "Expected one of {:?}, got {}",
+                    expected_statuses, self.status
+                ),
             ))
         }
     }
