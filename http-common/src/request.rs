@@ -92,16 +92,6 @@ where
         Ok(())
     }
 
-    pub async fn no_content_response(self) -> Result<(), Error> {
-        let (response_status, _, _) = self.process_request(false).await?;
-
-        if response_status == hyper::StatusCode::NO_CONTENT {
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::Other, "invalid HTTP status code"))
-        }
-    }
-
     pub async fn response(self, has_body: bool) -> Result<HttpResponse, Error> {
         let (status, _, body) = self.process_request(has_body).await?;
 
@@ -112,6 +102,16 @@ where
         };
 
         Ok(HttpResponse { status, body })
+    }
+
+    pub async fn no_content_response(self) -> Result<(), Error> {
+        let (response_status, _, _) = self.process_request(false).await?;
+
+        if response_status == hyper::StatusCode::NO_CONTENT {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::Other, "invalid HTTP status code"))
+        }
     }
 
     pub async fn json_response(self) -> Result<HttpResponse, Error> {
@@ -143,7 +143,7 @@ where
 
     async fn process_request(
         self,
-        has_response: bool,
+        has_response_body: bool,
     ) -> Result<
         (
             hyper::StatusCode,
@@ -224,7 +224,7 @@ where
             response_body,
         ) = response.into_parts();
 
-        let response_body = if has_response {
+        let response_body = if has_response_body {
             let response_body = hyper::body::to_bytes(response_body)
                 .await
                 .map_err(|err| Error::new(ErrorKind::Other, err))?;
