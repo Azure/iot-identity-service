@@ -221,9 +221,9 @@ impl Api {
                         ("tpm".to_string(), registration_id.to_string())
                     }
                     config::DpsAttestationMethod::X509 { identity_cert, .. } => {
-                        // The identity certificate's common name is used as registration ID and always
-                        // overrides any registration ID set in the config. Therefore, the registration
-                        // ID must always be retrieved from the identity certificate.
+                        // This API call is only available after a successful provision, which means
+                        // that the device ID certificate was used. The registration ID is taken from
+                        // the CN of the device ID certificate.
                         let identity_cert = self
                             .cert_client
                             .get_cert(identity_cert)
