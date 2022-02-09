@@ -189,11 +189,16 @@ impl Api {
             }
         };
 
-        let x509 = if let Some((_policy, _cert, _key)) = dps {
+        let x509 = if let Some((policy, cert, key)) = dps {
             log::info!("{} will be issued by DPS.", id);
 
-            // TODO: DPS client call.
-            return Err(Error::Internal(InternalError::Dps("TODO".into())));
+            let dps_request = aziot_cloud_client_async::dps::ServerCert::new(policy, cert, key)
+                .with_proxy(this.proxy_uri.clone());
+
+            dps_request
+                .issue_server_cert(req)
+                .await
+                .map_err(|err| Error::Internal(InternalError::Dps(err.into())))?
         } else {
             let issuer = issuer
                 .map(|(id, handle)| -> Result<_, Error> {

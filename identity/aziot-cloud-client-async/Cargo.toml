@@ -22,6 +22,7 @@ url = "2"
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
 aziot-identity-common = { path = "../aziot-identity-common" }
+aziot-identity-common-http = { path = "../aziot-identity-common-http" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }

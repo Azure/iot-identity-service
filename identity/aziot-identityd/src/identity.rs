@@ -793,7 +793,7 @@ impl IdentityManager {
             return Ok(backup_device);
         }
 
-        let dps_request = aziot_cloud_client_async::DpsClient::new(
+        let dps_request = aziot_cloud_client_async::dps::Register::new(
             credentials.clone(),
             self.key_client.clone(),
             self.key_engine.clone(),
