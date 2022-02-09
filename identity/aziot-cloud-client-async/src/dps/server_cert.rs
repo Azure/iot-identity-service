@@ -43,9 +43,6 @@ impl ServerCert {
             ..
         } = self.policy
         {
-            // TODO: fix so registration ID is always provided.
-            let registration_id = registration_id.unwrap();
-
             let endpoint = url::Url::parse(&endpoint)
                 .map_err(|_| Error::new(ErrorKind::InvalidInput, "failed to parse DPS endpoint"))?;
 

@@ -28,17 +28,13 @@ impl http_common::server::Route for Route {
     }
 
     async fn get(self) -> http_common::server::RouteResponse {
-        let provisioning = {
-            let api = self.api.lock().await;
+        let api = self.api.lock().await;
+        let provisioning = api
+            .get_provisioning_info()
+            .await
+            .map_err(|err| super::to_http_error(&err))?;
 
-            (
-                api.settings.provisioning.provisioning.clone(),
-                api.id_manager.get_dps_cert_policy(),
-            )
-        };
-
-        let res: aziot_identity_common_http::get_provisioning_info::Response = provisioning.into();
-        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &provisioning);
         Ok(res)
     }
 

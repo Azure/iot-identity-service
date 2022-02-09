@@ -130,7 +130,7 @@ pub mod get_provisioning_info {
             auth: String,
             endpoint: String,
             scope_id: String,
-            registration_id: Option<String>,
+            registration_id: String,
 
             #[serde(skip_serializing_if = "Option::is_none")]
             cert_policy: Option<aziot_identity_common::CertPolicy>,
@@ -139,71 +139,5 @@ pub mod get_provisioning_info {
             auth: String,
         },
         None,
-    }
-
-    impl
-        std::convert::From<(
-            aziot_identityd_config::ProvisioningType,
-            Option<aziot_identity_common::CertPolicy>,
-        )> for Response
-    {
-        fn from(
-            config: (
-                aziot_identityd_config::ProvisioningType,
-                Option<aziot_identity_common::CertPolicy>,
-            ),
-        ) -> Self {
-            match config.0 {
-                aziot_identityd_config::ProvisioningType::Dps {
-                    global_endpoint,
-                    scope_id,
-                    attestation,
-                } => {
-                    let (auth, registration_id) = match attestation {
-                        aziot_identityd_config::DpsAttestationMethod::SymmetricKey {
-                            registration_id,
-                            symmetric_key: _,
-                        } => ("symmetric_key".to_string(), Some(registration_id)),
-
-                        aziot_identityd_config::DpsAttestationMethod::X509 {
-                            registration_id,
-                            identity_pk: _,
-                            identity_cert: _,
-                        } => ("x509".to_string(), registration_id),
-
-                        aziot_identityd_config::DpsAttestationMethod::Tpm { registration_id } => {
-                            ("tpm".to_string(), Some(registration_id))
-                        }
-                    };
-
-                    let endpoint = global_endpoint.to_string();
-
-                    Response::Dps {
-                        auth,
-                        endpoint,
-                        scope_id,
-                        registration_id,
-                        cert_policy: config.1,
-                    }
-                }
-
-                aziot_identityd_config::ProvisioningType::Manual {
-                    iothub_hostname: _,
-                    device_id: _,
-                    authentication,
-                } => {
-                    let auth = match authentication {
-                        aziot_identityd_config::ManualAuthMethod::SharedPrivateKey { .. } => {
-                            "sas".to_string()
-                        }
-                        aziot_identityd_config::ManualAuthMethod::X509 { .. } => "x509".to_string(),
-                    };
-
-                    Response::Manual { auth }
-                }
-
-                aziot_identityd_config::ProvisioningType::None => Response::None,
-            }
-        }
     }
 }

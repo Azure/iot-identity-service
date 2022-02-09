@@ -187,9 +187,9 @@ impl Register {
 
         // DPS should respond with 401 Unauthorized and present the encrypted nonce.
         let response = response
-            .parse::<schema::response::TpmAuthKey, schema::response::ServiceError>(
+            .parse::<schema::response::TpmAuthKey, schema::response::ServiceError>(&[
                 hyper::StatusCode::UNAUTHORIZED,
-            )?;
+            ])?;
 
         let auth_key = base64::decode(response.authentication_key)
             .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
@@ -250,9 +250,9 @@ impl Register {
         // Determine the registration request's operation ID.
         let operation_id = {
             let response = response
-                .parse::<schema::response::OperationStatus, schema::response::ServiceError>(
+                .parse::<schema::response::OperationStatus, schema::response::ServiceError>(&[
                     hyper::StatusCode::ACCEPTED,
-                )?;
+                ])?;
 
             response.operation_id
         };

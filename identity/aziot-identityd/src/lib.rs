@@ -209,6 +209,96 @@ impl Api {
         Err(Error::Authorization)
     }
 
+    pub async fn get_provisioning_info(
+        &self,
+    ) -> Result<aziot_identity_common_http::get_provisioning_info::Response, Error> {
+        match &self.settings.provisioning.provisioning {
+            config::ProvisioningType::Dps {
+                global_endpoint,
+                scope_id,
+                attestation,
+            } => {
+                let (auth, registration_id) = match attestation {
+                    config::DpsAttestationMethod::SymmetricKey {
+                        registration_id, ..
+                    } => ("symmetric_key".to_string(), registration_id.to_string()),
+                    config::DpsAttestationMethod::Tpm { registration_id } => {
+                        ("tpm".to_string(), registration_id.to_string())
+                    }
+                    config::DpsAttestationMethod::X509 {
+                        registration_id,
+                        identity_cert,
+                        ..
+                    } => {
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id.to_string()
+                        } else {
+                            // Get the registration ID from the identity certificate if it was not provided
+                            // in the config.
+                            let identity_cert = self
+                                .cert_client
+                                .get_cert(identity_cert)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let identity_cert = openssl::x509::X509::from_pem(&identity_cert)
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let cert_subject = identity_cert
+                                .subject_name()
+                                .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+                                .next()
+                                .ok_or_else(|| {
+                                    Error::Internal(InternalError::CreateCertificate(
+                                        "identity certificate missing common name".into(),
+                                    ))
+                                })?;
+
+                            let registration_id =
+                                String::from_utf8(cert_subject.data().as_slice().to_vec())
+                                    .map_err(|err| {
+                                        Error::Internal(InternalError::CreateCertificate(
+                                            err.into(),
+                                        ))
+                                    })?;
+
+                            registration_id
+                        };
+
+                        ("x509".to_string(), registration_id)
+                    }
+                };
+
+                Ok(
+                    aziot_identity_common_http::get_provisioning_info::Response::Dps {
+                        auth,
+                        endpoint: global_endpoint.to_string(),
+                        scope_id: scope_id.to_string(),
+                        registration_id,
+                        cert_policy: self.id_manager.get_dps_cert_policy(),
+                    },
+                )
+            }
+            config::ProvisioningType::Manual { authentication, .. } => {
+                let auth = match authentication {
+                    aziot_identityd_config::ManualAuthMethod::SharedPrivateKey { .. } => {
+                        "sas".to_string()
+                    }
+                    aziot_identityd_config::ManualAuthMethod::X509 { .. } => "x509".to_string(),
+                };
+
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::Manual { auth })
+            }
+            aziot_identityd_config::ProvisioningType::None => {
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::None)
+            }
+        }
+    }
+
     pub async fn get_identity(
         &mut self,
         auth_id: auth::AuthId,
