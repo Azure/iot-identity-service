@@ -57,7 +57,7 @@ impl Client {
 
         let response = request.json_response().await?;
         let response: aziot_cert_common_http::create_cert::Response =
-            response.parse::<_, ErrorBody<'_>>(hyper::StatusCode::CREATED)?;
+            response.parse::<_, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])?;
 
         Ok(response.pem.0)
     }
@@ -78,7 +78,7 @@ impl Client {
 
         let response = request.json_response().await?;
         let response: aziot_cert_common_http::import_cert::Response =
-            response.parse::<_, ErrorBody<'_>>(hyper::StatusCode::CREATED)?;
+            response.parse::<_, ErrorBody<'_>>(&[hyper::StatusCode::CREATED])?;
 
         Ok(response.pem.0)
     }

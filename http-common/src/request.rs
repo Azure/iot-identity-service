@@ -251,18 +251,18 @@ impl HttpResponse {
         TResponse: serde::de::DeserializeOwned,
         TError: serde::de::DeserializeOwned + Into<Error>,
     {
-        self.parse::<TResponse, TError>(hyper::StatusCode::OK)
+        self.parse::<TResponse, TError>(&[hyper::StatusCode::OK])
     }
 
     pub fn parse<TResponse, TError>(
         self,
-        expected_status: hyper::StatusCode,
+        expected_statuses: &[hyper::StatusCode],
     ) -> Result<TResponse, Error>
     where
         TResponse: serde::de::DeserializeOwned,
         TError: serde::de::DeserializeOwned + Into<Error>,
     {
-        if self.status == expected_status {
+        if expected_statuses.contains(&self.status) {
             let response: TResponse = serde_json::from_slice(&self.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
@@ -275,7 +275,10 @@ impl HttpResponse {
         } else {
             Err(Error::new(
                 ErrorKind::Other,
-                format!("Expected {}, got {}", expected_status, self.status),
+                format!(
+                    "Expected one of {:?}, got {}",
+                    expected_statuses, self.status
+                ),
             ))
         }
     }
