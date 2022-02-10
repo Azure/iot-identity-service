@@ -19,6 +19,12 @@ pub mod request {
         pub registration_id: String,
         pub tpm: super::TpmAttestation,
     }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct ServerCert {
+        pub csr: String,
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

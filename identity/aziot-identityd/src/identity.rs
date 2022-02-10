@@ -920,8 +920,6 @@ impl IdentityManager {
                     } else {
                         log::info!("Removed key {}.", key_id);
                     }
-                } else {
-                    log::warn!("Failed to load key {}.", key_id);
                 }
             }
         }

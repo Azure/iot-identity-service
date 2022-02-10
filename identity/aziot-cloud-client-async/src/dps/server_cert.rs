@@ -67,11 +67,25 @@ impl ServerCert {
             server_cert_uri
         };
 
+        let body = {
+            let csr = csr
+                .to_pem()
+                .map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
+            let csr =
+                String::from_utf8(csr).map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
+
+            schema::request::ServerCert { csr }
+        };
+
         let connector = crate::CloudConnector::new(
             self.proxy,
             Some((&self.identity_cert, &self.private_key)),
             &[],
         )?;
+
+        let request = HttpRequest::post(connector, server_cert_uri.as_str(), Some(body));
+
+        let _response = request.json_response().await?;
 
         todo!()
     }
