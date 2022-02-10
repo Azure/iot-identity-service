@@ -173,10 +173,5 @@ fn provisioning_info() -> ProvisioningInfo {
         endpoint: "localhost".to_string(),
         scope_id: "scope".to_string(),
         registration_id: "registrationId".to_string(),
-        cert_policy: Some(aziot_identity_common::CertPolicy {
-            cert_type: aziot_identity_common::CertType::Server,
-            key_length: 2048,
-            key_curve: None,
-        }),
     }
 }
