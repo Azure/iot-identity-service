@@ -11,7 +11,7 @@
     clippy::too_many_lines
 )]
 
-mod dps;
+mod dps_policy;
 mod error;
 mod est;
 mod http;
@@ -160,7 +160,7 @@ impl Api {
         // Check for DPS certificate issuance policy and credentials. DPS certificate
         // issuance should be used if a matching policy and credentials exist.
         let dps = {
-            if let Some(policy) = dps::check_policy(&this.identity_client, &req).await {
+            if let Some(policy) = dps_policy::check_policy(&this.identity_client, &req).await {
                 if let Ok(cert) = this.get_cert(aziot_identity_common::DPS_IDENTITY_CERT) {
                     let key = {
                         if let Ok(handle) = this
