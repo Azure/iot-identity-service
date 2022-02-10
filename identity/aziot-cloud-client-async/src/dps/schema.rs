@@ -22,7 +22,10 @@ pub mod request {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct ServerCert {
+    pub struct IssueCert {
+        #[serde(rename = "certificateType")]
+        pub cert_type: aziot_identity_common::CertType,
+
         pub csr: String,
     }
 }
@@ -103,7 +106,7 @@ pub struct Device {
     pub identity_cert: Option<String>,
 
     #[serde(
-        rename = "certificateIssuancePolicy",
+        rename = "deviceCertificateIssuanceSettings",
         skip_serializing_if = "Option::is_none"
     )]
     pub cert_policy: Option<aziot_identity_common::CertPolicy>,

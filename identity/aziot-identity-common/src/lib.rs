@@ -155,15 +155,8 @@ pub enum ProvisioningStatus {
 #[serde(rename_all = "camelCase")]
 pub struct CertPolicy {
     /// Type of certificate supported by this policy.
-    #[serde(rename = "certificateIssuanceType")]
+    #[serde(rename = "certificateType")]
     pub cert_type: CertType,
-
-    /// Minimum length of private key supported.
-    #[serde(rename = "keyLengthInBits")]
-    pub key_length: u32,
-
-    /// Supported EC curve. Omitted for RSA keys.
-    pub key_curve: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, PartialOrd)]

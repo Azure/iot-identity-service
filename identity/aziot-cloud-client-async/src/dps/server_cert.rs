@@ -55,10 +55,7 @@ impl ServerCert {
         };
 
         let server_cert_uri = {
-            let path = format!(
-                "idScope/{}/devices/{}/certificates/issue",
-                scope_id, registation_id
-            );
+            let path = format!("{}/devices/{}/certificates/issue", scope_id, registation_id);
 
             let mut server_cert_uri = endpoint.clone();
             server_cert_uri.set_path(&path);
@@ -74,7 +71,10 @@ impl ServerCert {
             let csr =
                 String::from_utf8(csr).map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
 
-            schema::request::ServerCert { csr }
+            schema::request::IssueCert {
+                cert_type: aziot_identity_common::CertType::Server,
+                csr,
+            }
         };
 
         let connector = crate::CloudConnector::new(
