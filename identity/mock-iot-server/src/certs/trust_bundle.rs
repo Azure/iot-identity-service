@@ -2,7 +2,7 @@
 
 pub(crate) fn read_trust_bundle(
     trust_bundle_certs_dir: Option<&std::path::PathBuf>,
-) -> Option<aziot_cloud_client_async::dps::schema::TrustBundle> {
+) -> Option<aziot_cloud_client_async::dps::TrustBundle> {
     let trust_bundle_certs_dir = if let Some(dir) = trust_bundle_certs_dir {
         assert!(dir.is_dir());
 
@@ -44,8 +44,7 @@ pub(crate) fn read_trust_bundle(
             let certificate = cert.to_pem().unwrap();
             let certificate = String::from_utf8(certificate).unwrap();
 
-            let trust_bundle_cert =
-                aziot_cloud_client_async::dps::schema::Certificate { certificate };
+            let trust_bundle_cert = aziot_cloud_client_async::dps::Certificate { certificate };
 
             certificates.push(trust_bundle_cert);
         }
@@ -60,5 +59,5 @@ pub(crate) fn read_trust_bundle(
         certificates.len()
     );
 
-    Some(aziot_cloud_client_async::dps::schema::TrustBundle { certificates })
+    Some(aziot_cloud_client_async::dps::TrustBundle { certificates })
 }

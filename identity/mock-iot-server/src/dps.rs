@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use aziot_cloud_client_async::dps::register;
+
 use crate::server::Response;
 
 #[derive(Debug, serde::Deserialize)]
@@ -7,7 +9,7 @@ use crate::server::Response;
 struct RegistrationRequest {
     pub registration_id: String,
 
-    pub tpm: Option<aziot_cloud_client_async::dps::schema::TpmAttestation>,
+    pub tpm: Option<register::schema::TpmAttestation>,
 
     #[serde(
         rename = "clientCertificateCsr",
@@ -43,7 +45,7 @@ fn register(
     let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
 
     let tpm = if body.tpm.is_some() {
-        Some(aziot_cloud_client_async::DpsResponse::TpmAuthKey {
+        Some(register::schema::response::TpmAuthKey {
             authentication_key: "mock-dps-tpm-key".to_string(),
         })
     } else {
@@ -53,14 +55,12 @@ fn register(
     let cert_policy = if context.enable_server_certs {
         Some(aziot_identity_common::CertPolicy {
             cert_type: aziot_identity_common::CertType::Server,
-            key_length: 2048,
-            key_curve: None,
         })
     } else {
         None
     };
 
-    let mut device = aziot_cloud_client_async::dps::schema::Device {
+    let mut device = register::schema::Device {
         // Direct all Hub requests to be handled by this process's endpoint.
         assigned_hub: context.endpoint.clone(),
         device_id: uuid.clone(),
@@ -84,24 +84,22 @@ fn register(
 
             device.identity_cert = Some(crate::certs::issuance::issue_cert(&client_cert_csr));
 
-            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { tpm, device }
+            register::schema::response::DeviceRegistration::Assigned { tpm, device }
         }
 
         // DPS returns a specific error when a CSR is provided but identity certificates
         // aren't enabled.
         (Some(_), false) => {
-            let error = aziot_cloud_client_async::DpsResponse::ServiceError {
+            let error = aziot_cloud_client_async::dps::ServiceError {
                 code: 400_000,
                 message: "Device sent CSR but it is not configured in the service.".to_string(),
             };
 
-            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Failed(error)
+            register::schema::response::DeviceRegistration::Failed(error)
         }
 
         // Don't issue identity certificate if no CSR is provided.
-        (None, _) => {
-            aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { tpm, device }
-        }
+        (None, _) => register::schema::response::DeviceRegistration::Assigned { tpm, device },
     };
 
     let operation_id = {
@@ -112,7 +110,7 @@ fn register(
         uuid
     };
 
-    let response = aziot_cloud_client_async::DpsResponse::OperationStatus { operation_id };
+    let response = aziot_cloud_client_async::dps::OperationStatus { operation_id };
 
     Response::json(hyper::StatusCode::ACCEPTED, response)
 }
@@ -127,9 +125,7 @@ fn operation_status(operation_id: &str, context: &mut crate::server::Context) ->
     };
 
     // Add new device with empty module set for successful registrations.
-    if let aziot_cloud_client_async::DpsResponse::DeviceRegistration::Assigned { device, .. } =
-        &operation
-    {
+    if let register::schema::response::DeviceRegistration::Assigned { device, .. } = &operation {
         let device_id = device.device_id.clone();
 
         context

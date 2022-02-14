@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub(crate) mod request {
+pub mod request {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub(crate) struct DeviceRegistration {
+    pub struct DeviceRegistration {
         pub registration_id: String,
 
         #[serde(
@@ -15,7 +15,7 @@ pub(crate) mod request {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub(crate) struct TpmRegistration {
+    pub struct TpmRegistration {
         pub registration_id: String,
         pub tpm: super::TpmAttestation,
     }
@@ -23,7 +23,7 @@ pub(crate) mod request {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct TpmAttestation {
+pub struct TpmAttestation {
     pub endorsement_key: String,
     pub storage_root_key: String,
 }
@@ -37,10 +37,10 @@ impl std::convert::From<aziot_tpm_common::TpmKeys> for TpmAttestation {
     }
 }
 
-pub(crate) mod response {
+pub mod response {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub(crate) struct TpmAuthKey {
+    pub struct TpmAuthKey {
         pub authentication_key: String,
     }
 
@@ -50,7 +50,7 @@ pub(crate) mod response {
         content = "registrationState",
         rename_all = "lowercase"
     )]
-    pub(crate) enum DeviceRegistration {
+    pub enum DeviceRegistration {
         Assigned {
             #[serde(flatten)]
             device: super::Device,

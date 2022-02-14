@@ -117,13 +117,13 @@ impl Response {
 pub(crate) struct ContextInner {
     pub in_progress_operations: std::collections::BTreeMap<
         String,
-        aziot_cloud_client_async::DpsResponse::DeviceRegistration,
+        aziot_cloud_client_async::dps::register::schema::response::DeviceRegistration,
     >,
     pub devices: std::collections::BTreeMap<
         String,
         std::collections::HashSet<aziot_identity_common::hub::Module>,
     >,
-    pub trust_bundle: Option<aziot_cloud_client_async::dps::schema::TrustBundle>,
+    pub trust_bundle: Option<aziot_cloud_client_async::dps::TrustBundle>,
     pub enable_identity_certs: bool,
     pub enable_server_certs: bool,
     pub endpoint: String,

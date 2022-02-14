@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-mod register;
+pub mod register;
 pub use register::schema::{Certificate, Device, TrustBundle};
 pub use register::Register;
 
@@ -13,7 +13,7 @@ const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct ServiceError {
+pub struct ServiceError {
     #[serde(alias = "errorCode")]
     pub code: i32,
     #[serde(alias = "errorMessage")]
@@ -38,6 +38,6 @@ impl From<ServiceError> for std::io::Error {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct OperationStatus {
+pub struct OperationStatus {
     pub operation_id: String,
 }
