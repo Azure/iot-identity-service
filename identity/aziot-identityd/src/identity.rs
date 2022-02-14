@@ -839,6 +839,10 @@ impl IdentityManager {
             credentials
         };
 
+        if response.cert_policy.is_some() {
+            log::info!("DPS registration has certificate issuance policy.");
+        }
+
         Ok(aziot_identity_common::IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
                 .unwrap_or_else(|| response.assigned_hub.clone()),
@@ -851,7 +855,7 @@ impl IdentityManager {
 
     async fn save_dps_trust_bundle(
         &self,
-        trust_bundle: aziot_cloud_client_async::dps::schema::TrustBundle,
+        trust_bundle: aziot_cloud_client_async::dps::TrustBundle,
     ) -> Result<(), Error> {
         let mut certificates = String::new();
 

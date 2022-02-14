@@ -192,7 +192,7 @@ impl Api {
         let x509 = if let Some((policy, cert, key)) = dps {
             log::info!("{} will be issued by DPS.", id);
 
-            let dps_request = aziot_cloud_client_async::dps::ServerCert::new(policy, cert, key)
+            let dps_request = aziot_cloud_client_async::dps::IssueCert::new(policy, cert, key)
                 .with_proxy(this.proxy_uri.clone());
 
             dps_request

@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+pub mod schema;
+
 use std::io::{Error, ErrorKind};
 
 use http_common::HttpRequest;
-
-use crate::dps::schema;
 
 pub struct Register {
     endpoint: url::Url,
@@ -186,10 +186,9 @@ impl Register {
             .await?;
 
         // DPS should respond with 401 Unauthorized and present the encrypted nonce.
-        let response = response
-            .parse::<schema::response::TpmAuthKey, schema::response::ServiceError>(&[
-                hyper::StatusCode::UNAUTHORIZED,
-            ])?;
+        let response = response.parse::<schema::response::TpmAuthKey, super::ServiceError>(&[
+            hyper::StatusCode::UNAUTHORIZED,
+        ])?;
 
         let auth_key = base64::decode(response.authentication_key)
             .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
@@ -213,8 +212,6 @@ impl Register {
         register_uri: &str,
         register_body: schema::request::DeviceRegistration,
     ) -> Result<schema::Device, Error> {
-        const POLL_PERIOD: tokio::time::Duration = tokio::time::Duration::from_secs(5);
-
         // Registration with TPM has an additional step to get an encrypted nonce
         // from DPS. After decrypting and importing the nonce, the remaining registration
         // steps are the same as registration with SAS key.
@@ -249,10 +246,10 @@ impl Register {
 
         // Determine the registration request's operation ID.
         let operation_id = {
-            let response = response
-                .parse::<schema::response::OperationStatus, schema::response::ServiceError>(&[
-                    hyper::StatusCode::ACCEPTED,
-                ])?;
+            let response = response.parse::<super::OperationStatus, super::ServiceError>(&[
+                hyper::StatusCode::OK,
+                hyper::StatusCode::ACCEPTED,
+            ])?;
 
             response.operation_id
         };
@@ -272,7 +269,7 @@ impl Register {
         };
 
         // Query the status URI until the registration finishes.
-        tokio::time::sleep(POLL_PERIOD).await;
+        tokio::time::sleep(super::POLL_PERIOD).await;
 
         loop {
             // Since this request is already in a retry loop, with_retry() is not used
@@ -287,7 +284,11 @@ impl Register {
             log::info!("Checking DPS registration status.");
             let response = status_request.json_response().await?;
 
-            let registration = response.parse_expect_ok::<schema::response::DeviceRegistration, schema::response::ServiceError>()?;
+            let registration = response
+                .parse::<schema::response::DeviceRegistration, super::ServiceError>(&[
+                    hyper::StatusCode::OK,
+                    hyper::StatusCode::ACCEPTED,
+                ])?;
 
             match registration {
                 schema::response::DeviceRegistration::Assigned { device, tpm } => {
@@ -305,7 +306,7 @@ impl Register {
                 schema::response::DeviceRegistration::Assigning { .. } => {
                     log::info!("DPS registration is still in progress.");
 
-                    tokio::time::sleep(POLL_PERIOD).await;
+                    tokio::time::sleep(super::POLL_PERIOD).await;
                 }
 
                 schema::response::DeviceRegistration::Failed(error) => {

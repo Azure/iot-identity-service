@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-pub mod request {
+pub(crate) mod request {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct DeviceRegistration {
+    pub(crate) struct DeviceRegistration {
         pub registration_id: String,
 
         #[serde(
@@ -15,24 +15,15 @@ pub mod request {
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct TpmRegistration {
+    pub(crate) struct TpmRegistration {
         pub registration_id: String,
         pub tpm: super::TpmAttestation,
-    }
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    #[serde(rename_all = "camelCase")]
-    pub struct IssueCert {
-        #[serde(rename = "certificateType")]
-        pub cert_type: aziot_identity_common::CertType,
-
-        pub csr: String,
     }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TpmAttestation {
+pub(crate) struct TpmAttestation {
     pub endorsement_key: String,
     pub storage_root_key: String,
 }
@@ -46,26 +37,11 @@ impl std::convert::From<aziot_tpm_common::TpmKeys> for TpmAttestation {
     }
 }
 
-pub mod response {
+pub(crate) mod response {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
-    pub struct ServiceError {
-        #[serde(alias = "errorCode")]
-        pub code: i32,
-        #[serde(alias = "errorMessage")]
-        pub message: String,
-    }
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    #[serde(rename_all = "camelCase")]
-    pub struct TpmAuthKey {
+    pub(crate) struct TpmAuthKey {
         pub authentication_key: String,
-    }
-
-    #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    #[serde(rename_all = "camelCase")]
-    pub struct OperationStatus {
-        pub operation_id: String,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -74,7 +50,7 @@ pub mod response {
         content = "registrationState",
         rename_all = "lowercase"
     )]
-    pub enum DeviceRegistration {
+    pub(crate) enum DeviceRegistration {
         Assigned {
             #[serde(flatten)]
             device: super::Device,
@@ -86,7 +62,7 @@ pub mod response {
             #[serde(rename = "registrationId")]
             registration_id: String,
         },
-        Failed(ServiceError),
+        Failed(crate::dps::ServiceError),
     }
 }
 
@@ -120,20 +96,4 @@ pub struct TrustBundle {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct Certificate {
     pub certificate: String,
-}
-
-impl From<response::ServiceError> for std::io::Error {
-    fn from(err: response::ServiceError) -> std::io::Error {
-        // TODO: DPS needs to make a change to allow the client to distinguish
-        // this error code from others. For now, distinguish based on error message.
-        match err.message.as_str() {
-            "Device sent CSR but it is not configured in the service." => {
-                // This is a retryable error. The DPS client should resend the request
-                // without the client certificate CSR.
-                std::io::Error::new(std::io::ErrorKind::InvalidInput, err.message)
-            }
-
-            _ => std::io::Error::new(std::io::ErrorKind::Other, err.message),
-        }
-    }
 }

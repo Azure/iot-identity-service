@@ -7,8 +7,6 @@
 mod connector;
 
 pub mod dps;
-pub use dps::schema::request as DpsRequest;
-pub use dps::schema::response as DpsResponse;
 
 pub mod hub;
 pub use hub::Client as HubClient;
