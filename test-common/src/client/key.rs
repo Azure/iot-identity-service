@@ -4,6 +4,7 @@
 pub struct KeyClient {
     pub create_key_if_not_exists_ok: bool,
     pub create_key_pair_if_not_exists_ok: bool,
+    pub load_key_pair_ok: bool,
 
     pub encrypt_ok: bool,
     pub decrypt_ok: bool,
@@ -42,6 +43,14 @@ impl KeyClient {
         _preferred_algorithms: Option<&str>,
     ) -> std::io::Result<aziot_key_common::KeyHandle> {
         if self.create_key_pair_if_not_exists_ok {
+            Ok(aziot_key_common::KeyHandle("key-pair-handle".to_string()))
+        } else {
+            Err(super::client_error())
+        }
+    }
+
+    pub async fn load_key_pair(&self, _id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
+        if self.load_key_pair_ok {
             Ok(aziot_key_common::KeyHandle("key-pair-handle".to_string()))
         } else {
             Err(super::client_error())
