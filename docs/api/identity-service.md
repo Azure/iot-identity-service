@@ -107,8 +107,8 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "endpoint": "string",
   "scope_id": "string",
   "registration_id": "string",
-  "certificate_issuance_policy" : {
-    "certificateIssuanceType": "serverCertificate"
+  "cert_policy" : {
+    "certificateType": "serverCertificate"
   },
 }
 ```
