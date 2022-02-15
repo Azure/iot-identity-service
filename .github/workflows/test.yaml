@@ -148,6 +148,7 @@ jobs:
         - 'mock-iot-provision'
         - 'mock-iot-trust-bundle'
         - 'mock-iot-id-cert-provision'
+        - 'mock-iot-cert-policy'
 
     needs: 'basic'
 
