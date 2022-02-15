@@ -237,9 +237,6 @@ pub enum PreloadedCert {
 /// Map of service names to endpoint URIs.
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Endpoints {
-    /// The endpoint that the identityd service binds to.
-    pub aziot_identityd: Connector,
-
     /// The endpoint that the certd service binds to.
     pub aziot_certd: Connector,
 
@@ -250,9 +247,6 @@ pub struct Endpoints {
 impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
-            aziot_identityd: Connector::Unix {
-                socket_path: Path::new("/run/aziot/identityd.sock").into(),
-            },
             aziot_certd: Connector::Unix {
                 socket_path: Path::new("/run/aziot/certd.sock").into(),
             },
@@ -454,9 +448,6 @@ certs = ["test"]
                 .collect(),
 
                 endpoints: Endpoints {
-                    aziot_identityd: Connector::Unix {
-                        socket_path: Path::new("/run/aziot/identityd.sock").into()
-                    },
                     aziot_certd: Connector::Unix {
                         socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
@@ -480,7 +471,6 @@ certs = ["test"]
 homedir_path = "/var/lib/aziot/certd"
 
 [endpoints]
-aziot_identityd = "unix:///run/aziot/identityd.sock"
 aziot_keyd = "unix:///run/aziot/keyd.sock"
 aziot_certd = "unix:///run/aziot/certd.sock"
 "#;
@@ -496,9 +486,6 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                 preloaded_certs: Default::default(),
 
                 endpoints: Endpoints {
-                    aziot_identityd: Connector::Unix {
-                        socket_path: Path::new("/run/aziot/identityd.sock").into()
-                    },
                     aziot_certd: Connector::Unix {
                         socket_path: Path::new("/run/aziot/certd.sock").into()
                     },
@@ -642,9 +629,6 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             .collect(),
 
             endpoints: Endpoints {
-                aziot_identityd: Connector::Unix {
-                    socket_path: Path::new("/run/aziot/identityd.sock").into(),
-                },
                 aziot_certd: Connector::Unix {
                     socket_path: Path::new("/run/aziot/certd.sock").into(),
                 },

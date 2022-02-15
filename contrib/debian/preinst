@@ -21,33 +21,31 @@ case "$1" in
 		if ! /usr/bin/getent group aziotks >/dev/null; then
 			/usr/sbin/groupadd -r aziotks
 		fi
-		if ! /usr/bin/getent group aziottpm >/dev/null; then
-			/usr/sbin/groupadd -r aziottpm
-		fi
-		if ! /usr/bin/getent group aziotcs >/dev/null; then
-			/usr/sbin/groupadd -r aziotcs
-		fi
-		if ! /usr/bin/getent group aziotid >/dev/null; then
-			/usr/sbin/groupadd -r aziotid
-		fi
-
 		if ! /usr/bin/getent passwd aziotks >/dev/null; then
 			/usr/sbin/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
 		fi
 		mkdir -p /var/lib/aziot/keyd
 
+		if ! /usr/bin/getent group aziottpm >/dev/null; then
+			/usr/sbin/groupadd -r aziottpm
+		fi
 		if ! /usr/bin/getent passwd aziottpm >/dev/null; then
 			/usr/sbin/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
 		fi
 		mkdir -p /var/lib/aziot/tpmd
 
+		if ! /usr/bin/getent group aziotcs >/dev/null; then
+			/usr/sbin/groupadd -r aziotcs
+		fi
 		if ! /usr/bin/getent passwd aziotcs >/dev/null; then
 			/usr/sbin/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
 			/usr/sbin/usermod -aG aziotks aziotcs
-			/usr/sbin/usermod -aG aziotid aziotcs
 		fi
 		mkdir -p /var/lib/aziot/certd
 
+		if ! /usr/bin/getent group aziotid >/dev/null; then
+			/usr/sbin/groupadd -r aziotid
+		fi
 		if ! /usr/bin/getent passwd aziotid >/dev/null; then
 			/usr/sbin/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
 			/usr/sbin/usermod -aG aziotcs aziotid

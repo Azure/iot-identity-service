@@ -25,27 +25,21 @@ percent-encoding = "2"
 regex = "1"
 serde = "1"
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "time"] }
+tokio = { version = "1", features = ["time"] }
 url = "2"
 wildmatch = "1"
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-certd-config = { path = "../aziot-certd-config" }
-aziot-cloud-client-async = { path = "../../identity/aziot-cloud-client-async" }
 aziot-key-client = { path = "../../key/aziot-key-client" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
-aziot-identity-client-async = { path = "../../identity/aziot-identity-client-async" }
-aziot-identity-common-http = { path = "../../identity/aziot-identity-common-http" }
-aziot-identity-common = { path = "../../identity/aziot-identity-common" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
+
 [build-dependencies]
 openssl-build = { path = "../../openssl-build/" }
-
-[dev-dependencies]
-test-common = { path = "../../test-common" }

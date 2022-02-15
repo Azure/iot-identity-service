@@ -11,7 +11,6 @@
     clippy::too_many_lines
 )]
 
-mod dps_policy;
 mod error;
 mod est;
 mod http;
@@ -44,12 +43,6 @@ use http_common::Connector;
 
 use error::{Error, InternalError};
 
-#[cfg(not(test))]
-use aziot_identity_client_async::Client as IdentityClient;
-
-#[cfg(test)]
-use test_common::client::IdentityClient;
-
 pub(crate) type BoxedError = Box<dyn StdError + Send + Sync>;
 
 #[allow(clippy::unused_async)]
@@ -64,7 +57,6 @@ pub async fn main(
         preloaded_certs,
         endpoints:
             Endpoints {
-                aziot_identityd: identity_connector,
                 aziot_certd: connector,
                 aziot_keyd: key_connector,
             },
@@ -72,12 +64,6 @@ pub async fn main(
     } = config;
 
     let api = {
-        let identity_client = Arc::new(IdentityClient::new(
-            aziot_identity_common_http::ApiVersion::V2021_12_01,
-            identity_connector,
-            0,
-        ));
-
         let key_client_async = Arc::new(aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
             key_connector.clone(),
@@ -101,7 +87,6 @@ pub async fn main(
             preloaded_certs,
             principals: principal_to_map(principal),
 
-            identity_client,
             key_client: key_client_async,
             key_engine,
             proxy_uri,
@@ -122,7 +107,6 @@ struct Api {
     preloaded_certs: BTreeMap<String, PreloadedCert>,
     principals: BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
 
-    identity_client: Arc<IdentityClient>,
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: FunctionalEngine,
     proxy_uri: Option<hyper::Uri>,
@@ -157,76 +141,32 @@ impl Api {
             ));
         }
 
-        // Check for DPS certificate issuance policy and credentials. DPS certificate
-        // issuance should be used if a matching policy and credentials exist.
-        let dps = {
-            if let Some(policy) = dps_policy::check_policy(&this.identity_client, &req).await {
-                if let Ok(cert) = this.get_cert(aziot_identity_common::DPS_IDENTITY_CERT) {
-                    let key = {
-                        if let Ok(handle) = this
-                            .key_client
-                            .load_key_pair(aziot_identity_common::DPS_IDENTITY_CERT_KEY)
-                            .await
-                        {
-                            let handle = std::ffi::CString::new(handle.0)
-                                .expect("key handle should be valid CString");
-                            if let Ok(key) = this.key_engine.load_private_key(&handle) {
-                                Some(key)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    };
-
-                    key.map(|key| (policy, cert, key))
-                } else {
-                    None
+        let issuer = issuer
+            .map(|(id, handle)| -> Result<_, Error> {
+                let pem = get_cert_inner(&this.homedir_path, &this.preloaded_certs, &id)
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?
+                    .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
+                let stack = X509::stack_from_pem(&pem)
+                    .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
+                if stack.is_empty() {
+                    return Err(Error::invalid_parameter("issuer.certId", "invalid issuer"));
                 }
-            } else {
-                None
-            }
-        };
 
-        let x509 = if let Some((policy, cert, key)) = dps {
-            log::info!("{} will be issued by DPS.", id);
+                let handle = CString::new(handle.0)
+                    .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
 
-            let dps_request = aziot_cloud_client_async::dps::IssueCert::new(policy, cert, key)
-                .with_proxy(this.proxy_uri.clone());
+                Ok((stack, handle))
+            })
+            .transpose()?;
 
-            dps_request
-                .issue_server_cert(req)
-                .await
-                .map_err(|err| Error::Internal(InternalError::Dps(err.into())))?
-        } else {
-            let issuer = issuer
-                .map(|(id, handle)| -> Result<_, Error> {
-                    let pem = get_cert_inner(&this.homedir_path, &this.preloaded_certs, &id)
-                        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?
-                        .ok_or_else(|| Error::invalid_parameter("issuer.certId", "not found"))?;
-                    let stack = X509::stack_from_pem(&pem)
-                        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
-                    if stack.is_empty() {
-                        return Err(Error::invalid_parameter("issuer.certId", "invalid issuer"));
-                    }
-
-                    let handle = CString::new(handle.0)
-                        .map_err(|err| Error::invalid_parameter("issuer.privateKeyHandle", err))?;
-
-                    Ok((stack, handle))
-                })
-                .transpose()?;
-
-            create_cert_inner(
-                &mut *this,
-                &id,
-                (&req, &pubkey),
-                issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),
-            )
-            .await
-            .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?
-        };
+        let x509 = create_cert_inner(
+            &mut *this,
+            &id,
+            (&req, &pubkey),
+            issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),
+        )
+        .await
+        .map_err(|err| Error::Internal(InternalError::CreateCert(err)))?;
 
         write_cert(&this.homedir_path, &this.preloaded_certs, &id, &x509)?;
 
