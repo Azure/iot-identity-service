@@ -52,7 +52,7 @@ cert_type=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
     "http://localhost/identities/provisioning?api-version=2021-12-01" \
     --fail \
-    | jq -r .certificate_issuance_policy.certificateIssuanceType)
+    | jq -r .deviceCertificateIssuanceSettings.certificateType)
 
 if [ "$cert_type" != "serverCertificate" ]; then
     echo ""
@@ -73,7 +73,7 @@ cert_type=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
     "http://localhost/identities/provisioning?api-version=2021-12-01" \
     --fail \
-    | jq -r .certificate_issuance_policy.certificateIssuanceType)
+    | jq -r .deviceCertificateIssuanceSettings.certificateType)
 
 if [ "$cert_type" != "serverCertificate" ]; then
     echo ""
