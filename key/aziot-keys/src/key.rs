@@ -619,6 +619,8 @@ fn create_inner(
                     CreateMethod::Generate => {
                         let result =
                             pkcs11_session.generate_key(uri.object_label.as_deref(), usage);
+
+                        #[allow(clippy::unnested_or_patterns)]
                         match result {
                             Ok(_) => return Ok(()),
 
@@ -774,7 +776,7 @@ unsafe fn derive_key_common(
         Key::FileSystem(key) => {
             use hmac::{Mac, NewMac};
 
-            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
+            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(key)
                 .map_err(crate::implementation::err_external)?;
 
             signer.update(derivation_data);

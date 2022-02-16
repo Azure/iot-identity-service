@@ -2,11 +2,12 @@
 name = "aziot-certd"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 build = "build/main.rs"
 
 
 [dependencies]
+async-recursion = "0.3"
 async-trait = "0.1"
 base64 = "0.13"
 foreign-types-shared = "0.1"
@@ -31,11 +32,12 @@ wildmatch = "1"
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-certd-config = { path = "../aziot-certd-config" }
 aziot-key-client = { path = "../../key/aziot-key-client" }
+aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 config-common = { path = "../../config-common", features = ["watcher"] }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
 

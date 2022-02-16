@@ -2,7 +2,7 @@
 name = "aziot-keyd"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
@@ -28,4 +28,4 @@ aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-keyd-config = { path = "../aziot-keyd-config" }
 config-common = { path = "../../config-common", features = ["watcher"] }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }

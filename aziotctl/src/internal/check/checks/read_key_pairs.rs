@@ -45,6 +45,7 @@ impl ReadKeyPairs {
         let key_client = aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
             aziot_keyd.clone(),
+            0,
         );
 
         let mut key_engine = {
@@ -61,7 +62,23 @@ impl ReadKeyPairs {
         let mut err_aggregated = vec![];
         let mut warn_aggregated = vec![];
 
-        for id in preloaded_keys.keys() {
+        // Check every preloaded key at a file:// URI is readable by the aziotks user and report errors when they aren't.
+        let aziotks_user = crate::internal::common::get_system_user("aziotks")?;
+
+        for (id, path) in preloaded_keys {
+            if let Ok(aziot_keys_common::PreloadedKeyLocation::Filesystem { path }) = path.parse() {
+                if let Err(err) =
+                    aziotctl_common::config::check_readable(&path, &aziotks_user, false)
+                {
+                    err_aggregated.push(format!("{:?}", err));
+                    // There's no point trying to load the key through the API,
+                    // so just continue to the next key.
+                    continue;
+                }
+            }
+
+            // Load the key through the keyd API and collect any errors.
+            //
             // We don't know whether `id` is a symmetric or asymmetric key,
             // and the `load_key_pair` error doesn't tell us whether it failed because it's a symmetric key
             // or because of some other reason.

@@ -23,7 +23,7 @@ impl http_common::server::Route for Route {
             return None;
         }
 
-        let uid = extensions.get::<libc::uid_t>().cloned()?;
+        let uid = extensions.get::<libc::uid_t>().copied()?;
 
         Some(Route {
             api: service.api.clone(),
@@ -32,16 +32,9 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
-
-    type GetResponse = ();
 
     type PostBody = aziot_identity_common_http::get_device_identity::Request;
-    type PostResponse = aziot_identity_common_http::get_device_identity::Response;
-    async fn post(
-        self,
-        body: Option<Self::PostBody>,
-    ) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+    async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),
@@ -60,9 +53,9 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_device_identity::Response { identity };
-        Ok((hyper::StatusCode::OK, Some(res)))
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }

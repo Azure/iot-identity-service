@@ -11,11 +11,15 @@ The Azure IoT Identity Service can be installed on your device by installing the
 </thead>
 <tbody>
 <tr>
-<td>Debian 9, Raspbian 9</td>
+<td>Debian 9, Raspberry Pi OS 9</td>
 <td>amd64, arm32v7, aarch64</td>
 </tr>
 <tr>
-<td>Debian 10, Raspbian 10</td>
+<td>Debian 10, Raspberry Pi OS 10</td>
+<td>amd64, arm32v7, aarch64</td>
+</tr>
+<tr>
+<td>Debian 11, Raspberry Pi OS 11</td>
 <td>amd64, arm32v7, aarch64</td>
 </tr>
 <tr>
@@ -28,6 +32,10 @@ The Azure IoT Identity Service can be installed on your device by installing the
 </tr>
 <tr>
 <td>CentOS 7</td>
+<td>amd64</td>
+</tr>
+<tr>
+<td>RHEL 8</td>
 <td>amd64</td>
 </tr>
 </tbody>

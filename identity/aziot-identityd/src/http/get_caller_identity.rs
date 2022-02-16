@@ -23,7 +23,7 @@ impl http_common::server::Route for Route {
             return None;
         }
 
-        let uid = extensions.get::<libc::uid_t>().cloned()?;
+        let uid = extensions.get::<libc::uid_t>().copied()?;
 
         Some(Route {
             api: service.api.clone(),
@@ -32,10 +32,8 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
 
-    type GetResponse = aziot_identity_common_http::get_module_identity::Response;
-    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+    async fn get(self) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -49,12 +47,11 @@ impl http_common::server::Route for Route {
             Err(err) => return Err(super::to_http_error(&err)),
         };
         let res = aziot_identity_common_http::get_module_identity::Response { identity };
-        Ok((hyper::StatusCode::OK, res))
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
-    type PostResponse = ();
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }

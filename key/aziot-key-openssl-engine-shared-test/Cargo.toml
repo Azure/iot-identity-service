@@ -3,20 +3,20 @@ name = "aziot-key-openssl-engine-shared-test"
 version = "0.1.0"
 license = "MIT"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
 backtrace = "0.3"
-futures-core = "0.3"
 futures-util = "0.3"
 http = "0.2"
-hyper = { version = "0.14", features = ["client", "http1", "server"] }
+hyper = { version = "0.14", features = ["client", "http1"] }
 hyper-openssl = "0.9"
 openssl = "0.10"
 structopt = "0.3.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-tokio-openssl = "0.6"
 
 openssl2 = { path = "../../openssl2/" }
 openssl-sys2 = { path = "../../openssl-sys2/" }
+
+test-common = { path = "../../test-common" }

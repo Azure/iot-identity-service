@@ -200,8 +200,8 @@ pub enum DpsAttestationMethod {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct CertIssuance {
-    pub est: Option<Est>,
     pub local_ca: Option<LocalCa>,
+    pub est: Option<Est>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -276,7 +276,8 @@ pub enum X509Identity {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuanceOptions {
-    pub common_name: Option<String>,
+    #[serde(flatten)]
+    pub method: CertIssuanceMethod,
 
     #[serde(
         default,
@@ -285,9 +286,10 @@ pub struct CertIssuanceOptions {
     pub expiry_days: Option<u32>,
 
     #[serde(flatten)]
-    pub method: CertIssuanceMethod,
+    pub subject: Option<aziot_certd_config::CertSubject>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {

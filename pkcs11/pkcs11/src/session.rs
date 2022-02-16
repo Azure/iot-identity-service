@@ -987,7 +987,6 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum DeleteKeyError {
     DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GetExistingKeyFailed(GetKeyError),
@@ -1049,7 +1048,6 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum DeleteKeyPairError {
     DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GetExistingKeyFailed(GetKeyError),

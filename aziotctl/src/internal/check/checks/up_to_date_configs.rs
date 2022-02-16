@@ -19,6 +19,7 @@ impl Checker for UpToDateConfigs {
         }
     }
 
+    #[allow(clippy::unused_async)]
     async fn execute(&mut self, _shared: &CheckerShared, _cache: &mut CheckerCache) -> CheckResult {
         match check_last_modified(&["keyd", "certd", "identityd", "tpmd"]) {
             Ok(()) => CheckResult::Ok,

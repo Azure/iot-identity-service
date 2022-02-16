@@ -65,8 +65,11 @@ pub async fn main(
     let connector = settings.endpoints.aziot_identityd.clone();
 
     if !homedir_path.exists() {
-        let () =
-            std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
+        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+            log::error!("Failed to create home directory: {}", err);
+
+            return Err(error::InternalError::CreateHomeDir(err).into());
+        }
     }
 
     let api = Api::new(settings.clone())?;
@@ -110,6 +113,7 @@ impl Api {
             let key_client = aziot_key_client_async::Client::new(
                 aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_service_connector.clone(),
+                1,
             );
             let key_client = Arc::new(key_client);
             key_client
@@ -132,6 +136,7 @@ impl Api {
             let cert_client = aziot_cert_client_async::Client::new(
                 aziot_cert_common_http::ApiVersion::V2020_09_01,
                 cert_service_connector,
+                1,
             );
             let cert_client = Arc::new(cert_client);
             cert_client
@@ -151,9 +156,7 @@ impl Api {
             .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
 
         let id_manager = identity::IdentityManager::new(
-            settings.homedir.clone(),
-            std::time::Duration::from_secs(settings.cloud_timeout_sec),
-            settings.cloud_retries,
+            &settings,
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
@@ -198,7 +201,96 @@ impl Api {
             }
         }
 
-        return Err(Error::Authorization);
+        Err(Error::Authorization)
+    }
+
+    pub async fn get_provisioning_info(
+        &self,
+    ) -> Result<aziot_identity_common_http::get_provisioning_info::Response, Error> {
+        match &self.settings.provisioning.provisioning {
+            config::ProvisioningType::Dps {
+                global_endpoint,
+                scope_id,
+                attestation,
+            } => {
+                let (auth, registration_id) = match attestation {
+                    config::DpsAttestationMethod::SymmetricKey {
+                        registration_id, ..
+                    } => ("symmetric_key".to_string(), registration_id.to_string()),
+                    config::DpsAttestationMethod::Tpm { registration_id } => {
+                        ("tpm".to_string(), registration_id.to_string())
+                    }
+                    config::DpsAttestationMethod::X509 {
+                        registration_id,
+                        identity_cert,
+                        ..
+                    } => {
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id.to_string()
+                        } else {
+                            // Get the registration ID from the identity certificate if it was not provided
+                            // in the config.
+                            let identity_cert = self
+                                .cert_client
+                                .get_cert(identity_cert)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let identity_cert = openssl::x509::X509::from_pem(&identity_cert)
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let cert_subject = identity_cert
+                                .subject_name()
+                                .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+                                .next()
+                                .ok_or_else(|| {
+                                    Error::Internal(InternalError::CreateCertificate(
+                                        "identity certificate missing common name".into(),
+                                    ))
+                                })?;
+
+                            let registration_id =
+                                String::from_utf8(cert_subject.data().as_slice().to_vec())
+                                    .map_err(|err| {
+                                        Error::Internal(InternalError::CreateCertificate(
+                                            err.into(),
+                                        ))
+                                    })?;
+
+                            registration_id
+                        };
+
+                        ("x509".to_string(), registration_id)
+                    }
+                };
+
+                Ok(
+                    aziot_identity_common_http::get_provisioning_info::Response::Dps {
+                        auth,
+                        endpoint: global_endpoint.to_string(),
+                        scope_id: scope_id.to_string(),
+                        registration_id,
+                    },
+                )
+            }
+            config::ProvisioningType::Manual { authentication, .. } => {
+                let auth = match authentication {
+                    aziot_identityd_config::ManualAuthMethod::SharedPrivateKey { .. } => {
+                        "sas".to_string()
+                    }
+                    aziot_identityd_config::ManualAuthMethod::X509 { .. } => "x509".to_string(),
+                };
+
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::Manual { auth })
+            }
+            aziot_identityd_config::ProvisioningType::None => {
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::None)
+            }
+        }
     }
 
     pub async fn get_identity(
@@ -428,8 +520,6 @@ impl Api {
                                 return Err(err);
                             }
                         } else {
-                            log::info!("Successfully reprovisioned.");
-
                             self.id_manager
                                 .reconcile_hub_identities(self.settings.clone())
                                 .await?;
@@ -499,7 +589,7 @@ impl Api {
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
-                .create_cert(&module_id, &csr, None)
+                .create_cert(module_id, &csr, None)
                 .await
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = String::from_utf8(certificate)
@@ -550,7 +640,8 @@ impl Api {
             // no valid backup could be loaded. Treat this as a fatal error.
             if let ReprovisionTrigger::Startup = trigger {
                 log::error!(
-                    "Failed to provision with IoT Hub, and no valid device backup was found."
+                    "Failed to provision with IoT Hub, and no valid device backup was found: {}",
+                    err
                 );
 
                 return Err(err);
@@ -698,7 +789,7 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 
     let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
     let diff = epoch
-        .diff(&cert.not_after())
+        .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
     let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);

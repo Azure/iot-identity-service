@@ -14,15 +14,12 @@ members = [
 
 	"http-common",
 
-	"identity/aziot-cloud-client-async-common",
-	"identity/aziot-dps-client-async",
-	"identity/aziot-hub-client-async",
+	"identity/aziot-cloud-client-async",
 	"identity/aziot-identity-client-async",
 	"identity/aziot-identity-common",
 	"identity/aziot-identity-common-http",
 	"identity/aziot-identityd",
-
-	"iotedged",
+	"identity/mock-iot-server",
 
 	"key/aziot-key-client",
 	"key/aziot-key-client-async",
@@ -43,6 +40,8 @@ members = [
 
 	"pkcs11/pkcs11",
 	"pkcs11/pkcs11-sys",
+
+	"test-common",
 
 	"tpm/aziot-tpm-client-async",
 	"tpm/aziot-tpm-common-http",

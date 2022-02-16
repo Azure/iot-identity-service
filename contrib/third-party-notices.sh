@@ -29,7 +29,7 @@ cargo_metadata="$(
         jq -r '.resolve.nodes'
 )"
 
-# These dependencies include more than we ship, because they include dependencies of crates like iotedged and aziot-key-openssl-engine-shared-test.
+# These dependencies include more than we ship, because they include dependencies of crates like aziot-key-openssl-engine-shared-test.
 # So, for each shipping crate, we enumerate only their dependencies, the dependencies of their dependencies, and so on,
 # and build up the final list of dependencies.
 

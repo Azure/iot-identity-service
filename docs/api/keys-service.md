@@ -320,7 +320,7 @@ Only valid for symmetric keys.
 
 For AEAD encryption, the ciphertext includes the AEAD tag so the caller does not need to handle that specially.
 
-Note also that the exact AEAD algorithm used cannot be chosed by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
+Note also that the exact AEAD algorithm used cannot be chosen by the caller; it is up to the libaziot-keys implementation. The libaziot-keys shipped by Microsoft uses AES-GCM. It also encodes a version number in the ciphertext to identify the algorithm used, so that the algorithm can be modified in the future if necessary while still being able to decrypt ciphertext created with the old algorithm.
 
 ---
 
@@ -350,26 +350,6 @@ Only valid for symmetric keys.
 }
 ```
 
-##### RSA-PKCS1
-
-```json
-{
-    "keyHandle": "string",
-    "algorithm": "RSA-PKCS1",
-    "ciphertext": "base64-encoded-string"
-}
-```
-
-##### RSA-NO-PADDING
-
-```json
-{
-    "keyHandle": "string",
-    "algorithm": "RSA-NO-PADDING",
-    "ciphertext": "base64-encoded-string"
-}
-```
-
 #### Response
 
 ```json
@@ -379,6 +359,8 @@ Only valid for symmetric keys.
 ```
 
 The ciphertext must have come from the `/encrypt` API so that it matches the format that the `/decrypt` API expects. See the note in the `/encrypt` API above for details.
+
+Note that the `/decrypt` API does not support the `RSA-PKCS1` and `RSA-NO-PADDING` algorithms that `/encrypt` does. Decryption with those algorithms is done with the public key, which can be done by the caller without involving the Keys Service, since the caller has access to the public key via `/parameters/`
 
 ---
 

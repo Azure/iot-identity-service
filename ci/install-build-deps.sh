@@ -4,10 +4,9 @@
 #
 # WARNING: This script is destructive to your machine's environment and globally-installed files. For example, the Ubuntu-specific parts of the script
 # modify the contents of /etc/apt. The script is intended to be run inside a container of the corresponding OS, not directly on your machine.
-
-
-OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
-
+if [ -z "${OS:-}" ]; then
+    OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
+fi
 
 # OS packages
 
@@ -16,15 +15,15 @@ case "$OS:$ARCH" in
         yum install -y epel-release
         yum install -y \
             curl gcc gcc-c++ git jq make pkgconfig cmake \
-            clang llvm-devel openssl-devel
+            clang llvm-devel openssl-devel which openssl
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
-        echo 'Cross-compilation on CentOS 7 is not supported' >&2
+        echo "Cross-compilation on $OS $ARCH is not supported" >&2
         exit 1
         ;;
 
-    'debian:9:amd64'|'debian:10:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
+    'debian:9:amd64'|'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -35,7 +34,7 @@ case "$OS:$ARCH" in
             libclang1 libssl-dev llvm-dev
         ;;
 
-    'debian:9:arm32v7'|'debian:10:arm32v7')
+    'debian:9:arm32v7'|'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -47,7 +46,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'debian:9:aarch64'|'debian:10:aarch64')
+    'debian:9:aarch64'|'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -58,6 +57,18 @@ case "$OS:$ARCH" in
             ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
+
+    'platform:el8:amd64')
+        yum install -y \
+            curl gcc gcc-c++ git jq make pkgconfig cmake \
+            clang llvm-devel openssl-devel
+        ;;
+
+    'platform:el8:aarch64'|'platform:el8:arm32v7')
+        echo "Cross-compilation on $OS $ARCH is not supported" >&2
+        exit 1
+        ;;
+
 
     'ubuntu:18.04:arm32v7'|'ubuntu:20.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
@@ -109,6 +120,37 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
+    'mariner:amd64')
+        export DEBIAN_FRONTEND=noninteractive
+        export TZ=UTC
+
+        apt-get update -y
+        apt-get upgrade -y
+        apt-get install -y software-properties-common
+        add-apt-repository -y ppa:longsleep/golang-backports
+        apt-get update -y
+        apt-get install -y \
+            cmake curl gcc g++ git jq make pkg-config \
+            libclang1 libssl-dev llvm-dev \
+            cpio genisoimage golang-1.13-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+
+        rm -f /usr/bin/go
+        ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+        if [ -f /.dockerenv ]; then
+            mv /.dockerenv /.dockerenv.old
+        fi
+
+        MarinerToolkitDir='/tmp/CBL-Mariner'
+        if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
+            rm -rf "$MarinerToolkitDir"
+            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch '1.0-stable' --depth 1 "$MarinerToolkitDir"
+            pushd "$MarinerToolkitDir/toolkit/"
+            make package-toolkit REBUILD_TOOLS=y
+            popd
+            cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
+        fi
+        ;;
+
     *)
         echo "Unsupported OS:ARCH $OS:$ARCH" >&2
         exit 1
@@ -142,9 +184,20 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-cargo install bindgen --version '^0.54'
+BINDGEN_VERSION='0.54.0'
+CBINDGEN_VERSION='0.15.0'
 
-cargo install cbindgen --version '^0.15'
+
+# Mariner build installs them as part of the specfile
+if [ "$OS" != 'mariner' ]; then
+    cargo install bindgen --version "=$BINDGEN_VERSION"
+
+    cargo install cbindgen --version "=$CBINDGEN_VERSION"
+
+    if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
+        cargo install cargo-tarpaulin --version '^0.18'
+    fi
+fi
 
 export CARGO_INCREMENTAL=0
 

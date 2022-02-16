@@ -96,129 +96,131 @@ macro_rules! make_service {
                                 return Box::pin(async move {
                                     let response = match method {
                                         http::Method::DELETE => {
-                                            let body = {
-                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                                if content_type.as_deref() == Some("application/json") {
-                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                        Ok(result) => match result {
-                                                            Ok(body) => body,
-                                                            Err(err) => return Ok((http_common::server::Error {
-                                                                status_code: http::StatusCode::BAD_REQUEST,
-                                                                message: http_common::server::error_to_message(&err).into(),
-                                                            }).to_http_response()),
-                                                        },
-                                                        Err(timeout_err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                            message: http_common::server::error_to_message(&timeout_err).into(),
-                                                        }).to_http_response()),
-                                                    };
-
-                                                    let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
-                                                        Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                            message: http_common::server::error_to_message(&err).into(),
-                                                        }).to_http_response()),
-                                                    };
-
-                                                    Some(body)
-                                                }
-                                                else {
-                                                    None
-                                                }
-                                            };
-
-                                            let (status_code, response) = match <$route as http_common::server::Route>::delete(route, body).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
-                                            };
-                                            http_common::server::json_response(status_code, response.as_ref())
-                                        },
-
-                                        http::Method::GET => {
-                                            let (status_code, response) = match <$route as http_common::server::Route>::get(route).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
-                                            };
-                                            http_common::server::json_response(status_code, Some(&response))
-                                        },
-
-                                        http::Method::POST => {
-                                            let body = {
-                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                                if content_type.as_deref() == Some("application/json") {
-                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                        Ok(result) => match result {
-                                                            Ok(body) => body,
-                                                            Err(err) => return Ok((http_common::server::Error {
-                                                                status_code: http::StatusCode::BAD_REQUEST,
-                                                                message: http_common::server::error_to_message(&err).into(),
-                                                            }).to_http_response()),
-                                                        },
-                                                        Err(timeout_err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                            message: http_common::server::error_to_message(&timeout_err).into(),
-                                                        }).to_http_response()),
-                                                    };
-
-                                                    let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
-                                                        Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                            message: http_common::server::error_to_message(&err).into(),
-                                                        }).to_http_response()),
-                                                    };
-
-                                                    Some(body)
-                                                }
-                                                else {
-                                                    None
-                                                }
-                                            };
-
-                                            let (status_code, response) = match <$route as http_common::server::Route>::post(route, body).await {
-                                                Ok(result) => result,
-                                                Err(err) => return Ok(err.to_http_response()),
-                                            };
-                                            http_common::server::json_response(status_code, response.as_ref())
-                                        },
-
-                                        http::Method::PUT => {
-                                            let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                            if content_type.as_deref() != Some("application/json") {
-                                                return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                                                    message: "request body must be application/json".into(),
-                                                }).to_http_response());
-                                            }
-
                                             let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                Ok(result) => match result {
-                                                    Ok(body) => body,
-                                                    Err(err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::BAD_REQUEST,
-                                                        message: http_common::server::error_to_message(&err).into(),
-                                                    }).to_http_response()),
-                                                },
+                                                Ok(Ok(body)) => body,
+                                                Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::BAD_REQUEST,
+                                                    message: http_common::server::error_to_message(&err).into(),
+                                                }).to_http_response()),
                                                 Err(timeout_err) => return Ok((http_common::server::Error {
                                                     status_code: http::StatusCode::REQUEST_TIMEOUT,
                                                     message: http_common::server::error_to_message(&timeout_err).into(),
                                                 }).to_http_response()),
                                             };
 
-                                            let body: <$route as http_common::server::Route>::PutBody = match serde_json::from_slice(&body) {
-                                                Ok(body) => body,
-                                                Err(err) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                            let body = if body.len() == 0 {
+                                                None
+                                            } else {
+                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+
+                                                match content_type.as_deref() {
+                                                    Some("application/json") | None => {
+                                                        let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
+                                                            Ok(body) => body,
+                                                            Err(err) => return Ok((http_common::server::Error {
+                                                                status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                                message: http_common::server::error_to_message(&err).into(),
+                                                            }).to_http_response()),
+                                                        };
+
+                                                        Some(body)
+                                                    },
+                                                    _ => None,
+                                                }
+                                            };
+
+                                            match <$route as http_common::server::Route>::delete(route, body).await {
+                                                Ok(result) => result,
+                                                Err(err) => return Ok(err.to_http_response()),
+                                            }
+                                        },
+
+                                        http::Method::GET => {
+                                            match <$route as http_common::server::Route>::get(route).await {
+                                                Ok(result) => result,
+                                                Err(err) => return Ok(err.to_http_response()),
+                                            }
+                                        },
+
+                                        http::Method::POST => {
+                                            let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                Ok(Ok(body)) => body,
+                                                Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::BAD_REQUEST,
                                                     message: http_common::server::error_to_message(&err).into(),
+                                                }).to_http_response()),
+                                                Err(timeout_err) => return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                    message: http_common::server::error_to_message(&timeout_err).into(),
                                                 }).to_http_response()),
                                             };
 
-                                            let (status_code, response) = match <$route as http_common::server::Route>::put(route, body).await {
+                                            let body = if body.len() == 0 {
+                                                None
+                                            } else {
+                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                                match content_type.as_deref() {
+                                                    Some("application/json") | None => {
+
+
+                                                        let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
+                                                            Ok(body) => body,
+                                                            Err(err) => return Ok((http_common::server::Error {
+                                                                status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                                message: http_common::server::error_to_message(&err).into(),
+                                                            }).to_http_response()),
+                                                        };
+
+                                                        Some(body)
+                                                    },
+                                                    _ => None,
+                                                }
+                                            };
+
+                                            match <$route as http_common::server::Route>::post(route, body).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
+                                            }
+                                        },
+
+                                        http::Method::PUT => {
+                                            let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                            let body = match content_type.as_deref() {
+                                                Some("application/json") | None => {
+                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                        Ok(Ok(body)) => body,
+                                                        Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::BAD_REQUEST,
+                                                            message: http_common::server::error_to_message(&err).into(),
+                                                        }).to_http_response()),
+                                                        Err(timeout_err) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                            message: http_common::server::error_to_message(&timeout_err).into(),
+                                                        }).to_http_response()),
+                                                    };
+
+                                                    let body: <$route as http_common::server::Route>::PutBody = match serde_json::from_slice(&body) {
+                                                        Ok(body) => body,
+                                                        Err(err) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                            message: http_common::server::error_to_message(&err).into(),
+                                                        }).to_http_response()),
+                                                    };
+
+                                                    body
+                                                },
+                                                _ => {
+                                                    return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                                                        message: "request body must be application/json".into(),
+                                                    }).to_http_response());
+                                                },
                                             };
-                                            http_common::server::json_response(status_code, Some(&response))
+
+                                            match <$route as http_common::server::Route>::put(route, body).await {
+                                                Ok(result) => result,
+                                                Err(err) => return Ok(err.to_http_response()),
+                                            }
                                         },
 
                                         _ => return Ok((http_common::server::Error {
@@ -257,6 +259,7 @@ macro_rules! make_service {
 
 // DEVNOTE: Set *Body assoc type to `serde::de::IgnoredAny` if the corresponding method isn't overridden.
 #[async_trait::async_trait]
+#[allow(clippy::unused_async)]
 pub trait Route: Sized {
     type ApiVersion: std::cmp::PartialOrd;
     fn api_version() -> &'static dyn DynRangeBounds<Self::ApiVersion>;
@@ -270,19 +273,14 @@ pub trait Route: Sized {
     ) -> Option<Self>;
 
     type DeleteBody: serde::de::DeserializeOwned + Send;
-    type DeleteResponse: serde::Serialize + Send + 'static;
-    async fn delete(
-        self,
-        _body: Option<Self::DeleteBody>,
-    ) -> RouteResponse<Option<Self::DeleteResponse>> {
+    async fn delete(self, _body: Option<Self::DeleteBody>) -> RouteResponse {
         Err(Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "method not allowed".into(),
         })
     }
 
-    type GetResponse: serde::Serialize + Send + 'static;
-    async fn get(self) -> RouteResponse<Self::GetResponse> {
+    async fn get(self) -> RouteResponse {
         Err(Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "method not allowed".into(),
@@ -290,11 +288,7 @@ pub trait Route: Sized {
     }
 
     type PostBody: serde::de::DeserializeOwned + Send;
-    type PostResponse: serde::Serialize + Send + 'static;
-    async fn post(
-        self,
-        _body: Option<Self::PostBody>,
-    ) -> RouteResponse<Option<Self::PostResponse>> {
+    async fn post(self, _body: Option<Self::PostBody>) -> RouteResponse {
         Err(Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "method not allowed".into(),
@@ -302,8 +296,7 @@ pub trait Route: Sized {
     }
 
     type PutBody: serde::de::DeserializeOwned + Send;
-    type PutResponse: serde::Serialize + Send + 'static;
-    async fn put(self, _body: Self::PutBody) -> RouteResponse<Self::PutResponse> {
+    async fn put(self, _body: Self::PutBody) -> RouteResponse {
         Err(Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "method not allowed".into(),
@@ -311,7 +304,7 @@ pub trait Route: Sized {
     }
 }
 
-pub type RouteResponse<T> = Result<(http::StatusCode, T), Error>;
+pub type RouteResponse = Result<hyper::Response<hyper::Body>, Error>;
 
 pub fn error_to_message(err: &impl std::error::Error) -> String {
     let mut message = String::new();
@@ -334,42 +327,89 @@ pub struct Error {
     pub message: std::borrow::Cow<'static, str>,
 }
 
-#[cfg(feature = "tokio1")]
 impl Error {
     pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
         let body = crate::ErrorBody {
             message: std::borrow::Cow::Borrowed(std::borrow::Borrow::borrow(&self.message)),
         };
-        let res = json_response(self.status_code, Some(&body));
+        let res = response::json(self.status_code, &body);
         res
     }
 }
 
-#[cfg(feature = "tokio1")]
-pub fn json_response(
-    status_code: hyper::StatusCode,
-    body: Option<&impl serde::Serialize>,
-) -> hyper::Response<hyper::Body> {
-    let res = hyper::Response::builder().status(status_code);
-    // `res` is consumed by both branches, so this cannot be replaced with `Option::map_or_else`
-    //
-    // Ref: https://github.com/rust-lang/rust-clippy/issues/5822
-    #[allow(clippy::option_if_let_else)]
-    let res = if let Some(body) = body {
+pub mod response {
+    pub fn no_content() -> hyper::Response<hyper::Body> {
+        let res = hyper::Response::builder()
+            .status(hyper::StatusCode::NO_CONTENT)
+            .body(Default::default())
+            .expect("cannot fail to build hyper response");
+
+        res
+    }
+
+    pub fn chunked<S, O, E>(
+        status_code: hyper::StatusCode,
+        body: S,
+        content_type: &'static str,
+    ) -> hyper::Response<hyper::Body>
+    where
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<hyper::body::Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+    {
+        let body = hyper::Body::wrap_stream(body);
+
+        let res = hyper::Response::builder()
+            .status(status_code)
+            .header(hyper::header::CONTENT_TYPE, content_type)
+            .body(body);
+
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
+
+    pub fn json(
+        status_code: hyper::StatusCode,
+        body: &impl serde::Serialize,
+    ) -> hyper::Response<hyper::Body> {
         let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
         let body = hyper::Body::from(body);
-        res.header(hyper::header::CONTENT_TYPE, "application/json")
-            .body(body)
-    } else {
-        res.body(Default::default())
-    };
-    let res = res.expect("cannot fail to build hyper response");
-    res
+
+        let res = hyper::Response::builder()
+            .status(status_code)
+            .header(hyper::header::CONTENT_TYPE, "application/json")
+            .body(body);
+
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
+
+    pub fn zip<S, O, E>(
+        status_code: hyper::StatusCode,
+        size: usize,
+        body: S,
+    ) -> hyper::Response<hyper::Body>
+    where
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<hyper::body::Bytes> + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+    {
+        let body = hyper::Body::wrap_stream(body);
+        let res = hyper::Response::builder().status(status_code);
+
+        let res = res
+            .header(hyper::header::CONTENT_ENCODING, "deflate")
+            .header(hyper::header::CONTENT_LENGTH, size.to_string())
+            .header(hyper::header::CONTENT_TYPE, "application/zip")
+            .body(body);
+
+        let res = res.expect("cannot fail to build hyper response");
+        res
+    }
 }
 
 /// This server is never actually used, but is useful to ensure that the macro
 /// works as expected.
-#[cfg(feature = "tokio1")]
 mod test_server {
     use crate as http_common;
 
@@ -432,15 +472,8 @@ mod test_server {
             }
 
             type DeleteBody = serde::de::IgnoredAny;
-            type DeleteResponse = ();
-
-            type GetResponse = ();
-
             type PostBody = serde::de::IgnoredAny;
-            type PostResponse = ();
-
             type PutBody = serde::de::IgnoredAny;
-            type PutResponse = ();
         }
     }
 }

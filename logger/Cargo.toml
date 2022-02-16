@@ -2,9 +2,9 @@
 name = "logger"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
-env_logger = "0.8"
+env_logger = "0.9"
 log = "0.4"

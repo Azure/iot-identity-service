@@ -2,8 +2,10 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-//Skip ARM(cross-compile) until I figure out how to run ctest on this.
+// Skip ARM(cross-compile) until I figure out how to run ctest on this.
 #![cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
+// Skip code coverage.
+#![cfg(not(tarpaulin))]
 
 use std::env;
 use std::path::Path;
@@ -27,8 +29,6 @@ fn run_ctest() {
     println!("status: {}", test_output.status);
     println!("stdout: {}", String::from_utf8_lossy(&test_output.stdout));
     println!("stderr: {}", String::from_utf8_lossy(&test_output.stderr));
-    if !test_output.status.success() {
-        panic!("Running CTest failed.");
-    }
+    assert!(test_output.status.success(), "Running CTest failed.");
     println!("Done Running ctest for HSM library");
 }

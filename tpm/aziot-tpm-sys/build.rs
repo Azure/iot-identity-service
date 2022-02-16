@@ -109,27 +109,44 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=RUN_VALGRIND");
 
-    #[rustfmt::skip]
-    let link = ||{
-        println!("cargo:rustc-link-search=native={}/build/deps/c-shared", aziottpm.display());
-        println!("cargo:rustc-link-lib=static=aziotsharedutil");
+    println!(
+        "cargo:rustc-link-search=native={}/build/deps/c-shared",
+        aziottpm.display()
+    );
+    println!("cargo:rustc-link-lib=static=aziotsharedutil");
 
-        println!("cargo:rustc-link-search=native={}/build", aziottpm.display());
-        println!("cargo:rustc-link-lib=static=aziottpm");
+    println!(
+        "cargo:rustc-link-search=native={}/build",
+        aziottpm.display()
+    );
+    println!("cargo:rustc-link-lib=static=aziottpm");
 
-        if rut == "ON" {
-            println!("cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/ctest", aziottpm.display());
-            println!("cargo:rustc-link-lib=static=ctest");
+    if rut == "ON" {
+        println!(
+            "cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/ctest",
+            aziottpm.display()
+        );
+        println!("cargo:rustc-link-lib=static=ctest");
 
-            println!("cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/testrunner", aziottpm.display());
-            println!("cargo:rustc-link-lib=static=testrunnerswitcher");
+        println!(
+            "cargo:rustc-link-search=native={}/build/tests/c-shared/testtools/testrunner",
+            aziottpm.display()
+        );
+        println!("cargo:rustc-link-lib=static=testrunnerswitcher");
 
-            println!("cargo:rustc-link-search=native={}/build/deps/c-shared/deps/umock-c", aziottpm.display());
-            println!("cargo:rustc-link-lib=static=umock_c");
-        }
+        println!(
+            "cargo:rustc-link-search=native={}/build/deps/c-shared/deps/umock-c",
+            aziottpm.display()
+        );
+        println!("cargo:rustc-link-lib=static=umock_c");
+    }
 
-        println!("cargo:rustc-link-search=native={}/build/deps/utpm", aziottpm.display());
-        println!("cargo:rustc-link-lib=static=utpm");
-    };
-    link();
+    println!(
+        "cargo:rustc-link-search=native={}/build/deps/utpm",
+        aziottpm.display()
+    );
+    println!("cargo:rustc-link-lib=static=utpm");
+
+    println!("cargo:rustc-link-lib=crypto");
+    println!("cargo:rustc-link-lib=ssl");
 }

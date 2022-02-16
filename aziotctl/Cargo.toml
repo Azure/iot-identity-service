@@ -1,8 +1,8 @@
 [package]
 name = "aziotctl"
-version = "1.2.0"
+version = "1.3.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
@@ -18,7 +18,7 @@ foreign-types-shared = "0.1"
 hyper = "0.14"
 hyper-openssl = "0.9"
 libc = "0.2"
-nix = "0.18"
+nix = "0.23"
 log = "0.4"
 openssl = "0.10"
 serde = { version = "1", features = ["derive"] }
@@ -44,7 +44,7 @@ aziot-keys-common = { path = "../key/aziot-keys-common" }
 aziot-tpmd-config = { path = "../tpm/aziot-tpmd-config" }
 aziotctl-common = { path = "./aziotctl-common" }
 config-common = { path = "../config-common" }
-http-common = { path = "../http-common", features = ["tokio1"] }
+http-common = { path = "../http-common" }
 mini-sntp = { path = "../mini-sntp" }
 openssl2 = { path = "../openssl2" }
 openssl-sys2 = { path = "../openssl-sys2" }

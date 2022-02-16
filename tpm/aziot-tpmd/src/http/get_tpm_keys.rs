@@ -30,10 +30,8 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
 
-    type GetResponse = aziot_tpm_common_http::get_tpm_keys::Response;
-    async fn get(self) -> RouteResponse<Self::GetResponse> {
+    async fn get(self) -> RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -45,12 +43,12 @@ impl http_common::server::Route for Route {
             /// The TPM's Storage Root Key
             storage_root_key: http_common::ByteString(keys.storage_root_key),
         };
-        Ok((hyper::StatusCode::OK, res))
+
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
-    type PostResponse = ();
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }
