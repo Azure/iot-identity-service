@@ -615,7 +615,15 @@ case "$OS" in
             set -euxo pipefail
 
             sudo apt-get update -y
-            sudo apt-get upgrade -y
+            sudo DEBIAN_FRONTEND=noninteractive \
+            apt-get \
+            -o Dpkg::Options::=--force-confnew \
+            -o Dpkg::Options::=--force-confdef \
+            -y \
+            --allow-downgrades \
+            --allow-remove-essential \
+            --allow-change-held-packages \
+            upgrade
         '
         ;;
 
