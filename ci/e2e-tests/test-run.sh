@@ -616,14 +616,14 @@ case "$OS" in
 
             sudo apt-get update -y
             sudo DEBIAN_FRONTEND=noninteractive \
-            apt-get \
-            -o Dpkg::Options::=--force-confnew \
-            -o Dpkg::Options::=--force-confdef \
-            -y \
-            --allow-downgrades \
-            --allow-remove-essential \
-            --allow-change-held-packages \
-            upgrade
+                apt-get \
+                -o 'Dpkg::Options::=--force-confnew' \
+                -o 'Dpkg::Options::=--force-confdef' \
+                -y \
+                --allow-downgrades \
+                --allow-remove-essential \
+                --allow-change-held-packages \
+                upgrade
         '
         ;;
 
