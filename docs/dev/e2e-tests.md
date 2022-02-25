@@ -41,6 +41,8 @@ az role assignment create \
 
 Next, the identity of this SP and the name of this resource group must be set in GitHub secrets on the repo:
 
+(Remember not to run `az ad sp create-for-rbac` again; that command isn't idempotent. It also doesn't overwrite the `tenant`, `password`, or `appId` after you run it a second time (even though it does generate new values for these). To reiterate, you can't log in to Azure if you don't save the output from the first time you run the command.)
+
 - `AZURE_TENANT_ID`: The `tenant` property from the `az ad sp create-for-rbac` output.
 - `AZURE_USERNAME`: The `AZURE_SP_NAME` variable in the script.
 - `AZURE_PASSWORD`: The `password` property from the `az ad sp create-for-rbac` output.
