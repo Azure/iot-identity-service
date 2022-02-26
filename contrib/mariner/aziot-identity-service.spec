@@ -18,6 +18,7 @@ URL: https://github.com/azure/iot-identity-service
 Source: %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
+Patch0:  compile.patch
 
 Conflicts: iotedge, libiothsm-std
 
@@ -68,6 +69,8 @@ cargo install cbindgen --path cbindgen-@@CBINDGEN_VERSION@@ --offline
 popd
 
 %setup -q
+
+%patch0 -p1
 
 %build
 
