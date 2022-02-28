@@ -167,9 +167,6 @@ pub fn run(
             super_config::ProvisioningType::Dps {
                 global_endpoint,
                 id_scope,
-                auto_renew_device_id,
-                device_id_renewal_threshold,
-                device_id_renewal_retry,
                 attestation,
             } => {
                 if parent_hostname.is_some() {
@@ -250,9 +247,6 @@ pub fn run(
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id: id_scope,
-                    auto_renew_device_id,
-                    device_id_renewal_threshold,
-                    device_id_renewal_retry,
                     attestation,
                 }
             }
