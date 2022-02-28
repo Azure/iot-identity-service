@@ -9,12 +9,6 @@
     clippy::use_self
 )]
 
-/// Rust's openssl crate currently does not provide a way to parse an `X509Extension`.
-/// This module provides functions for parsing an `X509Extension`. If, in the future,
-/// the openssl crate adds support for parsing an `X509Extension`, this module should
-/// be removed.
-pub mod extension;
-
 /// Error type for openssl engine operations.
 #[derive(Debug)]
 pub enum Error {

@@ -115,7 +115,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 `auth` will be either `symmetric_key`, `x509`, or `tpm`.
 
-`certificate_issuance_policy` is provided if a policy to issue server certificates has been configured in DPS.
+`cert_policy` is provided if a policy to issue server certificates has been configured in DPS.
 
 #### Response (Manual provisioning)
 
