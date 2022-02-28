@@ -20,8 +20,8 @@ aziot-identityd-config = { path = "../../identity/aziot-identityd-config" }
 aziot-keyd-config = { path = "../../key/aziot-keyd-config" }
 aziot-keys-common = { path = "../../key/aziot-keys-common", features = ["serde"] }
 aziot-tpmd-config = { path = "../../tpm/aziot-tpmd-config" }
-cert-renewal = { path = "../../cert/cert-renewal" }
 http-common = { path = "../../http-common" }
+
 
 [dev-dependencies]
 bytes = "1"
