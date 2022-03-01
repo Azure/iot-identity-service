@@ -192,34 +192,15 @@ mod tests {
     }
 
     fn generate_cert(not_before: i64, not_after: i64) -> openssl::x509::X509 {
-        let rsa = openssl::rsa::Rsa::generate(2048).unwrap();
-        let private_key = openssl::pkey::PKey::from_rsa(rsa).unwrap();
+        let (cert, _) = test_common::credential::custom_test_certificate("test_cert", |cert| {
+            let not_before = openssl::asn1::Asn1Time::from_unix(not_before).unwrap();
+            let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
 
-        let public_key = private_key.public_key_to_pem().unwrap();
-        let public_key = openssl::pkey::PKey::public_key_from_pem(&public_key).unwrap();
+            cert.set_not_before(&not_before).unwrap();
+            cert.set_not_after(&not_after).unwrap();
+        });
 
-        let mut cert = openssl::x509::X509::builder().unwrap();
-        cert.set_version(2).unwrap();
-
-        let mut name = openssl::x509::X509Name::builder().unwrap();
-        name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, "test_cert")
-            .unwrap();
-        let name = name.build();
-
-        cert.set_subject_name(&name).unwrap();
-        cert.set_issuer_name(&name).unwrap();
-
-        let not_before = openssl::asn1::Asn1Time::from_unix(not_before).unwrap();
-        cert.set_not_before(&not_before).unwrap();
-
-        let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
-        cert.set_not_after(&not_after).unwrap();
-
-        cert.set_pubkey(&public_key).unwrap();
-        cert.sign(&private_key, openssl::hash::MessageDigest::sha256())
-            .unwrap();
-
-        cert.build()
+        cert
     }
 
     #[test]

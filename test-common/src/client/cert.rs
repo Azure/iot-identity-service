@@ -15,7 +15,7 @@ pub struct CertClient {
 
 impl Default for CertClient {
     fn default() -> Self {
-        let (issuer, issuer_key) = crate::credential::test_certificate("test-device-cert", None);
+        let (issuer, issuer_key) = crate::credential::test_certificate("test-device-cert");
 
         CertClient {
             certs: Default::default(),

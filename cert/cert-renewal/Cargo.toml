@@ -11,3 +11,5 @@ serde = "1"
 [dev-dependencies]
 serial_test = "0.5"
 toml = "0.5"
+
+test-common = { path = "../../test-common" }
