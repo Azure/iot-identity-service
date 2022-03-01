@@ -120,7 +120,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'mariner:amd64')
+    'mariner:1:amd64' | 'mariner:2:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -140,10 +140,19 @@ case "$OS:$ARCH" in
             mv /.dockerenv /.dockerenv.old
         fi
 
+        case "$OS" in
+            'mariner:1:amd64')
+                BranchTag='1.0-stable'
+                ;;
+            'mariner:2:amd64')
+                BranchTag='2.0-stable'
+                ;;
+        esac
+
         MarinerToolkitDir='/tmp/CBL-Mariner'
         if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
             rm -rf "$MarinerToolkitDir"
-            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch '2.0-stable' --depth 1 "$MarinerToolkitDir"
+            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
             pushd "$MarinerToolkitDir/toolkit/"
             make package-toolkit REBUILD_TOOLS=y
             popd
