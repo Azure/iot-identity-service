@@ -185,10 +185,12 @@ EOF
             'mariner:1')
                 UsePreview=n
                 TARGET_DIR="mariner1/$ARCH"
+                PackageExtension="cm1"
                 ;;
             'mariner:2')
                 UsePreview=y
                 TARGET_DIR="mariner2/$ARCH"
+                PackageExtension="cm2"
                 ;;
         esac
         # Build package
@@ -199,8 +201,8 @@ EOF
         rm -rf "/src/packages/$TARGET_DIR"
         mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
             "/src/packages/$TARGET_DIR"
         ;;
 
