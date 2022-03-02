@@ -76,6 +76,7 @@ jobs:
           os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         else
           os_package="$OS"
+          os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         fi
         echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
     - name: 'Upload'
