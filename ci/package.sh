@@ -191,6 +191,10 @@ EOF
                 UsePreview=y
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
+                mkdir -p $MarinerRPMBUILDDIR/out/RPMS/$(BUILD_ARCH)/
+                pushd $MarinerRPMBUILDDIR/out/RPMS/$(BUILD_ARCH)/
+                curl -o rust-1.47.0-3.x86_64.rpm https://packages.microsoft.com/cbl-mariner/1.0/prod/update/x86_64/rpms/rust-1.47.0-3.cm1.x86_64.rpm
+                popd
                 ;;
         esac
         # Build package
