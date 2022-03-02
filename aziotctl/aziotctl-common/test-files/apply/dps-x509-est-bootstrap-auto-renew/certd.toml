@@ -1,0 +1,30 @@
+homedir_path = "/var/lib/aziot/certd"
+[cert_issuance.est]
+trusted_certs = ["est-server-ca-1"]
+
+[cert_issuance.est.urls]
+
+[cert_issuance.device-id]
+method = "est"
+url = "https://example.org/.well-known/est"
+identity_cert = "est-id-device-id"
+identity_pk = "est-id-device-id"
+bootstrap_identity_cert = "est-bootstrap-id-device-id"
+bootstrap_identity_pk = "est-bootstrap-id-device-id"
+
+[cert_issuance.device-id.subject]
+CN = "my-device"
+L = "AQ"
+ST = "Antarctica"
+
+[cert_issuance.device-id.auto_renew]
+threshold = "50%"
+retry = "10%"
+
+[preloaded_certs]
+est-bootstrap-id-device-id = "file:///var/secrets/est-bootstrap-id.pem"
+est-server-ca-1 = "file:///var/secrets/est-id-ca.pem"
+
+[[principal]]
+uid = 5556
+certs = ["device-id"]

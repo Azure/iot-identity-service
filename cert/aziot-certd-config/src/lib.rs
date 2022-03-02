@@ -174,12 +174,12 @@ pub struct CertIssuanceOptions {
     #[serde(default, deserialize_with = "deserialize_expiry_days")]
     pub expiry_days: Option<u32>,
 
+    #[serde(flatten)]
+    pub subject: Option<CertSubject>,
+
     /// Parameters for automatic renewal of this certificate.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_renew: Option<cert_renewal::RenewalPolicy>,
-
-    #[serde(flatten)]
-    pub subject: Option<CertSubject>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
