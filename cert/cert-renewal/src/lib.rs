@@ -10,4 +10,4 @@
 
 pub mod policy;
 
-pub use policy::Policy;
+pub use policy::RenewalPolicy;

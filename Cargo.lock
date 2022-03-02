@@ -146,6 +146,7 @@ dependencies = [
 name = "aziot-certd-config"
 version = "0.1.0"
 dependencies = [
+ "cert-renewal",
  "hex",
  "http-common",
  "libc",
@@ -558,6 +559,7 @@ dependencies = [
  "aziot-tpmd-config",
  "base64",
  "bytes",
+ "cert-renewal",
  "http-common",
  "log",
  "nix",

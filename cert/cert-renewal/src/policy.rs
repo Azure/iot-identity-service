@@ -1,5 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::module_name_repetitions)]
+pub struct RenewalPolicy {
+    pub threshold: Policy,
+    pub retry: Policy,
+}
+
 /// Determines the policy for certificate renewal and retries.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Policy {
