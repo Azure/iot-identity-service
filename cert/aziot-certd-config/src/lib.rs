@@ -281,9 +281,16 @@ mod tests {
 homedir_path = "/var/lib/aziot/certd"
 
 [cert_issuance]
-device-ca = { method = "est", common_name = "custom-name" }
 module-id = { method = "self_signed", expiry_days = 90, common_name = "custom-name"}
 module-server = { method = "local_ca" }
+
+[cert_issuance.device-ca]
+method = "est"
+common_name = "custom-name"
+
+[cert_issuance.device-ca.auto_renew]
+threshold = "10d"
+retry = "5m"
 
 [cert_issuance.device-id]
 method = "est"
@@ -296,6 +303,10 @@ bootstrap_identity_cert = "bootstrap"
 bootstrap_identity_pk = "bootstrap"
 expiry_days = 365
 subject = { "L" = "AQ", "ST" = "Antarctica", "CN" = "test-device" }
+
+[cert_issuance.device-id.auto_renew]
+threshold = "50%"
+retry = "10%"
 
 [cert_issuance.est]
 identity_cert = "est-id"
@@ -372,6 +383,10 @@ certs = ["test"]
                                 },
                                 expiry_days: None,
                                 subject: Some(CertSubject::CommonName("custom-name".to_owned())),
+                                auto_renew: Some(cert_renewal::RenewalPolicy {
+                                    threshold: cert_renewal::Policy::Time(10 * 86400),
+                                    retry: cert_renewal::Policy::Time(5 * 60),
+                                }),
                             }
                         ),
                         (
@@ -410,6 +425,10 @@ certs = ["test"]
                                     .into_iter()
                                     .collect()
                                 )),
+                                auto_renew: Some(cert_renewal::RenewalPolicy {
+                                    threshold: cert_renewal::Policy::Percentage(0.5),
+                                    retry: cert_renewal::Policy::Percentage(0.1),
+                                }),
                             }
                         ),
                         (
@@ -418,6 +437,7 @@ certs = ["test"]
                                 method: CertIssuanceMethod::SelfSigned,
                                 expiry_days: Some(90),
                                 subject: Some(CertSubject::CommonName("custom-name".to_owned())),
+                                auto_renew: None,
                             }
                         ),
                         (
@@ -426,6 +446,7 @@ certs = ["test"]
                                 method: CertIssuanceMethod::LocalCa,
                                 expiry_days: None,
                                 subject: None,
+                                auto_renew: None,
                             }
                         ),
                     ]
@@ -561,6 +582,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 .into_iter()
                                 .collect(),
                             )),
+                            auto_renew: None,
                         },
                     ),
                     (
@@ -591,6 +613,10 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                             },
                             expiry_days: Some(365),
                             subject: Some(CertSubject::CommonName("test-device".to_owned())),
+                            auto_renew: Some(cert_renewal::RenewalPolicy {
+                                threshold: cert_renewal::Policy::Percentage(0.5),
+                                retry: cert_renewal::Policy::Percentage(0.1),
+                            }),
                         },
                     ),
                     (
@@ -599,6 +625,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                             method: CertIssuanceMethod::SelfSigned,
                             expiry_days: Some(90),
                             subject: Some(CertSubject::CommonName("custom-name".to_owned())),
+                            auto_renew: None,
                         },
                     ),
                     (
@@ -607,6 +634,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                             method: CertIssuanceMethod::LocalCa,
                             expiry_days: None,
                             subject: None,
+                            auto_renew: None,
                         },
                     ),
                 ]
