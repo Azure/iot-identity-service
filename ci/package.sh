@@ -179,7 +179,7 @@ EOF
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.spec
-        cp /src/contrib/mariner/compile.patch .
+        cp /src/contrib/mariner/gcc-11.patch .
 
         case "$OS" in
             'mariner:1')

@@ -15,10 +15,10 @@ Release: @@RELEASE@@%{?dist}
 Summary: Azure IoT Identity Service and related services
 License: MIT
 URL: https://github.com/azure/iot-identity-service
-Source: %{name}-%{version}.tar.gz
+Source:  %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
-Patch0:  compile.patch
+Patch0:  gcc-11.patch
 
 Conflicts: iotedge, libiothsm-std
 
