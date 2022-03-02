@@ -181,27 +181,17 @@ EOF
             >aziot-identity-service.spec
         cp /src/contrib/mariner/compile.patch .
 
-        pushd "$MarinerRPMBUILDDIR"
         case "$OS" in
-            'mariner:1:amd64')
+            'mariner:1')
                 UsePreview=n
                 ;;
-            'mariner:2:amd64')
-                mkdir -p out/RPMS/$(BUILD_ARCH)/
-                pushd out/RPMS/$(BUILD_ARCH)/
-                curl -o rust-1.47.0-3.x86_64.rpm https://packages.microsoft.com/cbl-mariner/1.0/prod/update/x86_64/rpms/rust-1.47.0-3.cm1.x86_64.rpm
-                popd
+            'mariner:2')
                 UsePreview=y
                 ;;
         esac
         # Build package
-        pushd "toolkit"
+        pushd "$MarinerRPMBUILDDIR/toolkit"
         make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
-        popd
-
-        if ["$OS" == "mariner:2" ]; then
-            rm out/RPMS/$(BUILD_ARCH)/rust-1.47.0-3.x86_64.rpm
-        fi
         popd
 
         rm -rf "/src/packages/mariner/$ARCH"

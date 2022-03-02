@@ -139,13 +139,13 @@ case "$OS:$ARCH" in
         if [ -f /.dockerenv ]; then
             mv /.dockerenv /.dockerenv.old
         fi
-
+        BranchTag='1.0-stable'
         case "$OS" in
-            'mariner:1:amd64')
-                BranchTag='1.0-stable'
+            'mariner:1')
+                $BranchTag='1.0-stable'
                 ;;
-            'mariner:2:amd64')
-                BranchTag='2.0-stable'
+            'mariner:2')
+                $BranchTag='2.0-stable'
                 ;;
         esac
 
