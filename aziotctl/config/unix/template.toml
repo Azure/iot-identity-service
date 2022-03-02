@@ -120,6 +120,18 @@
 # method = "local_ca"                                                # - a local CA
 # common_name = "my-device"                                          # with the given common name, or...
 # subject = { L = "AQ", ST = "Antarctica", CN = "my-device" }        # with the given DN fields
+#
+## Uncomment the section below to enable automatic renewal of the device ID certificate.
+## Auto-renewal requires a known certificate issuance method. This generally means that
+## 'method' is either 'est' or 'local_ca'.
+##
+## IMPORTANT:
+## ONLY ENABLE AUTO-RENEWAL IF THIS DEVICE IS CONFIGURED FOR CA-BASED DPS ENROLLMENT.
+## USING AUTO-RENEWAL FOR AN INDIVIDUAL ENROLLMENT WILL CAUSE THE DEVICE TO BE UNABLE
+## TO REPROVISION.
+# [provisioning.attestation.identity_cert.auto_renewal]
+# threshold = "80%"
+# retry = "4%"
 
 
 ## DPS provisioning with TPM
