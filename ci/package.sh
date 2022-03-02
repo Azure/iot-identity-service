@@ -184,9 +184,11 @@ EOF
         case "$OS" in
             'mariner:1')
                 UsePreview=n
+                TARGET_DIR="mariner1/$ARCH"
                 ;;
             'mariner:2')
                 UsePreview=y
+                TARGET_DIR="mariner2/$ARCH"
                 ;;
         esac
         # Build package
@@ -194,12 +196,12 @@ EOF
         make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
         popd
 
-        rm -rf "/src/packages/mariner/$ARCH"
-        mkdir -p "/src/packages/mariner/$ARCH"
+        rm -rf "/src/packages/$TARGET_DIR"
+        mkdir -p "/src/packages/$TARGET_DIR"
         cp \
             "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
             "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "/src/packages/mariner/$ARCH/"
+            "/src/packages/$TARGET_DIR"
         ;;
 
     *)
