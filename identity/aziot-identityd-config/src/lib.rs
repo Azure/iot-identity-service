@@ -57,12 +57,6 @@ impl Settings {
     pub fn is_default_retries(retries: &u32) -> bool {
         *retries == Settings::default_cloud_retries()
     }
-
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn is_default_auto_renew(auto_renew: &bool) -> bool {
-        // By default, automatic renewal of device identity certificates is disabled.
-        !auto_renew
-    }
 }
 
 pub fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>

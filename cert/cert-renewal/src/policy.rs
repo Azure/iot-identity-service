@@ -18,28 +18,6 @@ pub enum Policy {
 }
 
 impl Policy {
-    /// Provides the default cert renewal policy threshold.
-    pub fn default_threshold() -> Self {
-        // 80% of lifetime
-        Policy::Percentage(0.8)
-    }
-
-    /// Determines if the provided policy is the default for thresholds.
-    pub fn is_default_threshold(policy: &Policy) -> bool {
-        policy == &Self::default_threshold()
-    }
-
-    /// Provides the default cert renewal retry period.
-    pub fn default_retry() -> Self {
-        // 4% of lifetime
-        Policy::Percentage(0.04)
-    }
-
-    /// Determines if the provided policy is the default for retries.
-    pub fn is_default_retry(policy: &Policy) -> bool {
-        policy == &Self::default_retry()
-    }
-
     /// Check if the given cert should be renewed based on this policy.
     pub fn should_renew(&self, cert: &openssl::x509::X509) -> bool {
         let not_before = cert.not_before();
