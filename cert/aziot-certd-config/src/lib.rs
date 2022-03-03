@@ -6,7 +6,8 @@
     clippy::default_trait_access,
     clippy::too_many_lines,
     clippy::let_unit_value,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
 )]
 
 pub mod util;
@@ -79,10 +80,33 @@ pub struct Est {
     #[serde(flatten)]
     pub auth: EstAuth,
 
+    /// Parameters for auto-renewal of EST identity certs. These certs are issued by the EST servers after
+    /// initial authentication with the bootstrap cert and managed by Certificates Service.
+    ///
+    /// This setting applies to EST identity certs for all EST `cert_issuance` configurations. Default values
+    /// to renew at 80% of cert lifetime with retries every 4% of cert lifetime will be used if this setting
+    /// is not provided.
+    #[serde(
+        default = "default_est_renew",
+        skip_serializing_if = "is_default_est_renew"
+    )]
+    pub identity_auto_renew: cert_renewal::RenewalPolicy,
+
     /// Map of certificate IDs to EST endpoint URLs.
     ///
     /// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
     pub urls: BTreeMap<String, Url>,
+}
+
+pub fn default_est_renew() -> cert_renewal::RenewalPolicy {
+    cert_renewal::RenewalPolicy {
+        threshold: cert_renewal::Policy::Percentage(0.8),
+        retry: cert_renewal::Policy::Percentage(0.04),
+    }
+}
+
+pub fn is_default_est_renew(auto_renew: &cert_renewal::RenewalPolicy) -> bool {
+    auto_renew == &default_est_renew()
 }
 
 /// Authentication parameters for the EST server.
@@ -317,6 +341,10 @@ trusted_certs = [
 	"est-ca",
 ]
 
+[cert_issuance.est.identity_auto_renew]
+threshold = "50%"
+retry = "10%"
+
 [cert_issuance.est.urls]
 default = "https://estendpoint.com/.well-known/est/"
 device-ca = "https://estendpoint.com/.well-known/est/device-ca/"
@@ -342,6 +370,10 @@ certs = ["test"]
                 cert_issuance: CertIssuance {
                     est: Some(Est {
                         trusted_certs: vec!["est-ca".to_owned(),],
+                        identity_auto_renew: cert_renewal::RenewalPolicy {
+                            threshold: cert_renewal::Policy::Percentage(0.5),
+                            retry: cert_renewal::Policy::Percentage(0.1)
+                        },
                         auth: EstAuth {
                             basic: None,
                             x509: Some(EstAuthX509 {
@@ -533,6 +565,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             cert_issuance: CertIssuance {
                 est: Some(Est {
                     trusted_certs: vec!["est-ca".to_owned()],
+                    identity_auto_renew: super::default_est_renew(),
                     auth: EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {

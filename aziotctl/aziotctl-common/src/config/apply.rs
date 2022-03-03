@@ -314,6 +314,7 @@ pub fn run(
 
         let est = if let Some(super_config::Est {
             trusted_certs,
+            identity_auto_renew,
             auth,
             urls,
         }) = est
@@ -383,6 +384,7 @@ pub fn run(
 
             Some(aziot_certd_config::Est {
                 trusted_certs,
+                identity_auto_renew,
                 auth,
                 urls,
             })
