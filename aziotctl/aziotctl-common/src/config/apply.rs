@@ -131,7 +131,7 @@ pub fn run(
 
                                 cert_issuance_certs.insert(
                                     super::DEVICE_ID_ID.to_owned(),
-                                    into_cert_options(identity_cert, auth, false),
+                                    into_cert_options(identity_cert, auth),
                                 );
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
                             }
@@ -192,8 +192,10 @@ pub fn run(
                         registration_id,
                         identity,
                     } => {
-                        match identity {
+                        let auto_renew = match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
+                                let auto_renew = identity_cert.auto_renew.clone();
+
                                 let auth =
                                     if let super_config::CertIssuanceMethod::Est { url: _, auth } =
                                         &identity_cert.method
@@ -213,9 +215,11 @@ pub fn run(
 
                                 cert_issuance_certs.insert(
                                     super::DEVICE_ID_ID.to_owned(),
-                                    into_cert_options(identity_cert, auth, true),
+                                    into_cert_options(identity_cert, auth),
                                 );
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
+
+                                auto_renew
                             }
 
                             super_config::X509Identity::Preloaded {
@@ -229,13 +233,16 @@ pub fn run(
                                     super::DEVICE_ID_ID.to_owned(),
                                     aziot_certd_config::PreloadedCert::Uri(identity_cert),
                                 );
+
+                                None
                             }
-                        }
+                        };
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
+                            identity_auto_renew: auto_renew,
                         }
                     }
 
@@ -384,8 +391,8 @@ pub fn run(
 
             Some(aziot_certd_config::Est {
                 trusted_certs,
-                identity_auto_renew,
                 auth,
+                identity_auto_renew,
                 urls,
             })
         } else {
@@ -396,10 +403,8 @@ pub fn run(
             Some(super_config::LocalCa::Issued { cert }) => {
                 aziotcs_keys.keys.push(super::LOCAL_CA.to_owned());
 
-                cert_issuance_certs.insert(
-                    super::LOCAL_CA.to_owned(),
-                    into_cert_options(cert, None, true),
-                );
+                cert_issuance_certs
+                    .insert(super::LOCAL_CA.to_owned(), into_cert_options(cert, None));
 
                 Some(aziot_certd_config::CertificateWithPrivateKey {
                     cert: super::LOCAL_CA.to_owned(),
@@ -490,7 +495,6 @@ pub fn run(
 fn into_cert_options(
     opts: super_config::CertIssuanceOptions,
     auth: Option<aziot_certd_config::EstAuth>,
-    allow_renewal: bool,
 ) -> aziot_certd_config::CertIssuanceOptions {
     let method = match opts.method {
         super_config::CertIssuanceMethod::Est { url, .. } => {
@@ -504,14 +508,9 @@ fn into_cert_options(
         }
     };
 
-    // Some certs (like the identity cert in manual+X.509 provisioning) cannot be auto-renewed.
-    // Ignore the auto_renewal options for these certs.
-    let auto_renew = if allow_renewal { opts.auto_renew } else { None };
-
     aziot_certd_config::CertIssuanceOptions {
         method,
         expiry_days: opts.expiry_days,
-        auto_renew,
         subject: opts.subject,
     }
 }

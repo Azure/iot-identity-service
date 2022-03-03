@@ -292,7 +292,7 @@ pub struct CertIssuanceOptions {
     )]
     pub expiry_days: Option<u32>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_renew: Option<cert_renewal::RenewalPolicy>,
 
     #[serde(flatten)]
