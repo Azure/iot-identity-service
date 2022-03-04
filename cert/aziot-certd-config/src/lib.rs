@@ -100,8 +100,8 @@ pub struct Est {
 
 pub fn default_est_renew() -> cert_renewal::RenewalPolicy {
     cert_renewal::RenewalPolicy {
-        threshold: cert_renewal::Policy::Percentage(0.8),
-        retry: cert_renewal::Policy::Percentage(0.04),
+        threshold: cert_renewal::Policy::Percentage(80),
+        retry: cert_renewal::Policy::Percentage(4),
     }
 }
 
@@ -356,8 +356,8 @@ certs = ["test"]
                     est: Some(Est {
                         trusted_certs: vec!["est-ca".to_owned(),],
                         identity_auto_renew: cert_renewal::RenewalPolicy {
-                            threshold: cert_renewal::Policy::Percentage(0.5),
-                            retry: cert_renewal::Policy::Percentage(0.1)
+                            threshold: cert_renewal::Policy::Percentage(50),
+                            retry: cert_renewal::Policy::Percentage(10)
                         },
                         auth: EstAuth {
                             basic: None,

@@ -11,7 +11,8 @@ pub struct RenewalPolicy {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Policy {
     /// Renew and retry as a percentage of the certificate's lifetime.
-    Percentage(f64),
+    /// This value is always between 0 and 100.
+    Percentage(i64),
 
     /// Renew and retry at fixed time intervals around expiry.
     Time(i64),
@@ -43,7 +44,7 @@ impl Policy {
                 let current_lifetime = not_before.diff(&now).expect("valid times should diff");
                 let current_lifetime = timediff_to_secs(&current_lifetime);
 
-                let lifetime = current_lifetime / total_lifetime;
+                let lifetime = current_lifetime * 100 / total_lifetime;
 
                 lifetime >= *threshold
             }
@@ -93,12 +94,7 @@ impl<'de> serde::Deserialize<'de> for Policy {
                     ));
                 }
 
-                // Rust doesn't have direct i64 to f64 conversion, so cast down to i32 first.
-                // This will never fail because 0 < value < 100.
-                let value: i32 = std::convert::TryFrom::try_from(value).unwrap();
-                let value: f64 = std::convert::From::from(value);
-
-                Ok(Policy::Percentage(value / 100.0))
+                Ok(Policy::Percentage(value))
             }
             'm' => Ok(Policy::Time(value * 60)),
             'd' => Ok(Policy::Time(value * 86400)),
@@ -114,9 +110,7 @@ impl serde::Serialize for Policy {
     {
         let policy = match self {
             Policy::Percentage(percentage) => {
-                let percentage = percentage * 100.0;
-
-                format!("{:.0}%", percentage)
+                format!("{}%", percentage)
             }
             Policy::Time(time) => {
                 // Represent time as whole days if possible, otherwise as minutes.
@@ -143,12 +137,12 @@ fn asn1time_to_unix(time: &openssl::asn1::Asn1TimeRef) -> i64 {
     i64::from(unix.days) * 86400 + i64::from(unix.secs)
 }
 
-fn timediff_to_secs(diff: &openssl::asn1::TimeDiff) -> f64 {
+fn timediff_to_secs(diff: &openssl::asn1::TimeDiff) -> i64 {
     // This function is only called for diffs that should be non-negative.
     assert!(diff.days >= 0);
     assert!(diff.secs >= 0);
 
-    f64::from(diff.days) * 86400.0 + f64::from(diff.secs)
+    i64::from(diff.days) * 86400 + i64::from(diff.secs)
 }
 
 #[cfg(not(test))]
@@ -193,7 +187,7 @@ mod tests {
         // Percentage lifetime.
         let input = toml::Value::String("90%".to_string());
         let policy: Policy = serde::Deserialize::deserialize(input).unwrap();
-        assert_eq!(Policy::Percentage(0.9), policy);
+        assert_eq!(Policy::Percentage(90), policy);
 
         // Time in minutes.
         let input = toml::Value::String("100m".to_string());
@@ -241,11 +235,11 @@ mod tests {
 
     #[test]
     fn serialize() {
-        let input = Policy::Percentage(0.8);
+        let input = Policy::Percentage(80);
         let result = toml::to_string(&input).unwrap();
         assert_eq!("\"80%\"", result);
 
-        let input = Policy::Percentage(0.89);
+        let input = Policy::Percentage(89);
         let result = toml::to_string(&input).unwrap();
         assert_eq!("\"89%\"", result);
 
@@ -267,7 +261,7 @@ mod tests {
         // Bad cert: not_after is before not_before.
         let cert = generate_cert(5, 1);
 
-        let policy = Policy::Percentage(100.0);
+        let policy = Policy::Percentage(100);
         assert!(policy.should_renew(&cert));
     }
 
@@ -278,7 +272,7 @@ mod tests {
         let cert = generate_cert(1, 5);
         set_time(6);
 
-        let policy = Policy::Percentage(100.0);
+        let policy = Policy::Percentage(100);
         assert!(policy.should_renew(&cert));
     }
 
@@ -289,39 +283,39 @@ mod tests {
         let cert = generate_cert(-5, -1);
         set_time(-3);
 
-        let policy = Policy::Percentage(0.4);
+        let policy = Policy::Percentage(40);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.5);
+        let policy = Policy::Percentage(50);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.6);
+        let policy = Policy::Percentage(60);
         assert!(!policy.should_renew(&cert));
 
         // Test calculation with mixed timestamps.
         let cert = generate_cert(-2, 2);
         set_time(0);
 
-        let policy = Policy::Percentage(0.4);
+        let policy = Policy::Percentage(40);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.5);
+        let policy = Policy::Percentage(50);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.6);
+        let policy = Policy::Percentage(60);
         assert!(!policy.should_renew(&cert));
 
         // Test calculation with positive timestamps.
         let cert = generate_cert(1, 5);
         set_time(3);
 
-        let policy = Policy::Percentage(0.4);
+        let policy = Policy::Percentage(40);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.5);
+        let policy = Policy::Percentage(50);
         assert!(policy.should_renew(&cert));
 
-        let policy = Policy::Percentage(0.6);
+        let policy = Policy::Percentage(60);
         assert!(!policy.should_renew(&cert));
     }
 
