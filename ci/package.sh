@@ -191,10 +191,16 @@ EOF
                 UsePreview=y
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
-                # mkdir -p $MarinerRPMBUILDDIR/out/RPMS/$(BUILD_ARCH)/
-                # pushd $MarinerRPMBUILDDIR/out/RPMS/$(BUILD_ARCH)/
-                # curl -o rust-1.47.0-3.cm1.x86_64.rpm https://packages.microsoft.com/cbl-mariner/1.0/prod/update/x86_64/rpms/rust-1.47.0-3.cm1.x86_64.rpm
-                # popd
+
+                # get compatable rust version
+                pushd $MarinerToolkitDir
+                # commit with rust 1.47.0 that can be built with the 2.0 toolkit
+                git checkout db6a866
+                cp -r SPECS/rust $MarinerSpecsDir
+                popd
+                pushd "$MarinerRPMBUILDDIR/toolkit"
+                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=y SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE=  -j$(nproc)
+                popd
                 ;;
         esac
         # Build package
