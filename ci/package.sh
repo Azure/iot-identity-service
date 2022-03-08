@@ -127,6 +127,32 @@ case "$OS" in
         tar xzvf toolkit.tar.gz
         popd
 
+        case "$OS" in
+            'mariner:1')
+                UsePreview=n
+                TARGET_DIR="mariner1/$ARCH"
+                PackageExtension="cm1"
+                ;;
+            'mariner:2')
+                UsePreview=y
+                TARGET_DIR="mariner2/$ARCH"
+                PackageExtension="cm2"
+
+                tmp_dir=$(mktemp -d)
+                pushd $tmp_dir
+                # commit with rust 1.47.0 that can be built with the 2.0 toolkit
+                git checkout db6a866
+                cp -r SPECS/rust $MarinerSpecsDir
+                popd
+                rm -rf $tmp_dir
+
+                # build rust 1.47.0
+                pushd "$MarinerRPMBUILDDIR/toolkit"
+                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=y SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE= -j$(nproc)
+                popd
+                ;;
+        esac
+
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$MarinerSourceDir"
         mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
@@ -181,28 +207,6 @@ EOF
             >aziot-identity-service.spec
         cp /src/contrib/mariner/gcc-11.patch .
 
-        case "$OS" in
-            'mariner:1')
-                UsePreview=n
-                TARGET_DIR="mariner1/$ARCH"
-                PackageExtension="cm1"
-                ;;
-            'mariner:2')
-                UsePreview=y
-                TARGET_DIR="mariner2/$ARCH"
-                PackageExtension="cm2"
-
-                # get compatable rust version
-                pushd $MarinerToolkitDir
-                # commit with rust 1.47.0 that can be built with the 2.0 toolkit
-                git checkout db6a866
-                cp -r SPECS/rust $MarinerSpecsDir
-                popd
-                pushd "$MarinerRPMBUILDDIR/toolkit"
-                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=y SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE=  -j$(nproc)
-                popd
-                ;;
-        esac
         # Build package
         pushd "$MarinerRPMBUILDDIR/toolkit"
         make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
