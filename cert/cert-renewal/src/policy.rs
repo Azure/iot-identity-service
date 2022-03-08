@@ -66,11 +66,28 @@ impl<'de> serde::Deserialize<'de> for Policy {
     {
         let mut policy: String = serde::Deserialize::deserialize(deserializer)?;
 
-        let unit = if let Some(unit) = policy.pop() {
-            unit
+        let last = if let Some(last) = policy.pop() {
+            last
         } else {
             return Err(serde::de::Error::custom("policy not specified"));
         };
+
+        let mut unit = last.to_string();
+
+        // Parse for "min" or "day".
+        if last == 'n' || last == 'y' {
+            if let Some(last) = policy.pop() {
+                unit = last.to_string() + &unit;
+            } else {
+                return Err(serde::de::Error::custom("bad units for policy"));
+            }
+
+            if let Some(last) = policy.pop() {
+                unit = last.to_string() + &unit;
+            } else {
+                return Err(serde::de::Error::custom("bad units for policy"));
+            }
+        }
 
         let value: i64 = if let Ok(value) = policy.parse() {
             value
@@ -86,8 +103,8 @@ impl<'de> serde::Deserialize<'de> for Policy {
             ));
         }
 
-        match unit {
-            '%' => {
+        match unit.as_str() {
+            "%" => {
                 if value >= 100 {
                     return Err(serde::de::Error::custom(
                         "lifetime percentage must be less than 100",
@@ -96,8 +113,8 @@ impl<'de> serde::Deserialize<'de> for Policy {
 
                 Ok(Policy::Percentage(value))
             }
-            'm' => Ok(Policy::Time(value * 60)),
-            'd' => Ok(Policy::Time(value * 86400)),
+            "min" => Ok(Policy::Time(value * 60)),
+            "day" => Ok(Policy::Time(value * 86400)),
             _ => Err(serde::de::Error::custom("bad units for policy")),
         }
     }
@@ -117,11 +134,11 @@ impl serde::Serialize for Policy {
                 if time % 86400 == 0 {
                     let days = time / 86400;
 
-                    format!("{}d", days)
+                    format!("{}day", days)
                 } else {
                     let minutes = time / 60;
 
-                    format!("{}m", minutes)
+                    format!("{}min", minutes)
                 }
             }
         };
@@ -190,12 +207,12 @@ mod tests {
         assert_eq!(Policy::Percentage(90), policy);
 
         // Time in minutes.
-        let input = toml::Value::String("100m".to_string());
+        let input = toml::Value::String("100min".to_string());
         let policy: Policy = serde::Deserialize::deserialize(input).unwrap();
         assert_eq!(Policy::Time(100 * 60), policy);
 
         // Time in days.
-        let input = toml::Value::String("10d".to_string());
+        let input = toml::Value::String("10day".to_string());
         let policy: Policy = serde::Deserialize::deserialize(input).unwrap();
         assert_eq!(Policy::Time(10 * 86400), policy);
     }
@@ -212,8 +229,13 @@ mod tests {
         let err: Result<Policy, toml::de::Error> = serde::Deserialize::deserialize(input);
         err.unwrap_err();
 
+        // Missing value.
+        let input = toml::Value::String("day".to_string());
+        let err: Result<Policy, toml::de::Error> = serde::Deserialize::deserialize(input);
+        err.unwrap_err();
+
         // Bad units.
-        let input = toml::Value::String("1y".to_string());
+        let input = toml::Value::String("1year".to_string());
         let err: Result<Policy, toml::de::Error> = serde::Deserialize::deserialize(input);
         err.unwrap_err();
 
@@ -228,7 +250,7 @@ mod tests {
         err.unwrap_err();
 
         // Invalid time.
-        let input = toml::Value::String("0m".to_string());
+        let input = toml::Value::String("0min".to_string());
         let err: Result<Policy, toml::de::Error> = serde::Deserialize::deserialize(input);
         err.unwrap_err();
     }
@@ -245,15 +267,15 @@ mod tests {
 
         let input = Policy::Time(2 * 60);
         let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"2m\"", result);
+        assert_eq!("\"2min\"", result);
 
         let input = Policy::Time(86460);
         let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"1441m\"", result);
+        assert_eq!("\"1441min\"", result);
 
         let input = Policy::Time(3 * 86400);
         let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"3d\"", result);
+        assert_eq!("\"3day\"", result);
     }
 
     #[test]

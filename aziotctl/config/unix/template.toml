@@ -129,7 +129,7 @@
 ## ONLY ENABLE AUTO-RENEWAL IF THIS DEVICE IS CONFIGURED FOR CA-BASED DPS ENROLLMENT.
 ## USING AUTO-RENEWAL FOR AN INDIVIDUAL ENROLLMENT WILL CAUSE THE DEVICE TO BE UNABLE
 ## TO REPROVISION.
-# [provisioning.attestation.identity_cert.auto_renewal]
+# [provisioning.attestation.identity_cert.auto_renew]
 # threshold = "80%"
 # retry = "4%"
 
