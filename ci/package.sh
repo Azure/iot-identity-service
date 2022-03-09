@@ -141,8 +141,12 @@ case "$OS" in
                 tmp_dir=$(mktemp -d)
                 pushd $tmp_dir
                 # commit with rust 1.47.0 that can be built with the 2.0 toolkit
+                git clone 'https://github.com/microsoft/CBL-Mariner.git'
+                pushd CBL-Mariner
                 git checkout db6a866
-                cp -r SPECS/rust $MarinerSpecsDir
+                mkdir -p $MarinerRPMBUILDDIR/SPECS/
+                cp -r SPECS/rust $MarinerRPMBUILDDIR/SPECS/
+                popd
                 popd
                 rm -rf $tmp_dir
 
