@@ -2,7 +2,7 @@
 
 This document covers how a Linux process (e.g. a systemd service) can leverage APIs exposed by the [Identity](api/identity-service.md) (IS), [Keys](api/keys-service.md) (KS), and [Certificates](api/certificates-service.md) (CS) Service daemons to establish a connection to Azure IoT Hub using a [module identity](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-module-twins). A _module identity_ is the same type of cloud identity used by [Edge modules](https://docs.microsoft.com/azure/iot-edge/iot-edge-modules#module-identities) to communicate with IoT Hub. 
 
-The APIs for IS/KS/CS are all exposed to processes on the local host over Unix Domain Sockets (UDS). The services enable your agent (or, more generally, any authorized process) to co-exist side by side with other agents as well as IoT Edge modules (if IoT Edge is installed). They all appear as modules under the same logical device in IoT Hub and can be accessed via your back-end cloud solution. 
+The APIs for IS/KS/CS are all exposed to processes on the local host over Unix Domain Sockets (UDS). The services enable your agent (or, more generally, any authorized process) to co-exist side by side with other agents as well as IoT Edge modules (if IoT Edge is installed). They all appear as modules under the same logical device in IoT Hub and can be accessed via your back-end cloud solution.
 
 > **Note**
 >
@@ -12,9 +12,7 @@ The APIs for IS/KS/CS are all exposed to processes on the local host over Unix D
 
 **Differences with Edge modules**
 
-[IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central) only supports Edge modules. It does not provide UI for arbitrary agents using a module identity to connect to Azure.
-
-The Identity Service package does not provide non-Edge modules with higher-level capabilities that come with IoT Edge.
+The Identity Service package does not provide non-Edge modules with the higher-level capabilities provided by the IoT Edge runtime.
 
 Edge modules are managed through the [IoT Edge runtime](https://docs.microsoft.com/azure/iot-edge/about-iot-edge#iot-edge-runtime) which enables:
 - Deploying cloud workloads to an edge device
@@ -23,6 +21,10 @@ Edge modules are managed through the [IoT Edge runtime](https://docs.microsoft.c
 - Operating offline for an indefinite period of time
 - Managing communication between Edge modules
 - Remotely restarting a module or retrieving logs
+
+An IoT agent running side-by-side with IoT Edge on a device cannot access the local EdgeHub instance for offline support, store and forwarding of messages, caching, etc.). It may connect to an EdgeHub instance on a parent device and benefit from those features. 
+
+Finally, [IoT Central](https://docs.microsoft.com/azure/iot-central/core/overview-iot-central) only supports Edge modules. It does not provide UI for arbitrary agents using a module identity to connect to Azure.
 
 ## Prerequisites
 
