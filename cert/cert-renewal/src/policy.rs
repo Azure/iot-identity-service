@@ -77,13 +77,13 @@ impl<'de> serde::Deserialize<'de> for Policy {
         // Parse for "min" or "day".
         if last == 'n' || last == 'y' {
             if let Some(last) = policy.pop() {
-                unit = last.to_string() + &unit;
+                unit.insert(0, last);
             } else {
                 return Err(serde::de::Error::custom("bad units for policy"));
             }
 
             if let Some(last) = policy.pop() {
-                unit = last.to_string() + &unit;
+                unit.insert(0, last);
             } else {
                 return Err(serde::de::Error::custom("bad units for policy"));
             }
