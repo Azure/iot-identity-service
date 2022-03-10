@@ -89,6 +89,7 @@ impl IssueCert {
 
         let operation_id = {
             let response = response.parse::<super::OperationStatus, super::ServiceError>(&[
+                hyper::StatusCode::OK,
                 hyper::StatusCode::ACCEPTED,
             ])?;
 
