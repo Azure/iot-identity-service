@@ -13,6 +13,7 @@ serde = { version = "1", features = ["derive"] }
 serde_with = "1"
 url = { version = "2", features = ["serde"] }
 
+cert-renewal = { path = "../cert-renewal" }
 http-common = { path = "../../http-common" }
 
 [dev-dependencies]

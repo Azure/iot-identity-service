@@ -192,8 +192,10 @@ pub fn run(
                         registration_id,
                         identity,
                     } => {
-                        match identity {
+                        let auto_renew = match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
+                                let auto_renew = identity_cert.auto_renew.clone();
+
                                 let auth =
                                     if let super_config::CertIssuanceMethod::Est { url: _, auth } =
                                         &identity_cert.method
@@ -216,6 +218,8 @@ pub fn run(
                                     into_cert_options(identity_cert, auth),
                                 );
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
+
+                                auto_renew
                             }
 
                             super_config::X509Identity::Preloaded {
@@ -229,13 +233,16 @@ pub fn run(
                                     super::DEVICE_ID_ID.to_owned(),
                                     aziot_certd_config::PreloadedCert::Uri(identity_cert),
                                 );
+
+                                None
                             }
-                        }
+                        };
 
                         aziot_identityd_config::DpsAttestationMethod::X509 {
                             registration_id,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
+                            identity_auto_renew: auto_renew,
                         }
                     }
 
@@ -314,6 +321,7 @@ pub fn run(
 
         let est = if let Some(super_config::Est {
             trusted_certs,
+            identity_auto_renew,
             auth,
             urls,
         }) = est
@@ -384,6 +392,7 @@ pub fn run(
             Some(aziot_certd_config::Est {
                 trusted_certs,
                 auth,
+                identity_auto_renew,
                 urls,
             })
         } else {

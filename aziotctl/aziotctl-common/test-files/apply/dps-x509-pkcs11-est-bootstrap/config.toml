@@ -23,5 +23,9 @@ password = "estpwd"
 bootstrap_identity_cert = "file:///var/secrets/est-bootstrap-id.pem"
 bootstrap_identity_pk = "pkcs11:slot-id=0;object=est-bootstrap-id?pin-value=1234"
 
+[cert_issuance.est.identity_auto_renew]
+threshold = "50%"
+retry = "10%"
+
 [cert_issuance.est.urls]
 default = "https://example.org/.well-known/est"
