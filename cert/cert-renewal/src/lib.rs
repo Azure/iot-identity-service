@@ -9,6 +9,9 @@
 )]
 
 mod credential;
+use credential::{Credential, CredentialHeap};
+
+mod renewal;
 
 mod time;
 use time::Time;

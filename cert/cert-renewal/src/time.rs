@@ -63,6 +63,13 @@ impl Time {
     }
 }
 
+impl std::fmt::Display for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: Make time human-readable.
+        write!(f, "{}", self.0)
+    }
+}
+
 impl std::convert::From<i64> for Time {
     fn from(time: i64) -> Self {
         Time(time)

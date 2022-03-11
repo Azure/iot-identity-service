@@ -19,10 +19,10 @@ type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
 /// The context used for certificate renewals.
 #[allow(clippy::module_name_repetitions)]
 pub struct RenewalEngine {
-    credentials: crate::credential::CredentialHeap,
+    pub(crate) credentials: crate::CredentialHeap,
+    pub(crate) key_client: ArcMutex<KeyClient>,
+    pub(crate) cert_client: ArcMutex<CertClient>,
     reschedule_tx: tokio::sync::mpsc::UnboundedSender<crate::Time>,
-    key_client: ArcMutex<KeyClient>,
-    cert_client: ArcMutex<CertClient>,
 }
 
 async fn renewal_loop(
@@ -50,8 +50,58 @@ async fn renewal_loop(
             }
 
             futures_util::future::Either::Right((_, _)) => {
-                // TODO: renew credentials.
-                todo!()
+                let mut engine = engine.lock().await;
+
+                loop {
+                    if let Some(credential) = engine.credentials.peek() {
+                        // Account for inaccuracies with sleep timing by renewing any credential that
+                        // expires within the next minute.
+                        if credential.next_renewal <= crate::Time::now() + 60 {
+                            // Credential heap was peeked, so there should be a credential to pop.
+                            let mut credential = engine.credentials.pop().unwrap();
+
+                            match crate::renewal::renew_credential(&mut engine, &credential).await {
+                                // Successful renewal: schedule next renewal per policy.
+                                Ok(credential) => {
+                                    engine.credentials.push(credential);
+                                }
+
+                                // Retryable error: schedule retry per policy.
+                                Err(crate::renewal::Error::Retryable(message)) => {
+                                    let next_retry = crate::Time::now() + credential.retry_period;
+
+                                    log::warn!(
+                                        "Tried to renew {}, but {}. Retrying at {}.",
+                                        credential.cert_id,
+                                        message,
+                                        next_retry
+                                    );
+
+                                    credential.next_renewal = next_retry;
+                                    engine.credentials.push(credential);
+                                }
+
+                                // Fatal error: drop this credential from future renewal.
+                                Err(crate::renewal::Error::Fatal(message)) => {
+                                    log::warn!(
+                                        "Tried to renew {}, but {}. {} will no longer be auto-renewed.",
+                                        credential.cert_id,
+                                        message,
+                                        credential.cert_id
+                                    );
+                                }
+                            }
+                        } else {
+                            // This credential is not near renewal time. Reschedule timer for its renewal.
+                            break credential.next_renewal;
+                        }
+                    } else {
+                        // No credentials are available to renew. Wait indefinitely for the next one to be added.
+                        log::warn!("Certificate renewal triggered, but no certificates are available to renew.");
+
+                        break crate::Time::forever();
+                    };
+                }
             }
         };
     }
@@ -65,10 +115,10 @@ pub fn new(
     let (reschedule_tx, reschedule_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let engine = RenewalEngine {
-        credentials: crate::credential::CredentialHeap::new(),
-        reschedule_tx,
+        credentials: crate::CredentialHeap::new(),
         key_client,
         cert_client,
+        reschedule_tx,
     };
 
     let engine = std::sync::Arc::new(futures_util::lock::Mutex::new(engine));
@@ -81,8 +131,8 @@ pub fn new(
     engine
 }
 
-/// Add an existing certificate to the renewal engine.
-pub async fn add_cert(
+/// Add an existing certificate and key to the renewal engine.
+pub async fn add_credential(
     engine: &ArcMutex<RenewalEngine>,
     cert_id: &str,
     key_id: &str,
@@ -103,7 +153,7 @@ pub async fn add_cert(
         // TODO: Renew cert.
     }
 
-    let credential = crate::credential::Credential::new(cert_id, &cert, key_id, policy)?;
+    let credential = crate::Credential::new(cert_id, &cert, key_id, policy)?;
 
     if let Some(expiry) = engine.credentials.push(credential) {
         engine

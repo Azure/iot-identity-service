@@ -67,6 +67,7 @@ pub(crate) struct Credential {
     pub(crate) digest: Vec<u8>,
     pub(crate) key_id: String,
     pub(crate) retry_period: i64,
+    pub(crate) policy: crate::RenewalPolicy,
 }
 
 impl std::cmp::Ord for Credential {
@@ -98,7 +99,7 @@ impl Credential {
         key_id: &str,
         policy: crate::RenewalPolicy,
     ) -> Result<Self, Error> {
-        let (next_renewal, retry_period) = initial_renewal(cert, policy)?;
+        let (next_renewal, retry_period) = renewal_times(cert, &policy)?;
 
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
@@ -111,13 +112,30 @@ impl Credential {
             digest,
             key_id: key_id.to_string(),
             retry_period,
+            policy,
         })
+    }
+
+    /// Recalculate renewal times and thumbprints based on the given cert.
+    pub fn reset(mut self, cert: &openssl::x509::X509) -> Result<Self, Error> {
+        let digest = cert
+            .digest(openssl::hash::MessageDigest::sha256())
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
+            .to_vec();
+
+        let (next_renewal, retry_period) = renewal_times(cert, &self.policy)?;
+
+        self.next_renewal = next_renewal;
+        self.digest = digest;
+        self.retry_period = retry_period;
+
+        Ok(self)
     }
 }
 
-fn initial_renewal(
+fn renewal_times(
     cert: &openssl::x509::X509,
-    policy: crate::RenewalPolicy,
+    policy: &crate::RenewalPolicy,
 ) -> Result<(crate::Time, i64), Error> {
     let not_before = crate::Time::from(cert.not_before());
     let not_after = crate::Time::from(cert.not_after());
@@ -176,16 +194,16 @@ fn initial_renewal(
 mod tests {
     use crate::test_cert;
 
-    use super::initial_renewal;
+    use super::renewal_times;
     use super::{Credential, CredentialHeap};
 
     #[test]
-    fn calculate_initial_renewal() {
+    fn calculate_renewal_times() {
         // Bad cert: not_after is before not_before.
         let cert = test_cert(5, 1);
-        initial_renewal(
+        renewal_times(
             &cert,
-            crate::RenewalPolicy {
+            &crate::RenewalPolicy {
                 threshold: crate::Policy::Percentage(80),
                 retry: crate::Policy::Percentage(4),
             },
@@ -194,9 +212,9 @@ mod tests {
 
         // This function should not be called for expired certs.
         let cert = test_cert(-10, -5);
-        initial_renewal(
+        renewal_times(
             &cert,
-            crate::RenewalPolicy {
+            &crate::RenewalPolicy {
                 threshold: crate::Policy::Percentage(50),
                 retry: crate::Policy::Percentage(4),
             },
@@ -205,9 +223,9 @@ mod tests {
 
         // This function should not be called for certs that should be renewed.
         let cert = test_cert(-3, 1);
-        initial_renewal(
+        renewal_times(
             &cert,
-            crate::RenewalPolicy {
+            &crate::RenewalPolicy {
                 threshold: crate::Policy::Percentage(50),
                 retry: crate::Policy::Percentage(4),
             },
@@ -218,9 +236,9 @@ mod tests {
         let cert = test_cert(-5, 5);
         assert_eq!(
             (crate::Time::from(1), 2),
-            initial_renewal(
+            renewal_times(
                 &cert,
-                crate::RenewalPolicy {
+                &crate::RenewalPolicy {
                     threshold: crate::Policy::Percentage(60),
                     retry: crate::Policy::Percentage(20),
                 }
@@ -229,9 +247,9 @@ mod tests {
         );
         assert_eq!(
             (crate::Time::from(4), 1),
-            initial_renewal(
+            renewal_times(
                 &cert,
-                crate::RenewalPolicy {
+                &crate::RenewalPolicy {
                     threshold: crate::Policy::Time(1),
                     retry: crate::Policy::Time(1),
                 }
@@ -240,8 +258,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn new_credential() {
+    #[test]
+    fn new_credential() {
         let policy = crate::RenewalPolicy {
             threshold: crate::Policy::Percentage(80),
             retry: crate::Policy::Percentage(4),
@@ -262,6 +280,44 @@ mod tests {
         assert_eq!(digest, credential.digest);
         assert_eq!("test-key", &credential.key_id);
         assert_eq!(1, credential.retry_period);
+        assert_eq!(policy, credential.policy);
+    }
+
+    #[test]
+    fn reset_credential() {
+        let policy = crate::RenewalPolicy {
+            threshold: crate::Policy::Percentage(80),
+            retry: crate::Policy::Percentage(4),
+        };
+
+        let old_cert = test_cert(-50, 50);
+        let digest = old_cert
+            .digest(openssl::hash::MessageDigest::sha256())
+            .unwrap()
+            .to_vec();
+
+        let credential =
+            Credential::new("test-cert", &old_cert, "test-key", policy.clone()).unwrap();
+        assert_eq!(crate::Time::from(30), credential.next_renewal);
+        assert_eq!("test-cert", &credential.cert_id);
+        assert_eq!(digest, credential.digest);
+        assert_eq!("test-key", &credential.key_id);
+        assert_eq!(4, credential.retry_period);
+        assert_eq!(policy, credential.policy);
+
+        let new_cert = test_cert(-20, 180);
+        let digest = new_cert
+            .digest(openssl::hash::MessageDigest::sha256())
+            .unwrap()
+            .to_vec();
+
+        let credential = credential.reset(&new_cert).unwrap();
+        assert_eq!(crate::Time::from(140), credential.next_renewal);
+        assert_eq!("test-cert", &credential.cert_id);
+        assert_eq!(digest, credential.digest);
+        assert_eq!("test-key", &credential.key_id);
+        assert_eq!(8, credential.retry_period);
+        assert_eq!(policy, credential.policy);
     }
 
     #[test]
