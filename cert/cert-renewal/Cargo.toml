@@ -5,11 +5,16 @@ authors = ["Azure IoT Edge Devs"]
 edition = "2021"
 
 [dependencies]
+futures-util = "0.3"
+log = "0.4"
 openssl = "0.10"
 serde = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+
+aziot-cert-client-async = { path = "../aziot-cert-client-async" }
+aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 
 [dev-dependencies]
-serial_test = "0.5"
 toml = "0.5"
 
 test-common = { path = "../../test-common" }
