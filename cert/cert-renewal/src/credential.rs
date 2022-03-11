@@ -66,7 +66,7 @@ pub(crate) struct Credential {
     pub(crate) cert_id: String,
     pub(crate) digest: Vec<u8>,
     pub(crate) key_id: String,
-    pub(crate) policy: crate::RenewalPolicy,
+    pub(crate) retry_period: i64,
 }
 
 impl std::cmp::Ord for Credential {
@@ -98,7 +98,7 @@ impl Credential {
         key_id: &str,
         policy: crate::RenewalPolicy,
     ) -> Result<Self, Error> {
-        let next_renewal = initial_renewal(cert, &policy.threshold)?;
+        let (next_renewal, retry_period) = initial_renewal(cert, policy)?;
 
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
@@ -110,17 +110,17 @@ impl Credential {
             cert_id: cert_id.to_string(),
             digest,
             key_id: key_id.to_string(),
-            policy,
+            retry_period,
         })
     }
 }
 
 fn initial_renewal(
     cert: &openssl::x509::X509,
-    threshold: &crate::Policy,
-) -> Result<crate::Time, Error> {
-    let not_before: crate::Time = cert.not_before().into();
-    let not_after: crate::Time = cert.not_after().into();
+    policy: crate::RenewalPolicy,
+) -> Result<(crate::Time, i64), Error> {
+    let not_before = crate::Time::from(cert.not_before());
+    let not_after = crate::Time::from(cert.not_after());
 
     if not_before >= not_after {
         return Err(Error::new(
@@ -137,7 +137,7 @@ fn initial_renewal(
     }
 
     // Calculate the intial renewal time.
-    let initial_renewal = match threshold {
+    let initial_renewal = match policy.threshold {
         crate::Policy::Percentage(threshold) => {
             let total_lifetime = not_after - not_before;
             let threshold = total_lifetime - total_lifetime * threshold / 100;
@@ -145,8 +145,22 @@ fn initial_renewal(
             not_after - threshold
         }
 
-        crate::Policy::Time(threshold) => not_after - *threshold,
+        crate::Policy::Time(threshold) => not_after - threshold,
     };
+
+    // Calculate renewal retry period.
+    let retry_period = match policy.retry {
+        crate::Policy::Percentage(retry) => {
+            let total_lifetime = not_after - not_before;
+
+            total_lifetime * retry / 100
+        }
+
+        crate::Policy::Time(retry) => retry,
+    };
+
+    // Require the retry period to be at least 1 second.
+    let retry_period = std::cmp::max(retry_period, 1);
 
     if initial_renewal.in_past() {
         Err(Error::new(
@@ -154,7 +168,7 @@ fn initial_renewal(
             "cannot calculate initial renewal time for cert that should be renewed",
         ))
     } else {
-        Ok(initial_renewal)
+        Ok((initial_renewal, retry_period))
     }
 }
 
@@ -169,25 +183,60 @@ mod tests {
     fn calculate_initial_renewal() {
         // Bad cert: not_after is before not_before.
         let cert = test_cert(5, 1);
-        initial_renewal(&cert, &crate::Policy::Percentage(80)).unwrap_err();
+        initial_renewal(
+            &cert,
+            crate::RenewalPolicy {
+                threshold: crate::Policy::Percentage(80),
+                retry: crate::Policy::Percentage(4),
+            },
+        )
+        .unwrap_err();
 
         // This function should not be called for expired certs.
         let cert = test_cert(-10, -5);
-        initial_renewal(&cert, &crate::Policy::Percentage(50)).unwrap_err();
+        initial_renewal(
+            &cert,
+            crate::RenewalPolicy {
+                threshold: crate::Policy::Percentage(50),
+                retry: crate::Policy::Percentage(4),
+            },
+        )
+        .unwrap_err();
 
         // This function should not be called for certs that should be renewed.
         let cert = test_cert(-3, 1);
-        initial_renewal(&cert, &crate::Policy::Percentage(50)).unwrap_err();
+        initial_renewal(
+            &cert,
+            crate::RenewalPolicy {
+                threshold: crate::Policy::Percentage(50),
+                retry: crate::Policy::Percentage(4),
+            },
+        )
+        .unwrap_err();
 
         // Check initial renewal calculation.
         let cert = test_cert(-5, 5);
         assert_eq!(
-            crate::Time::from(1),
-            initial_renewal(&cert, &crate::Policy::Percentage(60)).unwrap()
+            (crate::Time::from(1), 2),
+            initial_renewal(
+                &cert,
+                crate::RenewalPolicy {
+                    threshold: crate::Policy::Percentage(60),
+                    retry: crate::Policy::Percentage(20),
+                }
+            )
+            .unwrap()
         );
         assert_eq!(
-            crate::Time::from(4),
-            initial_renewal(&cert, &crate::Policy::Time(1)).unwrap()
+            (crate::Time::from(4), 1),
+            initial_renewal(
+                &cert,
+                crate::RenewalPolicy {
+                    threshold: crate::Policy::Time(1),
+                    retry: crate::Policy::Time(1),
+                }
+            )
+            .unwrap()
         );
     }
 
@@ -212,7 +261,7 @@ mod tests {
         assert_eq!("test-cert", &credential.cert_id);
         assert_eq!(digest, credential.digest);
         assert_eq!("test-key", &credential.key_id);
-        assert_eq!(policy, credential.policy);
+        assert_eq!(1, credential.retry_period);
     }
 
     #[test]

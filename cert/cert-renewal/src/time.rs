@@ -89,6 +89,14 @@ impl std::convert::From<&openssl::asn1::Asn1TimeRef> for Time {
     }
 }
 
+impl std::ops::Add<i64> for Time {
+    type Output = Self;
+
+    fn add(self, other: i64) -> Self::Output {
+        Time(self.0 + other)
+    }
+}
+
 impl std::ops::Sub for Time {
     type Output = i64;
 
