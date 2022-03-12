@@ -50,22 +50,6 @@ impl KeyClient {
         }
     }
 
-    pub async fn load_key_pair(&self, _id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
-        if self.load_key_pair_ok {
-            Ok(aziot_key_common::KeyHandle("key-pair-handle".to_string()))
-        } else {
-            Err(super::client_error())
-        }
-    }
-
-    pub async fn get_key_pair_public_parameter(
-        &self,
-        _handle: &aziot_key_common::KeyHandle,
-        _parameter_name: &str,
-    ) -> std::io::Result<String> {
-        todo!()
-    }
-
     pub async fn encrypt(
         &self,
         _handle: &aziot_key_common::KeyHandle,

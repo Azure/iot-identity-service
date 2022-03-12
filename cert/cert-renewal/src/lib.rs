@@ -17,10 +17,11 @@ use credential::{Credential, CredentialHeap};
 pub mod engine;
 pub use engine::RenewalEngine;
 
+pub mod error;
+pub use error::Error;
+
 pub mod policy;
 pub use policy::{Policy, RenewalPolicy};
-
-mod renewal;
 
 mod time;
 use time::Time;

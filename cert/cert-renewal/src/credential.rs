@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::io::{Error, ErrorKind};
-
 /// Priority queue for credentials to renew. The standard library heap is a max-heap,
 /// so this structure stores every `Credential` in a `Reverse` for a min-heap.
 #[derive(Debug)]
@@ -121,12 +119,12 @@ where
         key_id: &str,
         policy: crate::RenewalPolicy,
         interface: I,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, crate::Error> {
         let (next_renewal, retry_period) = renewal_times(cert, &policy)?;
 
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
-            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
+            .map_err(|_| crate::Error::fatal_error("failed to compute cert digest"))?
             .to_vec();
 
         Ok(Credential {
@@ -141,10 +139,10 @@ where
     }
 
     /// Recalculate renewal times and thumbprints based on the given cert.
-    pub fn reset(mut self, cert: &openssl::x509::X509) -> Result<Self, Error> {
+    pub fn reset(&mut self, cert: &openssl::x509::X509) -> Result<(), crate::Error> {
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
-            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
+            .map_err(|_| crate::Error::fatal_error("failed to compute cert digest"))?
             .to_vec();
 
         let (next_renewal, retry_period) = renewal_times(cert, &self.policy)?;
@@ -153,27 +151,25 @@ where
         self.digest = digest;
         self.retry_period = retry_period;
 
-        Ok(self)
+        Ok(())
     }
 }
 
 fn renewal_times(
     cert: &openssl::x509::X509,
     policy: &crate::RenewalPolicy,
-) -> Result<(crate::Time, i64), Error> {
+) -> Result<(crate::Time, i64), crate::Error> {
     let not_before = crate::Time::from(cert.not_before());
     let not_after = crate::Time::from(cert.not_after());
 
     if not_before >= not_after {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
+        return Err(crate::Error::fatal_error(
             "cert not_before is not before not_after",
         ));
     }
 
     if not_after.in_past() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
+        return Err(crate::Error::fatal_error(
             "cannot calculate initial renewal time for expired cert",
         ));
     }
@@ -205,8 +201,7 @@ fn renewal_times(
     let retry_period = std::cmp::max(retry_period, 1);
 
     if initial_renewal.in_past() {
-        Err(Error::new(
-            ErrorKind::InvalidInput,
+        Err(crate::Error::fatal_error(
             "cannot calculate initial renewal time for cert that should be renewed",
         ))
     } else {

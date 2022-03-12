@@ -1,19 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::io::{Error, ErrorKind};
-
-#[cfg(not(test))]
-use aziot_cert_client_async::Client as CertClient;
-
-#[cfg(test)]
-use test_common::client::CertClient;
-
-#[cfg(not(test))]
-use aziot_key_client_async::Client as KeyClient;
-
-#[cfg(test)]
-use test_common::client::KeyClient;
-
 type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
 
 /// The context used for certificate renewals.
@@ -23,8 +9,6 @@ where
     I: crate::CertInterface,
 {
     pub(crate) credentials: crate::CredentialHeap<I>,
-    pub(crate) key_client: ArcMutex<KeyClient>,
-    pub(crate) cert_client: ArcMutex<CertClient>,
     reschedule_tx: tokio::sync::mpsc::UnboundedSender<crate::Time>,
 }
 
@@ -65,14 +49,14 @@ async fn renewal_loop<I>(
                             // Credential heap was peeked, so there should be a credential to pop.
                             let mut credential = engine.credentials.pop().unwrap();
 
-                            match crate::renewal::renew_credential(&mut engine, &credential).await {
+                            match renew_cert(&mut credential).await {
                                 // Successful renewal: schedule next renewal per policy.
-                                Ok(credential) => {
+                                Ok(()) => {
                                     engine.credentials.push(credential);
                                 }
 
                                 // Retryable error: schedule retry per policy.
-                                Err(crate::renewal::Error::Retryable(message)) => {
+                                Err(crate::Error::Retryable(message)) => {
                                     let next_retry = crate::Time::now() + credential.retry_period;
 
                                     log::warn!(
@@ -87,7 +71,7 @@ async fn renewal_loop<I>(
                                 }
 
                                 // Fatal error: drop this credential from future renewal.
-                                Err(crate::renewal::Error::Fatal(message)) => {
+                                Err(crate::Error::Fatal(message)) => {
                                     log::warn!(
                                         "Tried to renew {}, but {}. {} will no longer be auto-renewed.",
                                         credential.cert_id,
@@ -112,11 +96,40 @@ async fn renewal_loop<I>(
     }
 }
 
+async fn renew_cert<I>(credential: &mut crate::Credential<I>) -> Result<(), crate::Error>
+where
+    I: crate::CertInterface,
+{
+    log::info!("Attempting to renew certificate {}.", credential.cert_id);
+
+    let old_cert = credential.interface.get_cert(&credential.cert_id).await?;
+
+    // Check that the cert digest is the same as the last renewal. Renew certs only if the digests match.
+    if let Ok(digest) = old_cert.digest(openssl::hash::MessageDigest::sha256()) {
+        if digest.to_vec() != credential.digest {
+            return Err(crate::Error::Fatal(
+                "certificate has unexpectedly changed since last renewal".to_string(),
+            ));
+        }
+    } else {
+        return Err(crate::Error::Fatal(
+            "could not calculate cert digest".to_string(),
+        ));
+    }
+
+    let new_cert = credential
+        .interface
+        .renew_cert(&old_cert, &credential.key_id)
+        .await?;
+
+    credential.reset(&new_cert)?;
+    credential.interface.renewal_callback().await;
+
+    Ok(())
+}
+
 /// Create a new renewal engine.
-pub fn new<I>(
-    key_client: ArcMutex<KeyClient>,
-    cert_client: ArcMutex<CertClient>,
-) -> ArcMutex<RenewalEngine<I>>
+pub fn new<I>() -> ArcMutex<RenewalEngine<I>>
 where
     I: crate::CertInterface + Send + Sync + 'static,
 {
@@ -124,8 +137,6 @@ where
 
     let engine = RenewalEngine {
         credentials: crate::CredentialHeap::new(),
-        key_client,
-        cert_client,
         reschedule_tx,
     };
 
@@ -145,21 +156,14 @@ pub async fn add_credential<I>(
     cert_id: &str,
     key_id: &str,
     policy: crate::RenewalPolicy,
-    interface: I,
-) -> Result<(), Error>
+    mut interface: I,
+) -> Result<(), crate::Error>
 where
     I: crate::CertInterface,
 {
     let mut engine = engine.lock().await;
 
-    let cert = {
-        let cert_client = engine.cert_client.lock().await;
-
-        let cert = cert_client.get_cert(cert_id).await?;
-
-        openssl::x509::X509::from_pem(&cert)
-            .map_err(|err| Error::new(ErrorKind::InvalidInput, err))?
-    };
+    let cert = interface.get_cert(cert_id).await?;
 
     if policy.threshold.should_renew(&cert) {
         // TODO: Renew cert.
@@ -171,7 +175,7 @@ where
         engine
             .reschedule_tx
             .send(expiry)
-            .map_err(|_| Error::new(ErrorKind::BrokenPipe, "reschedule_rx unexpectedly dropped"))?;
+            .map_err(|_| crate::Error::fatal_error("reschedule_rx unexpectedly dropped"))?;
     }
 
     Ok(())
