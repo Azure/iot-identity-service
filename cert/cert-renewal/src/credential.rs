@@ -5,11 +5,17 @@ use std::io::{Error, ErrorKind};
 /// Priority queue for credentials to renew. The standard library heap is a max-heap,
 /// so this structure stores every `Credential` in a `Reverse` for a min-heap.
 #[derive(Debug)]
-pub(crate) struct CredentialHeap {
-    heap: std::collections::BinaryHeap<core::cmp::Reverse<Credential>>,
+pub(crate) struct CredentialHeap<I>
+where
+    I: crate::CertInterface,
+{
+    heap: std::collections::BinaryHeap<core::cmp::Reverse<Credential<I>>>,
 }
 
-impl CredentialHeap {
+impl<I> CredentialHeap<I>
+where
+    I: crate::CertInterface,
+{
     /// Create new `CredentialHeap`.
     pub fn new() -> Self {
         CredentialHeap {
@@ -19,7 +25,7 @@ impl CredentialHeap {
 
     /// Add a new credential. Return value indicates whether the renewal timer should
     /// be rescheduled.
-    pub fn push(&mut self, credential: Credential) -> Option<crate::Time> {
+    pub fn push(&mut self, credential: Credential<I>) -> Option<crate::Time> {
         let new_expiry = credential.next_renewal;
         let credential = std::cmp::Reverse(credential);
 
@@ -42,7 +48,7 @@ impl CredentialHeap {
     }
 
     /// Peek the soonest-expiring credential.
-    pub fn peek(&self) -> Option<&Credential> {
+    pub fn peek(&self) -> Option<&Credential<I>> {
         if let Some(credential) = self.heap.peek() {
             Some(&credential.0)
         } else {
@@ -51,7 +57,7 @@ impl CredentialHeap {
     }
 
     /// Remove the soonest-expiring credential.
-    pub fn pop(&mut self) -> Option<Credential> {
+    pub fn pop(&mut self) -> Option<Credential<I>> {
         if let Some(credential) = self.heap.pop() {
             Some(credential.0)
         } else {
@@ -61,36 +67,52 @@ impl CredentialHeap {
 }
 
 #[derive(Debug)]
-pub(crate) struct Credential {
+pub(crate) struct Credential<I>
+where
+    I: crate::CertInterface,
+{
     pub(crate) next_renewal: crate::Time,
     pub(crate) cert_id: String,
     pub(crate) digest: Vec<u8>,
     pub(crate) key_id: String,
     pub(crate) retry_period: i64,
     pub(crate) policy: crate::RenewalPolicy,
+    pub(crate) interface: I,
 }
 
-impl std::cmp::Ord for Credential {
+impl<I> std::cmp::Ord for Credential<I>
+where
+    I: crate::CertInterface,
+{
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.next_renewal.cmp(&other.next_renewal)
     }
 }
 
-impl std::cmp::PartialOrd for Credential {
+impl<I> std::cmp::PartialOrd for Credential<I>
+where
+    I: crate::CertInterface,
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl std::cmp::PartialEq for Credential {
+impl<I> std::cmp::PartialEq for Credential<I>
+where
+    I: crate::CertInterface,
+{
     fn eq(&self, other: &Self) -> bool {
         self.next_renewal == other.next_renewal
     }
 }
 
-impl std::cmp::Eq for Credential {}
+impl<I> std::cmp::Eq for Credential<I> where I: crate::CertInterface {}
 
-impl Credential {
+impl<I> Credential<I>
+where
+    I: crate::CertInterface,
+{
     /// Create a new `Credential`. The provided `cert_pem` and `cert_id` should be a valid,
     /// unexpired certificate that is not within its renewal threshold.
     pub fn new(
@@ -98,6 +120,7 @@ impl Credential {
         cert: &openssl::x509::X509,
         key_id: &str,
         policy: crate::RenewalPolicy,
+        interface: I,
     ) -> Result<Self, Error> {
         let (next_renewal, retry_period) = renewal_times(cert, &policy)?;
 
@@ -113,6 +136,7 @@ impl Credential {
             key_id: key_id.to_string(),
             retry_period,
             policy,
+            interface,
         })
     }
 

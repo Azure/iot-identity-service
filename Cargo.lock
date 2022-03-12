@@ -681,8 +681,10 @@ checksum = "4c0496836a84f8d0495758516b8621a622beb77c0fed418570e50764093ced48"
 name = "cert-renewal"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "aziot-cert-client-async",
  "aziot-key-client-async",
+ "base64",
  "futures-util",
  "log",
  "openssl",

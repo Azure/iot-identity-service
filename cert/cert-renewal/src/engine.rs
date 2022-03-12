@@ -18,17 +18,22 @@ type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
 
 /// The context used for certificate renewals.
 #[allow(clippy::module_name_repetitions)]
-pub struct RenewalEngine {
-    pub(crate) credentials: crate::CredentialHeap,
+pub struct RenewalEngine<I>
+where
+    I: crate::CertInterface,
+{
+    pub(crate) credentials: crate::CredentialHeap<I>,
     pub(crate) key_client: ArcMutex<KeyClient>,
     pub(crate) cert_client: ArcMutex<CertClient>,
     reschedule_tx: tokio::sync::mpsc::UnboundedSender<crate::Time>,
 }
 
-async fn renewal_loop(
-    engine: ArcMutex<RenewalEngine>,
+async fn renewal_loop<I>(
+    engine: ArcMutex<RenewalEngine<I>>,
     mut reschedule_rx: tokio::sync::mpsc::UnboundedReceiver<crate::Time>,
-) {
+) where
+    I: crate::CertInterface,
+{
     let mut renewal_time = crate::Time::forever();
 
     loop {
@@ -108,10 +113,13 @@ async fn renewal_loop(
 }
 
 /// Create a new renewal engine.
-pub fn new(
+pub fn new<I>(
     key_client: ArcMutex<KeyClient>,
     cert_client: ArcMutex<CertClient>,
-) -> ArcMutex<RenewalEngine> {
+) -> ArcMutex<RenewalEngine<I>>
+where
+    I: crate::CertInterface + Send + Sync + 'static,
+{
     let (reschedule_tx, reschedule_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let engine = RenewalEngine {
@@ -132,12 +140,16 @@ pub fn new(
 }
 
 /// Add an existing certificate and key to the renewal engine.
-pub async fn add_credential(
-    engine: &ArcMutex<RenewalEngine>,
+pub async fn add_credential<I>(
+    engine: &ArcMutex<RenewalEngine<I>>,
     cert_id: &str,
     key_id: &str,
     policy: crate::RenewalPolicy,
-) -> Result<(), Error> {
+    interface: I,
+) -> Result<(), Error>
+where
+    I: crate::CertInterface,
+{
     let mut engine = engine.lock().await;
 
     let cert = {
@@ -153,7 +165,7 @@ pub async fn add_credential(
         // TODO: Renew cert.
     }
 
-    let credential = crate::Credential::new(cert_id, &cert, key_id, policy)?;
+    let credential = crate::Credential::new(cert_id, &cert, key_id, policy, interface)?;
 
     if let Some(expiry) = engine.credentials.push(credential) {
         engine

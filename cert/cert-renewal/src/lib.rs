@@ -8,19 +8,22 @@
     clippy::must_use_candidate
 )]
 
+mod cert_interface;
+pub use cert_interface::CertInterface;
+
 mod credential;
 use credential::{Credential, CredentialHeap};
-
-mod renewal;
-
-mod time;
-use time::Time;
 
 pub mod engine;
 pub use engine::RenewalEngine;
 
 pub mod policy;
 pub use policy::{Policy, RenewalPolicy};
+
+mod renewal;
+
+mod time;
+use time::Time;
 
 /// Common function for generating test credentials.
 #[cfg(test)]
