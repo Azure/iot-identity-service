@@ -67,18 +67,14 @@ impl Time {
 
 impl std::fmt::Display for Time {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let timestamp = self.0;
-
-        let output = if timestamp == i64::MAX {
-            "the end of time".to_string()
+        if self == &Time::forever() {
+            write!(f, "the end of time")
         } else {
             let date_time = chrono::NaiveDateTime::from_timestamp(self.0, 0);
             let date_time = chrono::DateTime::<chrono::Utc>::from_utc(date_time, chrono::Utc);
 
-            date_time.to_rfc3339()
-        };
-
-        write!(f, "{}", output)
+            write!(f, "{}", date_time.to_rfc3339())
+        }
     }
 }
 
