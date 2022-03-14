@@ -23,10 +23,12 @@ impl Time {
         }
     }
 
-    /// When testing, always set now to 0 so that tests calculate against a known value.
+    /// When testing, allow current time to be set by test functions.
     #[cfg(test)]
     pub fn now() -> Self {
-        Time(0)
+        let now = test_time::NOW.load(std::sync::atomic::Ordering::Acquire);
+
+        Time(now)
     }
 
     /// A time that, for all intents and purposes, never elapses.
@@ -130,6 +132,23 @@ impl std::ops::Sub<i64> for Time {
     }
 }
 
+// Allow time to be set when testing. All tests that use these functions or call
+// `Time::now` must be serialized to prevent them from interfering with each other.
+#[cfg(test)]
+pub(crate) mod test_time {
+    use std::sync::atomic::{AtomicI64, Ordering};
+
+    pub(super) static NOW: AtomicI64 = AtomicI64::new(0);
+
+    pub(crate) fn set(time: i64) {
+        NOW.store(time, Ordering::Release);
+    }
+
+    pub(crate) fn reset() {
+        NOW.store(0, Ordering::Release);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Time;
@@ -151,7 +170,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn sleep_until() {
+        crate::test_time::reset();
+
         // Time in past. Should return immediately.
         let time = Time::from(-1);
         let start = Instant::now();

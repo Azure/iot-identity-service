@@ -29,6 +29,9 @@ pub use policy::{Policy, RenewalPolicy};
 mod time;
 use time::Time;
 
+#[cfg(test)]
+use time::test_time;
+
 /// Common function for generating test credentials.
 #[cfg(test)]
 fn test_cert(not_before: i64, not_after: i64) -> openssl::x509::X509 {
