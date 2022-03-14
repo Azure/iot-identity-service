@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#[derive(Debug)]
 pub enum Error {
     Fatal(String),
     Retryable(String),
@@ -12,6 +13,16 @@ impl Error {
 
     pub fn retryable_error(message: impl std::fmt::Display) -> Self {
         Error::Retryable(format!("{}", message))
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Error::Fatal(message) | Error::Retryable(message) => message,
+        };
+
+        write!(f, "{}", message)
     }
 }
 

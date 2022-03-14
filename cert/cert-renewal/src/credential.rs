@@ -174,8 +174,8 @@ fn renewal_times(
         ));
     }
 
-    // Calculate the intial renewal time.
-    let initial_renewal = match policy.threshold {
+    // Calculate the renewal deadline.
+    let renewal_deadline = match policy.threshold {
         crate::Policy::Percentage(threshold) => {
             let total_lifetime = not_after - not_before;
             let threshold = total_lifetime - total_lifetime * threshold / 100;
@@ -200,18 +200,17 @@ fn renewal_times(
     // Require the retry period to be at least 1 second.
     let retry_period = std::cmp::max(retry_period, 1);
 
-    if initial_renewal.in_past() {
-        Err(crate::Error::fatal_error(
-            "cannot calculate initial renewal time for cert that should be renewed",
-        ))
+    if renewal_deadline.in_past() {
+        Err(crate::Error::fatal_error("cert has past renewal deadline"))
     } else {
-        Ok((initial_renewal, retry_period))
+        Ok((renewal_deadline, retry_period))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::test_cert;
+    use crate::TestInterface;
 
     use super::renewal_times;
     use super::{Credential, CredentialHeap};
@@ -291,7 +290,14 @@ mod tests {
             .unwrap()
             .to_vec();
 
-        let credential = Credential::new("test-cert", &cert, "test-key", policy.clone()).unwrap();
+        let credential = Credential::new(
+            "test-cert",
+            &cert,
+            "test-key",
+            policy.clone(),
+            TestInterface::new(),
+        )
+        .unwrap();
 
         // PartialEq for Credential only compares next_renewal, so fields must be compared manually.
         assert_eq!(crate::Time::from(3), credential.next_renewal);
@@ -315,8 +321,14 @@ mod tests {
             .unwrap()
             .to_vec();
 
-        let credential =
-            Credential::new("test-cert", &old_cert, "test-key", policy.clone()).unwrap();
+        let mut credential = Credential::new(
+            "test-cert",
+            &old_cert,
+            "test-key",
+            policy.clone(),
+            TestInterface::new(),
+        )
+        .unwrap();
         assert_eq!(crate::Time::from(30), credential.next_renewal);
         assert_eq!("test-cert", &credential.cert_id);
         assert_eq!(digest, credential.digest);
@@ -330,7 +342,7 @@ mod tests {
             .unwrap()
             .to_vec();
 
-        let credential = credential.reset(&new_cert).unwrap();
+        credential.reset(&new_cert).unwrap();
         assert_eq!(crate::Time::from(140), credential.next_renewal);
         assert_eq!("test-cert", &credential.cert_id);
         assert_eq!(digest, credential.digest);
@@ -347,13 +359,34 @@ mod tests {
         };
 
         let cert_1 = test_cert(-1, 10);
-        let cert_1 = Credential::new("cert_1", &cert_1, "cert_key_1", policy.clone()).unwrap();
+        let cert_1 = Credential::new(
+            "cert_1",
+            &cert_1,
+            "cert_key_1",
+            policy.clone(),
+            TestInterface::new(),
+        )
+        .unwrap();
 
         let cert_2 = test_cert(-3, 5);
-        let cert_2 = Credential::new("cert_2", &cert_2, "cert_key_2", policy.clone()).unwrap();
+        let cert_2 = Credential::new(
+            "cert_2",
+            &cert_2,
+            "cert_key_2",
+            policy.clone(),
+            TestInterface::new(),
+        )
+        .unwrap();
 
         let cert_3 = test_cert(-5, 8);
-        let cert_3 = Credential::new("cert_3", &cert_3, "cert_key_3", policy.clone()).unwrap();
+        let cert_3 = Credential::new(
+            "cert_3",
+            &cert_3,
+            "cert_key_3",
+            policy.clone(),
+            TestInterface::new(),
+        )
+        .unwrap();
 
         let mut heap = CredentialHeap::new();
         assert!(heap.peek().is_none());

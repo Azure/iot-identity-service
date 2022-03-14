@@ -117,13 +117,21 @@ where
         ));
     }
 
-    let new_cert = credential
+    let (new_cert, key) = credential
         .interface
         .renew_cert(&old_cert, &credential.key_id)
         .await?;
 
-    credential.reset(&new_cert)?;
-    credential.interface.renewal_callback().await;
+    // This function may fail if `new_cert` is invalid or expired. Map these failures
+    // to `Retryable` errors; discard `new_cert` and fall back to `old_cert` for now.
+    credential
+        .reset(&new_cert)
+        .map_err(|err| crate::Error::Retryable(err.to_string()))?;
+
+    credential
+        .interface
+        .write_credentials((&credential.cert_id, new_cert), (&credential.key_id, key))
+        .await?;
 
     Ok(())
 }
