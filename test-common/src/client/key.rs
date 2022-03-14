@@ -4,7 +4,6 @@
 pub struct KeyClient {
     pub create_key_if_not_exists_ok: bool,
     pub create_key_pair_if_not_exists_ok: bool,
-    pub load_key_pair_ok: bool,
 
     pub encrypt_ok: bool,
     pub decrypt_ok: bool,
@@ -16,7 +15,6 @@ impl Default for KeyClient {
         KeyClient {
             create_key_if_not_exists_ok: true,
             create_key_pair_if_not_exists_ok: true,
-            load_key_pair_ok: true,
             encrypt_ok: true,
             decrypt_ok: true,
             sign_ok: true,
