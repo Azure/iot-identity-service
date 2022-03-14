@@ -233,17 +233,24 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn expired_cert() {
-        // Cert expired at t=-5 when current time is t=0.
-        let cert = test_cert(-10, -5);
+        // Cert expired at t=5 when current time is t=6.
+        let cert = test_cert(1, 5);
+        crate::test_time::set(6);
 
         let policy = Policy::Percentage(100);
         assert!(policy.should_renew(&cert));
     }
 
     #[test]
+    #[serial_test::serial]
     fn policy_percentage() {
-        let cert = test_cert(-2, 2);
+        crate::test_time::reset();
+
+        // Test calculation with negative timestamps.
+        let cert = test_cert(-5, -1);
+        crate::test_time::set(-3);
 
         let policy = Policy::Percentage(40);
         assert!(policy.should_renew(&cert));
@@ -253,11 +260,62 @@ mod tests {
 
         let policy = Policy::Percentage(60);
         assert!(!policy.should_renew(&cert));
+
+        // Test calculation with mixed timestamps.
+        let cert = test_cert(-2, 2);
+        crate::test_time::reset();
+
+        let policy = Policy::Percentage(40);
+        assert!(policy.should_renew(&cert));
+
+        let policy = Policy::Percentage(50);
+        assert!(policy.should_renew(&cert));
+
+        let policy = Policy::Percentage(60);
+        assert!(!policy.should_renew(&cert));
+
+        // Test calculation with positive timestamps.
+        let cert = test_cert(1, 5);
+        crate::test_time::set(3);
+
+        let policy = Policy::Percentage(40);
+        assert!(policy.should_renew(&cert));
+        let policy = Policy::Percentage(50);
+        assert!(policy.should_renew(&cert));
+        let policy = Policy::Percentage(60);
+        assert!(!policy.should_renew(&cert));
     }
 
     #[test]
+    #[serial_test::serial]
     fn policy_time() {
+        // Test calculation with negative timestamps.
+        let cert = test_cert(-5, -1);
+        crate::test_time::set(-3);
+
+        // Renewal policy of "within 1": should not renew.
+        let policy = Policy::Time(1);
+        assert!(!policy.should_renew(&cert));
+
+        // Renewal policy of "within 3": should renew.
+        let policy = Policy::Time(3);
+        assert!(policy.should_renew(&cert));
+
+        // Test calculation with mixed timestamps.
         let cert = test_cert(-2, 2);
+        crate::test_time::reset();
+
+        // Renewal policy of "within 1": should not renew.
+        let policy = Policy::Time(1);
+        assert!(!policy.should_renew(&cert));
+
+        // Renewal policy of "within 3": should renew.
+        let policy = Policy::Time(3);
+        assert!(policy.should_renew(&cert));
+
+        // Test calculation with positive timestamps.
+        let cert = test_cert(1, 5);
+        crate::test_time::set(3);
 
         // Renewal policy of "within 1": should not renew.
         let policy = Policy::Time(1);

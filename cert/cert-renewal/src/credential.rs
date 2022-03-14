@@ -216,7 +216,10 @@ mod tests {
     use super::{Credential, CredentialHeap};
 
     #[test]
+    #[serial_test::serial]
     fn calculate_renewal_times() {
+        crate::test_time::reset();
+
         // Bad cert: not_after is before not_before.
         let cert = test_cert(5, 1);
         renewal_times(
@@ -277,7 +280,10 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn new_credential() {
+        crate::test_time::reset();
+
         let policy = crate::RenewalPolicy {
             threshold: crate::Policy::Percentage(80),
             retry: crate::Policy::Percentage(4),
@@ -309,7 +315,10 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn reset_credential() {
+        crate::test_time::reset();
+
         let policy = crate::RenewalPolicy {
             threshold: crate::Policy::Percentage(80),
             retry: crate::Policy::Percentage(4),
@@ -352,7 +361,10 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn credential_heap() {
+        crate::test_time::reset();
+
         let policy = crate::RenewalPolicy {
             threshold: crate::Policy::Percentage(80),
             retry: crate::Policy::Percentage(4),

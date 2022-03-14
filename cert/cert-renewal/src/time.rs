@@ -134,6 +134,7 @@ impl std::ops::Sub<i64> for Time {
 
 // Allow time to be set when testing. All tests that use these functions or call
 // `Time::now` must be serialized to prevent them from interfering with each other.
+// Tests should also call `reset` during setup so that they start with a known time.
 #[cfg(test)]
 pub(crate) mod test_time {
     use std::sync::atomic::{AtomicI64, Ordering};
