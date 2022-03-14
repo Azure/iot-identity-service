@@ -55,12 +55,31 @@ where
     }
 
     /// Remove the soonest-expiring credential.
-    pub fn pop(&mut self) -> Option<Credential<I>> {
+    pub fn remove_next(&mut self) -> Option<Credential<I>> {
         if let Some(credential) = self.heap.pop() {
             Some(credential.0)
         } else {
             None
         }
+    }
+
+    /// Remove the credential with the matching `cert_id` and `key_id`.
+    pub fn remove(&mut self, cert_id: &str, key_id: &str) -> Option<Credential<I>> {
+        let mut output = None;
+        let mut temp = std::collections::BinaryHeap::new();
+
+        for credential in self.heap.drain() {
+            if credential.0.cert_id == cert_id && credential.0.key_id == key_id {
+                output = Some(credential.0);
+                break;
+            }
+
+            temp.push(credential);
+        }
+
+        self.heap.append(&mut temp);
+
+        output
     }
 }
 
@@ -175,7 +194,7 @@ fn renewal_times(
     }
 
     // Calculate the renewal deadline.
-    let renewal_deadline = match policy.threshold {
+    let mut renewal_deadline = match policy.threshold {
         crate::Policy::Percentage(threshold) => {
             let total_lifetime = not_after - not_before;
             let threshold = total_lifetime - total_lifetime * threshold / 100;
@@ -200,11 +219,12 @@ fn renewal_times(
     // Require the retry period to be at least 1 second.
     let retry_period = std::cmp::max(retry_period, 1);
 
+    // A cert that is past its renewal deadline should be renewed based on its retry policy.
     if renewal_deadline.in_past() {
-        Err(crate::Error::fatal_error("cert has past renewal deadline"))
-    } else {
-        Ok((renewal_deadline, retry_period))
+        renewal_deadline = crate::Time::now() + retry_period;
     }
+
+    Ok((renewal_deadline, retry_period))
 }
 
 #[cfg(test)]
@@ -242,18 +262,21 @@ mod tests {
         )
         .unwrap_err();
 
-        // This function should not be called for certs that should be renewed.
-        let cert = test_cert(-3, 1);
-        renewal_times(
-            &cert,
-            &crate::RenewalPolicy {
-                threshold: crate::Policy::Percentage(50),
-                retry: crate::Policy::Percentage(4),
-            },
-        )
-        .unwrap_err();
+        // Check calculation for cert within its renewal threshold.
+        let cert = test_cert(-60, 40);
+        assert_eq!(
+            (crate::Time::from(4), 4),
+            renewal_times(
+                &cert,
+                &crate::RenewalPolicy {
+                    threshold: crate::Policy::Percentage(50),
+                    retry: crate::Policy::Percentage(4),
+                },
+            )
+            .unwrap()
+        );
 
-        // Check initial renewal calculation.
+        // Check calculation for cert not within its renewal threshold.
         let cert = test_cert(-5, 5);
         assert_eq!(
             (crate::Time::from(1), 2),
@@ -402,19 +425,21 @@ mod tests {
 
         let mut heap = CredentialHeap::new();
         assert!(heap.peek().is_none());
-        assert!(heap.pop().is_none());
+        assert!(heap.remove_next().is_none());
 
         heap.push(cert_1);
         heap.push(cert_2);
         heap.push(cert_3);
 
-        let cert = heap.pop().unwrap();
+        assert!(heap.remove("cert_1", "cert_key_2").is_none());
+
+        let cert = heap.remove_next().unwrap();
         assert_eq!("cert_2", cert.cert_id);
 
-        let cert = heap.pop().unwrap();
+        let cert = heap.remove_next().unwrap();
         assert_eq!("cert_3", cert.cert_id);
 
-        let cert = heap.pop().unwrap();
+        let cert = heap.remove_next().unwrap();
         assert_eq!("cert_1", cert.cert_id);
     }
 }

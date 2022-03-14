@@ -47,7 +47,7 @@ async fn renewal_loop<I>(
                         // expires within the next minute.
                         if credential.next_renewal <= crate::Time::now() + 60 {
                             // Credential heap was peeked, so there should be a credential to pop.
-                            let mut credential = engine.credentials.pop().unwrap();
+                            let mut credential = engine.credentials.remove_next().unwrap();
 
                             match renew_cert(&mut credential).await {
                                 // Successful renewal: schedule next renewal per policy.
@@ -108,7 +108,7 @@ where
     if let Ok(digest) = old_cert.digest(openssl::hash::MessageDigest::sha256()) {
         if digest.to_vec() != credential.digest {
             return Err(crate::Error::Fatal(
-                "certificate has unexpectedly changed since last renewal".to_string(),
+                "certificate has changed since last renewal".to_string(),
             ));
         }
     } else {
@@ -130,7 +130,7 @@ where
 
     credential
         .interface
-        .write_credentials((&credential.cert_id, new_cert), (&credential.key_id, key))
+        .write_credentials((&credential.cert_id, &new_cert), (&credential.key_id, &key))
         .await?;
 
     Ok(())
@@ -171,12 +171,7 @@ where
 {
     let mut engine = engine.lock().await;
 
-    let cert = interface.get_cert(cert_id).await?;
-
-    if policy.threshold.should_renew(&cert) {
-        // TODO: Renew cert.
-    }
-
+    let (cert, _) = get_cert(&mut interface, cert_id, key_id, &policy).await?;
     let credential = crate::Credential::new(cert_id, &cert, key_id, policy, interface)?;
 
     if let Some(expiry) = engine.credentials.push(credential) {
@@ -187,4 +182,119 @@ where
     }
 
     Ok(())
+}
+
+/// Retrieve a certificate and key from the renewal engine.
+///
+/// It is not strictly necessary to use this function (`cert_id` and `key_id` could be
+/// retrieved directly from Certificates and Keys Services). However, retrieving credentials
+/// with this function will ensure that credentials are not retrieved mid-renewal and that
+/// the retrieved credentials are valid.
+pub async fn get_credential<I>(
+    engine: &ArcMutex<RenewalEngine<I>>,
+    cert_id: &str,
+    key_id: &str,
+) -> Result<
+    (
+        openssl::x509::X509,
+        openssl::pkey::PKey<openssl::pkey::Private>,
+    ),
+    crate::Error,
+>
+where
+    I: crate::CertInterface + Clone,
+{
+    let mut engine = engine.lock().await;
+
+    let mut credential = if let Some(credential) = engine.credentials.remove(cert_id, key_id) {
+        credential
+    } else {
+        return Err(crate::Error::fatal_error(format!("{} not found", cert_id)));
+    };
+
+    let (cert, cert_renewed) = get_cert(
+        &mut credential.interface,
+        cert_id,
+        key_id,
+        &credential.policy,
+    )
+    .await?;
+    let key = credential.interface.get_key(key_id).await?;
+
+    if cert_renewed {
+        credential.reset(&cert)?;
+    }
+
+    if let Some(expiry) = engine.credentials.push(credential) {
+        engine
+            .reschedule_tx
+            .send(expiry)
+            .map_err(|_| crate::Error::fatal_error("reschedule_rx unexpectedly dropped"))?;
+    }
+
+    Ok((cert, key))
+}
+
+async fn get_cert<I>(
+    interface: &mut I,
+    cert_id: &str,
+    key_id: &str,
+    policy: &crate::RenewalPolicy,
+) -> Result<(openssl::x509::X509, bool), crate::Error>
+where
+    I: crate::CertInterface,
+{
+    let mut cert = interface.get_cert(cert_id).await?;
+    let mut cert_renewed = false;
+
+    if policy.threshold.should_renew(&cert) {
+        match interface.renew_cert(&cert, key_id).await {
+            Ok((new_cert, key)) => {
+                match interface
+                    .write_credentials((cert_id, &new_cert), (key_id, &key))
+                    .await
+                {
+                    Ok(()) => {
+                        cert = new_cert;
+                        cert_renewed = true;
+                    }
+                    Err(crate::Error::Retryable(message)) => {
+                        log::warn!(
+                            "Tried to renew {}, but failed to write new cert: {}.",
+                            cert_id,
+                            message
+                        );
+                    }
+                    Err(crate::Error::Fatal(message)) => {
+                        log::error!("Failed to write new cert {}: {}.", cert_id, message);
+
+                        return Err(crate::Error::fatal_error(message));
+                    }
+                }
+            }
+            Err(crate::Error::Retryable(message)) => {
+                log::warn!("Tried to renew {}, but {}.", cert_id, message);
+            }
+            Err(crate::Error::Fatal(message)) => {
+                log::error!(
+                    "Failed to initialize cert renewal for {}: {}.",
+                    cert_id,
+                    message
+                );
+
+                return Err(crate::Error::fatal_error(message));
+            }
+        };
+    }
+
+    let expiry = crate::Time::from(cert.not_after());
+
+    if expiry.in_past() {
+        let message = format!("Cert {} is expired and could not be renewed", cert_id);
+        log::error!("{}.", message);
+
+        return Err(crate::Error::fatal_error(message));
+    }
+
+    Ok((cert, cert_renewed))
 }

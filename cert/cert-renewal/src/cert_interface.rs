@@ -5,6 +5,12 @@ pub trait CertInterface {
     /// Retrieve a certificate from the provided `cert_id`.
     async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error>;
 
+    /// Retrieve a private key from the provided `key_id`.
+    async fn get_key(
+        &mut self,
+        key_id: &str,
+    ) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, crate::Error>;
+
     /// Renew the provided certificate.
     ///
     /// This function should renew `old_cert` and its key and return the renewed certificate and
@@ -39,41 +45,39 @@ pub trait CertInterface {
     /// function must revert any changes to `cert` before returning an error.
     async fn write_credentials(
         &mut self,
-        cert: (&str, openssl::x509::X509),
-        key: (&str, openssl::pkey::PKey<openssl::pkey::Private>),
+        cert: (&str, &openssl::x509::X509),
+        key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
     ) -> Result<(), crate::Error>;
 }
 
 #[cfg(test)]
-pub(crate) struct TestInterface {
-    pub key_client: test_common::client::KeyClient,
-    pub cert_client: test_common::client::CertClient,
-}
+pub(crate) struct TestInterface {}
 
 #[cfg(test)]
 impl TestInterface {
     pub fn new() -> Self {
-        let key_client = test_common::client::KeyClient::default();
-        let cert_client = test_common::client::CertClient::default();
-
-        TestInterface {
-            key_client,
-            cert_client,
-        }
+        TestInterface {}
     }
 }
 
 #[cfg(test)]
 #[async_trait::async_trait]
 impl CertInterface for TestInterface {
-    async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
+    async fn get_cert(&mut self, _cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
+        todo!()
+    }
+
+    async fn get_key(
+        &mut self,
+        _key_id: &str,
+    ) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, crate::Error> {
         todo!()
     }
 
     async fn renew_cert(
         &mut self,
-        old_cert: &openssl::x509::X509,
-        key_id: &str,
+        _old_cert: &openssl::x509::X509,
+        _key_id: &str,
     ) -> Result<
         (
             openssl::x509::X509,
@@ -86,8 +90,8 @@ impl CertInterface for TestInterface {
 
     async fn write_credentials(
         &mut self,
-        cert: (&str, openssl::x509::X509),
-        key: (&str, openssl::pkey::PKey<openssl::pkey::Private>),
+        _cert: (&str, &openssl::x509::X509),
+        _key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
     ) -> Result<(), crate::Error> {
         todo!()
     }
