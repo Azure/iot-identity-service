@@ -65,8 +65,18 @@ impl Time {
 
 impl std::fmt::Display for Time {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: Make time human-readable.
-        write!(f, "{}", self.0)
+        let timestamp = self.0;
+
+        let output = if timestamp == i64::MAX {
+            "the end of time".to_string()
+        } else {
+            let date_time = chrono::NaiveDateTime::from_timestamp(self.0, 0);
+            let date_time = chrono::DateTime::<chrono::Utc>::from_utc(date_time, chrono::Utc);
+
+            date_time.to_rfc3339()
+        };
+
+        write!(f, "{}", output)
     }
 }
 
@@ -125,6 +135,20 @@ mod tests {
     use super::Time;
 
     use tokio::time::{Duration, Instant};
+
+    #[test]
+    fn time_display() {
+        assert_eq!("1970-01-01T00:00:00+00:00", Time::from(0).to_string());
+        assert_eq!(
+            "1938-04-24T22:13:20+00:00",
+            Time::from(-1_000_000_000).to_string()
+        );
+        assert_eq!(
+            "2001-09-09T01:46:40+00:00",
+            Time::from(1_000_000_000).to_string()
+        );
+        assert_eq!("the end of time", Time::forever().to_string());
+    }
 
     #[tokio::test]
     async fn sleep_until() {

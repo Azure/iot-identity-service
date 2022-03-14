@@ -684,6 +684,7 @@ dependencies = [
  "async-trait",
  "aziot-cert-client-async",
  "aziot-key-client-async",
+ "chrono",
  "futures-util",
  "log",
  "openssl",
