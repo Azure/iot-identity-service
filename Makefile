@@ -239,7 +239,7 @@ dist:
 		./test-common \
 		./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
-	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
+	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain.toml ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor

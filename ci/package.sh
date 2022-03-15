@@ -136,7 +136,7 @@ case "$OS" in
         pushd /tmp
         tar xf "cbindgen-$CBINDGEN_VERSION.tar.gz" --no-same-owner
         pushd "/tmp/cbindgen-$CBINDGEN_VERSION"
-        cp /src/rust-toolchain .
+        cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
         cat > .cargo/config << EOF
@@ -154,7 +154,7 @@ EOF
         pushd /tmp
         tar xf "rust-bindgen-$BINDGEN_VERSION.tar.gz" --no-same-owner
         pushd "/tmp/rust-bindgen-$BINDGEN_VERSION"
-        cp /src/rust-toolchain .
+        cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
         cat > .cargo/config << EOF
