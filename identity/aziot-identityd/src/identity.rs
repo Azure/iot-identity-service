@@ -720,6 +720,7 @@ impl IdentityManager {
                         registration_id,
                         identity_cert,
                         identity_pk,
+                        identity_auto_renew: _,
                     } => {
                         // DPS requires registration ID to match identity certificate CN
                         let cert_subject_name = self

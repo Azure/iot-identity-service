@@ -141,6 +141,8 @@ pub enum DpsAttestationMethod {
         registration_id: Option<String>,
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        identity_auto_renew: Option<cert_renewal::RenewalPolicy>,
     },
     Tpm {
         registration_id: String,

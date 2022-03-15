@@ -8,6 +8,10 @@ identity_pk = "est-id"
 bootstrap_identity_cert = "est-bootstrap-id"
 bootstrap_identity_pk = "est-bootstrap-id"
 
+[cert_issuance.est.identity_auto_renew]
+threshold = "50%"
+retry = "10%"
+
 [cert_issuance.est.urls]
 default = "https://example.org/.well-known/est"
 

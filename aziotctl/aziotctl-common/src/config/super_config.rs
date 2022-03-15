@@ -214,6 +214,11 @@ pub struct CertIssuance {
 pub struct Est {
     #[serde(default)]
     pub trusted_certs: Vec<Url>,
+    #[serde(
+        default = "aziot_certd_config::default_est_renew",
+        skip_serializing_if = "aziot_certd_config::is_default_est_renew"
+    )]
+    pub identity_auto_renew: cert_renewal::RenewalPolicy,
     pub auth: EstAuth,
     pub urls: BTreeMap<String, Url>,
 }
@@ -243,6 +248,7 @@ pub enum EstAuthX509 {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum LocalCa {
     Issued {
         cert: CertIssuanceOptions,
@@ -269,6 +275,7 @@ pub enum SymmetricKey {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum X509Identity {
     Issued {
         identity_cert: CertIssuanceOptions,
@@ -290,6 +297,9 @@ pub struct CertIssuanceOptions {
         deserialize_with = "aziot_certd_config::deserialize_expiry_days"
     )]
     pub expiry_days: Option<u32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_renew: Option<cert_renewal::RenewalPolicy>,
 
     #[serde(flatten)]
     pub subject: Option<aziot_certd_config::CertSubject>,
