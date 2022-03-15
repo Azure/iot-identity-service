@@ -19,6 +19,7 @@ where
     TBody: serde::Serialize,
     TConnector: Clone + Send + Sync + hyper::client::connect::Connect + 'static,
 {
+    #[must_use]
     pub fn delete(connector: TConnector, uri: &str, body: Option<TBody>) -> Self {
         HttpRequest {
             connector,
@@ -31,6 +32,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn get(connector: TConnector, uri: &str) -> Self {
         HttpRequest {
             connector,
@@ -43,6 +45,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn post(connector: TConnector, uri: &str, body: Option<TBody>) -> Self {
         HttpRequest {
             connector,
@@ -55,6 +58,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn put(connector: TConnector, uri: &str, body: TBody) -> Self {
         HttpRequest {
             connector,
@@ -67,12 +71,14 @@ where
         }
     }
 
+    #[must_use]
     pub fn with_retry(mut self, retries: u32) -> Self {
         self.retries = retries;
 
         self
     }
 
+    #[must_use]
     pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.timeout = timeout;
 
