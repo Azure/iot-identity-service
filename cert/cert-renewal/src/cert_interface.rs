@@ -51,32 +51,49 @@ pub trait CertInterface {
 }
 
 #[cfg(test)]
-pub(crate) struct TestInterface {}
+pub(crate) struct TestInterface {
+    pub keys: std::collections::BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
+    pub certs: std::collections::BTreeMap<String, openssl::x509::X509>,
+}
 
 #[cfg(test)]
 impl TestInterface {
     pub fn new() -> Self {
-        TestInterface {}
+        TestInterface {
+            keys: std::collections::BTreeMap::default(),
+            certs: std::collections::BTreeMap::default(),
+        }
     }
 }
 
 #[cfg(test)]
 #[async_trait::async_trait]
 impl CertInterface for TestInterface {
-    async fn get_cert(&mut self, _cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
-        todo!()
+    #[allow(clippy::unused_async)]
+    async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
+        if let Some(cert) = self.certs.get(cert_id) {
+            Ok(cert.clone())
+        } else {
+            Err(crate::Error::retryable_error("failed to get cert"))
+        }
     }
 
+    #[allow(clippy::unused_async)]
     async fn get_key(
         &mut self,
-        _key_id: &str,
+        key_id: &str,
     ) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, crate::Error> {
-        todo!()
+        if let Some(key) = self.keys.get(key_id) {
+            Ok(key.clone())
+        } else {
+            Err(crate::Error::retryable_error("failed to get key"))
+        }
     }
 
+    #[allow(clippy::unused_async)]
     async fn renew_cert(
         &mut self,
-        _old_cert: &openssl::x509::X509,
+        old_cert: &openssl::x509::X509,
         _key_id: &str,
     ) -> Result<
         (
@@ -85,14 +102,25 @@ impl CertInterface for TestInterface {
         ),
         crate::Error,
     > {
-        todo!()
+        Ok(test_common::credential::custom_test_certificate(
+            "",
+            |cert| {
+                cert.set_subject_name(old_cert.subject_name()).unwrap();
+            },
+        ))
     }
 
+    #[allow(clippy::unused_async)]
     async fn write_credentials(
         &mut self,
-        _cert: (&str, &openssl::x509::X509),
-        _key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
+        cert: (&str, &openssl::x509::X509),
+        key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
     ) -> Result<(), crate::Error> {
-        todo!()
+        self.certs
+            .insert(cert.0.to_string(), cert.1.clone())
+            .unwrap();
+        self.keys.insert(key.0.to_string(), key.1.clone()).unwrap();
+
+        Ok(())
     }
 }
