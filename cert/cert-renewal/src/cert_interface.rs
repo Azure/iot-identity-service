@@ -103,7 +103,7 @@ impl CertInterface for TestInterface {
         crate::Error,
     > {
         Ok(test_common::credential::custom_test_certificate(
-            "",
+            "test-cert", // This is ignored and replaced below.
             |cert| {
                 cert.set_subject_name(old_cert.subject_name()).unwrap();
             },
