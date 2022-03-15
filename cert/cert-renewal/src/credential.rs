@@ -418,7 +418,7 @@ mod tests {
             "cert_3",
             &cert_3,
             "cert_key_3",
-            policy.clone(),
+            policy,
             TestInterface::new(),
         )
         .unwrap();
