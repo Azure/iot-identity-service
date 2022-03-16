@@ -21,8 +21,8 @@ pub enum Policy {
 impl Policy {
     /// Check if the given cert should be renewed based on this policy.
     pub fn should_renew(&self, cert: &openssl::x509::X509) -> bool {
-        let not_before: crate::Time = cert.not_before().into();
-        let not_after: crate::Time = cert.not_after().into();
+        let not_before = crate::Time::from(cert.not_before());
+        let not_after = crate::Time::from(cert.not_after());
 
         // Cert not_after must be after not_before to be valid.
         // Always renew invalid certs.

@@ -17,7 +17,7 @@ impl Time {
     #[cfg(not(test))]
     pub fn now() -> Self {
         if let Ok(now) = openssl::asn1::Asn1Time::days_from_now(0) {
-            now.as_ref().into()
+            Self::from(now.as_ref())
         } else {
             abort("Failed to read current time.");
         }
