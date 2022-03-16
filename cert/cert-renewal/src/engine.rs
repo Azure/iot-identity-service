@@ -130,7 +130,7 @@ where
 
     credential
         .interface
-        .write_credentials((&credential.cert_id, &new_cert), (&credential.key_id, &key))
+        .write_credentials((&credential.cert_id, &new_cert), (&credential.key_id, key))
         .await?;
 
     Ok(())
@@ -251,7 +251,7 @@ where
         match interface.renew_cert(&cert, key_id).await {
             Ok((new_cert, key)) => {
                 match interface
-                    .write_credentials((cert_id, &new_cert), (key_id, &key))
+                    .write_credentials((cert_id, &new_cert), (key_id, key))
                     .await
                 {
                     Ok(()) => {

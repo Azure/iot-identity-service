@@ -44,7 +44,7 @@ pub trait CertInterface {
     async fn write_credentials(
         &mut self,
         cert: (&str, &openssl::x509::X509),
-        key: (&str, &Self::NewKey),
+        key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error>;
 }
 
@@ -108,12 +108,12 @@ impl CertInterface for TestInterface {
     async fn write_credentials(
         &mut self,
         cert: (&str, &openssl::x509::X509),
-        key: (&str, &Self::NewKey),
+        key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error> {
         self.certs
             .insert(cert.0.to_string(), cert.1.clone())
             .unwrap();
-        self.keys.insert(key.0.to_string(), key.1.clone()).unwrap();
+        self.keys.insert(key.0.to_string(), key.1).unwrap();
 
         Ok(())
     }
