@@ -2,6 +2,10 @@
 
 #[async_trait::async_trait]
 pub trait CertInterface {
+    /// Represents a key used for a new certificate. Initially returned from cert renewal as a
+    /// temporary key, and later written to persistent storage with the renewed cert.
+    type NewKey: Send + Sync;
+
     /// Retrieve a certificate from the provided `cert_id`.
     async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error>;
 
@@ -27,13 +31,7 @@ pub trait CertInterface {
         &mut self,
         old_cert: &openssl::x509::X509,
         key_id: &str,
-    ) -> Result<
-        (
-            openssl::x509::X509,
-            openssl::pkey::PKey<openssl::pkey::Private>,
-        ),
-        crate::Error,
-    >;
+    ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error>;
 
     /// Write the new credentials to storage, replacing any existing credentials with the same IDs.
     ///
@@ -46,7 +44,7 @@ pub trait CertInterface {
     async fn write_credentials(
         &mut self,
         cert: (&str, &openssl::x509::X509),
-        key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
+        key: (&str, &Self::NewKey),
     ) -> Result<(), crate::Error>;
 }
 
@@ -69,6 +67,8 @@ impl TestInterface {
 #[cfg(test)]
 #[async_trait::async_trait]
 impl CertInterface for TestInterface {
+    type NewKey = openssl::pkey::PKey<openssl::pkey::Private>;
+
     #[allow(clippy::unused_async)]
     async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
         if let Some(cert) = self.certs.get(cert_id) {
@@ -95,13 +95,7 @@ impl CertInterface for TestInterface {
         &mut self,
         old_cert: &openssl::x509::X509,
         _key_id: &str,
-    ) -> Result<
-        (
-            openssl::x509::X509,
-            openssl::pkey::PKey<openssl::pkey::Private>,
-        ),
-        crate::Error,
-    > {
+    ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error> {
         Ok(test_common::credential::custom_test_certificate(
             "test-cert", // This is ignored and replaced below.
             |cert| {
@@ -114,7 +108,7 @@ impl CertInterface for TestInterface {
     async fn write_credentials(
         &mut self,
         cert: (&str, &openssl::x509::X509),
-        key: (&str, &openssl::pkey::PKey<openssl::pkey::Private>),
+        key: (&str, &Self::NewKey),
     ) -> Result<(), crate::Error> {
         self.certs
             .insert(cert.0.to_string(), cert.1.clone())
