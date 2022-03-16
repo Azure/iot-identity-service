@@ -43,7 +43,8 @@ pub trait CertInterface {
     /// function must revert any changes to `cert` before returning an error.
     async fn write_credentials(
         &mut self,
-        cert: (&str, &openssl::x509::X509),
+        old_cert: &openssl::x509::X509,
+        new_cert: (&str, &openssl::x509::X509),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error>;
 }
@@ -107,11 +108,12 @@ impl CertInterface for TestInterface {
     #[allow(clippy::unused_async)]
     async fn write_credentials(
         &mut self,
-        cert: (&str, &openssl::x509::X509),
+        _old_cert: &openssl::x509::X509,
+        new_cert: (&str, &openssl::x509::X509),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error> {
         self.certs
-            .insert(cert.0.to_string(), cert.1.clone())
+            .insert(new_cert.0.to_string(), new_cert.1.clone())
             .unwrap();
         self.keys.insert(key.0.to_string(), key.1).unwrap();
 
