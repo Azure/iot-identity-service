@@ -55,18 +55,21 @@ impl Client {
         }
     }
 
+    #[must_use]
     pub fn with_retry(mut self, retries: u32) -> Self {
         self.retries = retries;
 
         self
     }
 
+    #[must_use]
     pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.timeout = timeout;
 
         self
     }
 
+    #[must_use]
     pub fn with_proxy(mut self, proxy: Option<hyper::Uri>) -> Self {
         self.proxy = proxy;
 
