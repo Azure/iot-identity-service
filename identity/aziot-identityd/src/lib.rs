@@ -468,9 +468,7 @@ impl Api {
         }
 
         //TODO: invoke get trust bundle
-        Ok(aziot_cert_common_http::Pem {
-            0: std::vec::Vec::default(),
-        })
+        Ok(aziot_cert_common_http::Pem(std::vec::Vec::default()))
     }
 
     pub async fn reprovision_device(
