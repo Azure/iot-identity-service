@@ -8,11 +8,11 @@ pub enum Error {
 
 impl Error {
     pub fn fatal_error(message: impl std::fmt::Display) -> Self {
-        Error::Fatal(format!("{}", message))
+        Error::Fatal(message.to_string())
     }
 
     pub fn retryable_error(message: impl std::fmt::Display) -> Self {
-        Error::Retryable(format!("{}", message))
+        Error::Retryable(message.to_string())
     }
 }
 
