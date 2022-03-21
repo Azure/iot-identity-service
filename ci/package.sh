@@ -152,7 +152,7 @@ case "$OS" in
 
                 # build rust 1.47.0
                 pushd "$MarinerRPMBUILDDIR/toolkit"
-                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=y SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE= -j$(nproc)
+                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=$UsePreview SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE= -j$(nproc)
                 popd
                 ;;
         esac
