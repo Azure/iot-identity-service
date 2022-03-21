@@ -8,7 +8,7 @@ pub struct RenewalEngine<I>
 where
     I: crate::CertInterface,
 {
-    pub(crate) credentials: crate::CredentialHeap<I>,
+    credentials: crate::CredentialHeap<I>,
     reschedule_tx: tokio::sync::mpsc::UnboundedSender<crate::Time>,
 }
 
@@ -301,4 +301,73 @@ where
     }
 
     Ok((cert, cert_renewed))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Error, Policy, RenewalPolicy, TestInterface, Time};
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn engine_add_expired() {
+        crate::test_time::reset();
+
+        let mut interface = TestInterface::new();
+        let policy = RenewalPolicy {
+            threshold: Policy::Percentage(80),
+            retry: Policy::Percentage(4),
+        };
+
+        // Add expired cert. This should renew immediately.
+        let cert = interface.new_cert("cert-1", "key-1", "cert-1", -101, -1);
+        let digest = cert
+            .digest(openssl::hash::MessageDigest::sha256())
+            .unwrap()
+            .to_vec();
+
+        let engine = super::new::<TestInterface>();
+        super::add_credential(
+            &engine,
+            "cert-1",
+            "key-1",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap();
+
+        {
+            let mut engine = engine.lock().await;
+            let credential = engine.credentials.remove("cert-1", "key-1").unwrap();
+
+            assert_eq!(Time::from(80), credential.next_renewal);
+            assert_ne!(digest, credential.digest);
+            assert_eq!(4, credential.retry_period);
+        }
+
+        // Add expired cert that fails to renew. This should cause the API to return an error.
+        interface.renew_err = Some(Error::retryable_error("test"));
+
+        super::add_credential(
+            &engine,
+            "cert-1",
+            "key-1",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap_err();
+
+        interface.renew_err = Some(Error::fatal_error("test"));
+
+        super::add_credential(&engine, "cert-1", "key-1", policy, interface)
+            .await
+            .unwrap_err();
+
+        {
+            let engine = engine.lock().await;
+
+            assert!(engine.credentials.is_empty());
+        }
+    }
 }

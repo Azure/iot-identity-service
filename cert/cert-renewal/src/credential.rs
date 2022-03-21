@@ -81,6 +81,13 @@ where
 
         output
     }
+
+    /// Check if this heap is empty
+    /// Only used during testing to examine the state of the credential heap.
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.heap.is_empty()
+    }
 }
 
 #[derive(Debug)]

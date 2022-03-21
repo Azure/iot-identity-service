@@ -84,6 +84,12 @@ impl std::convert::From<i64> for Time {
     }
 }
 
+impl std::convert::From<Time> for i64 {
+    fn from(time: Time) -> Self {
+        time.0
+    }
+}
+
 impl std::convert::From<&openssl::asn1::Asn1TimeRef> for Time {
     fn from(time: &openssl::asn1::Asn1TimeRef) -> Self {
         let epoch = if let Ok(epoch) = openssl::asn1::Asn1Time::from_unix(0) {

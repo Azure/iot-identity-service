@@ -50,9 +50,12 @@ pub trait CertInterface {
 }
 
 #[cfg(test)]
+#[derive(Clone, Debug)]
 pub(crate) struct TestInterface {
     pub keys: std::collections::BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
     pub certs: std::collections::BTreeMap<String, openssl::x509::X509>,
+    pub lifetime: i64,
+    pub renew_err: Option<crate::Error>,
 }
 
 #[cfg(test)]
@@ -61,7 +64,39 @@ impl TestInterface {
         TestInterface {
             keys: std::collections::BTreeMap::default(),
             certs: std::collections::BTreeMap::default(),
+            lifetime: 100, // 100 seconds
+            renew_err: None,
         }
+    }
+
+    pub fn new_cert(
+        &mut self,
+        cert_id: &str,
+        key_id: &str,
+        common_name: &str,
+        not_before: i64,
+        not_after: i64,
+    ) -> openssl::x509::X509 {
+        let (cert, key) = test_common::credential::custom_test_certificate("test_cert", |cert| {
+            let mut name = openssl::x509::X509Name::builder().unwrap();
+            name.append_entry_by_text("CN", common_name).unwrap();
+            let name = name.build();
+            cert.set_subject_name(&name).unwrap();
+
+            let not_before = openssl::asn1::Asn1Time::from_unix(not_before).unwrap();
+            let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
+
+            cert.set_not_before(&not_before).unwrap();
+            cert.set_not_after(&not_after).unwrap();
+        });
+
+        assert!(self
+            .certs
+            .insert(cert_id.to_string(), cert.clone())
+            .is_none());
+        assert!(self.keys.insert(key_id.to_string(), key).is_none());
+
+        cert
     }
 }
 
@@ -97,12 +132,26 @@ impl CertInterface for TestInterface {
         old_cert: &openssl::x509::X509,
         _key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error> {
-        Ok(test_common::credential::custom_test_certificate(
-            "test-cert", // This is ignored and replaced below.
-            |cert| {
-                cert.set_subject_name(old_cert.subject_name()).unwrap();
-            },
-        ))
+        if let Some(err) = &self.renew_err {
+            Err(err.clone())
+        } else {
+            Ok(test_common::credential::custom_test_certificate(
+                // This is ignored as the subject name, but still used as the issuer name.
+                "test-cert",
+                |cert| {
+                    cert.set_subject_name(old_cert.subject_name()).unwrap();
+
+                    let now = i64::from(crate::Time::now());
+
+                    let not_before = openssl::asn1::Asn1Time::from_unix(now).unwrap();
+                    cert.set_not_before(&not_before).unwrap();
+
+                    let not_after = now + self.lifetime;
+                    let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
+                    cert.set_not_after(&not_after).unwrap();
+                },
+            ))
+        }
     }
 
     #[allow(clippy::unused_async)]
