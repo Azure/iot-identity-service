@@ -236,8 +236,8 @@ fn renewal_times(
 
 #[cfg(test)]
 mod tests {
+    use crate::cert_interface::test_interface;
     use crate::test_cert;
-    use crate::TestInterface;
 
     use super::renewal_times;
     use super::{Credential, CredentialHeap};
@@ -331,7 +331,7 @@ mod tests {
             &cert,
             "test-key",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -365,7 +365,7 @@ mod tests {
             &old_cert,
             "test-key",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
         assert_eq!(crate::Time::from(30), credential.next_renewal);
@@ -406,7 +406,7 @@ mod tests {
             &cert_1,
             "cert_key_1",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -416,7 +416,7 @@ mod tests {
             &cert_2,
             "cert_key_2",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -426,7 +426,7 @@ mod tests {
             &cert_3,
             "cert_key_3",
             policy,
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 

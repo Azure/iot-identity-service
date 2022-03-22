@@ -297,35 +297,39 @@ where
         let message = format!("Cert {} is expired and could not be renewed", cert_id);
         log::error!("{}.", message);
 
-        return Err(crate::Error::fatal_error(message));
+        Err(crate::Error::fatal_error(message))
+    } else {
+        Ok((cert, cert_renewed))
     }
-
-    Ok((cert, cert_renewed))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Error, Policy, RenewalPolicy, TestInterface, Time};
+    use crate::cert_interface::test_interface;
+    use crate::{Error, Policy, RenewalPolicy, Time};
+
+    type Interface = super::ArcMutex<crate::TestInterface>;
 
     #[tokio::test]
     #[serial_test::serial]
     async fn engine_add_expired() {
         crate::test_time::reset();
 
-        let mut interface = TestInterface::new();
         let policy = RenewalPolicy {
             threshold: Policy::Percentage(80),
             retry: Policy::Percentage(4),
         };
 
         // Add expired cert. This should renew immediately.
-        let cert = interface.new_cert("cert-1", "key-1", "cert-1", -101, -1);
+        let interface = test_interface::new();
+        let cert =
+            test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -101, -1).await;
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
             .unwrap()
             .to_vec();
 
-        let engine = super::new::<TestInterface>();
+        let engine = super::new::<Interface>();
         super::add_credential(
             &engine,
             "cert-1",
@@ -343,10 +347,16 @@ mod tests {
             assert_eq!(Time::from(80), credential.next_renewal);
             assert_ne!(digest, credential.digest);
             assert_eq!(4, credential.retry_period);
+            assert!(engine.credentials.is_empty());
         }
 
         // Add expired cert that fails to renew. This should cause the API to return an error.
-        interface.renew_err = Some(Error::retryable_error("test"));
+        test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -101, -1).await;
+
+        {
+            let mut interface = interface.lock().await;
+            interface.renew_err = Some(Error::retryable_error("test"));
+        }
 
         super::add_credential(
             &engine,
@@ -358,7 +368,10 @@ mod tests {
         .await
         .unwrap_err();
 
-        interface.renew_err = Some(Error::fatal_error("test"));
+        {
+            let mut interface = interface.lock().await;
+            interface.renew_err = Some(Error::fatal_error("test"));
+        }
 
         super::add_credential(&engine, "cert-1", "key-1", policy, interface)
             .await
@@ -376,20 +389,20 @@ mod tests {
     async fn engine_add_threshold() {
         crate::test_time::reset();
 
-        let mut interface = TestInterface::new();
+        let interface = test_interface::new();
         let policy = RenewalPolicy {
             threshold: Policy::Percentage(80),
             retry: Policy::Percentage(4),
         };
 
         // Add a cert within its renewal threshold. This should renew immediately.
-        let cert = interface.new_cert("cert-1", "key-1", "cert-1", -90, 10);
+        let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -90, 10).await;
         let digest = cert
             .digest(openssl::hash::MessageDigest::sha256())
             .unwrap()
             .to_vec();
 
-        let engine = super::new::<TestInterface>();
+        let engine = super::new::<Interface>();
         super::add_credential(
             &engine,
             "cert-1",
@@ -407,11 +420,21 @@ mod tests {
             assert_eq!(Time::from(80), credential.next_renewal);
             assert_ne!(digest, credential.digest);
             assert_eq!(4, credential.retry_period);
+            assert!(engine.credentials.is_empty());
         }
 
         // Set cert renewal to fail with a retryable error. This will cause renewal to be
         // scheduled with the retry period.
-        interface.renew_err = Some(Error::retryable_error("test"));
+        let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -90, 10).await;
+        let digest = cert
+            .digest(openssl::hash::MessageDigest::sha256())
+            .unwrap()
+            .to_vec();
+
+        {
+            let mut interface = interface.lock().await;
+            interface.renew_err = Some(Error::retryable_error("test"));
+        }
 
         super::add_credential(
             &engine,
@@ -429,11 +452,15 @@ mod tests {
 
             assert_eq!(Time::from(4), credential.next_renewal);
             assert_eq!(digest, credential.digest);
+            assert!(engine.credentials.is_empty());
         }
 
         // Set credential renewal to fail with a fatal error. This should cause the API to
         // return an error.
-        interface.renew_err = Some(Error::fatal_error("test"));
+        {
+            let mut interface = interface.lock().await;
+            interface.renew_err = Some(Error::fatal_error("test"));
+        }
 
         super::add_credential(&engine, "cert-1", "key-1", policy, interface)
             .await

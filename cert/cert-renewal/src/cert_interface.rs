@@ -59,24 +59,35 @@ pub(crate) struct TestInterface {
 }
 
 #[cfg(test)]
-impl TestInterface {
-    pub fn new() -> Self {
-        TestInterface {
+type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
+
+#[cfg(test)]
+pub(crate) mod test_interface {
+    use super::{ArcMutex, TestInterface};
+
+    pub(crate) fn new() -> ArcMutex<TestInterface> {
+        let interface = TestInterface {
             keys: std::collections::BTreeMap::default(),
             certs: std::collections::BTreeMap::default(),
             lifetime: 100, // 100 seconds
             renew_err: None,
-        }
+        };
+
+        let interface = futures_util::lock::Mutex::new(interface);
+
+        std::sync::Arc::new(interface)
     }
 
-    pub fn new_cert(
-        &mut self,
+    pub(crate) async fn new_cert(
+        interface: &ArcMutex<TestInterface>,
         cert_id: &str,
         key_id: &str,
         common_name: &str,
         not_before: i64,
         not_after: i64,
     ) -> openssl::x509::X509 {
+        let mut interface = interface.lock().await;
+
         let (cert, key) = test_common::credential::custom_test_certificate("test_cert", |cert| {
             let mut name = openssl::x509::X509Name::builder().unwrap();
             name.append_entry_by_text("CN", common_name).unwrap();
@@ -90,11 +101,8 @@ impl TestInterface {
             cert.set_not_after(&not_after).unwrap();
         });
 
-        assert!(self
-            .certs
-            .insert(cert_id.to_string(), cert.clone())
-            .is_none());
-        assert!(self.keys.insert(key_id.to_string(), key).is_none());
+        interface.certs.insert(cert_id.to_string(), cert.clone());
+        interface.keys.insert(key_id.to_string(), key);
 
         cert
     }
@@ -102,37 +110,40 @@ impl TestInterface {
 
 #[cfg(test)]
 #[async_trait::async_trait]
-impl CertInterface for TestInterface {
+impl CertInterface for ArcMutex<TestInterface> {
     type NewKey = openssl::pkey::PKey<openssl::pkey::Private>;
 
-    #[allow(clippy::unused_async)]
     async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
-        if let Some(cert) = self.certs.get(cert_id) {
+        let interface = self.lock().await;
+
+        if let Some(cert) = interface.certs.get(cert_id) {
             Ok(cert.clone())
         } else {
             Err(crate::Error::retryable_error("failed to get cert"))
         }
     }
 
-    #[allow(clippy::unused_async)]
     async fn get_key(
         &mut self,
         key_id: &str,
     ) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, crate::Error> {
-        if let Some(key) = self.keys.get(key_id) {
+        let interface = self.lock().await;
+
+        if let Some(key) = interface.keys.get(key_id) {
             Ok(key.clone())
         } else {
             Err(crate::Error::retryable_error("failed to get key"))
         }
     }
 
-    #[allow(clippy::unused_async)]
     async fn renew_cert(
         &mut self,
         old_cert: &openssl::x509::X509,
         _key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error> {
-        if let Some(err) = &self.renew_err {
+        let interface = self.lock().await;
+
+        if let Some(err) = &interface.renew_err {
             Err(err.clone())
         } else {
             Ok(test_common::credential::custom_test_certificate(
@@ -146,7 +157,7 @@ impl CertInterface for TestInterface {
                     let not_before = openssl::asn1::Asn1Time::from_unix(now).unwrap();
                     cert.set_not_before(&not_before).unwrap();
 
-                    let not_after = now + self.lifetime;
+                    let not_after = now + interface.lifetime;
                     let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
                     cert.set_not_after(&not_after).unwrap();
                 },
@@ -154,17 +165,19 @@ impl CertInterface for TestInterface {
         }
     }
 
-    #[allow(clippy::unused_async)]
     async fn write_credentials(
         &mut self,
         _old_cert: &openssl::x509::X509,
         new_cert: (&str, &openssl::x509::X509),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error> {
-        self.certs
+        let mut interface = self.lock().await;
+
+        interface
+            .certs
             .insert(new_cert.0.to_string(), new_cert.1.clone())
             .unwrap();
-        self.keys.insert(key.0.to_string(), key.1).unwrap();
+        interface.keys.insert(key.0.to_string(), key.1).unwrap();
 
         Ok(())
     }
