@@ -18,6 +18,7 @@ URL: https://github.com/azure/iot-identity-service
 Source:  %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
+Source3: rust.tar.gz
 Patch0:  gcc-11.patch
 
 Conflicts: iotedge, libiothsm-std
@@ -29,7 +30,6 @@ BuildRequires: make
 BuildRequires: cmake
 BuildRequires: openssl-devel
 BuildRequires: pkg-config
-BuildRequires: rust = 1.47.0
 BuildRequires: tar
 BuildRequires: systemd
 Requires(pre): shadow-utils
@@ -58,6 +58,15 @@ This package contains development files for the Azure IoT device runtime.
 
 
 %prep
+# include rust toolchain that matches the one from iot-identity-service's pipeline
+pushd ~
+tar xf %{SOURCE3} --no-same-owner --strip-components=1
+popd
+export CARGO_HOME=~/.cargo
+export PATH=$PATH:$CARGO_HOME/bin
+export RUSTUP_HOME=~/.rustup
+export RUSTUP_TOOLCHAIN=~/.rustup/toolchains/1.47-x86_64-unknown-linux-gnu
+
 # build and install required rust packages needed for during aziot-identity-service build
 # since Mariner Toolkit builds packages offline
 mkdir -p $HOME

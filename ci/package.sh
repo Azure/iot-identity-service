@@ -134,6 +134,7 @@ case "$OS" in
                 PackageExtension="cm1"
                 ;;
             'mariner:2')
+                # mariner 2.0 pacakges are currntly only available in preview change this to use production after mariner 2.0's release
                 UsePreview=y
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
@@ -160,6 +161,14 @@ case "$OS" in
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$MarinerSourceDir"
         mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
+
+        tmp_dir=$(mktemp -d)
+        pushd $tmp_dir
+        mkdir "rust"
+        cp -r ~/.cargo "rust"
+        cp -r ~/.rustup "rust"
+        tar cf "$MarinerSourceDir/rust.tar.gz" "rust"
+        popd
 
         curl -Lo "/tmp/cbindgen-$CBINDGEN_VERSION.tar.gz" "https://github.com/eqrion/cbindgen/archive/refs/tags/v$CBINDGEN_VERSION.tar.gz"
         pushd /tmp
