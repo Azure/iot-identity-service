@@ -138,23 +138,6 @@ case "$OS" in
                 UsePreview=y
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
-
-                tmp_dir=$(mktemp -d)
-                pushd $tmp_dir
-                # commit with rust 1.47.0 that can be built with the 2.0 toolkit
-                git clone 'https://github.com/microsoft/CBL-Mariner.git'
-                pushd CBL-Mariner
-                git checkout db6a866
-                mkdir -p $MarinerRPMBUILDDIR/SPECS/
-                cp -r SPECS/rust $MarinerRPMBUILDDIR/SPECS/
-                popd
-                popd
-                rm -rf $tmp_dir
-
-                # build rust 1.47.0
-                pushd "$MarinerRPMBUILDDIR/toolkit"
-                make build-packages PACKAGE_BUILD_LIST="rust" USE_PREVIEW_REPO=$UsePreview SOURCE_URL=https://cblmarinerstorage.blob.core.windows.net/sources/core CONFIG_FILE= -j$(nproc)
-                popd
                 ;;
         esac
 
