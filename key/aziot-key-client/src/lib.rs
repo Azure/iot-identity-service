@@ -46,6 +46,24 @@ impl Client {
         Ok(res.handle)
     }
 
+    pub fn move_key_pair(&self, from: &str, to: &str) -> std::io::Result<()> {
+        let mut stream = self.connector.connect()?;
+
+        let body = aziot_key_common_http::move_key_pair::Request {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        };
+
+        request_no_content(
+            &mut stream,
+            &http::Method::POST,
+            format_args!("/keypair/move?api-version={}", self.api_version),
+            Some(&body),
+        )?;
+
+        Ok(())
+    }
+
     pub fn load_key_pair(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
         let mut stream = self.connector.connect()?;
 

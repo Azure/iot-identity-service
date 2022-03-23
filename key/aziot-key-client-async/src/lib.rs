@@ -48,6 +48,23 @@ impl Client {
         Ok(response.handle)
     }
 
+    pub async fn move_key_pair(&self, from: &str, to: &str) -> std::io::Result<()> {
+        let uri = format!(
+            "http://keyd.sock/keypair/move?api-version={}",
+            self.api_version
+        );
+
+        let body = aziot_key_common_http::move_key_pair::Request {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        };
+
+        let request = HttpRequest::post(self.connector.clone(), &uri, Some(body))
+            .with_retry(self.max_retries);
+
+        request.no_content_response().await
+    }
+
     pub async fn load_key_pair(&self, id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
         let uri = format!(
             "http://keyd.sock/keypair/{}?api-version={}",
