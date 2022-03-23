@@ -179,6 +179,14 @@ pub mod delete {
     }
 }
 
+pub mod move_key_pair {
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        pub from: String,
+        pub to: String,
+    }
+}
+
 pub mod sign {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {

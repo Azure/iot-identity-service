@@ -121,6 +121,19 @@ impl Api {
         Ok(handle)
     }
 
+    pub fn move_key_pair(&mut self, from: &str, to: &str, user: libc::uid_t) -> Result<(), Error> {
+        // Require the caller to be authorized to modify both keys.
+        if !self.authorize(user, from) {
+            return Err(Error::Unauthorized(user, from.to_owned()));
+        }
+
+        if !self.authorize(user, to) {
+            return Err(Error::Unauthorized(user, to.to_owned()));
+        }
+
+        todo!()
+    }
+
     pub fn load_key_pair(
         &mut self,
         id: &str,
