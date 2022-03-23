@@ -477,10 +477,12 @@ mod tests {
         let cert_1 = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 50).await;
         let cert_1_digest = calculate_digest(&cert_1);
 
-        let cert_2 = test_interface::new_cert(&interface, "cert-2", "key-2", "cert-2", 0, 100).await;
+        let cert_2 =
+            test_interface::new_cert(&interface, "cert-2", "key-2", "cert-2", 0, 100).await;
         let cert_2_digest = calculate_digest(&cert_2);
 
-        let cert_3 = test_interface::new_cert(&interface, "cert-3", "key-3", "cert-3", 0, 200).await;
+        let cert_3 =
+            test_interface::new_cert(&interface, "cert-3", "key-3", "cert-3", 0, 200).await;
         let cert_3_digest = calculate_digest(&cert_3);
 
         let engine = super::new::<Interface>();
@@ -528,8 +530,13 @@ mod tests {
             assert!(engine.credentials.is_empty());
 
             // Check that cert-1 and cert-2 were renewed. cert-3 should not have been renewed.
+            assert_eq!(Time::from(125), cert_1.next_renewal);
             assert_ne!(cert_1_digest, cert_1.digest);
+
+            assert_eq!(Time::from(165), cert_2.next_renewal);
             assert_ne!(cert_2_digest, cert_2.digest);
+
+            assert_eq!(Time::from(160), cert_3.next_renewal);
             assert_eq!(cert_3_digest, cert_3.digest);
         }
     }
