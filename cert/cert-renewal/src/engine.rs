@@ -894,8 +894,7 @@ mod tests {
             assert!(engine.credentials.is_empty());
         }
 
-        // Get cert whose renewal fails with a retryable error. The existing valid cert will be returned,
-        // and the cert renewal will be rescheduled based on retry policy.
+        // Get cert whose renewal fails with a retryable error.
         let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 100).await;
         let cert_digest = calculate_digest(&cert);
 
