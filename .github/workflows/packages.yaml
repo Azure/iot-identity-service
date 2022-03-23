@@ -42,7 +42,10 @@ jobs:
         include:
         - container_os: 'ubuntu:18.04'
           arch: 'amd64'
-          os: 'mariner'
+          os: 'mariner:1'
+        - container_os: 'ubuntu:18.04'
+          arch: 'amd64'
+          os: 'mariner:2'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -71,10 +74,10 @@ jobs:
         OS="${{ matrix.os }}"
         if [ -z "$OS" ]; then
           os_package="${{ matrix.container_os }}"
-          os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         else
           os_package="$OS"
         fi
+        os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
