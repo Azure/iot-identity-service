@@ -43,9 +43,7 @@ async fn renewal_loop<I>(
 
                 loop {
                     if let Some(credential) = engine.credentials.peek() {
-                        // Account for inaccuracies with sleep timing by renewing any credential that
-                        // expires within the next minute.
-                        if credential.next_renewal <= crate::Time::now() + 60 {
+                        if credential.next_renewal <= crate::Time::now() {
                             // Credential heap was peeked, so there should be a credential to pop.
                             let mut credential = engine.credentials.remove_next().unwrap();
 
@@ -86,7 +84,7 @@ async fn renewal_loop<I>(
                         }
                     } else {
                         // No credentials are available to renew. Wait indefinitely for the next one to be added.
-                        log::warn!("Certificate renewal triggered, but no certificates are available to renew.");
+                        log::info!("No certificates left to renew.");
 
                         break crate::Time::forever();
                     };
@@ -137,6 +135,8 @@ where
         )
         .await?;
 
+    log::info!("Certificate {} was renewed.", credential.cert_id);
+
     Ok(())
 }
 
@@ -177,6 +177,12 @@ where
 
     let (cert, _) = get_cert(&mut interface, cert_id, key_id, &policy).await?;
     let credential = crate::Credential::new(cert_id, &cert, key_id, policy, interface)?;
+
+    log::info!(
+        "Certificate {} will be auto-renewed. Next renewal at {}.",
+        cert_id,
+        credential.next_renewal
+    );
 
     if let Some(expiry) = engine.credentials.push(credential) {
         engine
@@ -310,6 +316,12 @@ mod tests {
 
     type Interface = super::ArcMutex<crate::TestInterface>;
 
+    fn calculate_digest(cert: &openssl::x509::X509) -> Vec<u8> {
+        cert.digest(openssl::hash::MessageDigest::sha256())
+            .unwrap()
+            .to_vec()
+    }
+
     #[tokio::test]
     #[serial_test::serial]
     async fn engine_add_expired() {
@@ -324,10 +336,7 @@ mod tests {
         let interface = test_interface::new();
         let cert =
             test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -101, -1).await;
-        let digest = cert
-            .digest(openssl::hash::MessageDigest::sha256())
-            .unwrap()
-            .to_vec();
+        let digest = calculate_digest(&cert);
 
         let engine = super::new::<Interface>();
         super::add_credential(
@@ -352,11 +361,7 @@ mod tests {
 
         // Add expired cert that fails to renew. This should cause the API to return an error.
         test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -101, -1).await;
-
-        {
-            let mut interface = interface.lock().await;
-            interface.renew_err = Some(Error::retryable_error("test"));
-        }
+        test_interface::set_renew_err(&interface, Some(Error::retryable_error("test"))).await;
 
         super::add_credential(
             &engine,
@@ -368,10 +373,7 @@ mod tests {
         .await
         .unwrap_err();
 
-        {
-            let mut interface = interface.lock().await;
-            interface.renew_err = Some(Error::fatal_error("test"));
-        }
+        test_interface::set_renew_err(&interface, Some(Error::fatal_error("test"))).await;
 
         super::add_credential(&engine, "cert-1", "key-1", policy, interface)
             .await
@@ -397,10 +399,7 @@ mod tests {
 
         // Add a cert within its renewal threshold. This should renew immediately.
         let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -90, 10).await;
-        let digest = cert
-            .digest(openssl::hash::MessageDigest::sha256())
-            .unwrap()
-            .to_vec();
+        let digest = calculate_digest(&cert);
 
         let engine = super::new::<Interface>();
         super::add_credential(
@@ -426,15 +425,8 @@ mod tests {
         // Set cert renewal to fail with a retryable error. This will cause renewal to be
         // scheduled with the retry period.
         let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", -90, 10).await;
-        let digest = cert
-            .digest(openssl::hash::MessageDigest::sha256())
-            .unwrap()
-            .to_vec();
-
-        {
-            let mut interface = interface.lock().await;
-            interface.renew_err = Some(Error::retryable_error("test"));
-        }
+        let digest = calculate_digest(&cert);
+        test_interface::set_renew_err(&interface, Some(Error::retryable_error("test"))).await;
 
         super::add_credential(
             &engine,
@@ -457,10 +449,7 @@ mod tests {
 
         // Set credential renewal to fail with a fatal error. This should cause the API to
         // return an error.
-        {
-            let mut interface = interface.lock().await;
-            interface.renew_err = Some(Error::fatal_error("test"));
-        }
+        test_interface::set_renew_err(&interface, Some(Error::fatal_error("test"))).await;
 
         super::add_credential(&engine, "cert-1", "key-1", policy, interface)
             .await
@@ -470,6 +459,129 @@ mod tests {
             let engine = engine.lock().await;
 
             assert!(engine.credentials.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn engine_renew_ok() {
+        crate::test_time::reset();
+
+        let interface = test_interface::new();
+        let policy = RenewalPolicy {
+            threshold: Policy::Percentage(80),
+            retry: Policy::Percentage(4),
+        };
+
+        // Add test certs to renewal engine.
+        let cert_1 = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 50).await;
+        let cert_1_digest = calculate_digest(&cert_1);
+
+        let cert_2 = test_interface::new_cert(&interface, "cert-2", "key-2", "cert-2", 0, 100).await;
+        let cert_2_digest = calculate_digest(&cert_2);
+
+        let cert_3 = test_interface::new_cert(&interface, "cert-3", "key-3", "cert-3", 0, 200).await;
+        let cert_3_digest = calculate_digest(&cert_3);
+
+        let engine = super::new::<Interface>();
+
+        super::add_credential(
+            &engine,
+            "cert-1",
+            "key-1",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap();
+        super::add_credential(
+            &engine,
+            "cert-2",
+            "key-2",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap();
+        super::add_credential(&engine, "cert-3", "key-3", policy, interface)
+            .await
+            .unwrap();
+
+        // Advance time to within the renewal threshold and reschedule using a past time. This will
+        // immediately trigger the renewal flow.
+        crate::test_time::set(85);
+
+        {
+            let engine = engine.lock().await;
+            engine.reschedule_tx.send(Time::from(84)).unwrap();
+        }
+
+        // Allow a short time for cert renewal to run.
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+        {
+            let mut engine = engine.lock().await;
+
+            let cert_1 = engine.credentials.remove("cert-1", "key-1").unwrap();
+            let cert_2 = engine.credentials.remove("cert-2", "key-2").unwrap();
+            let cert_3 = engine.credentials.remove("cert-3", "key-3").unwrap();
+            assert!(engine.credentials.is_empty());
+
+            // Check that cert-1 and cert-2 were renewed. cert-3 should not have been renewed.
+            assert_ne!(cert_1_digest, cert_1.digest);
+            assert_ne!(cert_2_digest, cert_2.digest);
+            assert_eq!(cert_3_digest, cert_3.digest);
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn engine_renew_thumbprints() {
+        crate::test_time::reset();
+
+        let interface = test_interface::new();
+        let policy = RenewalPolicy {
+            threshold: Policy::Percentage(80),
+            retry: Policy::Percentage(4),
+        };
+
+        test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 100).await;
+
+        let engine = super::new::<Interface>();
+        super::add_credential(&engine, "cert-1", "key-1", policy, interface.clone())
+            .await
+            .unwrap();
+
+        // Change the stored cert. The renewal engine should detect this change and decline
+        // to renew an unknown cert.
+        let cert = test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 100).await;
+        let digest = calculate_digest(&cert);
+
+        // Advance time to within the renewal threshold and reschedule using a past time. This will
+        // immediately trigger the renewal flow.
+        crate::test_time::set(90);
+
+        {
+            let engine = engine.lock().await;
+            engine.reschedule_tx.send(Time::from(89)).unwrap();
+        }
+
+        // Allow a short time for cert renewal to run.
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+        // Check that the cert was dropped from renewal and not changed in storage.
+        {
+            let engine = engine.lock().await;
+
+            assert!(engine.credentials.is_empty());
+        }
+
+        {
+            let interface = interface.lock().await;
+
+            let cert = interface.certs.get("cert-1").unwrap();
+            let new_digest = calculate_digest(cert);
+            assert_eq!(digest, new_digest);
         }
     }
 }

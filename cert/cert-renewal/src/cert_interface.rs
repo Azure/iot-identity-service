@@ -54,7 +54,6 @@ pub trait CertInterface {
 pub(crate) struct TestInterface {
     pub keys: std::collections::BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
     pub certs: std::collections::BTreeMap<String, openssl::x509::X509>,
-    pub lifetime: i64,
     pub renew_err: Option<crate::Error>,
 }
 
@@ -69,7 +68,6 @@ pub(crate) mod test_interface {
         let interface = TestInterface {
             keys: std::collections::BTreeMap::default(),
             certs: std::collections::BTreeMap::default(),
-            lifetime: 100, // 100 seconds
             renew_err: None,
         };
 
@@ -105,6 +103,15 @@ pub(crate) mod test_interface {
         interface.keys.insert(key_id.to_string(), key);
 
         cert
+    }
+
+    pub(crate) async fn set_renew_err(
+        interface: &ArcMutex<TestInterface>,
+        err: Option<crate::Error>,
+    ) {
+        let mut interface = interface.lock().await;
+
+        interface.renew_err = err;
     }
 }
 
@@ -152,12 +159,17 @@ impl CertInterface for ArcMutex<TestInterface> {
                 |cert| {
                     cert.set_subject_name(old_cert.subject_name()).unwrap();
 
-                    let now = i64::from(crate::Time::now());
+                    // Match the lifetime of the new cert to the old cert.
+                    let not_before = crate::Time::from(old_cert.not_before());
+                    let not_after = crate::Time::from(old_cert.not_after());
+                    let lifetime = not_after - not_before;
+                    assert!(lifetime > 0);
 
+                    let now = i64::from(crate::Time::now());
                     let not_before = openssl::asn1::Asn1Time::from_unix(now).unwrap();
                     cert.set_not_before(&not_before).unwrap();
 
-                    let not_after = now + interface.lifetime;
+                    let not_after = now + lifetime;
                     let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
                     cert.set_not_after(&not_after).unwrap();
                 },
