@@ -58,24 +58,6 @@ This package contains development files for the Azure IoT device runtime.
 
 
 %prep
-# include rust toolchain that matches the one from iot-identity-service's pipeline
-pushd ~
-tar xf %{SOURCE3} --no-same-owner --strip-components=1
-popd
-export CARGO_HOME=~/.cargo
-export PATH=$PATH:$CARGO_HOME/bin
-export RUSTUP_HOME=~/.rustup
-export RUSTUP_TOOLCHAIN=~/.rustup/toolchains/1.47-x86_64-unknown-linux-gnu
-
-# build and install required rust packages needed for during aziot-identity-service build
-# since Mariner Toolkit builds packages offline
-mkdir -p $HOME
-pushd $HOME
-tar xf %{SOURCE1} --no-same-owner
-cargo install bindgen --path rust-bindgen-@@BINDGEN_VERSION@@ --offline
-tar xf %{SOURCE2} --no-same-owner
-cargo install cbindgen --path cbindgen-@@CBINDGEN_VERSION@@ --offline
-popd
 
 %setup -q
 
@@ -84,8 +66,23 @@ popd
 %build
 
 %install
-# update path to allow use of the built bindgen and cbindgen
-export PATH=/root/.cargo/bin:$PATH
+# include rust toolchain that matches the one from iot-identity-service's pipeline
+pushd ~
+tar xf %{SOURCE3} --no-same-owner --strip-components=1
+popd
+export CARGO_HOME=~/.cargo
+export PATH=$PATH:$CARGO_HOME/bin
+export RUSTUP_HOME=~/.rustup
+
+# build and install required rust packages needed for during aziot-identity-service build
+# since Mariner Toolkit builds packages offline
+pushd ~
+tar xf %{SOURCE1} --no-same-owner
+tar xf %{SOURCE2} --no-same-owner
+popd
+cargo install bindgen --path ~/rust-bindgen-@@BINDGEN_VERSION@@ --offline
+cargo install cbindgen --path ~/cbindgen-@@CBINDGEN_VERSION@@ --offline
+
 # locate openssl lib directory for Makefile
 %define _enginesdir %(openssl version -e | sed 's/ENGINESDIR: //' | sed 's/"//g')
 
