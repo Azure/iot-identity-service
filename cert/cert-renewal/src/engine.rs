@@ -591,4 +591,87 @@ mod tests {
             assert_eq!(digest, new_digest);
         }
     }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn engine_renew_err() {
+        crate::test_time::reset();
+
+        let interface = test_interface::new();
+        let policy = RenewalPolicy {
+            threshold: Policy::Percentage(80),
+            retry: Policy::Percentage(4),
+        };
+
+        // Set renewal to fail with a fatal error.
+        test_interface::set_renew_err(&interface, Some(Error::fatal_error("test"))).await;
+
+        // Add test certs to renewal engine.
+        test_interface::new_cert(&interface, "cert-1", "key-1", "cert-1", 0, 50).await;
+        test_interface::new_cert(&interface, "cert-2", "key-2", "cert-2", 0, 100).await;
+
+        let engine = super::new::<Interface>();
+
+        super::add_credential(
+            &engine,
+            "cert-1",
+            "key-1",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap();
+        super::add_credential(
+            &engine,
+            "cert-2",
+            "key-2",
+            policy.clone(),
+            interface.clone(),
+        )
+        .await
+        .unwrap();
+
+        // Advance time to within the renewal threshold and reschedule using a past time. This will
+        // immediately trigger the renewal flow.
+        crate::test_time::set(45);
+
+        {
+            let engine = engine.lock().await;
+            engine.reschedule_tx.send(Time::from(44)).unwrap();
+        }
+
+        // Allow a short time for cert renewal to run.
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+        // Fatal error should cause the certificate to be dropped from renewal.
+        {
+            let mut engine = engine.lock().await;
+
+            assert!(engine.credentials.remove("cert-1", "key-1").is_none());
+        }
+
+        // Set renewal to fail with a retryable error.
+        test_interface::set_renew_err(&interface, Some(Error::retryable_error("test"))).await;
+
+        // Advance time to within the renewal threshold and reschedule using a past time. This will
+        // immediately trigger the renewal flow.
+        crate::test_time::set(95);
+
+        {
+            let engine = engine.lock().await;
+            engine.reschedule_tx.send(Time::from(94)).unwrap();
+        }
+
+        // Allow a short time for cert renewal to run.
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+        // Retryable error should cause the certificate to be rescheduled using its retry policy.
+        {
+            let mut engine = engine.lock().await;
+
+            let credential = engine.credentials.remove("cert-2", "key-2").unwrap();
+            assert_eq!(Time::from(99), credential.next_renewal);
+            assert!(engine.credentials.is_empty());
+        }
+    }
 }
