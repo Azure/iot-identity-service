@@ -39,6 +39,47 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
     })
 }
 
+pub(crate) unsafe extern "C" fn move_key_pair(
+    from: *const std::os::raw::c_char,
+    to: *const std::os::raw::c_char,
+) -> crate::AZIOT_KEYS_RC {
+    crate::r#catch(|| {
+        let _from = {
+            if from.is_null() {
+                return Err(crate::implementation::err_invalid_parameter(
+                    "from",
+                    "expected non-NULL",
+                ));
+            }
+            let from = std::ffi::CStr::from_ptr(from);
+            let from = from
+                .to_str()
+                .map_err(|err| crate::implementation::err_invalid_parameter("from", err))?;
+
+            from
+        };
+
+        let _to = {
+            if to.is_null() {
+                return Err(crate::implementation::err_invalid_parameter(
+                    "to",
+                    "expected non-NULL",
+                ));
+            }
+            let to = std::ffi::CStr::from_ptr(to);
+            let to = to
+                .to_str()
+                .map_err(|err| crate::implementation::err_invalid_parameter("to", err))?;
+
+            to
+        };
+
+        // TODO
+
+        Ok(())
+    })
+}
+
 pub(crate) unsafe extern "C" fn load_key_pair(
     id: *const std::os::raw::c_char,
 ) -> crate::AZIOT_KEYS_RC {
