@@ -106,7 +106,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'mariner')
+    'mariner:1' | 'mariner:2')
         case "$ARCH" in
             'arm32v7'|'aarch64')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -127,9 +127,31 @@ case "$OS" in
         tar xzvf toolkit.tar.gz
         popd
 
+        case "$OS" in
+            'mariner:1')
+                UsePreview=n
+                TARGET_DIR="mariner1/$ARCH"
+                PackageExtension="cm1"
+                ;;
+            'mariner:2')
+                # mariner 2.0 pacakges are currntly only available in preview change this to use production after mariner 2.0's release
+                UsePreview=y
+                TARGET_DIR="mariner2/$ARCH"
+                PackageExtension="cm2"
+                ;;
+        esac
+
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$MarinerSourceDir"
         mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
+
+        tmp_dir=$(mktemp -d)
+        pushd $tmp_dir
+        mkdir "rust"
+        cp -r ~/.cargo "rust"
+        cp -r ~/.rustup "rust"
+        tar cf "$MarinerSourceDir/rust.tar.gz" "rust"
+        popd
 
         curl -Lo "/tmp/cbindgen-$CBINDGEN_VERSION.tar.gz" "https://github.com/eqrion/cbindgen/archive/refs/tags/v$CBINDGEN_VERSION.tar.gz"
         pushd /tmp
@@ -179,18 +201,19 @@ EOF
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.spec
+        cp /src/contrib/mariner/gcc-11.patch .
 
         # Build package
         pushd "$MarinerRPMBUILDDIR/toolkit"
-        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update CONFIG_FILE= -j$(nproc)
+        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
         popd
 
-        rm -rf "/src/packages/mariner/$ARCH"
-        mkdir -p "/src/packages/mariner/$ARCH"
+        rm -rf "/src/packages/$TARGET_DIR"
+        mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "/src/packages/mariner/$ARCH/"
+            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
+            "/src/packages/$TARGET_DIR"
         ;;
 
     *)
