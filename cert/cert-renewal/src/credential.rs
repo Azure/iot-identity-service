@@ -24,7 +24,6 @@ where
     /// Add a new credential. Return value indicates whether the renewal timer should
     /// be rescheduled.
     pub fn push(&mut self, credential: Credential<I>) -> Option<crate::Time> {
-        let new_expiry = credential.next_renewal;
         let credential = std::cmp::Reverse(credential);
 
         if let Some(first) = self.peek() {
@@ -33,12 +32,16 @@ where
             self.heap.push(credential);
 
             // The renewal timer must be rescheduled if the soonest-expiring element changed.
+            let new_credential = self.peek().expect("heap should not be empty");
+            let new_expiry = new_credential.next_renewal;
+
             if prev_expiry == new_expiry {
                 None
             } else {
                 Some(new_expiry)
             }
         } else {
+            let new_expiry = credential.0.next_renewal;
             self.heap.push(credential);
 
             Some(new_expiry)
@@ -68,7 +71,9 @@ where
         let mut output = None;
         let mut temp = std::collections::BinaryHeap::new();
 
-        for credential in self.heap.drain() {
+        while !self.heap.is_empty() {
+            let credential = self.heap.pop().expect("heap should not be empty");
+
             if credential.0.cert_id == cert_id && credential.0.key_id == key_id {
                 output = Some(credential.0);
                 break;
@@ -80,6 +85,13 @@ where
         self.heap.append(&mut temp);
 
         output
+    }
+
+    /// Check if this heap is empty
+    /// Only used during testing to examine the state of the credential heap.
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.heap.is_empty()
     }
 }
 
@@ -229,8 +241,8 @@ fn renewal_times(
 
 #[cfg(test)]
 mod tests {
+    use crate::cert_interface::test_interface;
     use crate::test_cert;
-    use crate::TestInterface;
 
     use super::renewal_times;
     use super::{Credential, CredentialHeap};
@@ -324,7 +336,7 @@ mod tests {
             &cert,
             "test-key",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -358,7 +370,7 @@ mod tests {
             &old_cert,
             "test-key",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
         assert_eq!(crate::Time::from(30), credential.next_renewal);
@@ -399,7 +411,7 @@ mod tests {
             &cert_1,
             "cert_key_1",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -409,7 +421,7 @@ mod tests {
             &cert_2,
             "cert_key_2",
             policy.clone(),
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -419,7 +431,7 @@ mod tests {
             &cert_3,
             "cert_key_3",
             policy,
-            TestInterface::new(),
+            test_interface::new(),
         )
         .unwrap();
 
@@ -427,9 +439,9 @@ mod tests {
         assert!(heap.peek().is_none());
         assert!(heap.remove_next().is_none());
 
-        heap.push(cert_1);
-        heap.push(cert_2);
-        heap.push(cert_3);
+        assert!(heap.push(cert_1).is_some());
+        assert!(heap.push(cert_2).is_some());
+        assert!(heap.push(cert_3).is_none());
 
         assert!(heap.remove("cert_1", "cert_key_2").is_none());
 
