@@ -100,20 +100,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/KeyHandleResponse'
 
-  '/keypair/move?api-version=2021-05-01':
-    post:
-      operationId: 'moveKeyPair'
-      summary: 'Moves a key pair from one key ID to another and overwrites any existing keys.'
-      requestBody:
-        content:
-          'application/json':
-            schema:
-              $ref: '#/components/schemas/MoveKeyPairRequest'
-        required: true
-      responses:
-        '204':
-          description: 'HTTP 204 response'
-
   '/decrypt?api-version=2021-05-01':
     post:
       operationId: 'decrypt'
@@ -227,6 +213,18 @@ paths:
             'application/json':
               schema:
                 $ref: '#/components/schemas/KeyHandleResponse'
+    post:
+      operationId: 'moveKeyPair'
+      summary: 'Moves a key pair from one key ID to another and overwrites any existing key.'
+      requestBody:
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/MoveKeyPairRequest'
+        required: true
+      responses:
+        '204':
+          description: 'HTTP 204 response'
 
   '/sign?api-version=2021-05-01':
     post:
@@ -312,11 +310,8 @@ components:
       properties:
         'from':
           type: 'string'
-        'to':
-          type: 'string'
       required:
       - 'from'
-      - 'to'
 
     'DecryptRequest':
       allOf:

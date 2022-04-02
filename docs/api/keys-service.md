@@ -141,20 +141,19 @@ Required. See [API authentication](#api-authentication).
 
 ### Move Asymmetric Key Pair
 
-`POST /keypair/move?api-version=2021-05-01`
+`POST /keypair/{keyPairId}?api-version=2021-05-01`
 
 #### Authentication
 
 Required. See [API authentication](#api-authentication).
 
-The caller of this API must be authorized to modify both `from` and `to`.
+The caller of this API must be authorized to modify both `from` and `keyPairId`.
 
 #### Request
 
 ```json
 {
     "from": "string",
-    "to": "string"
 }
 ```
 
