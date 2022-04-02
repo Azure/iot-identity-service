@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     Fatal(String),
     Retryable(String),
