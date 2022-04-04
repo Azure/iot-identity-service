@@ -84,6 +84,13 @@ impl http_common::server::Route for Route {
             message: "missing request body".into(),
         })?;
 
+        if body.from == self.key_id {
+            return Err(http_common::server::Error {
+                status_code: hyper::StatusCode::BAD_REQUEST,
+                message: "source and destination for move are identical".into(),
+            });
+        }
+
         let mut api = self.api.lock().await;
 
         if &self.type_ != "keypair" {
