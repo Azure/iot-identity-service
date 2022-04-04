@@ -859,11 +859,14 @@ fn move_inner(
         }
 
         (
-            crate::implementation::Location::Filesystem(from),
-            crate::implementation::Location::Pkcs11 { lib_path, uri: to },
+            crate::implementation::Location::Filesystem(_),
+            crate::implementation::Location::Pkcs11 { .. },
         ) => {
-            // Import key using PKCS11 and remove from filesystem.
-            std::fs::remove_file(from).map_err(crate::implementation::err_external)
+            // Importing a key using this function is not supported.
+            Err(crate::implementation::err_invalid_parameter(
+                "to",
+                "cannot move filesystem key to pkcs11",
+            ))
         }
 
         (
@@ -876,8 +879,47 @@ fn move_inner(
                 uri: to,
             },
         ) => {
+            let from_label = from.object_label.as_deref().ok_or_else(|| {
+                crate::implementation::err_invalid_parameter(
+                    "from",
+                    "source key missing object label",
+                )
+            })?;
+
+            let to_label = to.object_label.as_deref().ok_or_else(|| {
+                crate::implementation::err_invalid_parameter(
+                    "to",
+                    "destination key missing object label",
+                )
+            })?;
+
+            // Delete any existing key pair with the 'to' label.
+            let pkcs11_context = pkcs11::Context::load(lib_path_to.clone())
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_slot = pkcs11_context
+                .find_slot(&to.slot_identifier)
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_session = pkcs11_context
+                .open_session(pkcs11_slot, to.pin.clone())
+                .map_err(crate::implementation::err_external)?;
+
+            pkcs11_session
+                .delete_key_pair(to_label)
+                .map_err(crate::implementation::err_external)?;
+
             // Rename key by changing label.
-            todo!()
+            let pkcs11_context = pkcs11::Context::load(lib_path_from.clone())
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_slot = pkcs11_context
+                .find_slot(&from.slot_identifier)
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_session = pkcs11_context
+                .open_session(pkcs11_slot, from.pin.clone())
+                .map_err(crate::implementation::err_external)?;
+
+            pkcs11_session
+                .rename_key_pair(from_label, to_label)
+                .map_err(crate::implementation::err_external)
         }
 
         (

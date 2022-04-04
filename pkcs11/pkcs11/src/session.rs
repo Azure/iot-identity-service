@@ -90,6 +90,16 @@ impl Session {
         }
     }
 
+    pub fn rename_key_pair(
+        self: std::sync::Arc<Self>,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> Result<(), RenameKeyError> {
+        println!("from: {:?}, to: {:?}", from, to);
+
+        Ok(())
+    }
+
     /// Get a key in the current session with the given label.
     pub fn get_key(self: std::sync::Arc<Self>, label: Option<&str>) -> Result<Key, GetKeyError> {
         unsafe {
@@ -190,6 +200,28 @@ impl std::error::Error for GetKeyError {
             GetKeyError::KeyDoesNotExist => None,
             GetKeyError::LoginFailed(inner) => Some(inner),
             GetKeyError::MismatchedMechanismType => None,
+        }
+    }
+}
+
+/// An error from renaming a key.
+#[derive(Debug)]
+pub enum RenameKeyError {
+    SourceNotFound,
+}
+
+impl std::fmt::Display for RenameKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RenameKeyError::SourceNotFound => f.write_str("source not found"),
+        }
+    }
+}
+
+impl std::error::Error for RenameKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            RenameKeyError::SourceNotFound => None,
         }
     }
 }
