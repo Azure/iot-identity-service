@@ -2,7 +2,11 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::return_self_not_must_use
+)]
 
 mod connector;
 
