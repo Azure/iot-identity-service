@@ -14,7 +14,7 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
 
 - If `auth.type` is `"x509"`, `keyHandle` is a handle to the identity X.509 certificate's private key. The `auth.certId` contains the certificate ID of the identity X.509 certificate, which can be retrieved used using the [Certificates Service.](certificates-service.md) Together this private key and certificate should be used for IoT Hub authentication via client certificate.
 
-  For convenience, the Identity Service package ships with an openssl engine that can load the handles of private keys. If the caller of this API uses openssl for TLS, it can use this engine. More details can be found on the [OpenSSL engine internals](../../docs-dev/openssl-engine-internals.md) page.
+  For convenience, the Identity Service package ships with an openssl engine that can load the handles of private keys. If the caller of this API uses openssl for TLS, it can use this engine. More details can be found on the [OpenSSL engine internals](https://github.com/Azure/iot-identity-service/blob/main/docs-dev/openssl-engine-internals.md) page.
 
 #### Response for principals associated to device identities (SAS case)
 
