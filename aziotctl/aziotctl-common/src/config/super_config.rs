@@ -209,10 +209,10 @@ pub struct Est {
     #[serde(default)]
     pub trusted_certs: Vec<Url>,
     #[serde(
-        default = "aziot_certd_config::default_est_renew",
-        skip_serializing_if = "aziot_certd_config::is_default_est_renew"
+        default,
+        skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
     )]
-    pub identity_auto_renew: cert_renewal::RenewalPolicy,
+    pub identity_auto_renew: cert_renewal::AutoRenewConfig,
     pub auth: EstAuth,
     pub urls: BTreeMap<String, Url>,
 }

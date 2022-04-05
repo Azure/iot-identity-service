@@ -9,6 +9,7 @@ bootstrap_identity_cert = "est-bootstrap-id"
 bootstrap_identity_pk = "est-bootstrap-id"
 
 [cert_issuance.est.identity_auto_renew]
+rotate_key = true
 threshold = "50%"
 retry = "10%"
 
