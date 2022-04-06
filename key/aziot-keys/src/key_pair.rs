@@ -39,6 +39,45 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
     })
 }
 
+pub(crate) unsafe extern "C" fn move_key_pair(
+    from: *const std::os::raw::c_char,
+    to: *const std::os::raw::c_char,
+) -> crate::AZIOT_KEYS_RC {
+    crate::r#catch(|| {
+        let from = {
+            if from.is_null() {
+                return Err(crate::implementation::err_invalid_parameter(
+                    "from",
+                    "expected non-NULL",
+                ));
+            }
+            let from = std::ffi::CStr::from_ptr(from);
+            let from = from
+                .to_str()
+                .map_err(|err| crate::implementation::err_invalid_parameter("from", err))?;
+
+            crate::implementation::Location::of(from)?
+        };
+
+        let to = {
+            if to.is_null() {
+                return Err(crate::implementation::err_invalid_parameter(
+                    "to",
+                    "expected non-NULL",
+                ));
+            }
+            let to = std::ffi::CStr::from_ptr(to);
+            let to = to
+                .to_str()
+                .map_err(|err| crate::implementation::err_invalid_parameter("to", err))?;
+
+            crate::implementation::Location::of(to)?
+        };
+
+        move_inner(&from, &to)
+    })
+}
+
 pub(crate) unsafe extern "C" fn load_key_pair(
     id: *const std::os::raw::c_char,
 ) -> crate::AZIOT_KEYS_RC {
@@ -797,4 +836,101 @@ fn delete_inner(locations: &[crate::implementation::Location]) -> Result<(), cra
     }
 
     Ok(())
+}
+
+fn move_inner(
+    from: &[crate::implementation::Location],
+    to: &[crate::implementation::Location],
+) -> Result<(), crate::AZIOT_KEYS_RC> {
+    let from = from.first().ok_or_else(|| {
+        crate::implementation::err_external("no valid location for source key pair")
+    })?;
+    let to = to.first().ok_or_else(|| {
+        crate::implementation::err_external("no valid location for destination key pair")
+    })?;
+
+    match (from, to) {
+        (
+            crate::implementation::Location::Filesystem(from),
+            crate::implementation::Location::Filesystem(to),
+        ) => {
+            // Rename key in filesystem.
+            std::fs::rename(from, to).map_err(crate::implementation::err_external)
+        }
+
+        (
+            crate::implementation::Location::Filesystem(_),
+            crate::implementation::Location::Pkcs11 { .. },
+        ) => {
+            // Importing a key using this function is not supported.
+            Err(crate::implementation::err_invalid_parameter(
+                "to",
+                "cannot move filesystem key to pkcs11",
+            ))
+        }
+
+        (
+            crate::implementation::Location::Pkcs11 {
+                lib_path: lib_path_from,
+                uri: from,
+            },
+            crate::implementation::Location::Pkcs11 {
+                lib_path: lib_path_to,
+                uri: to,
+            },
+        ) => {
+            let from_label = from.object_label.as_deref().ok_or_else(|| {
+                crate::implementation::err_invalid_parameter(
+                    "from",
+                    "source key missing object label",
+                )
+            })?;
+
+            let to_label = to.object_label.as_deref().ok_or_else(|| {
+                crate::implementation::err_invalid_parameter(
+                    "to",
+                    "destination key missing object label",
+                )
+            })?;
+
+            // Delete any existing key pair with the 'to' label.
+            let pkcs11_context = pkcs11::Context::load(lib_path_to.clone())
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_slot = pkcs11_context
+                .find_slot(&to.slot_identifier)
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_session = pkcs11_context
+                .open_session(pkcs11_slot, to.pin.clone())
+                .map_err(crate::implementation::err_external)?;
+
+            pkcs11_session
+                .delete_key_pair(to_label)
+                .map_err(crate::implementation::err_external)?;
+
+            // Rename key by changing label.
+            let pkcs11_context = pkcs11::Context::load(lib_path_from.clone())
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_slot = pkcs11_context
+                .find_slot(&from.slot_identifier)
+                .map_err(crate::implementation::err_external)?;
+            let pkcs11_session = pkcs11_context
+                .open_session(pkcs11_slot, from.pin.clone())
+                .map_err(crate::implementation::err_external)?;
+
+            pkcs11_session
+                .rename_key_pair(from_label, to_label)
+                .map_err(crate::implementation::err_external)
+        }
+
+        (
+            crate::implementation::Location::Pkcs11 { .. },
+            crate::implementation::Location::Filesystem(_),
+        ) => {
+            // Cannot export keys to filesystem.
+            Err(crate::implementation::err_invalid_parameter(
+                "to",
+                "cannot move pkcs11 key to filesystem",
+            ))
+        }
+    }
 }

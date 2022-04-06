@@ -194,6 +194,71 @@ impl std::error::Error for GetKeyError {
     }
 }
 
+/// An error from renaming a key.
+#[derive(Debug)]
+pub enum RenameKeyError {
+    LoginFailed(LoginError),
+    SourceNotFound,
+    ChangeLabelFailed(pkcs11_sys::CK_RV),
+}
+
+impl std::fmt::Display for RenameKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RenameKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+            RenameKeyError::SourceNotFound => f.write_str("source not found"),
+            RenameKeyError::ChangeLabelFailed(result) => {
+                write!(f, "C_SetAttributeValue failed with {}", result)
+            }
+        }
+    }
+}
+
+impl std::error::Error for RenameKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            RenameKeyError::LoginFailed(inner) => Some(inner),
+            RenameKeyError::SourceNotFound => None,
+            RenameKeyError::ChangeLabelFailed(_) => None,
+        }
+    }
+}
+
+impl Session {
+    pub fn rename_key_pair(
+        self: std::sync::Arc<Self>,
+        from: &str,
+        to: &str,
+    ) -> Result<(), RenameKeyError> {
+        unsafe {
+            // Private key access needs login
+            self.login().map_err(RenameKeyError::LoginFailed)?;
+
+            let attribute = pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_LABEL,
+                pValue: to.as_ptr().cast(),
+                ulValueLen: std::convert::TryInto::try_into(to.len()).expect("usize -> CK_ULONG"),
+            };
+
+            for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
+                let key_handle = self
+                    .get_key_inner(class, Some(from))
+                    .map_err(|_| RenameKeyError::SourceNotFound)?;
+
+                let result =
+                    (self.context.C_SetAttributeValue)(self.handle, key_handle, &attribute, 1);
+
+                if result != pkcs11_sys::CKR_OK {
+                    return Err(RenameKeyError::ChangeLabelFailed(result));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 struct FindObjects<'session> {
     session: &'session Session,
 }

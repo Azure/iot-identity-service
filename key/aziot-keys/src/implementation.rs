@@ -52,6 +52,7 @@ pub(crate) unsafe fn get_function_list(
 
                 set_parameter,
                 create_key_pair_if_not_exists: crate::key_pair::create_key_pair_if_not_exists,
+                move_key_pair: crate::key_pair::move_key_pair,
                 load_key_pair: crate::key_pair::load_key_pair,
                 get_key_pair_parameter: crate::key_pair::get_key_pair_parameter,
                 delete_key_pair: crate::key_pair::delete_key_pair,

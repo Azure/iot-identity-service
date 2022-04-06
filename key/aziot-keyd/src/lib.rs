@@ -121,6 +121,26 @@ impl Api {
         Ok(handle)
     }
 
+    pub fn move_key_pair(&mut self, from: &str, to: &str, user: libc::uid_t) -> Result<(), Error> {
+        // Require the caller to be authorized to modify both keys.
+        if !self.authorize(user, from) {
+            return Err(Error::Unauthorized(user, from.to_owned()));
+        }
+
+        if !self.authorize(user, to) {
+            return Err(Error::Unauthorized(user, to.to_owned()));
+        }
+
+        let from_cstr = std::ffi::CString::new(from.to_owned())
+            .map_err(|err| Error::invalid_parameter("from", err))?;
+        let to_cstr = std::ffi::CString::new(to.to_owned())
+            .map_err(|err| Error::invalid_parameter("to", err))?;
+
+        self.keys.move_key_pair(&from_cstr, &to_cstr)?;
+
+        Ok(())
+    }
+
     pub fn load_key_pair(
         &mut self,
         id: &str,
