@@ -7,7 +7,7 @@ mod decrypt;
 mod encrypt;
 mod export_derived_key;
 mod get_key_pair_public_parameter;
-mod load;
+mod load_move;
 mod sign;
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ http_common::make_service! {
         encrypt::Route,
         export_derived_key::Route,
         get_key_pair_public_parameter::Route,
-        load::Route,
+        load_move::Route,
         sign::Route,
     ],
 }

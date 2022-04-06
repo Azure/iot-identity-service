@@ -520,6 +520,20 @@ typedef struct {
      */
     AZIOT_KEYS_RC (*create_key_pair_if_not_exists)(const char *id, const char *preferred_algorithms);
     /**
+     * Move an existing key pair to another `id`.
+     *
+     * This function replaces any existing key and the destination `id`.
+     *
+     * # Errors
+     *
+     * - `AZIOT_KEYS_RC_ERR_INVALID_PARAMETER`:
+     *   - either `from` or `to` is `NULL`.
+     *   - either `from` or `to` is invalid.
+     *
+     * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
+     */
+    AZIOT_KEYS_RC (*move_key_pair)(const char *from, const char *to);
+    /**
      * Load an existing key pair identified by the specified `id`.
      *
      * This validates that a key pair with the given ID exists and can be loaded.

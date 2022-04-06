@@ -41,6 +41,7 @@ pub struct Context {
     pub(crate) C_GenerateKey: pkcs11_sys::CK_C_GenerateKey,
     pub(crate) C_GenerateKeyPair: pkcs11_sys::CK_C_GenerateKeyPair,
     pub(crate) C_GetAttributeValue: pkcs11_sys::CK_C_GetAttributeValue,
+    pub(crate) C_SetAttributeValue: pkcs11_sys::CK_C_SetAttributeValue,
     pub(crate) C_GetSessionInfo: pkcs11_sys::CK_C_GetSessionInfo,
     C_GetSlotList: pkcs11_sys::CK_C_GetSlotList,
     C_GetTokenInfo: pkcs11_sys::CK_C_GetTokenInfo,
@@ -156,6 +157,9 @@ impl Context {
             let C_GetAttributeValue = (*function_list)
                 .C_GetAttributeValue
                 .ok_or(LoadContextError::MissingFunction("C_GetAttributeValue"))?;
+            let C_SetAttributeValue = (*function_list)
+                .C_SetAttributeValue
+                .ok_or(LoadContextError::MissingFunction("C_SetAttributeValue"))?;
             let C_GetInfo = (*function_list).C_GetInfo;
             let C_GetSessionInfo = (*function_list)
                 .C_GetSessionInfo
@@ -222,6 +226,7 @@ impl Context {
                 C_GenerateKey,
                 C_GenerateKeyPair,
                 C_GetAttributeValue,
+                C_SetAttributeValue,
                 C_GetInfo,
                 C_GetSessionInfo,
                 C_GetSlotList,
