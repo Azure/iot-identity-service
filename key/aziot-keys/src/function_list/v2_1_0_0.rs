@@ -72,6 +72,22 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
         preferred_algorithms: *const std::os::raw::c_char,
     ) -> crate::AZIOT_KEYS_RC,
 
+    /// Move an existing key pair to another `id`.
+    ///
+    /// This function replaces any existing key and the destination `id`.
+    ///
+    /// # Errors
+    ///
+    /// - `AZIOT_KEYS_RC_ERR_INVALID_PARAMETER`:
+    ///   - either `from` or `to` is `NULL`.
+    ///   - either `from` or `to` is invalid.
+    ///
+    /// - `AZIOT_KEYS_RC_ERR_EXTERNAL`
+    pub move_key_pair: unsafe extern "C" fn(
+        from: *const std::os::raw::c_char,
+        to: *const std::os::raw::c_char,
+    ) -> crate::AZIOT_KEYS_RC,
+
     /// Load an existing key pair identified by the specified `id`.
     ///
     /// This validates that a key pair with the given ID exists and can be loaded.

@@ -53,6 +53,7 @@ pub enum InternalError {
     CreateKeyIfNotExistsGenerate(crate::keys::CreateKeyIfNotExistsError),
     CreateKeyIfNotExistsImport(crate::keys::ImportKeyError),
     CreateKeyPairIfNotExists(crate::keys::CreateKeyPairIfNotExistsError),
+    MoveKeyPair(crate::keys::MoveKeyPairError),
     GetKeyPairPublicParameter(crate::keys::GetKeyPairPublicParameterError),
     Decrypt(crate::keys::DecryptError),
     DeleteKey(crate::keys::DeleteKeyError),
@@ -75,6 +76,7 @@ impl std::fmt::Display for InternalError {
             InternalError::CreateKeyIfNotExistsGenerate(_) => f.write_str("could not generate key"),
             InternalError::CreateKeyIfNotExistsImport(_) => f.write_str("could not import key"),
             InternalError::CreateKeyPairIfNotExists(_) => f.write_str("could not create key pair"),
+            InternalError::MoveKeyPair(_) => f.write_str("could not move key pair"),
             InternalError::Decrypt(_) => f.write_str("could not decrypt"),
             InternalError::DeleteKey(_) => f.write_str("could not delete key"),
             InternalError::DeleteKeyPair(_) => f.write_str("could not delete key pair"),
@@ -103,6 +105,7 @@ impl std::error::Error for InternalError {
             InternalError::CreateKeyIfNotExistsGenerate(err) => Some(err),
             InternalError::CreateKeyIfNotExistsImport(err) => Some(err),
             InternalError::CreateKeyPairIfNotExists(err) => Some(err),
+            InternalError::MoveKeyPair(err) => Some(err),
             InternalError::Decrypt(err) => Some(err),
             InternalError::DeleteKey(err) => Some(err),
             InternalError::DeleteKeyPair(err) => Some(err),
@@ -160,6 +163,15 @@ impl From<crate::keys::GetKeyPairPublicParameterError> for Error {
             } => Error::InvalidParameter(None),
 
             _ => Error::Internal(InternalError::GetKeyPairPublicParameter(err)),
+        }
+    }
+}
+
+impl From<crate::keys::MoveKeyPairError> for Error {
+    fn from(err: crate::keys::MoveKeyPairError) -> Self {
+        match err.err.0 {
+            crate::keys::sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER => Error::InvalidParameter(None),
+            _ => Error::Internal(InternalError::MoveKeyPair(err)),
         }
     }
 }

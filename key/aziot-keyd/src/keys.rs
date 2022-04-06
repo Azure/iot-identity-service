@@ -113,6 +113,11 @@ pub(crate) enum Keys {
             preferred_algorithms: *const std::os::raw::c_char,
         ) -> sys::AZIOT_KEYS_RC,
 
+        move_key_pair: unsafe extern "C" fn(
+            from: *const std::os::raw::c_char,
+            to: *const std::os::raw::c_char,
+        ) -> sys::AZIOT_KEYS_RC,
+
         load_key_pair: unsafe extern "C" fn(id: *const std::os::raw::c_char) -> sys::AZIOT_KEYS_RC,
 
         get_key_pair_parameter: unsafe extern "C" fn(
@@ -287,6 +292,10 @@ impl Keys {
                             .ok_or(LoadLibraryError::MissingFunction(
                                 "create_key_pair_if_not_exists",
                             ))?,
+
+                        move_key_pair: (*function_list)
+                            .move_key_pair
+                            .ok_or(LoadLibraryError::MissingFunction("move_key_pair"))?,
 
                         load_key_pair: (*function_list)
                             .load_key_pair
@@ -609,6 +618,43 @@ impl std::fmt::Display for GetKeyPairPublicParameterError {
 }
 
 impl std::error::Error for GetKeyPairPublicParameterError {}
+
+impl Keys {
+    pub(crate) fn move_key_pair(
+        &mut self,
+        from: &std::ffi::CStr,
+        to: &std::ffi::CStr,
+    ) -> Result<(), MoveKeyPairError> {
+        unsafe {
+            match self {
+                Keys::V2_0_0_0 { .. } => {
+                    // This version doesn't support moving key pairs, so treat it as a no-op.
+                    Ok(())
+                }
+
+                Keys::V2_1_0_0 { move_key_pair, .. } => {
+                    keys_ok(move_key_pair(from.as_ptr(), to.as_ptr()))
+                        .map_err(|err| MoveKeyPairError { err })?;
+
+                    Ok(())
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveKeyPairError {
+    pub err: KeysRawError,
+}
+
+impl std::fmt::Display for MoveKeyPairError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "could not move key pair: {}", self.err)
+    }
+}
+
+impl std::error::Error for MoveKeyPairError {}
 
 impl Keys {
     pub(crate) fn delete_key_pair(

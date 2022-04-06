@@ -224,7 +224,7 @@ pub struct CK_FUNCTION_LIST {
 
     pub C_GetAttributeValue: Option<CK_C_GetAttributeValue>,
 
-    _unused9: [Option<unsafe extern "C" fn()>; 1],
+    pub C_SetAttributeValue: Option<CK_C_SetAttributeValue>,
 
     pub C_FindObjectsInit: Option<CK_C_FindObjectsInit>,
     pub C_FindObjects: Option<CK_C_FindObjects>,
@@ -644,6 +644,12 @@ pub type CK_C_GetAttributeValue = unsafe extern "C" fn(
     hSession: CK_SESSION_HANDLE,
     hObject: CK_OBJECT_HANDLE,
     pTemplate: CK_ATTRIBUTE_PTR,
+    ulCount: CK_ULONG,
+) -> CK_RV;
+pub type CK_C_SetAttributeValue = unsafe extern "C" fn(
+    hSession: CK_SESSION_HANDLE,
+    hObject: CK_OBJECT_HANDLE,
+    pTemplate: CK_ATTRIBUTE_PTR_CONST,
     ulCount: CK_ULONG,
 ) -> CK_RV;
 pub type CK_C_GetFunctionList =
