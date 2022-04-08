@@ -213,6 +213,16 @@ pub fn run(
 
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
+                                // Identity Service needs authorization to manage a temporary key
+                                // during key rotation.
+                                if let Some(auto_renew) = &auto_renew {
+                                    if auto_renew.rotate_key {
+                                        aziotid_keys
+                                            .keys
+                                            .push(format!("{}-temp", super::DEVICE_ID_ID));
+                                    }
+                                }
+
                                 cert_issuance_certs.insert(
                                     super::DEVICE_ID_ID.to_owned(),
                                     into_cert_options(identity_cert, auth),
@@ -341,6 +351,12 @@ pub fn run(
                         .insert(super::EST_BOOTSTRAP_ID.to_owned(), bootstrap_identity_pk);
                     aziotcs_keys.keys.push(super::EST_BOOTSTRAP_ID.to_owned());
                     aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
+
+                    // Certificates Service needs authorization to manage a temporary key
+                    // during key rotation.
+                    if identity_auto_renew.rotate_key {
+                        aziotcs_keys.keys.push(format!("{}-temp", super::EST_ID_ID));
+                    }
 
                     Some(aziot_certd_config::EstAuthX509 {
                         identity: aziot_certd_config::CertificateWithPrivateKey {
@@ -542,6 +558,10 @@ pub fn set_est_auth(
 
                     preloaded_keys.insert(bootstrap_cert_id.clone(), bootstrap_identity_pk.clone());
                     aziotcs_keys.keys.push(bootstrap_cert_id.clone());
+
+                    // Certificates Service needs authorization to manage a temporary key
+                    // during key rotation.
+                    aziotcs_keys.keys.push(format!("{}-temp", identity_cert_id));
 
                     Some(aziot_certd_config::CertificateWithPrivateKey {
                         cert: bootstrap_cert_id.clone(),
