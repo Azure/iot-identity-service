@@ -213,13 +213,14 @@ pub fn run(
 
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
-                                // Identity Service needs authorization to manage a temporary key
-                                // during key rotation.
+                                // Identity Service needs authorization to manage temporary credentials
+                                // during cert rotation.
                                 if let Some(auto_renew) = &auto_renew {
+                                    let temp = format!("{}-temp", super::DEVICE_ID_ID);
+                                    aziotid_certs.certs.push(temp.clone());
+
                                     if auto_renew.rotate_key {
-                                        aziotid_keys
-                                            .keys
-                                            .push(format!("{}-temp", super::DEVICE_ID_ID));
+                                        aziotid_keys.keys.push(temp);
                                     }
                                 }
 
