@@ -217,7 +217,7 @@ pub struct Est {
     pub urls: BTreeMap<String, Url>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EstAuth {
     #[serde(flatten)]
     pub basic: Option<aziot_certd_config::EstAuthBasic>,
@@ -226,7 +226,7 @@ pub struct EstAuth {
     pub x509: Option<EstAuthX509>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum EstAuthX509 {
     BootstrapIdentity {
@@ -281,7 +281,7 @@ pub enum X509Identity {
     },
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuanceOptions {
     #[serde(flatten)]
     pub method: CertIssuanceMethod,
@@ -300,7 +300,7 @@ pub struct CertIssuanceOptions {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]

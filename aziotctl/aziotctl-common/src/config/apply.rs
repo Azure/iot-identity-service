@@ -217,6 +217,11 @@ pub fn run(
                                 // during cert rotation.
                                 if let Some(auto_renew) = &auto_renew {
                                     let temp = format!("{}-temp", super::DEVICE_ID_ID);
+
+                                    cert_issuance_certs.insert(
+                                        temp.clone(),
+                                        into_cert_options(identity_cert.clone(), auth.clone()),
+                                    );
                                     aziotid_certs.certs.push(temp.clone());
 
                                     if auto_renew.rotate_key {
