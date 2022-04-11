@@ -86,7 +86,7 @@ impl Object<()> {
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
+                pParameter: std::ptr::addr_of!(params).cast(),
                 ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
                     .expect("usize -> CK_ULONG"),
             };
@@ -127,7 +127,7 @@ impl Object<()> {
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
+                pParameter: std::ptr::addr_of!(params).cast(),
                 ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
                     .expect("usize -> CK_ULONG"),
             };

@@ -60,7 +60,7 @@ impl<F> std::ops::Deref for Symbol<'_, F> {
             // F is expected to be a fn(...) and fn are themselves pointers. So self.inner is that fn.
             // The signature of `Deref::deref` requires this code to return a &fn, not the fn itself.
             // So we want to return the address of self.inner, and not self.inner itself.
-            &*((&self.inner as *const *mut std::ffi::c_void).cast::<F>())
+            &*(std::ptr::addr_of!(self.inner).cast::<F>())
         }
     }
 }
