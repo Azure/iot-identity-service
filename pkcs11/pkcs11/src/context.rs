@@ -64,7 +64,7 @@ impl Context {
 
     fn load_inner(lib_path: &std::path::Path) -> Result<Self, LoadContextError> {
         unsafe {
-            let library =
+            let mut library =
                 crate::dl::Library::load(lib_path).map_err(LoadContextError::LoadLibrary)?;
 
             let C_GetFunctionList: pkcs11_sys::CK_C_GetFunctionList = *library
