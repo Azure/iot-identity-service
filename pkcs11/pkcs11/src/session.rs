@@ -108,7 +108,7 @@ impl Session {
     ) -> Result<pkcs11_sys::CK_OBJECT_HANDLE, GetKeyError> {
         let mut templates = vec![pkcs11_sys::CK_ATTRIBUTE_IN {
             r#type: pkcs11_sys::CKA_CLASS,
-            pValue: (&class as *const pkcs11_sys::CK_OBJECT_CLASS).cast(),
+            pValue: std::ptr::addr_of!(class).cast(),
             ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&class))
                 .expect("usize -> CK_ULONG"),
         }];
@@ -378,7 +378,7 @@ impl Session {
             let r#true = pkcs11_sys::CK_TRUE;
             let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
                 .expect("usize -> CK_ULONG");
-            let r#true = (&r#true as *const pkcs11_sys::CK_BBOOL).cast();
+            let r#true = std::ptr::addr_of!(r#true).cast();
 
             // Common to all keys
             let mut key_template = vec![
@@ -442,7 +442,7 @@ impl Session {
                     let key_type = pkcs11_sys::CKK_AES;
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_KEY_TYPE,
-                        pValue: (&key_type as *const pkcs11_sys::CK_KEY_TYPE).cast(),
+                        pValue: std::ptr::addr_of!(key_type).cast(),
                         ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
                             &key_type,
                         ))
@@ -459,7 +459,7 @@ impl Session {
 
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: (&len as *const pkcs11_sys::CK_ULONG).cast(),
+                        pValue: std::ptr::addr_of!(len).cast(),
                         ulValueLen: len_size,
                     });
 
@@ -484,7 +484,7 @@ impl Session {
                     len = 16;
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: (&len as *const pkcs11_sys::CK_ULONG).cast(),
+                        pValue: std::ptr::addr_of!(len).cast(),
                         ulValueLen: len_size,
                     });
 
