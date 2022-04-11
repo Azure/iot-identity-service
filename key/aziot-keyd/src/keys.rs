@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#[allow(clippy::module_name_repetitions)]
+#[allow(clippy::borrow_as_ptr, clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug)]
 pub struct KeysRawError(pub(crate) sys::AZIOT_KEYS_RC);
 
@@ -518,7 +518,8 @@ impl Keys {
                             keys_ok(get_key_pair_parameter(
                                 id.as_ptr(),
                                 sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
-                                std::ptr::addr_of_mut!(algorithm).cast(),
+                                (&mut algorithm as *mut sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE)
+                                    .cast(),
                                 &mut algorithm_len,
                             ))
                             .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
@@ -1215,7 +1216,6 @@ pub(crate) mod sys {
         non_camel_case_types,
         non_snake_case,
         unused,
-        clippy::borrow_as_ptr,
         clippy::too_many_lines,
         clippy::unreadable_literal,
         clippy::unseparated_literal_suffix,

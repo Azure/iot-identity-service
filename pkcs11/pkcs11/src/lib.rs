@@ -4,6 +4,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     non_snake_case,
+    clippy::borrow_as_ptr,
     clippy::default_trait_access,
     clippy::let_underscore_drop,
     clippy::missing_errors_doc,

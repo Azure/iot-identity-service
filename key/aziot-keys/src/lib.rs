@@ -5,6 +5,7 @@
 #![deny(missing_docs)]
 #![allow(
     non_camel_case_types,
+    clippy::borrow_as_ptr,
     clippy::default_trait_access,
     clippy::doc_markdown, // clippy wants "IoT" in a code fence
     clippy::let_and_return,
