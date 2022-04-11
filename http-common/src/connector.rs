@@ -881,6 +881,7 @@ mod tests {
             assert_eq!(*expected, deserialized_connector);
         }
 
+        #[allow(clippy::single_element_loop)]
         for input in &[
             // unsupported scheme
             "ftp://127.0.0.1",

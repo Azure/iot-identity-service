@@ -71,18 +71,16 @@ pub(crate) unsafe fn get_function_list(
             crate::function_list::v2_0_0_0::AZIOT_KEYS_VERSION_2_0_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_0_0_0
-                    as *const crate::function_list::v2_0_0_0::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0)
-                    .cast();
+                *function_list_out.as_mut() =
+                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_0_0_0).cast();
                 Ok(())
             }
 
             crate::function_list::v2_1_0_0::AZIOT_KEYS_VERSION_2_1_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_1_0_0
-                    as *const crate::function_list::v2_1_0_0::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0)
-                    .cast();
+                *function_list_out.as_mut() =
+                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_1_0_0).cast();
                 Ok(())
             }
 
