@@ -13,8 +13,6 @@ pub struct Client {
     auth: aziot_identity_common::Credentials,
 
     key_client: crate::KeyClient,
-    key_engine: crate::KeyEngine,
-    cert_client: crate::CertClient,
     tpm_client: crate::TpmClient,
 
     timeout: std::time::Duration,
@@ -28,8 +26,6 @@ impl Client {
     pub fn new(
         credentials: aziot_identity_common::Credentials,
         key_client: crate::KeyClient,
-        key_engine: crate::KeyEngine,
-        cert_client: crate::CertClient,
         tpm_client: crate::TpmClient,
     ) -> Self {
         // The default DPS global endpoint.
@@ -40,8 +36,6 @@ impl Client {
             endpoint,
             auth: credentials,
             key_client,
-            key_engine,
-            cert_client,
             tpm_client,
             timeout: std::time::Duration::from_secs(30),
             retries: 0,
@@ -82,14 +76,7 @@ impl Client {
         scope_id: &str,
         registration_id: &str,
     ) -> Result<schema::Device, Error> {
-        let connector = crate::connector::from_auth(
-            &self.auth,
-            self.proxy.clone(),
-            &self.key_client,
-            &self.key_engine,
-            &self.cert_client,
-        )
-        .await?;
+        let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
         let register_uri = {
             let register_path = format!("{}/registrations/{}/register", scope_id, registration_id);

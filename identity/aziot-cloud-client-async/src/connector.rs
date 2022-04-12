@@ -2,12 +2,9 @@
 
 use std::io::{Error, ErrorKind};
 
-pub(crate) async fn from_auth(
+pub(crate) fn from_auth(
     auth: &aziot_identity_common::Credentials,
     proxy_uri: Option<hyper::Uri>,
-    key_client: &crate::KeyClient,
-    key_engine: &crate::KeyEngine,
-    cert_client: &crate::CertClient,
 ) -> Result<crate::CloudConnector, Error> {
     match auth {
         aziot_identity_common::Credentials::SharedPrivateKey(_)
@@ -19,20 +16,12 @@ pub(crate) async fn from_auth(
             identity_cert,
             identity_pk,
         } => {
-            let private_key = {
-                let key_handle = key_client.load_key_pair(identity_pk).await?;
-                let key_handle = std::ffi::CString::new(key_handle.0)?;
+            let identity_cert = identity_cert
+                .1
+                .to_pem()
+                .map_err(|_| Error::new(ErrorKind::Other, "bad cert"))?;
 
-                let mut key_engine = key_engine.lock().await;
-
-                key_engine
-                    .load_private_key(&key_handle)
-                    .map_err(|err| Error::new(ErrorKind::Other, err))?
-            };
-
-            let cert = cert_client.get_cert(identity_cert).await?;
-
-            crate::CloudConnector::new(proxy_uri, Some((&cert, &private_key)), &[])
+            crate::CloudConnector::new(proxy_uri, Some((&identity_cert, &identity_pk.1)), &[])
         }
     }
 }
