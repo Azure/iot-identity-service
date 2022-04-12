@@ -834,8 +834,7 @@ impl Keys {
             match self {
                 Keys::V2_0_0_0 { derive_key, .. } | Keys::V2_1_0_0 { derive_key, .. } => {
                     let derivation_data_len =
-                        std::convert::TryInto::try_into(derivation_data.len())
-                            .expect("usize -> c_ulong");
+                        derivation_data.len().try_into().expect("usize -> c_ulong");
 
                     let mut derived_key_len = 0;
 
@@ -849,8 +848,7 @@ impl Keys {
                     .map_err(|err| DeriveKeyError { err })?;
 
                     let mut derived_key = {
-                        let derived_key_len = std::convert::TryInto::try_into(derived_key_len)
-                            .expect("c_ulong -> usize");
+                        let derived_key_len = derived_key_len.try_into().expect("c_ulong -> usize");
                         vec![0_u8; derived_key_len]
                     };
 
@@ -863,8 +861,7 @@ impl Keys {
                     ))
                     .map_err(|err| DeriveKeyError { err })?;
 
-                    let derived_key_len =
-                        std::convert::TryInto::try_into(derived_key_len).expect("c_ulong -> usize");
+                    let derived_key_len = derived_key_len.try_into().expect("c_ulong -> usize");
 
                     if derived_key_len > derived_key.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -904,8 +901,7 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { sign, .. } | Keys::V2_1_0_0 { sign, .. } => {
-                    let digest_len =
-                        std::convert::TryInto::try_into(digest.len()).expect("usize -> c_ulong");
+                    let digest_len = digest.len().try_into().expect("usize -> c_ulong");
 
                     let mut signature_len = 0;
 
@@ -921,8 +917,7 @@ impl Keys {
                     .map_err(|err| SignError { err })?;
 
                     let mut signature = {
-                        let signature_len = std::convert::TryInto::try_into(signature_len)
-                            .expect("c_ulong -> usize");
+                        let signature_len = signature_len.try_into().expect("c_ulong -> usize");
                         vec![0_u8; signature_len]
                     };
 
@@ -937,8 +932,7 @@ impl Keys {
                     ))
                     .map_err(|err| SignError { err })?;
 
-                    let signature_len =
-                        std::convert::TryInto::try_into(signature_len).expect("c_ulong -> usize");
+                    let signature_len = signature_len.try_into().expect("c_ulong -> usize");
 
                     if signature_len > signature.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -979,10 +973,8 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { verify, .. } | Keys::V2_1_0_0 { verify, .. } => {
-                    let digest_len =
-                        std::convert::TryInto::try_into(digest.len()).expect("usize -> c_ulong");
-                    let signature_len =
-                        std::convert::TryInto::try_into(signature.len()).expect("usize -> c_ulong");
+                    let digest_len = digest.len().try_into().expect("usize -> c_ulong");
+                    let signature_len = signature.len().try_into().expect("usize -> c_ulong");
 
                     let mut ok = 0;
 
@@ -1030,8 +1022,7 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { encrypt, .. } | Keys::V2_1_0_0 { encrypt, .. } => {
-                    let plaintext_len =
-                        std::convert::TryInto::try_into(plaintext.len()).expect("usize -> c_ulong");
+                    let plaintext_len = plaintext.len().try_into().expect("usize -> c_ulong");
 
                     let mut ciphertext_len = 0;
 
@@ -1047,8 +1038,7 @@ impl Keys {
                     .map_err(|err| EncryptError { err })?;
 
                     let mut ciphertext = {
-                        let ciphertext_len = std::convert::TryInto::try_into(ciphertext_len)
-                            .expect("c_ulong -> usize");
+                        let ciphertext_len = ciphertext_len.try_into().expect("c_ulong -> usize");
                         vec![0_u8; ciphertext_len]
                     };
 
@@ -1063,8 +1053,7 @@ impl Keys {
                     ))
                     .map_err(|err| EncryptError { err })?;
 
-                    let ciphertext_len =
-                        std::convert::TryInto::try_into(ciphertext_len).expect("c_ulong -> usize");
+                    let ciphertext_len = ciphertext_len.try_into().expect("c_ulong -> usize");
 
                     if ciphertext_len > ciphertext.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -1104,8 +1093,7 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { decrypt, .. } | Keys::V2_1_0_0 { decrypt, .. } => {
-                    let ciphertext_len = std::convert::TryInto::try_into(ciphertext.len())
-                        .expect("usize -> c_ulong");
+                    let ciphertext_len = ciphertext.len().try_into().expect("usize -> c_ulong");
 
                     let mut plaintext_len = 0;
 
@@ -1121,8 +1109,7 @@ impl Keys {
                     .map_err(|err| DecryptError { err })?;
 
                     let mut plaintext = {
-                        let plaintext_len = std::convert::TryInto::try_into(plaintext_len)
-                            .expect("c_ulong -> usize");
+                        let plaintext_len = plaintext_len.try_into().expect("c_ulong -> usize");
                         vec![0_u8; plaintext_len]
                     };
 
@@ -1137,8 +1124,7 @@ impl Keys {
                     ))
                     .map_err(|err| DecryptError { err })?;
 
-                    let plaintext_len =
-                        std::convert::TryInto::try_into(plaintext_len).expect("c_ulong -> usize");
+                    let plaintext_len = plaintext_len.try_into().expect("c_ulong -> usize");
 
                     if plaintext_len > plaintext.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.

@@ -169,7 +169,7 @@ fn load_engine() -> Result<openssl2::FunctionalEngine, Error> {
     let engine_id =
         std::ffi::CStr::from_bytes_with_nul(ENGINE_ID).expect("hard-coded engine ID is valid CStr");
     let engine = openssl2::StructuralEngine::by_id(engine_id)?;
-    let engine: openssl2::FunctionalEngine = std::convert::TryInto::try_into(engine)?;
+    let engine: openssl2::FunctionalEngine = engine.try_into()?;
     println!("Loaded engine: [{}]", engine.name()?.to_string_lossy());
     Ok(engine)
 }

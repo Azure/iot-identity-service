@@ -83,10 +83,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
             }
         };
 
-        let digest = std::slice::from_raw_parts(
-            from,
-            std::convert::TryInto::try_into(flen).expect("c_int -> usize"),
-        );
+        let digest = std::slice::from_raw_parts(from, flen.try_into().expect("c_int -> usize"));
 
         let signature = client.encrypt(handle, mechanism, digest)?;
         let signature_len = signature.len();
@@ -94,7 +91,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
             let max_signature_len = {
                 let rsa: &openssl::rsa::RsaRef<openssl::pkey::Private> =
                     foreign_types_shared::ForeignTypeRef::from_ptr(rsa);
-                std::convert::TryInto::try_into(rsa.size()).expect("c_int -> usize")
+                rsa.size().try_into().expect("c_int -> usize")
             };
             if signature_len > max_signature_len {
                 return Err(format!("openssl expected signature of length <= {} but ks returned a signature of length {}", max_signature_len, signature_len).into());
@@ -102,13 +99,11 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
         }
 
         // openssl requires that `to` has space for `RSA_size(rsa)` bytes. Trust the caller.
-        let signature_out = std::slice::from_raw_parts_mut(
-            to,
-            std::convert::TryInto::try_into(signature_len).expect("c_int -> usize"),
-        );
+        let signature_out =
+            std::slice::from_raw_parts_mut(to, signature_len.try_into().expect("c_int -> usize"));
         signature_out[..signature_len].copy_from_slice(&signature);
 
-        let signature_len = std::convert::TryInto::try_into(signature_len).expect("usize -> c_int");
+        let signature_len = signature_len.try_into().expect("usize -> c_int");
 
         Ok(signature_len)
     });
