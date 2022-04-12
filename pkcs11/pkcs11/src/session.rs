@@ -451,7 +451,7 @@ impl Session {
 
                     let key_template_except_value_len = key_template.clone();
 
-                    let mut len: pkcs11_sys::CK_ULONG = 32.try_into().expect("usize -> CK_ULONG");
+                    let mut len: pkcs11_sys::CK_ULONG = 32;
                     let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
                         .try_into()
                         .expect("usize -> CK_ULONG");
@@ -513,7 +513,7 @@ impl Session {
                         ulParameterLen: 0,
                     };
 
-                    let len: pkcs11_sys::CK_ULONG = 32.try_into().expect("usize -> CK_ULONG");
+                    let len: pkcs11_sys::CK_ULONG = 32;
                     let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
                         .try_into()
                         .expect("usize -> CK_ULONG");
