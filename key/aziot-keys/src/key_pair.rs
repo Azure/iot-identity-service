@@ -401,8 +401,7 @@ pub(crate) unsafe fn sign(
                 };
 
                 let signature = {
-                    let mut signature =
-                        vec![0_u8; signature_len.try_into().expect("c_int -> usize")];
+                    let mut signature = vec![0_u8; signature_len];
                     let signature_len =
                         private_key.sign(digest, &mut signature).map_err(|err| {
                             crate::implementation::err_external(format!("could not sign: {}", err))

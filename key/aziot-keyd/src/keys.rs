@@ -833,35 +833,27 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { derive_key, .. } | Keys::V2_1_0_0 { derive_key, .. } => {
-                    let derivation_data_len =
-                        derivation_data.len().try_into().expect("usize -> c_ulong");
-
                     let mut derived_key_len = 0;
 
                     keys_ok(derive_key(
                         base_id.as_ptr(),
                         derivation_data.as_ptr(),
-                        derivation_data_len,
+                        derivation_data.len(),
                         std::ptr::null_mut(),
                         &mut derived_key_len,
                     ))
                     .map_err(|err| DeriveKeyError { err })?;
 
-                    let mut derived_key = {
-                        let derived_key_len = derived_key_len.try_into().expect("c_ulong -> usize");
-                        vec![0_u8; derived_key_len]
-                    };
+                    let mut derived_key = vec![0_u8; derived_key_len];
 
                     keys_ok(derive_key(
                         base_id.as_ptr(),
                         derivation_data.as_ptr(),
-                        derivation_data_len,
+                        derivation_data.len(),
                         derived_key.as_mut_ptr(),
                         &mut derived_key_len,
                     ))
                     .map_err(|err| DeriveKeyError { err })?;
-
-                    let derived_key_len = derived_key_len.try_into().expect("c_ulong -> usize");
 
                     if derived_key_len > derived_key.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -901,8 +893,6 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { sign, .. } | Keys::V2_1_0_0 { sign, .. } => {
-                    let digest_len = digest.len().try_into().expect("usize -> c_ulong");
-
                     let mut signature_len = 0;
 
                     keys_ok(sign(
@@ -910,29 +900,24 @@ impl Keys {
                         mechanism,
                         parameters,
                         digest.as_ptr(),
-                        digest_len,
+                        digest.len(),
                         std::ptr::null_mut(),
                         &mut signature_len,
                     ))
                     .map_err(|err| SignError { err })?;
 
-                    let mut signature = {
-                        let signature_len = signature_len.try_into().expect("c_ulong -> usize");
-                        vec![0_u8; signature_len]
-                    };
+                    let mut signature = vec![0_u8; signature_len];
 
                     keys_ok(sign(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         digest.as_ptr(),
-                        digest_len,
+                        digest.len(),
                         signature.as_mut_ptr(),
                         &mut signature_len,
                     ))
                     .map_err(|err| SignError { err })?;
-
-                    let signature_len = signature_len.try_into().expect("c_ulong -> usize");
 
                     if signature_len > signature.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -973,9 +958,6 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { verify, .. } | Keys::V2_1_0_0 { verify, .. } => {
-                    let digest_len = digest.len().try_into().expect("usize -> c_ulong");
-                    let signature_len = signature.len().try_into().expect("usize -> c_ulong");
-
                     let mut ok = 0;
 
                     keys_ok(verify(
@@ -983,9 +965,9 @@ impl Keys {
                         mechanism,
                         parameters,
                         digest.as_ptr(),
-                        digest_len,
+                        digest.len(),
                         signature.as_ptr(),
-                        signature_len,
+                        signature.len(),
                         &mut ok,
                     ))
                     .map_err(|err| VerifyError { err })?;
@@ -1022,8 +1004,6 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { encrypt, .. } | Keys::V2_1_0_0 { encrypt, .. } => {
-                    let plaintext_len = plaintext.len().try_into().expect("usize -> c_ulong");
-
                     let mut ciphertext_len = 0;
 
                     keys_ok(encrypt(
@@ -1031,29 +1011,24 @@ impl Keys {
                         mechanism,
                         parameters,
                         plaintext.as_ptr(),
-                        plaintext_len,
+                        plaintext.len(),
                         std::ptr::null_mut(),
                         &mut ciphertext_len,
                     ))
                     .map_err(|err| EncryptError { err })?;
 
-                    let mut ciphertext = {
-                        let ciphertext_len = ciphertext_len.try_into().expect("c_ulong -> usize");
-                        vec![0_u8; ciphertext_len]
-                    };
+                    let mut ciphertext = vec![0_u8; ciphertext_len];
 
                     keys_ok(encrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         plaintext.as_ptr(),
-                        plaintext_len,
+                        plaintext.len(),
                         ciphertext.as_mut_ptr(),
                         &mut ciphertext_len,
                     ))
                     .map_err(|err| EncryptError { err })?;
-
-                    let ciphertext_len = ciphertext_len.try_into().expect("c_ulong -> usize");
 
                     if ciphertext_len > ciphertext.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
@@ -1093,8 +1068,6 @@ impl Keys {
         unsafe {
             match self {
                 Keys::V2_0_0_0 { decrypt, .. } | Keys::V2_1_0_0 { decrypt, .. } => {
-                    let ciphertext_len = ciphertext.len().try_into().expect("usize -> c_ulong");
-
                     let mut plaintext_len = 0;
 
                     keys_ok(decrypt(
@@ -1102,29 +1075,24 @@ impl Keys {
                         mechanism,
                         parameters,
                         ciphertext.as_ptr(),
-                        ciphertext_len,
+                        ciphertext.len(),
                         std::ptr::null_mut(),
                         &mut plaintext_len,
                     ))
                     .map_err(|err| DecryptError { err })?;
 
-                    let mut plaintext = {
-                        let plaintext_len = plaintext_len.try_into().expect("c_ulong -> usize");
-                        vec![0_u8; plaintext_len]
-                    };
+                    let mut plaintext = vec![0_u8; plaintext_len];
 
                     keys_ok(decrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         ciphertext.as_ptr(),
-                        ciphertext_len,
+                        ciphertext.len(),
                         plaintext.as_mut_ptr(),
                         &mut plaintext_len,
                     ))
                     .map_err(|err| DecryptError { err })?;
-
-                    let plaintext_len = plaintext_len.try_into().expect("c_ulong -> usize");
 
                     if plaintext_len > plaintext.len() {
                         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.

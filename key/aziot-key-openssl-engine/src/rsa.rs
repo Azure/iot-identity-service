@@ -99,8 +99,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
         }
 
         // openssl requires that `to` has space for `RSA_size(rsa)` bytes. Trust the caller.
-        let signature_out =
-            std::slice::from_raw_parts_mut(to, signature_len.try_into().expect("c_int -> usize"));
+        let signature_out = std::slice::from_raw_parts_mut(to, signature_len);
         signature_out[..signature_len].copy_from_slice(&signature);
 
         let signature_len = signature_len.try_into().expect("usize -> c_int");
