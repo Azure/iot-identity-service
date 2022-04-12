@@ -678,7 +678,7 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
 
     let index: std::os::unix::io::RawFd =
         match listen_fdnames.iter().position(|&fdname| fdname == name) {
-            Some(index) => match std::convert::TryInto::try_into(index) {
+            Some(index) => match index.try_into() {
                 Ok(index) => index,
                 Err(_) => return Err("couldn't convert LISTEN_FDNAMES index to fd".to_string()),
             },
@@ -787,7 +787,9 @@ fn get_systemd_socket(
     };
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
-    let len: std::os::unix::io::RawFd = std::convert::TryInto::try_into(listen_fdnames.len())
+    let len: std::os::unix::io::RawFd = listen_fdnames
+        .len()
+        .try_into()
         .map_err(|_| "invalid number of sockets".to_string())?;
     if listen_fds != len {
         return Err(format!(
@@ -801,7 +803,8 @@ fn get_systemd_socket(
         .iter()
         .position(|fdname| (*fdname).eq(&socket_name))
     {
-        let index: std::os::unix::io::RawFd = std::convert::TryInto::try_into(index)
+        let index: std::os::unix::io::RawFd = index
+            .try_into()
             .map_err(|_| "invalid number of sockets".to_string())?;
         Ok(Some(SD_LISTEN_FDS_START + index))
     } else {
@@ -881,6 +884,7 @@ mod tests {
             assert_eq!(*expected, deserialized_connector);
         }
 
+        #[allow(clippy::single_element_loop)]
         for input in &[
             // unsupported scheme
             "ftp://127.0.0.1",

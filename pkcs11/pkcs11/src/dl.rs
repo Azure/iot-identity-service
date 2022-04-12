@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::ptr::NonNull;
+
 /// Represents a dynamically loaded library.
 pub(crate) struct Library {
-    handle: *mut std::ffi::c_void,
+    handle: NonNull<std::ffi::c_void>,
 }
 
 impl Library {
@@ -11,23 +13,22 @@ impl Library {
         let path = std::os::unix::ffi::OsStrExt::as_bytes(path.as_os_str()).to_owned();
         let path = std::ffi::CString::new(path).map_err(|err| err.to_string())?;
 
-        let handle = libc::dlopen(path.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL);
-        if handle.is_null() {
-            return Err(dlerror());
-        }
+        let handle = NonNull::new(libc::dlopen(
+            path.as_ptr(),
+            libc::RTLD_LAZY | libc::RTLD_LOCAL,
+        ))
+        .ok_or_else(|| dlerror())?;
 
         Ok(Library { handle })
     }
 
     /// Obtain a symbol from this library of the specified type.
     pub(crate) unsafe fn symbol<'library, F>(
-        &'library self,
+        &'library mut self,
         name: &std::ffi::CStr,
     ) -> Result<Symbol<'library, F>, String> {
-        let inner = libc::dlsym(self.handle, name.as_ptr());
-        if inner.is_null() {
-            return Err(dlerror());
-        }
+        let inner = NonNull::new(libc::dlsym(self.handle.as_mut(), name.as_ptr()))
+            .ok_or_else(|| dlerror())?;
 
         Ok(Symbol {
             inner,
@@ -40,14 +41,14 @@ impl Library {
 impl Drop for Library {
     fn drop(&mut self) {
         unsafe {
-            let _ = libc::dlclose(self.handle);
+            let _ = libc::dlclose(self.handle.as_mut());
         }
     }
 }
 
 /// A symbol obtained from a [`Library`].
 pub(crate) struct Symbol<'library, F> {
-    inner: *mut std::ffi::c_void,
+    inner: NonNull<std::ffi::c_void>,
     _library: std::marker::PhantomData<&'library Library>,
     _type: std::marker::PhantomData<F>,
 }
@@ -60,7 +61,7 @@ impl<F> std::ops::Deref for Symbol<'_, F> {
             // F is expected to be a fn(...) and fn are themselves pointers. So self.inner is that fn.
             // The signature of `Deref::deref` requires this code to return a &fn, not the fn itself.
             // So we want to return the address of self.inner, and not self.inner itself.
-            &*((&self.inner as *const *mut std::ffi::c_void).cast::<F>())
+            &*std::ptr::addr_of!(self.inner).cast::<F>()
         }
     }
 }
