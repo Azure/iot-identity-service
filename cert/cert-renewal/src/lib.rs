@@ -45,3 +45,33 @@ fn test_cert(not_before: i64, not_after: i64) -> openssl::x509::X509 {
 
     cert
 }
+
+/// Common settings for configuring auto-renewal.
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AutoRenewConfig {
+    /// Whether to rotate the key. This requires temporary storage for a second
+    /// key during credential rotation. Defaults to `true`.
+    pub rotate_key: bool,
+
+    /// Renewal policy.
+    #[serde(flatten)]
+    pub policy: RenewalPolicy,
+}
+
+impl Default for AutoRenewConfig {
+    fn default() -> Self {
+        AutoRenewConfig {
+            rotate_key: true,
+            policy: RenewalPolicy {
+                threshold: Policy::Percentage(80),
+                retry: Policy::Percentage(4),
+            },
+        }
+    }
+}
+
+impl AutoRenewConfig {
+    pub fn is_default(&self) -> bool {
+        self == &AutoRenewConfig::default()
+    }
+}
