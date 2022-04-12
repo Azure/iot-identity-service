@@ -129,10 +129,7 @@ unsafe extern "C" fn aziot_key_ec_key_sign_sig(
             }
         };
 
-        let digest = std::slice::from_raw_parts(
-            dgst,
-            std::convert::TryInto::try_into(dlen).expect("c_int -> usize"),
-        );
+        let digest = std::slice::from_raw_parts(dgst, dlen.try_into().expect("c_int -> usize"));
 
         let signature = client.sign(handle, mechanism, digest)?;
         let signature = openssl::ecdsa::EcdsaSig::from_der(&signature)?;

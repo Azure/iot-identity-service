@@ -357,13 +357,12 @@ pub(crate) unsafe fn sign(
                     let signature_len = {
                         let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
                         let signature_len = openssl_sys2::ECDSA_size(ec_key);
-                        let signature_len = std::convert::TryInto::try_into(signature_len)
-                            .map_err(|err| {
-                                crate::implementation::err_external(format!(
-                                    "ECDSA_size returned invalid value: {}",
-                                    err
-                                ))
-                            })?;
+                        let signature_len = signature_len.try_into().map_err(|err| {
+                            crate::implementation::err_external(format!(
+                                "ECDSA_size returned invalid value: {}",
+                                err
+                            ))
+                        })?;
                         signature_len
                     };
 
@@ -392,28 +391,22 @@ pub(crate) unsafe fn sign(
                     let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
 
                     let signature_len = openssl_sys2::ECDSA_size(ec_key);
-                    let signature_len =
-                        std::convert::TryInto::try_into(signature_len).map_err(|err| {
-                            crate::implementation::err_external(format!(
-                                "ECDSA_size returned invalid value: {}",
-                                err
-                            ))
-                        })?;
+                    let signature_len = signature_len.try_into().map_err(|err| {
+                        crate::implementation::err_external(format!(
+                            "ECDSA_size returned invalid value: {}",
+                            err
+                        ))
+                    })?;
                     signature_len
                 };
 
                 let signature = {
-                    let mut signature = vec![
-                        0_u8;
-                        std::convert::TryInto::try_into(signature_len)
-                            .expect("c_int -> usize")
-                    ];
+                    let mut signature = vec![0_u8; signature_len];
                     let signature_len =
                         private_key.sign(digest, &mut signature).map_err(|err| {
                             crate::implementation::err_external(format!("could not sign: {}", err))
                         })?;
-                    let signature_len: usize =
-                        std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+                    let signature_len: usize = signature_len.try_into().expect("CK_ULONG -> usize");
                     let r = openssl::bn::BigNum::from_slice(&signature[..(signature_len / 2)])?;
                     let s = openssl::bn::BigNum::from_slice(
                         &signature[(signature_len / 2)..signature_len],
@@ -469,7 +462,7 @@ pub(crate) unsafe fn encrypt(
                 crate::implementation::err_invalid_parameter("mechanism", "not an RSA key")
             })?;
 
-            let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
+            let result_len = rsa.size().try_into().map_err(|err| {
                 crate::implementation::err_external(format!(
                     "RSA_size returned invalid value: {}",
                     err
@@ -511,7 +504,7 @@ pub(crate) unsafe fn encrypt(
                     ))
                 })?;
 
-                let result_len = std::convert::TryInto::try_into(rsa.size()).map_err(|err| {
+                let result_len = rsa.size().try_into().map_err(|err| {
                     crate::implementation::err_external(format!(
                         "RSA_size returned invalid value: {}",
                         err
@@ -527,8 +520,7 @@ pub(crate) unsafe fn encrypt(
                     .map_err(|err| {
                         crate::implementation::err_external(format!("could not encrypt: {}", err))
                     })?;
-                let signature_len =
-                    std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+                let signature_len = signature_len.try_into().expect("CK_ULONG -> usize");
                 signature.truncate(signature_len);
                 signature
             };

@@ -74,20 +74,21 @@ impl Object<()> {
             // Encrypting with the key needs login
             self.session.login().map_err(EncryptError::LoginFailed)?;
 
-            let iv_len = std::convert::TryInto::try_into(iv.len()).expect("usize -> CK_ULONG");
+            let iv_len = iv.len().try_into().expect("usize -> CK_ULONG");
 
             let params = pkcs11_sys::CK_GCM_PARAMS {
                 pIv: iv.as_ptr(),
                 ulIvLen: iv_len,
                 ulIvBits: iv_len * 8,
                 pAAD: aad.as_ptr(),
-                ulAADLen: std::convert::TryInto::try_into(aad.len()).expect("usize -> CK_ULONG"),
+                ulAADLen: aad.len().try_into().expect("usize -> CK_ULONG"),
                 ulTagBits: 16 * 8,
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
-                ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
+                pParameter: std::ptr::addr_of!(params).cast(),
+                ulParameterLen: std::mem::size_of_val(&params)
+                    .try_into()
                     .expect("usize -> CK_ULONG"),
             };
 
@@ -115,20 +116,21 @@ impl Object<()> {
             // Decrypting with the key needs login
             self.session.login().map_err(DecryptError::LoginFailed)?;
 
-            let iv_len = std::convert::TryInto::try_into(iv.len()).expect("usize -> CK_ULONG");
+            let iv_len = iv.len().try_into().expect("usize -> CK_ULONG");
 
             let params = pkcs11_sys::CK_GCM_PARAMS {
                 pIv: iv.as_ptr(),
                 ulIvLen: iv_len,
                 ulIvBits: iv_len * 8,
                 pAAD: aad.as_ptr(),
-                ulAADLen: std::convert::TryInto::try_into(aad.len()).expect("usize -> CK_ULONG"),
+                ulAADLen: aad.len().try_into().expect("usize -> CK_ULONG"),
                 ulTagBits: 16 * 8,
             };
             let mechanism = pkcs11_sys::CK_MECHANISM_IN {
                 mechanism: pkcs11_sys::CKM_AES_GCM,
-                pParameter: (&params as *const pkcs11_sys::CK_GCM_PARAMS).cast(),
-                ulParameterLen: std::convert::TryInto::try_into(std::mem::size_of_val(&params))
+                pParameter: std::ptr::addr_of!(params).cast(),
+                ulParameterLen: std::mem::size_of_val(&params)
+                    .try_into()
                     .expect("usize -> CK_ULONG"),
             };
 
@@ -176,7 +178,7 @@ impl Object<openssl::ec::EcKey<openssl::pkey::Public>> {
             let point = openssl_sys2::d2i_ASN1_OCTET_STRING(
                 std::ptr::null_mut(),
                 &mut point.as_ptr().cast(),
-                std::convert::TryInto::try_into(point.len()).expect("usize -> c_long"),
+                point.len().try_into().expect("usize -> c_long"),
             );
             if point.is_null() {
                 return Err(GetKeyParametersError::MalformedEcPoint(
@@ -368,14 +370,13 @@ unsafe fn sign_inner(
         return Err(SignError::SignInitFailed(result));
     }
 
-    let original_signature_len =
-        std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG");
+    let original_signature_len = signature.len().try_into().expect("usize -> CK_ULONG");
     let mut signature_len = original_signature_len;
 
     let result = (session.context.C_Sign)(
         session.handle,
         digest.as_ptr(),
-        std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
+        digest.len().try_into().expect("usize -> CK_ULONG"),
         signature.as_mut_ptr(),
         &mut signature_len,
     );
@@ -435,9 +436,9 @@ unsafe fn verify_inner(
     let result = (session.context.C_Verify)(
         session.handle,
         digest.as_ptr(),
-        std::convert::TryInto::try_into(digest.len()).expect("usize -> CK_ULONG"),
+        digest.len().try_into().expect("usize -> CK_ULONG"),
         signature.as_ptr(),
-        std::convert::TryInto::try_into(signature.len()).expect("usize -> CK_ULONG"),
+        signature.len().try_into().expect("usize -> CK_ULONG"),
     );
     match result {
         pkcs11_sys::CKR_OK => Ok(true),
@@ -488,14 +489,13 @@ unsafe fn encrypt_inner(
         return Err(EncryptError::EncryptInitFailed(result));
     }
 
-    let original_ciphertext_len =
-        std::convert::TryInto::try_into(ciphertext.len()).expect("usize -> CK_ULONG");
+    let original_ciphertext_len = ciphertext.len().try_into().expect("usize -> CK_ULONG");
     let mut ciphertext_len = original_ciphertext_len;
 
     let result = (session.context.C_Encrypt)(
         session.handle,
         plaintext.as_ptr(),
-        std::convert::TryInto::try_into(plaintext.len()).expect("usize -> CK_ULONG"),
+        plaintext.len().try_into().expect("usize -> CK_ULONG"),
         ciphertext.as_mut_ptr(),
         &mut ciphertext_len,
     );
@@ -540,14 +540,13 @@ unsafe fn decrypt_inner(
         return Err(DecryptError::DecryptInitFailed(result));
     }
 
-    let original_plaintext_len =
-        std::convert::TryInto::try_into(plaintext.len()).expect("usize -> CK_ULONG");
+    let original_plaintext_len = plaintext.len().try_into().expect("usize -> CK_ULONG");
     let mut plaintext_len = original_plaintext_len;
 
     let result = (session.context.C_Decrypt)(
         session.handle,
         ciphertext.as_ptr(),
-        std::convert::TryInto::try_into(ciphertext.len()).expect("usize -> CK_ULONG"),
+        ciphertext.len().try_into().expect("usize -> CK_ULONG"),
         plaintext.as_mut_ptr(),
         &mut plaintext_len,
     );
@@ -601,11 +600,7 @@ unsafe fn get_attribute_value_byte_buf<T>(
         return Err(GetKeyParametersError::GetAttributeValueFailed(result));
     }
 
-    let mut buf = vec![
-        0_u8;
-        std::convert::TryInto::try_into(attribute.ulValueLen)
-            .expect("CK_ULONG -> usize")
-    ];
+    let mut buf = vec![0_u8; attribute.ulValueLen.try_into().expect("CK_ULONG -> usize")];
     attribute.pValue = buf.as_mut_ptr().cast();
 
     let result = C_GetAttributeValue(session.handle, object.handle, &mut attribute, 1);
