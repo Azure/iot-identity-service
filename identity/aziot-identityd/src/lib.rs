@@ -132,7 +132,7 @@ pub async fn main(
         let mut api = api.lock().await;
 
         if let Err(err) = api
-            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup)
+            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup, None)
             .await
         {
             log::error!(
@@ -517,6 +517,7 @@ impl Api {
         &mut self,
         auth_id: auth::AuthId,
         trigger: ReprovisionTrigger,
+        credential_override: Option<aziot_identity_common::Credentials>,
     ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -540,12 +541,20 @@ impl Api {
                 self.id_manager.clear_device();
 
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), false)
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        false,
+                        credential_override,
+                    )
                     .await?;
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        true,
+                        credential_override,
+                    )
                     .await?;
             }
         }
@@ -574,7 +583,7 @@ impl Api {
 
                         if let Err(err) = self
                             .id_manager
-                            .provision_device(self.settings.provisioning.clone(), false)
+                            .provision_device(self.settings.provisioning.clone(), false, None)
                             .await
                         {
                             if err.is_network() {
@@ -713,6 +722,7 @@ impl UpdateConfig for Api {
             .reprovision_device(
                 auth::AuthId::LocalRoot,
                 ReprovisionTrigger::ConfigurationFileUpdate,
+                None,
             )
             .await
         {

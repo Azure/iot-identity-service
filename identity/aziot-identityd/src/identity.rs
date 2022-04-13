@@ -590,6 +590,7 @@ impl IdentityManager {
         &mut self,
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
+        credential_override: Option<aziot_identity_common::Credentials>,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
@@ -605,12 +606,12 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        // IoT Hub doesn't require device ID to match identity certificate CN
-                        let (_, credentials) = self
-                            .get_identity_cert(&identity_pk, &identity_cert, Some(&device_id))
-                            .await?;
-
-                        credentials
+                        self.get_identity_credentials(
+                            &identity_pk,
+                            &identity_cert,
+                            Some(&device_id),
+                        )
+                        .await?
                     }
                 };
                 let device = aziot_identity_common::IoTHubDevice {
@@ -652,16 +653,31 @@ impl IdentityManager {
                         identity_pk,
                         identity_auto_renew: _,
                     } => {
-                        // DPS requires registration ID to match identity certificate CN
-                        let (cert_subject, credentials) = self
-                            .get_identity_cert(
+                        let credentials = if let Some(credential_override) = credential_override {
+                            credential_override
+                        } else {
+                            self.get_identity_credentials(
                                 &identity_pk,
                                 &identity_cert,
                                 registration_id.as_ref(),
                             )
-                            .await?;
+                            .await?
+                        };
 
-                        let registration_id = registration_id.unwrap_or(cert_subject);
+                        // Determine the registration ID. Prefer the registration ID specified in config, but
+                        // use cert subject if that is not available.
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id
+                        } else if let aziot_identity_common::Credentials::X509 {
+                            identity_cert,
+                            ..
+                        } = &credentials
+                        {
+                            get_cert_subject(&identity_cert.1)?
+                        } else {
+                            // get_identity_credentials will always return an X509 variant of Credentials.
+                            unreachable!()
+                        };
 
                         (registration_id, credentials)
                     }
@@ -777,12 +793,12 @@ impl IdentityManager {
         }
     }
 
-    async fn get_identity_cert(
+    async fn get_identity_credentials(
         &self,
         identity_pk: &str,
         identity_cert: &str,
         subject: Option<&String>,
-    ) -> Result<(String, aziot_identity_common::Credentials), Error> {
+    ) -> Result<aziot_identity_common::Credentials, Error> {
         let (cert, private_key) = if let Some(engine) = &self.identity_cert_renewal {
             cert_renewal::engine::get_credential(engine, identity_cert, identity_pk)
                 .await
@@ -846,26 +862,10 @@ impl IdentityManager {
             }
         };
 
-        let cert_subject = if let Some(common_name) = cert
-            .subject_name()
-            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
-            .next()
-        {
-            String::from_utf8(common_name.data().as_slice().into()).map_err(|_| {
-                Error::Internal(InternalError::CreateCertificate("bad cert subject".into()))
-            })?
-        } else {
-            return Err(Error::Internal(InternalError::CreateCertificate(
-                "cannot determine cert subject".into(),
-            )));
-        };
-
-        let credentials = aziot_identity_common::Credentials::X509 {
+        Ok(aziot_identity_common::Credentials::X509 {
             identity_cert: (identity_cert.to_string(), cert),
             identity_pk: (identity_pk.to_string(), private_key),
-        };
-
-        Ok((cert_subject, credentials))
+        })
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
@@ -945,6 +945,25 @@ impl IdentityManager {
         }
 
         Ok(())
+    }
+}
+
+fn get_cert_subject(cert: &openssl::x509::X509) -> Result<String, Error> {
+    if let Some(common_name) = cert
+        .subject_name()
+        .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+        .next()
+    {
+        let cert_subject =
+            String::from_utf8(common_name.data().as_slice().into()).map_err(|_| {
+                Error::Internal(InternalError::CreateCertificate("bad cert subject".into()))
+            })?;
+
+        Ok(cert_subject)
+    } else {
+        Err(Error::Internal(InternalError::CreateCertificate(
+            "cannot determine cert subject".into(),
+        )))
     }
 }
 

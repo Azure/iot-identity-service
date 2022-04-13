@@ -214,51 +214,63 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
 
     async fn write_credentials(
         &mut self,
-        old_cert: &openssl::x509::X509,
+        _old_cert: &openssl::x509::X509,
         new_cert: (&str, &openssl::x509::X509),
         key: (&str, Self::NewKey),
     ) -> Result<(), cert_renewal::Error> {
-        let cert_id = new_cert.0;
+        let (cert_id, new_cert) = (new_cert.0, new_cert.1);
+        let (old_key, new_key) = (key.0, key.1);
 
-        let old_cert = old_cert
+        let new_cert_pem = new_cert
             .to_pem()
             .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
-        let new_cert = new_cert
-            .1
-            .to_pem()
-            .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
+
+        // Reprovision the device to register the new cert with DPS.
+        {
+            let (private_key, _) = crate::get_keys(
+                aziot_key_common::KeyHandle(new_key.clone()),
+                &self.key_engine,
+            )
+            .await
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to get cert key"))?;
+
+            let credentials = aziot_identity_common::Credentials::X509 {
+                identity_cert: (cert_id.to_string(), new_cert.clone()),
+                identity_pk: (new_key.clone(), private_key),
+            };
+
+            let mut api = self.api.lock().await;
+
+            api.reprovision_device(
+                crate::auth::AuthId::LocalRoot,
+                crate::ReprovisionTrigger::Api,
+                Some(credentials),
+            )
+            .await
+            .map_err(|err| {
+                cert_renewal::Error::retryable_error(format!(
+                    "failed to reprovision with new credentials: {}",
+                    err
+                ))
+            })?;
+        }
+
+        // Note that if either of the operations below fail, the device will be left in an error state
+        // as it has already been reprovisioned with the new credentials in DPS.
 
         // Commit the new cert to storage.
         self.cert_client
-            .import_cert(cert_id, &new_cert)
+            .import_cert(cert_id, &new_cert_pem)
             .await
             .map_err(|_| cert_renewal::Error::retryable_error("failed to import new cert"))?;
 
-        // Commit the new key to storage if the key was rotated. Fall back to the old cert if
-        // the key cannot be rotated.
-        if key.0 != key.1 && self.key_client.move_key_pair(&key.1, key.0).await.is_err() {
-            self.cert_client
-                .import_cert(cert_id, &old_cert)
+        // Commit the new key to storage if the key was rotated.
+        if old_key != new_key {
+            self.key_client
+                .move_key_pair(&new_key, old_key)
                 .await
-                .map_err(|_| cert_renewal::Error::fatal_error("failed to restore old cert"))?;
+                .map_err(|_| cert_renewal::Error::retryable_error("failed to import new key"))?;
         }
-
-        // Reprovisioning the device so that the new identity cert is registered. Note that if this
-        // fails, the device will remain in an error state until the next renewal retry as it can no
-        // longer fall back to the old identity cert.
-        let mut api = self.api.lock().await;
-
-        api.reprovision_device(
-            crate::auth::AuthId::LocalRoot,
-            crate::ReprovisionTrigger::Api,
-        )
-        .await
-        .map_err(|err| {
-            cert_renewal::Error::retryable_error(format!(
-                "failed to reprovision with new credentials: {}",
-                err
-            ))
-        })?;
 
         Ok(())
     }
