@@ -225,14 +225,16 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             .to_pem()
             .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
 
+        let new_key_handle =
+            self.key_client.load_key_pair(&new_key).await.map_err(|_| {
+                cert_renewal::Error::retryable_error("failed to get new key handle")
+            })?;
+
         // Reprovision the device to register the new cert with DPS.
         {
-            let (private_key, _) = crate::get_keys(
-                aziot_key_common::KeyHandle(new_key.clone()),
-                &self.key_engine,
-            )
-            .await
-            .map_err(|_| cert_renewal::Error::retryable_error("failed to get cert key"))?;
+            let (private_key, _) = crate::get_keys(new_key_handle, &self.key_engine)
+                .await
+                .map_err(|_| cert_renewal::Error::retryable_error("failed to get cert key"))?;
 
             let credentials = aziot_identity_common::Credentials::X509 {
                 identity_cert: (cert_id.to_string(), new_cert.clone()),
