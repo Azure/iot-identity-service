@@ -23,9 +23,9 @@ pub struct IdentityManager {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
-    iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     proxy_uri: Option<hyper::Uri>,
 
+    pub(crate) iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     pub(crate) identity_cert_renewal: Option<
         Arc<
             futures_util::lock::Mutex<

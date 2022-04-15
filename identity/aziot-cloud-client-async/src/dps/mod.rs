@@ -231,7 +231,10 @@ impl Client {
             log::info!("Checking DPS registration status.");
             let response = status_request.json_response().await?;
 
-            let registration = response.parse_expect_ok::<schema::response::DeviceRegistration, schema::response::ServiceError>()?;
+            let registration = response
+                .parse::<schema::response::DeviceRegistration, schema::response::ServiceError>(
+                    &[hyper::StatusCode::OK, hyper::StatusCode::ACCEPTED],
+                )?;
 
             match registration {
                 schema::response::DeviceRegistration::Assigned { device, tpm } => {
