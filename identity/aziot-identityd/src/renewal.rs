@@ -231,7 +231,6 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             })?;
 
         // Reprovision the device to register the new cert with DPS.
-
         let (private_key, _) = crate::get_keys(new_key_handle, &self.key_engine)
             .await
             .map_err(|_| cert_renewal::Error::retryable_error("failed to get cert key"))?;

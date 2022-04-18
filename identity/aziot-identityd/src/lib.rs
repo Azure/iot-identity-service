@@ -738,7 +738,7 @@ impl UpdateConfig for Api {
 
 pub(crate) async fn get_keys(
     key_handle: aziot_key_common::KeyHandle,
-    key_engine: &Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: &futures_util::lock::Mutex<openssl2::FunctionalEngine>,
 ) -> Result<
     (
         openssl::pkey::PKey<openssl::pkey::Private>,
