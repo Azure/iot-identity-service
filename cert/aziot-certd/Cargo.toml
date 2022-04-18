@@ -36,6 +36,7 @@ aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+cert-renewal = { path = "../cert-renewal" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }

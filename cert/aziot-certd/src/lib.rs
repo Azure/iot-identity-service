@@ -14,6 +14,7 @@
 mod error;
 mod est;
 mod http;
+mod renewal;
 
 use std::collections::BTreeMap;
 use std::error::Error as StdError;
@@ -86,6 +87,7 @@ pub async fn main(
             cert_issuance,
             preloaded_certs,
             principals: principal_to_map(principal),
+            renewal_engine: cert_renewal::engine::new(),
 
             key_client: key_client_async,
             key_engine,
@@ -106,6 +108,7 @@ struct Api {
     cert_issuance: CertIssuance,
     preloaded_certs: BTreeMap<String, PreloadedCert>,
     principals: BTreeMap<libc::uid_t, Vec<wildmatch::WildMatch>>,
+    renewal_engine: Arc<Mutex<cert_renewal::RenewalEngine<renewal::EstIdRenewal>>>,
 
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: FunctionalEngine,
