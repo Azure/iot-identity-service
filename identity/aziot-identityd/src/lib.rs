@@ -28,6 +28,7 @@ pub mod configext;
 pub mod error;
 mod http;
 pub mod identity;
+mod renewal;
 
 use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
@@ -72,14 +73,76 @@ pub async fn main(
         }
     }
 
-    let api = Api::new(settings.clone())?;
+    let mut api = Api::new(settings)?;
+
+    let auto_renew_config = if let config::ProvisioningType::Dps {
+        attestation:
+            config::DpsAttestationMethod::X509 {
+                registration_id,
+                identity_cert,
+                identity_pk,
+                identity_auto_renew: Some(auto_renew),
+            },
+        ..
+    } = &api.settings.provisioning.provisioning
+    {
+        let engine = cert_renewal::engine::new();
+        api.id_manager.identity_cert_renewal = Some(engine.clone());
+
+        Some((
+            engine,
+            registration_id.clone(),
+            identity_cert.clone(),
+            identity_pk.clone(),
+            auto_renew.clone(),
+        ))
+    } else {
+        None
+    };
+
     let api = Arc::new(futures_util::lock::Mutex::new(api));
 
-    let api_startup = api.clone();
-    let mut api_ = api_startup.lock().await;
-    let _ = api_
-        .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
+    // Configure the device identity certificate to auto-renew if enabled.
+    if let Some((engine, registration_id, identity_cert, identity_pk, auto_renew)) =
+        auto_renew_config
+    {
+        let interface = renewal::IdentityCertRenewal::new(
+            auto_renew.rotate_key,
+            &identity_cert,
+            &identity_pk,
+            registration_id.as_deref(),
+            api.clone(),
+        )
         .await?;
+
+        cert_renewal::engine::add_credential(
+            &engine,
+            &identity_cert,
+            &identity_pk,
+            auto_renew.policy.clone(),
+            interface,
+        )
+        .await
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+    }
+
+    // Attempt to reprovision the device. Failure to reprovision on startup means that provisioning
+    // with IoT Hub failed and no valid backup could be loaded. Treat this as a fatal error.
+    {
+        let mut api = api.lock().await;
+
+        if let Err(err) = api
+            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup, None)
+            .await
+        {
+            log::error!(
+                "Failed to provision with IoT Hub, and no valid device backup was found: {}",
+                err
+            );
+
+            return Err(err.into());
+        }
+    }
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
@@ -165,12 +228,14 @@ impl Api {
             proxy_uri.clone(),
         );
 
+        let (authorizer, authenticator, local_identities) = get_auth(&settings);
+
         Ok(Api {
             settings,
-            authenticator: Box::new(auth::authentication::DefaultAuthenticator),
-            authorizer: Box::new(auth::authorization::DefaultAuthorizer),
+            authenticator,
+            authorizer,
             id_manager,
-            local_identities: Default::default(),
+            local_identities,
 
             key_client,
             key_engine,
@@ -452,6 +517,7 @@ impl Api {
         &mut self,
         auth_id: auth::AuthId,
         trigger: ReprovisionTrigger,
+        credential_override: Option<aziot_identity_common::Credentials>,
     ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -475,12 +541,20 @@ impl Api {
                 self.id_manager.clear_device();
 
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), false)
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        false,
+                        credential_override,
+                    )
                     .await?;
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        true,
+                        credential_override,
+                    )
                     .await?;
             }
         }
@@ -509,7 +583,7 @@ impl Api {
 
                         if let Err(err) = self
                             .id_manager
-                            .provision_device(self.settings.provisioning.clone(), false)
+                            .provision_device(self.settings.provisioning.clone(), false, None)
                             .await
                         {
                             if err.is_network() {
@@ -608,43 +682,50 @@ impl Api {
 
         Ok(local_identity)
     }
+}
 
-    async fn update_config_inner(
-        &mut self,
-        settings: config::Settings,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Error> {
-        let (allowed_users, _, local_modules) =
-            configext::prepare_authorized_principals(&settings.principal);
+fn get_auth(
+    settings: &config::Settings,
+) -> (
+    Box<SettingsAuthorizer>,
+    Box<SettingsAuthenticator>,
+    std::collections::BTreeMap<
+        aziot_identity_common::ModuleId,
+        Option<aziot_identity_common::LocalIdOpts>,
+    >,
+) {
+    let (allowed_users, _, local_modules) =
+        configext::prepare_authorized_principals(&settings.principal);
 
-        let authorizer = Box::new(SettingsAuthorizer {});
+    let authorizer = Box::new(SettingsAuthorizer {});
+
+    // All uids in the principals are authenticated users to this service
+    let authenticator = Box::new(SettingsAuthenticator { allowed_users });
+
+    (authorizer, authenticator, local_modules)
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = config::Settings;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
+        let (authorizer, authenticator, local_modules) = get_auth(&new_config);
+
         self.authorizer = authorizer;
-
-        // All uids in the principals are authenticated users to this service
-        let authenticator = Box::new(SettingsAuthenticator {
-            allowed_users: allowed_users.clone(),
-        });
         self.authenticator = authenticator;
         self.local_identities = local_modules;
-        self.settings = settings;
+        self.settings = new_config;
 
-        // Attempt to re-provision the device. Failures need to be logged and the device should
-        // run offline.
         if let Err(err) = self
-            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .reprovision_device(
+                auth::AuthId::LocalRoot,
+                ReprovisionTrigger::ConfigurationFileUpdate,
+                None,
+            )
             .await
         {
-            // Failure to reprovision on startup means that provisioning with IoT Hub failed and
-            // no valid backup could be loaded. Treat this as a fatal error.
-            if let ReprovisionTrigger::Startup = trigger {
-                log::error!(
-                    "Failed to provision with IoT Hub, and no valid device backup was found: {}",
-                    err
-                );
-
-                return Err(err);
-            }
-
             log::warn!(
                 "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
                 err
@@ -655,15 +736,30 @@ impl Api {
     }
 }
 
-#[async_trait]
-impl UpdateConfig for Api {
-    type Config = config::Settings;
-    type Error = Error;
+pub(crate) async fn get_keys(
+    key_handle: aziot_key_common::KeyHandle,
+    key_engine: &futures_util::lock::Mutex<openssl2::FunctionalEngine>,
+) -> Result<
+    (
+        openssl::pkey::PKey<openssl::pkey::Private>,
+        openssl::pkey::PKey<openssl::pkey::Public>,
+    ),
+    String,
+> {
+    let key_handle =
+        std::ffi::CString::new(key_handle.0).map_err(|_| "bad key handle".to_string())?;
 
-    async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
-        self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
-            .await
-    }
+    let mut key_engine = key_engine.lock().await;
+
+    let private_key = key_engine
+        .load_private_key(&key_handle)
+        .map_err(|_| "failed to load identity cert key".to_string())?;
+
+    let public_key = key_engine
+        .load_public_key(&key_handle)
+        .map_err(|_| "failed to load identity cert key".to_string())?;
+
+    Ok((private_key, public_key))
 }
 
 pub(crate) fn create_csr(

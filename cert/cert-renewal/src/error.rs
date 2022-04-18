@@ -26,6 +26,8 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
 impl std::convert::From<Error> for std::io::Error {
     fn from(err: Error) -> std::io::Error {
         let message = match err {

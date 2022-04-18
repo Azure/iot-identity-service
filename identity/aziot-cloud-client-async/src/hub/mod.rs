@@ -24,8 +24,6 @@ pub struct Client {
     device: aziot_identity_common::IoTHubDevice,
 
     key_client: crate::KeyClient,
-    key_engine: crate::KeyEngine,
-    cert_client: crate::CertClient,
     tpm_client: crate::TpmClient,
 
     timeout: std::time::Duration,
@@ -39,15 +37,11 @@ impl Client {
     pub fn new(
         device: &aziot_identity_common::IoTHubDevice,
         key_client: crate::KeyClient,
-        key_engine: crate::KeyEngine,
-        cert_client: crate::CertClient,
         tpm_client: crate::TpmClient,
     ) -> Self {
         Client {
             device: device.clone(),
             key_client,
-            key_engine,
-            cert_client,
             tpm_client,
             timeout: std::time::Duration::from_secs(30),
             retries: 0,
@@ -156,14 +150,7 @@ impl Client {
     where
         TRequest: serde::Serialize,
     {
-        let connector = crate::connector::from_auth(
-            &self.device.credentials,
-            self.proxy.clone(),
-            &self.key_client,
-            &self.key_engine,
-            &self.cert_client,
-        )
-        .await?;
+        let connector = crate::connector::from_auth(&self.device.credentials, self.proxy.clone())?;
 
         let uri = format!("https://{}", &self.device.local_gateway_hostname);
         let mut uri =
