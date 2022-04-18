@@ -16,7 +16,7 @@ mod est;
 mod http;
 mod renewal;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error as StdError;
 use std::ffi::{CStr, CString};
 use std::fs;
@@ -64,6 +64,14 @@ pub async fn main(
         principal,
     } = config;
 
+    let renewal_engine = cert_renewal::engine::new();
+
+    let renewal_policy = if let Some(est) = &cert_issuance.est {
+        est.identity_auto_renew.policy.clone()
+    } else {
+        cert_renewal::AutoRenewConfig::default().policy
+    };
+
     let api = {
         let key_client_async = Arc::new(aziot_key_client_async::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
@@ -87,20 +95,73 @@ pub async fn main(
             cert_issuance,
             preloaded_certs,
             principals: principal_to_map(principal),
-            renewal_engine: cert_renewal::engine::new(),
+            renewal_engine: renewal_engine.clone(),
 
             key_client: key_client_async,
             key_engine,
             proxy_uri,
         }
     };
+
+    let est_credentials = existing_est_credentials(&api);
+
     let api = Arc::new(Mutex::new(api));
+
+    // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
+    // exist yet will be added when they are created.
+    for cert in est_credentials {
+        let interface = renewal::EstIdRenewal::new();
+
+        cert_renewal::engine::add_credential(
+            &renewal_engine,
+            &cert.cert,
+            &cert.pk,
+            renewal_policy.clone(),
+            interface,
+        )
+        .await?;
+    }
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
     let service = http::Service { api };
 
     Ok((connector, service))
+}
+
+/// Prepare a list of existing EST identity credentials that should be automatically renewed.
+///
+/// This list is returned as a `HashSet` to remove duplicates.
+fn existing_est_credentials(api: &Api) -> HashSet<CertificateWithPrivateKey> {
+    let mut est_credentials = HashSet::new();
+
+    // Add the default EST ID cert.
+    if let Some(est) = &api.cert_issuance.est {
+        if let Some(x509) = &est.auth.x509 {
+            if get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert).is_ok()
+            {
+                est_credentials.insert(x509.identity.clone());
+            }
+        }
+    }
+
+    // Add EST ID certs for individual issuance options.
+    for options in api.cert_issuance.certs.values() {
+        if let CertIssuanceMethod::Est {
+            auth: Some(auth), ..
+        } = &options.method
+        {
+            if let Some(x509) = &auth.x509 {
+                if get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
+                    .is_ok()
+                {
+                    est_credentials.insert(x509.identity.clone());
+                }
+            }
+        }
+    }
+
+    est_credentials
 }
 
 struct Api {

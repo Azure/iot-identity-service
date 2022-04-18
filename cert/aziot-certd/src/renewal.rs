@@ -2,6 +2,12 @@
 
 pub(crate) struct EstIdRenewal {}
 
+impl EstIdRenewal {
+    pub fn new() -> EstIdRenewal {
+        EstIdRenewal {}
+    }
+}
+
 #[async_trait::async_trait]
 impl cert_renewal::CertInterface for EstIdRenewal {
     type NewKey = String;

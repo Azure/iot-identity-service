@@ -177,7 +177,7 @@ with_prefix!(prefix_identity "identity_");
 with_prefix!(prefix_bootstrap_identity "bootstrap_identity_");
 
 /// Configuration of parameters for issuing certs via a local CA cert.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct CertificateWithPrivateKey {
     /// Certificate ID.
     pub cert: String,
