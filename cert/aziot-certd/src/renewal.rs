@@ -58,7 +58,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         old_cert: &openssl::x509::X509,
         key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), cert_renewal::Error> {
-        let api = self.api.lock().await;
+        let mut api = self.api.lock().await;
 
         // Generate a new key if needed. Otherwise, retrieve the existing key.
         let (key_id, key_handle) = if self.rotate_key {
@@ -75,7 +75,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
 
             let key_handle = api
                 .key_client
-                .create_key_pair_if_not_exists(&key_id, Some("rsa-2048:*"))
+                .create_key_pair_if_not_exists(&key_id, Some("ec-p256:rsa-4096:*"))
                 .await
                 .map_err(|_| cert_renewal::Error::retryable_error("failed to generate temp key"))?;
 
@@ -87,6 +87,19 @@ impl cert_renewal::CertInterface for EstIdRenewal {
 
             (key_id.to_string(), key_handle)
         };
+
+        let key_handle = std::ffi::CString::new(key_handle.0)
+            .map_err(|_| cert_renewal::Error::retryable_error("bad key handle"))?;
+
+        let private_key = api
+            .key_engine
+            .load_public_key(&key_handle)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
+
+        let public_key = api
+            .key_engine
+            .load_private_key(&key_handle)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
 
         todo!()
     }
