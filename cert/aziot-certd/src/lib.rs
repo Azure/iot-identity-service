@@ -110,7 +110,7 @@ pub async fn main(
     // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
     // exist yet will be added when they are created.
     for cert in est_credentials {
-        let interface = renewal::EstIdRenewal::new();
+        let interface = renewal::EstIdRenewal::new(api.clone());
 
         cert_renewal::engine::add_credential(
             &renewal_engine,
