@@ -66,10 +66,15 @@ pub async fn main(
 
     let renewal_engine = cert_renewal::engine::new();
 
-    let renewal_policy = if let Some(est) = &cert_issuance.est {
-        est.identity_auto_renew.policy.clone()
+    let (renewal_policy, rotate_key) = if let Some(est) = &cert_issuance.est {
+        (
+            est.identity_auto_renew.policy.clone(),
+            est.identity_auto_renew.rotate_key,
+        )
     } else {
-        cert_renewal::AutoRenewConfig::default().policy
+        let default = cert_renewal::AutoRenewConfig::default();
+
+        (default.policy, default.rotate_key)
     };
 
     let api = {
@@ -110,7 +115,7 @@ pub async fn main(
     // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
     // exist yet will be added when they are created.
     for cert in est_credentials {
-        let interface = renewal::EstIdRenewal::new(api.clone());
+        let interface = renewal::EstIdRenewal::new(rotate_key, api.clone());
 
         cert_renewal::engine::add_credential(
             &renewal_engine,
@@ -138,9 +143,12 @@ fn existing_est_credentials(api: &Api) -> HashSet<CertificateWithPrivateKey> {
     // Add the default EST ID cert.
     if let Some(est) = &api.cert_issuance.est {
         if let Some(x509) = &est.auth.x509 {
-            if get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert).is_ok()
+            if let Ok(cert) =
+                get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
             {
-                est_credentials.insert(x509.identity.clone());
+                if cert.is_some() {
+                    est_credentials.insert(x509.identity.clone());
+                }
             }
         }
     }
@@ -152,10 +160,12 @@ fn existing_est_credentials(api: &Api) -> HashSet<CertificateWithPrivateKey> {
         } = &options.method
         {
             if let Some(x509) = &auth.x509 {
-                if get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
-                    .is_ok()
+                if let Ok(cert) =
+                    get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
                 {
-                    est_credentials.insert(x509.identity.clone());
+                    if cert.is_some() {
+                        est_credentials.insert(x509.identity.clone());
+                    }
                 }
             }
         }
@@ -629,6 +639,10 @@ async fn create_cert_inner<'a>(
             }
         }
     }
+}
+
+pub(crate) fn create_est_id() -> Result<Vec<u8>, BoxedError> {
+    todo!()
 }
 
 fn load_inner(path: &Path) -> Result<Option<Vec<u8>>, Error> {

@@ -5,12 +5,13 @@ use std::sync::Arc;
 use futures_util::lock::Mutex;
 
 pub(crate) struct EstIdRenewal {
+    rotate_key: bool,
     api: Arc<Mutex<crate::Api>>,
 }
 
 impl EstIdRenewal {
-    pub fn new(api: Arc<Mutex<crate::Api>>) -> EstIdRenewal {
-        EstIdRenewal { api }
+    pub fn new(rotate_key: bool, api: Arc<Mutex<crate::Api>>) -> EstIdRenewal {
+        EstIdRenewal { rotate_key, api }
     }
 }
 
@@ -57,6 +58,36 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         old_cert: &openssl::x509::X509,
         key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), cert_renewal::Error> {
+        let api = self.api.lock().await;
+
+        // Generate a new key if needed. Otherwise, retrieve the existing key.
+        let (key_id, key_handle) = if self.rotate_key {
+            let key_id = format!("{}-temp", key_id);
+
+            if let Ok(key_handle) = api.key_client.load_key_pair(&key_id).await {
+                api.key_client
+                    .delete_key_pair(&key_handle)
+                    .await
+                    .map_err(|_| {
+                        cert_renewal::Error::retryable_error("failed to clear temp key")
+                    })?;
+            }
+
+            let key_handle = api
+                .key_client
+                .create_key_pair_if_not_exists(&key_id, Some("rsa-2048:*"))
+                .await
+                .map_err(|_| cert_renewal::Error::retryable_error("failed to generate temp key"))?;
+
+            (key_id, key_handle)
+        } else {
+            let key_handle = api.key_client.load_key_pair(key_id).await.map_err(|_| {
+                cert_renewal::Error::retryable_error("failed to get identity cert key")
+            })?;
+
+            (key_id.to_string(), key_handle)
+        };
+
         todo!()
     }
 
