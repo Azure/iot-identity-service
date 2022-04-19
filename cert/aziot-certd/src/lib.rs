@@ -37,7 +37,7 @@ use openssl2::FunctionalEngine;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertSubject, CertificateWithPrivateKey, Config, Endpoints,
-    EstAuthBasic, EstAuthX509, PreloadedCert, Principal,
+    EstAuth, EstAuthBasic, EstAuthX509, PreloadedCert, Principal,
 };
 use config_common::watcher::UpdateConfig;
 use http_common::Connector;
@@ -427,48 +427,7 @@ async fn create_cert_inner<'a>(
                     .await
             }
             CertIssuanceMethod::Est { url, auth } => {
-                let default = api.cert_issuance.est.as_ref();
-
-                let auth = auth.as_ref()
-                    .or_else(|| default.map(|default| &default.auth))
-                    .ok_or_else(||
-                        format!(
-                            "cert {:?} is configured to be issued by EST, but EST auth is not configured",
-                            id
-                        )
-                    )?;
-
-                let url = url.as_ref()
-                    .or_else(||
-                        default
-                            .map(|default| &default.urls)
-                            .and_then(|urls|
-                                urls.get(id)
-                                    .or_else(|| urls.get("default"))
-                            )
-                    )
-                    .ok_or_else(||
-                        format!(
-                            "cert {:?} is configured to be issued by EST, but EST URL is not configured",
-                            id
-                        )
-                    )?;
-
-                let mut trusted_certs = vec![];
-
-                if let Some(certs) = default.map(|default| &default.trusted_certs) {
-                    for cert in certs {
-                        let pem = get_cert_inner(&api.homedir_path, &api.preloaded_certs, cert)?
-                            .ok_or_else(|| {
-                                format!(
-                                    "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
-                                    cert
-                                )
-                            })?;
-
-                        trusted_certs.extend(X509::stack_from_pem(&pem)?);
-                    }
-                }
+                let (auth, url, trusted_certs) = get_est_opts(id, api, url, auth)?;
 
                 let id_opt: OptionFuture<_> = auth
                     .x509
@@ -511,7 +470,7 @@ async fn create_cert_inner<'a>(
                     Ok(id_opt) => {
                         est::create_cert(
                             chunked_base64_encode(&req.to_der()?),
-                            url,
+                            &url,
                             auth.basic.as_ref(),
                             id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
                             &trusted_certs,
@@ -575,7 +534,7 @@ async fn create_cert_inner<'a>(
                         let est_id = create_est_id(
                             &auth_x509.identity.cert,
                             est_id_keys,
-                            url,
+                            &url,
                             bootstrap_credentials,
                             auth.basic.as_ref(),
                             &trusted_certs,
@@ -607,6 +566,58 @@ async fn create_cert_inner<'a>(
             }
         }
     }
+}
+
+fn get_est_opts(
+    cert_id: &str,
+    api: &Api,
+    url: &Option<url::Url>,
+    auth: &Option<EstAuth>,
+) -> Result<(EstAuth, url::Url, Vec<X509>), BoxedError> {
+    let default = api.cert_issuance.est.as_ref();
+
+    let auth = auth
+        .as_ref()
+        .or_else(|| default.map(|default| &default.auth))
+        .ok_or_else(|| {
+            format!(
+                "cert {:?} is configured to be issued by EST, but EST auth is not configured",
+                cert_id
+            )
+        })?;
+
+    let url = url
+        .as_ref()
+        .or_else(|| {
+            default
+                .map(|default| &default.urls)
+                .and_then(|urls| urls.get(cert_id).or_else(|| urls.get("default")))
+        })
+        .ok_or_else(|| {
+            format!(
+                "cert {:?} is configured to be issued by EST, but EST URL is not configured",
+                cert_id
+            )
+        })?;
+
+    let mut trusted_certs = vec![];
+
+    if let Some(certs) = default.map(|default| &default.trusted_certs) {
+        for cert in certs {
+            let pem = get_cert_inner(&api.homedir_path, &api.preloaded_certs, cert)?.ok_or_else(
+                || {
+                    format!(
+                        "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
+                        cert
+                    )
+                },
+            )?;
+
+            trusted_certs.extend(X509::stack_from_pem(&pem)?);
+        }
+    }
+
+    Ok((auth.clone(), url.clone(), trusted_certs))
 }
 
 async fn get_credentials(
