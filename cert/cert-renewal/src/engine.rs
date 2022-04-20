@@ -267,6 +267,36 @@ where
     output
 }
 
+/// Modify a credential previously added to the renewal engine.
+pub async fn modify_credential<I>(
+    engine: &ArcMutex<RenewalEngine<I>>,
+    cert_id: &str,
+    key_id: &str,
+    modify: impl FnOnce(&mut I),
+) -> Result<(), crate::Error>
+where
+    I: crate::CertInterface,
+{
+    let mut engine = engine.lock().await;
+
+    let mut credential = if let Some(credential) = engine.credentials.remove(cert_id, key_id) {
+        credential
+    } else {
+        return Err(crate::Error::fatal_error(format!("{} not found", cert_id)));
+    };
+
+    modify(&mut credential.interface);
+
+    if let Some(expiry) = engine.credentials.push(credential) {
+        engine
+            .reschedule_tx
+            .send(expiry)
+            .map_err(|_| crate::Error::fatal_error("reschedule_rx unexpectedly dropped"))?;
+    }
+
+    Ok(())
+}
+
 async fn get_cert<I>(
     interface: &mut I,
     cert_id: &str,

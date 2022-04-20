@@ -4,14 +4,24 @@ use std::sync::Arc;
 
 use futures_util::lock::Mutex;
 
+#[derive(Clone)]
 pub(crate) struct EstIdRenewal {
     rotate_key: bool,
+    credentials: aziot_certd_config::CertificateWithPrivateKey,
     api: Arc<Mutex<crate::Api>>,
 }
 
 impl EstIdRenewal {
-    pub fn new(rotate_key: bool, api: Arc<Mutex<crate::Api>>) -> EstIdRenewal {
-        EstIdRenewal { rotate_key, api }
+    pub fn new(
+        rotate_key: bool,
+        credentials: aziot_certd_config::CertificateWithPrivateKey,
+        api: Arc<Mutex<crate::Api>>,
+    ) -> EstIdRenewal {
+        EstIdRenewal {
+            rotate_key,
+            credentials,
+            api,
+        }
     }
 }
 
@@ -59,6 +69,49 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), cert_renewal::Error> {
         let mut api = self.api.lock().await;
+
+        // Get the information needed to issue an EST identity cert.
+        let (url, auth) = if let Some(cert_options) =
+            api.cert_issuance.certs.get(&self.credentials.cert)
+        {
+            if let aziot_certd_config::CertIssuanceMethod::Est { url, auth } = &cert_options.method
+            {
+                (url, auth)
+            } else {
+                return Err(cert_renewal::Error::fatal_error(
+                    "EST cert issuance options not found",
+                ));
+            }
+        } else {
+            return Err(cert_renewal::Error::fatal_error(
+                "failed to retrieve cert issuance options",
+            ));
+        };
+
+        let (auth, url, trusted_certs) =
+            crate::get_est_opts(&self.credentials.cert, &api, url, auth).map_err(|err| {
+                cert_renewal::Error::fatal_error(format!(
+                    "failed to get EST issuance options: {}",
+                    err
+                ))
+            })?;
+
+        // If the old cert is expired, authenticate with the bootstrap credentials. Otherwise,
+        // use the old cert to authenticate.
+        let now = openssl::asn1::Asn1Time::days_from_now(0)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to get current time"))?;
+
+        let credentials = if old_cert.not_after() <= now {
+            let auth_x509 = auth.x509.as_ref().ok_or_else(|| {
+                cert_renewal::Error::fatal_error("failed to retrieve bootstrap credentials")
+            })?;
+
+            auth_x509.bootstrap_identity.as_ref().ok_or_else(|| {
+                cert_renewal::Error::fatal_error("failed to retrieve bootstrap credentials")
+            })?
+        } else {
+            &self.credentials
+        };
 
         // Generate a new key if needed. Otherwise, retrieve the existing key.
         let (key_id, key_handle) = if self.rotate_key {

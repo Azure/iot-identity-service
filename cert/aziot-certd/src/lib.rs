@@ -115,7 +115,7 @@ pub async fn main(
     // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
     // exist yet will be added when they are created.
     for cert in est_credentials {
-        let interface = renewal::EstIdRenewal::new(rotate_key, api.clone());
+        let interface = renewal::EstIdRenewal::new(rotate_key, cert.clone(), api.clone());
 
         cert_renewal::engine::add_credential(
             &renewal_engine,
@@ -433,31 +433,31 @@ async fn create_cert_inner<'a>(
                     .x509
                     .as_ref()
                     .map({
-                        let homedir_path = &api.homedir_path;
-                        let preloaded_certs = &api.preloaded_certs;
-                        let key_client = &api.key_client;
-                        let key_engine = &mut api.key_engine;
+                        let renewal_engine = &api.renewal_engine;
 
                         move |EstAuthX509 {
                                   identity: CertificateWithPrivateKey { cert, pk },
                                   ..
                               }| async move {
-                            let cert = get_cert_inner(homedir_path, preloaded_certs, cert)?
-                                .ok_or_else(|| {
-                                    format!(
-                                        "could not get EST identity cert: {}",
-                                        io::Error::from(io::ErrorKind::NotFound)
-                                    )
-                                })?;
-                            let pk = key_client
-                                .load_key_pair(pk)
-                                .await
-                                .map_err(BoxedError::from)
-                                .and_then(|handle| Ok(CString::new(handle.0)?))
-                                .and_then(|cstr| Ok(key_engine.load_private_key(&cstr)?))
-                                .map_err(|err| {
-                                    format!("could not get EST identity cert private key: {}", err)
-                                })?;
+                            cert_renewal::engine::modify_credential(
+                                renewal_engine,
+                                cert,
+                                pk,
+                                |credential| {},
+                            )
+                            .await
+                            .map_err(|err| {
+                                format!("could not get EST identity credentials: {}", err)
+                            })?;
+
+                            let (cert, pk) =
+                                cert_renewal::engine::get_credential(renewal_engine, cert, pk)
+                                    .await
+                                    .map_err(|err| {
+                                        format!("could not get EST identity credentials: {}", err)
+                                    })?;
+
+                            let cert = cert.to_pem()?;
 
                             Ok((cert, pk))
                         }
@@ -499,14 +499,7 @@ async fn create_cert_inner<'a>(
                                 )
                             })?;
 
-                        let bootstrap_credentials = get_credentials(
-                            bootstrap_auth,
-                            &api.homedir_path,
-                            &api.preloaded_certs,
-                            &api.key_client,
-                            &mut api.key_engine,
-                        )
-                        .await?;
+                        let bootstrap_credentials = get_credentials(bootstrap_auth, api).await?;
 
                         if let Ok(ref handle) =
                             api.key_client.load_key_pair(&auth_x509.identity.pk).await
@@ -568,7 +561,7 @@ async fn create_cert_inner<'a>(
     }
 }
 
-fn get_est_opts(
+pub(crate) fn get_est_opts(
     cert_id: &str,
     api: &Api,
     url: &Option<url::Url>,
@@ -622,25 +615,23 @@ fn get_est_opts(
 
 async fn get_credentials(
     credential: &CertificateWithPrivateKey,
-    homedir_path: &Path,
-    preloaded_certs: &BTreeMap<String, PreloadedCert>,
-    key_client: &aziot_key_client_async::Client,
-    key_engine: &mut FunctionalEngine,
+    api: &mut Api,
 ) -> Result<(Vec<u8>, PKey<Private>), BoxedError> {
-    let cert =
-        get_cert_inner(homedir_path, preloaded_certs, &credential.cert)?.ok_or_else(|| {
+    let cert = get_cert_inner(&api.homedir_path, &api.preloaded_certs, &credential.cert)?
+        .ok_or_else(|| {
             format!(
                 "could not get EST bootstrap identity cert: {}",
                 io::Error::from(io::ErrorKind::NotFound)
             )
         })?;
 
-    let pk = key_client
+    let pk = api
+        .key_client
         .load_key_pair(&credential.pk)
         .await
         .map_err(BoxedError::from)
         .and_then(|handle| Ok(CString::new(handle.0)?))
-        .and_then(move |cstr| Ok(key_engine.load_private_key(&cstr)?))
+        .and_then(move |cstr| Ok(api.key_engine.load_private_key(&cstr)?))
         .map_err(|err| {
             format!(
                 "could not get EST bootstrap identity cert private key: {}",
@@ -655,7 +646,7 @@ pub(crate) async fn create_est_id(
     common_name: &str,
     keys: (PKey<Private>, PKey<Public>),
     url: &url::Url,
-    bootstrap: (Vec<u8>, PKey<Private>),
+    x509_auth: (Vec<u8>, PKey<Private>),
     basic_auth: Option<&EstAuthBasic>,
     trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
@@ -677,7 +668,7 @@ pub(crate) async fn create_est_id(
         chunked_base64_encode(&builder.build().to_der()?),
         url,
         basic_auth,
-        Some((&bootstrap.0, &bootstrap.1)),
+        Some((&x509_auth.0, &x509_auth.1)),
         trusted_certs,
         proxy_uri,
     )
