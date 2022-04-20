@@ -234,6 +234,34 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         new_cert: (&str, &openssl::x509::X509),
         key: (&str, Self::NewKey),
     ) -> Result<(), cert_renewal::Error> {
-        todo!()
+        let new_cert = new_cert.1;
+        let (old_key, new_key) = (key.0, key.1);
+
+        let new_cert_pem = new_cert
+            .to_pem()
+            .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
+
+        let old_cert_pem = old_cert
+            .to_pem()
+            .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
+
+        // Commit the new cert to storage.
+        std::fs::write(&self.path, &new_cert_pem)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to import new cert"))?;
+
+        // Commit the new key to storage if the key was rotated.
+        if old_key != new_key
+            && self
+                .key_client
+                .move_key_pair(&new_key, old_key)
+                .await
+                .is_err()
+        {
+            // Revert to the previous cert if the key could not be written.
+            std::fs::write(&self.path, &old_cert_pem)
+                .map_err(|_| cert_renewal::Error::retryable_error("failed to restore old cert"))?;
+        }
+
+        Ok(())
     }
 }
