@@ -26,7 +26,6 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
-use futures_util::future::OptionFuture;
 use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
@@ -37,7 +36,7 @@ use openssl2::FunctionalEngine;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertSubject, CertificateWithPrivateKey, Config, Endpoints,
-    EstAuth, EstAuthBasic, EstAuthX509, PreloadedCert, Principal,
+    EstAuth, EstAuthBasic, PreloadedCert, Principal,
 };
 use config_common::watcher::UpdateConfig;
 use http_common::Connector;
@@ -444,71 +443,32 @@ async fn create_cert_inner<'a>(
             CertIssuanceMethod::Est { url, auth } => {
                 let (auth, url) = get_est_opts(id, api, Some((url, auth)))?;
 
-                let id_opt: OptionFuture<_> = auth
-                    .x509
-                    .as_ref()
-                    .map({
-                        |EstAuthX509 {
-                             identity: CertificateWithPrivateKey { cert, pk },
-                             ..
-                         }| async {
-                            let renewal_engine = api.renewal_engine.clone();
+                // Get the EST identity cert if configured. If it does not exist, create it.
+                let client_credentials = if let Some(x509) = &auth.x509 {
+                    if let Ok((id_cert, id_pk)) = cert_renewal::engine::get_credential(
+                        &api.renewal_engine,
+                        &x509.identity.cert,
+                        &x509.identity.pk,
+                    )
+                    .await
+                    {
+                        let id_cert = id_cert.to_pem()?;
 
-                            let (id_cert, id_pk) =
-                                cert_renewal::engine::get_credential(&renewal_engine, cert, pk)
-                                    .await
-                                    .map_err(|err| {
-                                        format!("could not get EST identity credentials: {}", err)
-                                    })?;
-
-                            let id_cert = id_cert.to_pem()?;
-
-                            Ok((id_cert, id_pk))
-                        }
-                    })
-                    .into();
-
-                let id_opt: Result<_, BoxedError> = id_opt.await.transpose();
-
-                match id_opt {
-                    Ok(id_opt) => {
-                        let est_config = api.est_config.read().await;
-
-                        est::create_cert(
-                            chunked_base64_encode(&req.to_der()?),
-                            &url,
-                            auth.basic.as_ref(),
-                            id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
-                            &est_config.trusted_certs,
-                            est_config.proxy_uri.clone(),
-                        )
-                        .await
-                    }
-                    Err(err) => {
-                        let auth_x509 = auth.x509.as_ref()
-                            .ok_or_else(||
-                                format!(
-                                    "cert {:?} is configured to be issued by EST, \
+                        Some((id_cert, id_pk))
+                    } else {
+                        let bootstrap_auth = x509.bootstrap_identity.as_ref().ok_or_else(|| {
+                            format!(
+                                "cert {:?} is configured to be issued by EST, \
                                     but EST identity could not be obtained \
-                                    and EST X509 authentication with bootstrapping is not in use: {}",
-                                    id, err
-                                )
-                            )?;
-
-                        let bootstrap_auth =
-                            auth_x509.bootstrap_identity.as_ref().ok_or_else(|| {
-                                format!(
-                                    "cert {:?} is configured to be issued by EST, \
-                                    but EST identity could not be obtained \
-                                    and EST bootstrap identity is not configured: {}",
-                                    id, err
-                                )
-                            })?;
+                                    and EST bootstrap identity is not configured",
+                                id
+                            )
+                        })?;
 
                         let bootstrap_credentials = get_credentials(bootstrap_auth, api).await?;
 
                         if let Ok(ref handle) =
-                            api.key_client.load_key_pair(&auth_x509.identity.pk).await
+                            api.key_client.load_key_pair(&x509.identity.pk).await
                         {
                             api.key_client.delete_key_pair(handle).await?;
                         }
@@ -517,7 +477,7 @@ async fn create_cert_inner<'a>(
                             let handle = api
                                 .key_client
                                 .create_key_pair_if_not_exists(
-                                    &auth_x509.identity.pk,
+                                    &x509.identity.pk,
                                     Some("ec-p256:rsa-4096:*"),
                                 )
                                 .await?;
@@ -532,11 +492,12 @@ async fn create_cert_inner<'a>(
                         };
 
                         // Request the new EST identity cert using the EST bootstrap identity cert.
-                        let (est_id, renewal_policy) = {
+                        let (est_id, est_id_key, renewal_policy) = {
+                            let est_id_key = est_id_keys.0.clone();
                             let est_config = api.est_config.read().await;
 
                             let est_id = create_est_id(
-                                &auth_x509.identity.cert,
+                                &x509.identity.cert,
                                 est_id_keys,
                                 &url,
                                 bootstrap_credentials,
@@ -545,33 +506,33 @@ async fn create_cert_inner<'a>(
                                 est_config.proxy_uri.clone(),
                             )
                             .await
-                            .map_err(|bid_err| {
+                            .map_err(|err| {
                                 format!(
                                     "cert {:?} is configured to be issued by EST, \
                                         but neither EST identity nor EST bootstrap \
-                                        identity could be obtained: {} {}",
-                                    id, err, bid_err
+                                        identity could be obtained: {}",
+                                    id, err
                                 )
                             })?;
 
-                            (est_id, est_config.renewal.policy.clone())
+                            (est_id, est_id_key, est_config.renewal.policy.clone())
                         };
 
                         // Write the new EST ID cert and add it to cert renewal.
                         write_cert(
                             &api.homedir_path,
                             &api.preloaded_certs,
-                            &auth_x509.identity.cert,
+                            &x509.identity.cert,
                             &est_id,
                         )?;
 
                         let interface =
-                            renewal::EstIdRenewal::new(auth_x509.identity.clone(), api).await?;
+                            renewal::EstIdRenewal::new(x509.identity.clone(), api).await?;
 
                         if let Err(err) = cert_renewal::engine::add_credential(
                             &api.renewal_engine,
-                            &auth_x509.identity.cert,
-                            &auth_x509.identity.pk,
+                            &x509.identity.cert,
+                            &x509.identity.pk,
                             renewal_policy,
                             interface,
                         )
@@ -579,17 +540,30 @@ async fn create_cert_inner<'a>(
                         {
                             log::warn!(
                                 "Failed to add {} to cert auto-renewal: {}",
-                                auth_x509.identity.cert,
+                                x509.identity.cert,
                                 err
                             );
                         }
 
-                        // EST identity cert was obtained and persisted
-                        // successfully. Now recurse to retry the original cert
-                        // request.
-                        create_cert_inner(api, id, (req, pubkey), issuer).await
+                        Some((est_id, est_id_key))
                     }
-                }
+                } else {
+                    None
+                };
+
+                let est_config = api.est_config.read().await;
+
+                est::create_cert(
+                    chunked_base64_encode(&req.to_der()?),
+                    &url,
+                    auth.basic.as_ref(),
+                    client_credentials
+                        .as_ref()
+                        .map(|(cert, pk)| (&**cert, &**pk)),
+                    &est_config.trusted_certs,
+                    est_config.proxy_uri.clone(),
+                )
+                .await
             }
         }
     }
