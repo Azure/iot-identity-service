@@ -88,6 +88,8 @@ pub async fn main(
         let proxy_uri = http_common::get_proxy_uri(None)
             .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
 
+        let est_config = Arc::new(tokio::sync::RwLock::new(est_config));
+
         Api {
             homedir_path,
             cert_issuance,
@@ -150,14 +152,20 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
 
     // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
     // exist yet will be added when they are created.
+    let policy = {
+        let est_config = api.est_config.read().await;
+
+        est_config.renewal.policy.clone()
+    };
+
     for cert in est_credentials {
-        let interface = renewal::EstIdRenewal::new(cert.clone(), api)?;
+        let interface = renewal::EstIdRenewal::new(cert.clone(), api).await?;
 
         cert_renewal::engine::add_credential(
             &api.renewal_engine,
             &cert.cert,
             &cert.pk,
-            api.est_config.renewal.policy.clone(),
+            policy.clone(),
             interface,
         )
         .await
@@ -178,7 +186,7 @@ struct Api {
     key_engine: Arc<Mutex<FunctionalEngine>>,
     proxy_uri: Option<hyper::Uri>,
 
-    est_config: est::EstConfig,
+    est_config: Arc<tokio::sync::RwLock<est::EstConfig>>,
 }
 
 impl Api {
@@ -306,12 +314,18 @@ impl UpdateConfig for Api {
 
         // Config change may have altered cert issuance. Reset the auto-renewed EST ID certs.
         cert_renewal::engine::clear(&self.renewal_engine).await;
-        let est_config = est::EstConfig::new(&cert_issuance, &self.homedir_path, &preloaded_certs)?;
+        let new_est_config =
+            est::EstConfig::new(&cert_issuance, &self.homedir_path, &preloaded_certs)?;
+
+        {
+            let mut est_config = self.est_config.write().await;
+
+            *est_config = new_est_config;
+        }
 
         self.cert_issuance = cert_issuance;
         self.preloaded_certs = preloaded_certs;
         self.principals = principal_to_map(principal);
-        self.est_config = est_config;
 
         init_est_id_renewal(self).await?;
 
@@ -463,14 +477,14 @@ async fn create_cert_inner<'a>(
 
                 match id_opt {
                     Ok(id_opt) => {
-                        let trusted_certs = api.est_config.trusted_certs.read().await;
+                        let est_config = api.est_config.read().await;
 
                         est::create_cert(
                             chunked_base64_encode(&req.to_der()?),
                             &url,
                             auth.basic.as_ref(),
                             id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
-                            &trusted_certs,
+                            &est_config.trusted_certs,
                             api.proxy_uri.clone(),
                         )
                         .await
@@ -523,16 +537,16 @@ async fn create_cert_inner<'a>(
                         };
 
                         // Request the new EST identity cert using the EST bootstrap identity cert.
-                        let est_id = {
-                            let trusted_certs = api.est_config.trusted_certs.read().await;
+                        let (est_id, renewal_policy) = {
+                            let est_config = api.est_config.read().await;
 
-                            create_est_id(
+                            let est_id = create_est_id(
                                 &auth_x509.identity.cert,
                                 est_id_keys,
                                 &url,
                                 bootstrap_credentials,
                                 auth.basic.as_ref(),
-                                &trusted_certs,
+                                &est_config.trusted_certs,
                                 api.proxy_uri.clone(),
                             )
                             .await
@@ -543,7 +557,9 @@ async fn create_cert_inner<'a>(
                                         identity could be obtained: {} {}",
                                     id, err, bid_err
                                 )
-                            })?
+                            })?;
+
+                            (est_id, est_config.renewal.policy.clone())
                         };
 
                         // Write the new EST ID cert and add it to cert renewal.
@@ -555,13 +571,13 @@ async fn create_cert_inner<'a>(
                         )?;
 
                         let interface =
-                            renewal::EstIdRenewal::new(auth_x509.identity.clone(), api)?;
+                            renewal::EstIdRenewal::new(auth_x509.identity.clone(), api).await?;
 
                         if let Err(err) = cert_renewal::engine::add_credential(
                             &api.renewal_engine,
                             &auth_x509.identity.cert,
                             &auth_x509.identity.pk,
-                            api.est_config.renewal.policy.clone(),
+                            renewal_policy,
                             interface,
                         )
                         .await

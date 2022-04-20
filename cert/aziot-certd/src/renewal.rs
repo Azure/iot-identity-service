@@ -12,7 +12,7 @@ pub(crate) struct EstIdRenewal {
 }
 
 impl EstIdRenewal {
-    pub fn new(
+    pub async fn new(
         credentials: aziot_certd_config::CertificateWithPrivateKey,
         api: &crate::Api,
     ) -> Result<EstIdRenewal, crate::Error> {
@@ -27,8 +27,14 @@ impl EstIdRenewal {
         let (auth, url) = crate::get_est_opts(&credentials.cert, api)
             .map_err(|err| crate::Error::invalid_parameter("cert_id", err))?;
 
+        let rotate_key = {
+            let est_config = api.est_config.read().await;
+
+            est_config.renewal.rotate_key
+        };
+
         Ok(EstIdRenewal {
-            rotate_key: api.est_config.renewal.rotate_key,
+            rotate_key,
             credentials,
             path,
             url,

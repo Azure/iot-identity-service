@@ -10,7 +10,7 @@ use http_common::MaybeProxyConnector;
 
 pub(crate) struct EstConfig {
     pub renewal: cert_renewal::AutoRenewConfig,
-    pub trusted_certs: std::sync::Arc<tokio::sync::RwLock<Vec<X509>>>,
+    pub trusted_certs: Vec<X509>,
 }
 
 impl EstConfig {
@@ -24,8 +24,8 @@ impl EstConfig {
             let mut trusted_certs = vec![];
 
             for cert in &est.trusted_certs {
-                let pem = crate::get_cert_inner(&homedir_path, &preloaded_certs, cert)?
-                    .ok_or_else(|| {
+                let pem = crate::get_cert_inner(homedir_path, preloaded_certs, cert)?.ok_or_else(
+                    || {
                         crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
                             std::io::ErrorKind::NotFound,
                             format!(
@@ -33,7 +33,8 @@ impl EstConfig {
                                 cert
                             ),
                         )))
-                    })?;
+                    },
+                )?;
 
                 let x509 = X509::stack_from_pem(&pem).map_err(|err| {
                     crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
@@ -49,8 +50,6 @@ impl EstConfig {
         } else {
             (cert_renewal::AutoRenewConfig::default(), Vec::new())
         };
-
-        let trusted_certs = std::sync::Arc::new(tokio::sync::RwLock::new(trusted_certs));
 
         Ok(EstConfig {
             renewal,
