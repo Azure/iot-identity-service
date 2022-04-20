@@ -26,7 +26,7 @@ impl EstIdRenewal {
         )
         .map_err(|err| crate::Error::Internal(crate::InternalError::GetPath(err)))?;
 
-        let (auth, url) = crate::get_est_opts(&credentials.cert, api)
+        let (auth, url) = crate::get_est_opts(&credentials.cert, api, None)
             .map_err(|err| crate::Error::invalid_parameter("cert_id", err))?;
 
         let bootstrap_path = if let Some(x509) = &auth.x509 {

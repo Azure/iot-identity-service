@@ -442,7 +442,7 @@ async fn create_cert_inner<'a>(
                     .await
             }
             CertIssuanceMethod::Est { url, auth } => {
-                let (auth, url) = get_est_opts(id, api)?;
+                let (auth, url) = get_est_opts(id, api, Some((url, auth)))?;
 
                 let id_opt: OptionFuture<_> = auth
                     .x509
@@ -595,17 +595,26 @@ async fn create_cert_inner<'a>(
     }
 }
 
-pub(crate) fn get_est_opts(cert_id: &str, api: &Api) -> Result<(EstAuth, url::Url), BoxedError> {
-    let cert_options = api.cert_issuance.certs.get(cert_id);
-
-    let cert_options = cert_options.ok_or_else(|| {
-        Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
-    })?;
-
-    let (url, auth) = if let CertIssuanceMethod::Est { url, auth } = &cert_options.method {
+pub(crate) fn get_est_opts(
+    cert_id: &str,
+    api: &Api,
+    opts: Option<(&Option<url::Url>, &Option<EstAuth>)>,
+) -> Result<(EstAuth, url::Url), BoxedError> {
+    // Use parameters if provided. Otherwise, look up from cert issuance options.
+    let (url, auth) = if let Some((url, auth)) = opts {
         (url, auth)
     } else {
-        return Err(format!("cert {:?} does not have EST issuance method", cert_id).into());
+        let cert_options = api.cert_issuance.certs.get(cert_id);
+
+        let cert_options = cert_options.ok_or_else(|| {
+            Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
+        })?;
+
+        if let CertIssuanceMethod::Est { url, auth } = &cert_options.method {
+            (url, auth)
+        } else {
+            return Err(format!("cert {:?} does not have EST issuance method", cert_id).into());
+        }
     };
 
     let default = api.cert_issuance.est.as_ref();
