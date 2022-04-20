@@ -85,9 +85,6 @@ pub async fn main(
 
         let key_engine = Arc::new(Mutex::new(key_engine));
 
-        let proxy_uri = http_common::get_proxy_uri(None)
-            .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
-
         let est_config = Arc::new(tokio::sync::RwLock::new(est_config));
 
         Api {
@@ -99,7 +96,6 @@ pub async fn main(
 
             key_client: key_client_async,
             key_engine,
-            proxy_uri,
             est_config,
         }
     };
@@ -184,7 +180,6 @@ struct Api {
 
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<Mutex<FunctionalEngine>>,
-    proxy_uri: Option<hyper::Uri>,
 
     est_config: Arc<tokio::sync::RwLock<est::EstConfig>>,
 }
@@ -485,7 +480,7 @@ async fn create_cert_inner<'a>(
                             auth.basic.as_ref(),
                             id_opt.as_ref().map(|(cert, pk)| (&**cert, &**pk)),
                             &est_config.trusted_certs,
-                            api.proxy_uri.clone(),
+                            est_config.proxy_uri.clone(),
                         )
                         .await
                     }
@@ -547,7 +542,7 @@ async fn create_cert_inner<'a>(
                                 bootstrap_credentials,
                                 auth.basic.as_ref(),
                                 &est_config.trusted_certs,
-                                api.proxy_uri.clone(),
+                                est_config.proxy_uri.clone(),
                             )
                             .await
                             .map_err(|bid_err| {

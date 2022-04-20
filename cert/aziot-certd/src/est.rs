@@ -11,6 +11,7 @@ use http_common::MaybeProxyConnector;
 pub(crate) struct EstConfig {
     pub renewal: cert_renewal::AutoRenewConfig,
     pub trusted_certs: Vec<X509>,
+    pub proxy_uri: Option<hyper::Uri>,
 }
 
 impl EstConfig {
@@ -51,9 +52,14 @@ impl EstConfig {
             (cert_renewal::AutoRenewConfig::default(), Vec::new())
         };
 
+        let proxy_uri = http_common::get_proxy_uri(None).map_err(|err| {
+            crate::Error::Internal(crate::InternalError::InvalidProxyUri(Box::new(err)))
+        })?;
+
         Ok(EstConfig {
             renewal,
             trusted_certs,
+            proxy_uri,
         })
     }
 }

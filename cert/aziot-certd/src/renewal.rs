@@ -5,10 +5,12 @@ pub(crate) struct EstIdRenewal {
     rotate_key: bool,
     credentials: aziot_certd_config::CertificateWithPrivateKey,
     path: std::path::PathBuf,
+    bootstrap_path: Option<(std::path::PathBuf, String)>,
     url: url::Url,
-    auth: aziot_certd_config::EstAuth,
+    basic_auth: Option<aziot_certd_config::EstAuthBasic>,
     key_client: std::sync::Arc<aziot_key_client_async::Client>,
     key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    est_config: std::sync::Arc<tokio::sync::RwLock<crate::est::EstConfig>>,
 }
 
 impl EstIdRenewal {
@@ -27,6 +29,24 @@ impl EstIdRenewal {
         let (auth, url) = crate::get_est_opts(&credentials.cert, api)
             .map_err(|err| crate::Error::invalid_parameter("cert_id", err))?;
 
+        let bootstrap_path = if let Some(x509) = &auth.x509 {
+            if let Some(bootstrap) = &x509.bootstrap_identity {
+                let bootstrap_path = aziot_certd_config::util::get_path(
+                    &api.homedir_path,
+                    &api.preloaded_certs,
+                    &bootstrap.cert,
+                    false,
+                )
+                .map_err(|err| crate::Error::Internal(crate::InternalError::GetPath(err)))?;
+
+                Some((bootstrap_path, bootstrap.pk.to_string()))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         let rotate_key = {
             let est_config = api.est_config.read().await;
 
@@ -37,11 +57,39 @@ impl EstIdRenewal {
             rotate_key,
             credentials,
             path,
+            bootstrap_path,
             url,
-            auth,
+            basic_auth: auth.basic,
             key_client: api.key_client.clone(),
             key_engine: api.key_engine.clone(),
+            est_config: api.est_config.clone(),
         })
+    }
+
+    async fn load_keys(
+        &self,
+        key_handle: aziot_key_common::KeyHandle,
+    ) -> Result<
+        (
+            openssl::pkey::PKey<openssl::pkey::Private>,
+            openssl::pkey::PKey<openssl::pkey::Public>,
+        ),
+        cert_renewal::Error,
+    > {
+        let key_handle = std::ffi::CString::new(key_handle.0)
+            .map_err(|_| cert_renewal::Error::retryable_error("bad key handle"))?;
+
+        let mut key_engine = self.key_engine.lock().await;
+
+        let private_key = key_engine
+            .load_private_key(&key_handle)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
+
+        let public_key = key_engine
+            .load_public_key(&key_handle)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
+
+        Ok((private_key, public_key))
     }
 }
 
@@ -49,9 +97,10 @@ impl EstIdRenewal {
 impl cert_renewal::CertInterface for EstIdRenewal {
     type NewKey = String;
 
+    #[allow(clippy::unused_async)]
     async fn get_cert(
         &mut self,
-        cert_id: &str,
+        _cert_id: &str,
     ) -> Result<openssl::x509::X509, cert_renewal::Error> {
         let cert = std::fs::read(&self.path).map_err(|err| {
             cert_renewal::Error::retryable_error(format!("failed to read cert: {}", err))
@@ -86,91 +135,97 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         old_cert: &openssl::x509::X509,
         key_id: &str,
     ) -> Result<(openssl::x509::X509, Self::NewKey), cert_renewal::Error> {
-        // Get the information needed to issue an EST identity cert.
-        // let (url, auth) = if let Some(cert_options) =
-        //     api.cert_issuance.certs.get(&self.credentials.cert)
-        // {
-        //     if let aziot_certd_config::CertIssuanceMethod::Est { url, auth } = &cert_options.method
-        //     {
-        //         (url, auth)
-        //     } else {
-        //         return Err(cert_renewal::Error::fatal_error(
-        //             "EST cert issuance options not found",
-        //         ));
-        //     }
-        // } else {
-        //     return Err(cert_renewal::Error::fatal_error(
-        //         "failed to retrieve cert issuance options",
-        //     ));
-        // };
+        // If the old cert is expired, authenticate with the bootstrap credentials. Otherwise,
+        // use the old cert to authenticate.
+        let now = openssl::asn1::Asn1Time::days_from_now(0)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to get current time"))?;
 
-        // let (auth, url, trusted_certs) =
-        //     crate::get_est_opts(&self.credentials.cert, &api, url, auth).map_err(|err| {
-        //         cert_renewal::Error::fatal_error(format!(
-        //             "failed to get EST issuance options: {}",
-        //             err
-        //         ))
-        //     })?;
+        let (est_id_cert, est_id_key) = if old_cert.not_after() <= now {
+            if let Some((bootstrap_path, bootstrap_key)) = &self.bootstrap_path {
+                let bootstrap_cert = std::fs::read(bootstrap_path).map_err(|_| {
+                    cert_renewal::Error::retryable_error("failed to read bootstrap cert")
+                })?;
 
-        // // If the old cert is expired, authenticate with the bootstrap credentials. Otherwise,
-        // // use the old cert to authenticate.
-        // let now = openssl::asn1::Asn1Time::days_from_now(0)
-        //     .map_err(|_| cert_renewal::Error::retryable_error("failed to get current time"))?;
+                (bootstrap_cert, bootstrap_key)
+            } else {
+                return Err(cert_renewal::Error::fatal_error(
+                    "bootstrap credentials not available",
+                ));
+            }
+        } else {
+            let cert = old_cert
+                .to_pem()
+                .map_err(|_| cert_renewal::Error::fatal_error("bad cert"))?;
 
-        // let credentials = if old_cert.not_after() <= now {
-        //     let auth_x509 = auth.x509.as_ref().ok_or_else(|| {
-        //         cert_renewal::Error::fatal_error("failed to retrieve bootstrap credentials")
-        //     })?;
+            (cert, &self.credentials.pk)
+        };
 
-        //     auth_x509.bootstrap_identity.as_ref().ok_or_else(|| {
-        //         cert_renewal::Error::fatal_error("failed to retrieve bootstrap credentials")
-        //     })?
-        // } else {
-        //     &self.credentials
-        // };
+        let est_id_key = self
+            .key_client
+            .load_key_pair(est_id_key)
+            .await
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load EST auth key"))?;
 
-        // // Generate a new key if needed. Otherwise, retrieve the existing key.
-        // let (key_id, key_handle) = if self.rotate_key {
-        //     let key_id = format!("{}-temp", key_id);
+        let (est_id_key, _) = self
+            .load_keys(est_id_key)
+            .await
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to load EST auth key"))?;
 
-        //     if let Ok(key_handle) = api.key_client.load_key_pair(&key_id).await {
-        //         api.key_client
-        //             .delete_key_pair(&key_handle)
-        //             .await
-        //             .map_err(|_| {
-        //                 cert_renewal::Error::retryable_error("failed to clear temp key")
-        //             })?;
-        //     }
+        // Generate a new key if needed. Otherwise, retrieve the existing key.
+        let (key_id, key_handle) = if self.rotate_key {
+            let key_id = format!("{}-temp", key_id);
 
-        //     let key_handle = api
-        //         .key_client
-        //         .create_key_pair_if_not_exists(&key_id, Some("ec-p256:rsa-4096:*"))
-        //         .await
-        //         .map_err(|_| cert_renewal::Error::retryable_error("failed to generate temp key"))?;
+            if let Ok(key_handle) = self.key_client.load_key_pair(&key_id).await {
+                self.key_client
+                    .delete_key_pair(&key_handle)
+                    .await
+                    .map_err(|_| {
+                        cert_renewal::Error::retryable_error("failed to clear temp key")
+                    })?;
+            }
 
-        //     (key_id, key_handle)
-        // } else {
-        //     let key_handle = api.key_client.load_key_pair(key_id).await.map_err(|_| {
-        //         cert_renewal::Error::retryable_error("failed to get identity cert key")
-        //     })?;
+            let key_handle = self
+                .key_client
+                .create_key_pair_if_not_exists(&key_id, Some("ec-p256:rsa-4096:*"))
+                .await
+                .map_err(|_| cert_renewal::Error::retryable_error("failed to generate temp key"))?;
 
-        //     (key_id.to_string(), key_handle)
-        // };
+            (key_id, key_handle)
+        } else {
+            let key_handle = self.key_client.load_key_pair(key_id).await.map_err(|_| {
+                cert_renewal::Error::retryable_error("failed to get identity cert key")
+            })?;
 
-        // let key_handle = std::ffi::CString::new(key_handle.0)
-        //     .map_err(|_| cert_renewal::Error::retryable_error("bad key handle"))?;
+            (key_id.to_string(), key_handle)
+        };
 
-        // let private_key = api
-        //     .key_engine
-        //     .load_public_key(&key_handle)
-        //     .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
+        let keys = self.load_keys(key_handle).await?;
 
-        // let public_key = api
-        //     .key_engine
-        //     .load_private_key(&key_handle)
-        //     .map_err(|_| cert_renewal::Error::retryable_error("failed to load key"))?;
+        let cert = {
+            let est_config = self.est_config.read().await;
 
-        todo!()
+            crate::create_est_id(
+                &self.credentials.cert,
+                keys,
+                &self.url,
+                (est_id_cert, est_id_key),
+                self.basic_auth.as_ref(),
+                &est_config.trusted_certs,
+                est_config.proxy_uri.clone(),
+            )
+            .await
+            .map_err(|err| {
+                cert_renewal::Error::retryable_error(format!(
+                    "failed to issue new EST identity cert: {}",
+                    err
+                ))
+            })?
+        };
+
+        let cert = openssl::x509::X509::from_pem(&cert)
+            .map_err(|_| cert_renewal::Error::retryable_error("failed to parse new cert"))?;
+
+        Ok((cert, key_id))
     }
 
     async fn write_credentials(
