@@ -16,7 +16,7 @@ mod est;
 mod http;
 mod renewal;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::error::Error as StdError;
 use std::ffi::{CStr, CString};
 use std::fs;
@@ -111,8 +111,8 @@ pub async fn main(
 }
 
 async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
-    // Get a list of existing EST ID certs to renew. Use a HashSet to remove duplicates.
-    let mut est_credentials = HashSet::new();
+    // Get a list of existing EST ID certs to renew. Use a BTreeMap to remove duplicates.
+    let mut est_credentials = BTreeMap::new();
 
     // Add the default EST ID cert.
     if let Some(est) = &api.cert_issuance.est {
@@ -121,14 +121,14 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
                 get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
             {
                 if cert.is_some() {
-                    est_credentials.insert(x509.identity.clone());
+                    est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
                 }
             }
         }
     }
 
     // Add EST ID certs for individual issuance options.
-    for options in api.cert_issuance.certs.values() {
+    for (cert_id, options) in &api.cert_issuance.certs {
         if let CertIssuanceMethod::Est {
             auth: Some(auth), ..
         } = &options.method
@@ -138,7 +138,7 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
                     get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
                 {
                     if cert.is_some() {
-                        est_credentials.insert(x509.identity.clone());
+                        est_credentials.insert(x509.identity.clone(), cert_id);
                     }
                 }
             }
@@ -153,13 +153,13 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
         est_config.renewal.policy.clone()
     };
 
-    for cert in est_credentials {
-        let interface = renewal::EstIdRenewal::new(cert.clone(), api).await?;
+    for (credential, cert_id) in est_credentials {
+        let interface = renewal::EstIdRenewal::new(cert_id, credential.clone(), api).await?;
 
         cert_renewal::engine::add_credential(
             &api.renewal_engine,
-            &cert.cert,
-            &cert.pk,
+            &credential.cert,
+            &credential.pk,
             policy.clone(),
             interface,
         )
@@ -441,7 +441,7 @@ async fn create_cert_inner<'a>(
                     .await
             }
             CertIssuanceMethod::Est { url, auth } => {
-                let (auth, url) = get_est_opts(id, api, Some((url, auth)))?;
+                let (auth, url) = get_est_opts(id, api, Some((url.as_ref(), auth.as_ref())))?;
 
                 // Get the EST identity cert if configured. If it does not exist, create it.
                 let client_credentials = if let Some(x509) = &auth.x509 {
@@ -527,7 +527,7 @@ async fn create_cert_inner<'a>(
                         )?;
 
                         let interface =
-                            renewal::EstIdRenewal::new(x509.identity.clone(), api).await?;
+                            renewal::EstIdRenewal::new(id, x509.identity.clone(), api).await?;
 
                         if let Err(err) = cert_renewal::engine::add_credential(
                             &api.renewal_engine,
@@ -572,29 +572,25 @@ async fn create_cert_inner<'a>(
 pub(crate) fn get_est_opts(
     cert_id: &str,
     api: &Api,
-    opts: Option<(&Option<url::Url>, &Option<EstAuth>)>,
+    opts: Option<(Option<&url::Url>, Option<&EstAuth>)>,
 ) -> Result<(EstAuth, url::Url), BoxedError> {
     // Use parameters if provided. Otherwise, look up from cert issuance options.
+    // Use defaults if not found in cert issuance options.
     let (url, auth) = if let Some((url, auth)) = opts {
         (url, auth)
-    } else {
-        let cert_options = api.cert_issuance.certs.get(cert_id);
-
-        let cert_options = cert_options.ok_or_else(|| {
-            Error::invalid_parameter("issuer", "issuer is required for locally-issued certs")
-        })?;
-
+    } else if let Some(cert_options) = api.cert_issuance.certs.get(cert_id) {
         if let CertIssuanceMethod::Est { url, auth } = &cert_options.method {
-            (url, auth)
+            (url.as_ref(), auth.as_ref())
         } else {
             return Err(format!("cert {:?} does not have EST issuance method", cert_id).into());
         }
+    } else {
+        (None, None)
     };
 
     let default = api.cert_issuance.est.as_ref();
 
     let auth = auth
-        .as_ref()
         .or_else(|| default.map(|default| &default.auth))
         .ok_or_else(|| {
             format!(
@@ -604,7 +600,6 @@ pub(crate) fn get_est_opts(
         })?;
 
     let url = url
-        .as_ref()
         .or_else(|| {
             default
                 .map(|default| &default.urls)

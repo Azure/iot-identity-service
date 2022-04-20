@@ -15,6 +15,7 @@ pub(crate) struct EstIdRenewal {
 
 impl EstIdRenewal {
     pub async fn new(
+        cert_id: &str,
         credentials: aziot_certd_config::CertificateWithPrivateKey,
         api: &crate::Api,
     ) -> Result<EstIdRenewal, crate::Error> {
@@ -26,7 +27,7 @@ impl EstIdRenewal {
         )
         .map_err(|err| crate::Error::Internal(crate::InternalError::GetPath(err)))?;
 
-        let (auth, url) = crate::get_est_opts(&credentials.cert, api, None)
+        let (auth, url) = crate::get_est_opts(cert_id, api, None)
             .map_err(|err| crate::Error::invalid_parameter("cert_id", err))?;
 
         let bootstrap_path = if let Some(x509) = &auth.x509 {
