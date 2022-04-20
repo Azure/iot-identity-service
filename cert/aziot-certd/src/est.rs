@@ -8,6 +8,57 @@ use url::Url;
 use aziot_certd_config::EstAuthBasic;
 use http_common::MaybeProxyConnector;
 
+pub(crate) struct EstConfig {
+    pub renewal: cert_renewal::AutoRenewConfig,
+    pub trusted_certs: std::sync::Arc<tokio::sync::RwLock<Vec<X509>>>,
+}
+
+impl EstConfig {
+    /// Get the EST renewal policy and trusted certs, which are global for all EST issuance options.
+    pub(crate) fn new(
+        cert_issuance: &aziot_certd_config::CertIssuance,
+        homedir_path: &std::path::Path,
+        preloaded_certs: &std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
+    ) -> Result<Self, crate::Error> {
+        let (renewal, trusted_certs) = if let Some(est) = &cert_issuance.est {
+            let mut trusted_certs = vec![];
+
+            for cert in &est.trusted_certs {
+                let pem = crate::get_cert_inner(&homedir_path, &preloaded_certs, cert)?
+                    .ok_or_else(|| {
+                        crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            format!(
+                                "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
+                                cert
+                            ),
+                        )))
+                    })?;
+
+                let x509 = X509::stack_from_pem(&pem).map_err(|err| {
+                    crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        err,
+                    )))
+                })?;
+
+                trusted_certs.extend(x509);
+            }
+
+            (est.identity_auto_renew.clone(), trusted_certs)
+        } else {
+            (cert_renewal::AutoRenewConfig::default(), Vec::new())
+        };
+
+        let trusted_certs = std::sync::Arc::new(tokio::sync::RwLock::new(trusted_certs));
+
+        Ok(EstConfig {
+            renewal,
+            trusted_certs,
+        })
+    }
+}
+
 pub(crate) async fn create_cert(
     csr: Vec<u8>,
     url: &Url,
