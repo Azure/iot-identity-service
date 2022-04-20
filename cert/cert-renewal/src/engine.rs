@@ -267,6 +267,16 @@ where
     output
 }
 
+/// Remove add credentials from the renewal engine.
+pub async fn clear<I>(engine: &ArcMutex<RenewalEngine<I>>)
+where
+    I: crate::CertInterface + Clone,
+{
+    let mut engine = engine.lock().await;
+
+    engine.credentials.clear();
+}
+
 async fn get_cert<I>(
     interface: &mut I,
     cert_id: &str,

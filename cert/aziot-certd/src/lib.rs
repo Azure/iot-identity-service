@@ -113,7 +113,7 @@ pub async fn main(
     Ok((connector, service))
 }
 
-async fn init_est_id_renewal(api: &Api) -> Result<(), Box<dyn StdError>> {
+async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
     // Get a list of existing EST ID certs to renew. Use a HashSet to remove duplicates.
     let mut est_credentials = HashSet::new();
 
@@ -160,7 +160,8 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Box<dyn StdError>> {
             api.est_config.renewal.policy.clone(),
             interface,
         )
-        .await?;
+        .await
+        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
     }
 
     Ok(())
@@ -290,7 +291,6 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
-    #[allow(clippy::unused_async)]
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
         log::info!("Detected change in config files. Updating config.");
 
@@ -303,9 +303,17 @@ impl UpdateConfig for Api {
             homedir_path: _,
             endpoints: _,
         } = new_config;
+
+        // Config change may have altered cert issuance. Reset the auto-renewed EST ID certs.
+        cert_renewal::engine::clear(&self.renewal_engine).await;
+        let est_config = est::EstConfig::new(&cert_issuance, &self.homedir_path, &preloaded_certs)?;
+
         self.cert_issuance = cert_issuance;
         self.preloaded_certs = preloaded_certs;
         self.principals = principal_to_map(principal);
+        self.est_config = est_config;
+
+        init_est_id_renewal(self).await?;
 
         log::info!("Config update finished.");
         Ok(())

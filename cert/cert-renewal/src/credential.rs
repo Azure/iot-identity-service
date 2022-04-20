@@ -87,6 +87,10 @@ where
         output
     }
 
+    pub fn clear(&mut self) {
+        self.heap.clear();
+    }
+
     /// Check if this heap is empty
     /// Only used during testing to examine the state of the credential heap.
     #[cfg(test)]
