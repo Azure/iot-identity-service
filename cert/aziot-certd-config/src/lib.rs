@@ -16,7 +16,6 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 
-use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none, with_prefix};
 use url::Url;
@@ -138,13 +137,8 @@ impl TryFrom<EstAuthInner> for EstAuth {
 
     fn try_from(value: EstAuthInner) -> Result<Self, Self::Error> {
         let EstAuthInner { basic, x509 } = value;
-        if basic.is_none() && x509.is_none() {
-            Err(Self::Error::missing_field(
-                "empty authentication parameters",
-            ))
-        } else {
-            Ok(Self { basic, x509 })
-        }
+
+        Ok(Self { basic, x509 })
     }
 }
 
