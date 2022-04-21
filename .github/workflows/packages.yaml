@@ -46,6 +46,12 @@ jobs:
         - container_os: 'ubuntu:18.04'
           arch: 'amd64'
           os: 'mariner:2'
+        - container_os: 'ubuntu:18.04'
+          arch: 'aarch64'
+          os: 'mariner:1'
+        - container_os: 'ubuntu:18.04'
+          arch: 'aarch64'
+          os: 'mariner:2'
 
     steps:
     - uses: 'actions/checkout@v1'

@@ -120,7 +120,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'mariner:1:amd64' | 'mariner:2:amd64')
+    'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
