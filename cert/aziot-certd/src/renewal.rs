@@ -206,7 +206,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
             let est_config = self.est_config.read().await;
 
             crate::create_est_id(
-                &self.credentials.cert,
+                old_cert.subject_name(),
                 keys,
                 &self.url,
                 (est_id_cert, est_id_key),

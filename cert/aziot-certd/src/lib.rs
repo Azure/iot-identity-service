@@ -31,7 +31,7 @@ use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, PKeyRef, Private, Public};
 use openssl::stack::Stack;
-use openssl::x509::{extension, X509Name, X509Req, X509ReqRef, X509};
+use openssl::x509::{extension, X509Name, X509NameRef, X509Req, X509ReqRef, X509};
 use openssl2::FunctionalEngine;
 
 use aziot_certd_config::{
@@ -456,6 +456,15 @@ async fn create_cert_inner<'a>(
 
                         Some((id_cert, id_pk))
                     } else {
+                        let subject_name = if let Some(subject) = &cert_options.subject {
+                            build_name(subject)?
+                        } else {
+                            // X509NameRef to X509Name.
+                            let subject = req.subject_name().to_der()?;
+
+                            X509Name::from_der(&subject)?
+                        };
+
                         let bootstrap_auth = x509.bootstrap_identity.as_ref().ok_or_else(|| {
                             format!(
                                 "cert {:?} is configured to be issued by EST, \
@@ -497,7 +506,7 @@ async fn create_cert_inner<'a>(
                             let est_config = api.est_config.read().await;
 
                             let est_id = create_est_id(
-                                &x509.identity.cert,
+                                &subject_name,
                                 est_id_keys,
                                 &url,
                                 bootstrap_credentials,
@@ -644,7 +653,7 @@ async fn get_credentials(
 }
 
 pub(crate) async fn create_est_id(
-    common_name: &str,
+    subject_name: &X509NameRef,
     keys: (PKey<Private>, PKey<Public>),
     url: &url::Url,
     x509_auth: (Vec<u8>, PKey<Private>),
@@ -652,11 +661,9 @@ pub(crate) async fn create_est_id(
     trusted_certs: &[X509],
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<Vec<u8>, BoxedError> {
-    let subject_name = build_name(&CertSubject::CommonName(common_name.to_string()))?;
-
     let mut builder = X509Req::builder()?;
     builder.set_version(0)?;
-    builder.set_subject_name(&subject_name)?;
+    builder.set_subject_name(subject_name)?;
 
     let mut exts = Stack::new()?;
     exts.push(extension::ExtendedKeyUsage::new().client_auth().build()?)?;
