@@ -267,7 +267,7 @@ where
     output
 }
 
-/// Remove add credentials from the renewal engine.
+/// Remove all credentials from the renewal engine.
 pub async fn clear<I>(engine: &ArcMutex<RenewalEngine<I>>)
 where
     I: crate::CertInterface + Clone,
