@@ -116,12 +116,14 @@ async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
 
     // Add the default EST ID cert.
     if let Some(est) = &api.cert_issuance.est {
-        if let Some(x509) = &est.auth.x509 {
-            if let Ok(cert) =
-                get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
-            {
-                if cert.is_some() {
-                    est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
+        if let Some(auth) = &est.auth {
+            if let Some(x509) = &auth.x509 {
+                if let Ok(cert) =
+                    get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
+                {
+                    if cert.is_some() {
+                        est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
+                    }
                 }
             }
         }
@@ -600,7 +602,13 @@ pub(crate) fn get_est_opts(
     let default = api.cert_issuance.est.as_ref();
 
     let auth = auth
-        .or_else(|| default.map(|default| &default.auth))
+        .or_else(|| {
+            if let Some(default) = default {
+                default.auth.as_ref()
+            } else {
+                None
+            }
+        })
         .ok_or_else(|| {
             format!(
                 "cert {:?} is configured to be issued by EST, but EST auth is not configured",

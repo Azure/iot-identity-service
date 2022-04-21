@@ -72,13 +72,13 @@ pub struct CertIssuance {
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Est {
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_certs: Vec<String>,
 
     /// Authentication parameters for the EST server.
     // NOTE: DO NOT MOVE. Tables must be after values!
     #[serde(flatten)]
-    pub auth: EstAuth,
+    pub auth: Option<EstAuth>,
 
     /// Parameters for auto-renewal of EST identity certs. These certs are issued by the EST servers after
     /// initial authentication with the bootstrap cert and managed by Certificates Service.
@@ -95,6 +95,7 @@ pub struct Est {
     /// Map of certificate IDs to EST endpoint URLs.
     ///
     /// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub urls: BTreeMap<String, Url>,
 }
 
@@ -364,7 +365,7 @@ certs = ["test"]
                                 retry: cert_renewal::Policy::Percentage(10)
                             }
                         },
-                        auth: EstAuth {
+                        auth: Some(EstAuth {
                             basic: None,
                             x509: Some(EstAuthX509 {
                                 identity: CertificateWithPrivateKey {
@@ -376,7 +377,7 @@ certs = ["test"]
                                     pk: "bootstrap".to_owned()
                                 }),
                             })
-                        },
+                        }),
                         urls: vec![
                             (
                                 "default".to_owned(),
@@ -546,7 +547,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                 est: Some(Est {
                     trusted_certs: vec!["est-ca".to_owned()],
                     identity_auto_renew: cert_renewal::AutoRenewConfig::default(),
-                    auth: EstAuth {
+                    auth: Some(EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {
                             identity: CertificateWithPrivateKey {
@@ -558,7 +559,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 pk: "bootstrap".to_owned(),
                             }),
                         }),
-                    },
+                    }),
                     urls: vec![
                         (
                             "default".to_owned(),

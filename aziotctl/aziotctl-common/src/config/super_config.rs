@@ -206,18 +206,19 @@ pub struct CertIssuance {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Est {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_certs: Vec<Url>,
     #[serde(
         default,
         skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
     )]
     pub identity_auto_renew: cert_renewal::AutoRenewConfig,
-    pub auth: EstAuth,
+    pub auth: Option<EstAuth>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub urls: BTreeMap<String, Url>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct EstAuth {
     #[serde(flatten)]
     pub basic: Option<aziot_certd_config::EstAuthBasic>,
