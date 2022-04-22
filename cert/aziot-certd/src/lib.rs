@@ -602,7 +602,7 @@ pub(crate) fn get_est_opts(
     let default = api.cert_issuance.est.as_ref();
 
     let auth = auth
-        .or_else(|| {
+        .or({
             if let Some(default) = default {
                 default.auth.as_ref()
             } else {
