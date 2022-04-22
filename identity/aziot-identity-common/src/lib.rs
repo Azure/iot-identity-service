@@ -185,8 +185,8 @@ pub enum Credentials {
     SharedPrivateKey(String),
 
     X509 {
-        identity_cert: String,
-        identity_pk: String,
+        identity_cert: (String, openssl::x509::X509),
+        identity_pk: (String, openssl::pkey::PKey<openssl::pkey::Private>),
     },
 
     Tpm,
@@ -205,8 +205,8 @@ impl From<Credentials> for AuthenticationInfo {
                 identity_pk,
             } => AuthenticationInfo {
                 auth_type: AuthenticationType::X509,
-                key_handle: Some(aziot_key_common::KeyHandle(identity_pk)),
-                cert_id: Some(identity_cert),
+                key_handle: Some(aziot_key_common::KeyHandle(identity_pk.0)),
+                cert_id: Some(identity_cert.0),
             },
             Credentials::Tpm => AuthenticationInfo {
                 auth_type: AuthenticationType::Tpm,

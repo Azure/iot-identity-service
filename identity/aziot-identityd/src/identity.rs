@@ -24,8 +24,16 @@ pub struct IdentityManager {
     key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
-    iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     proxy_uri: Option<hyper::Uri>,
+
+    pub(crate) iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+    pub(crate) identity_cert_renewal: Option<
+        Arc<
+            futures_util::lock::Mutex<
+                cert_renewal::RenewalEngine<crate::renewal::IdentityCertRenewal>,
+            >,
+        >,
+    >,
 }
 
 impl IdentityManager {
@@ -49,6 +57,7 @@ impl IdentityManager {
             tpm_client,
             iot_hub_device,
             proxy_uri,
+            identity_cert_renewal: None,
         }
     }
 
@@ -68,7 +77,7 @@ impl IdentityManager {
                     identity_cert,
                     identity_pk: _,
                 } => {
-                    if identity_cert != aziot_identity_common::DPS_IDENTITY_CERT {
+                    if identity_cert.0 != aziot_identity_common::DPS_IDENTITY_CERT {
                         return false;
                     }
                 }
@@ -166,8 +175,6 @@ impl IdentityManager {
                 let client = aziot_cloud_client_async::HubClient::new(
                     device,
                     self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
                 .with_retry(self.req_retries)
@@ -249,8 +256,6 @@ impl IdentityManager {
                 let client = aziot_cloud_client_async::HubClient::new(
                     device,
                     self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
                 .with_retry(self.req_retries)
@@ -349,8 +354,6 @@ impl IdentityManager {
                     let client = aziot_cloud_client_async::HubClient::new(
                         device,
                         self.key_client.clone(),
-                        self.key_engine.clone(),
-                        self.cert_client.clone(),
                         self.tpm_client.clone(),
                     )
                     .with_retry(self.req_retries)
@@ -435,8 +438,6 @@ impl IdentityManager {
                 let client = aziot_cloud_client_async::HubClient::new(
                     device,
                     self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
                 .with_retry(self.req_retries)
@@ -493,8 +494,6 @@ impl IdentityManager {
                 let client = aziot_cloud_client_async::HubClient::new(
                     device,
                     self.key_client.clone(),
-                    self.key_engine.clone(),
-                    self.cert_client.clone(),
                     self.tpm_client.clone(),
                 )
                 .with_retry(self.req_retries)
@@ -543,13 +542,13 @@ impl IdentityManager {
                 } => {
                     let identity_pk_key_handle = self
                         .key_client
-                        .load_key_pair(identity_pk.as_str())
+                        .load_key_pair(identity_pk.0.as_str())
                         .await
                         .map_err(Error::KeyClient)?;
                     Ok(aziot_identity_common::AuthenticationInfo {
                         auth_type: aziot_identity_common::AuthenticationType::X509,
                         key_handle: Some(aziot_key_common::KeyHandle(identity_pk_key_handle.0)),
-                        cert_id: Some(identity_cert.clone()),
+                        cert_id: Some(identity_cert.0.clone()),
                     })
                 }
                 aziot_identity_common::Credentials::Tpm => {
@@ -645,6 +644,7 @@ impl IdentityManager {
         &mut self,
         provisioning: config::Provisioning,
         skip_if_backup_is_valid: bool,
+        credential_override: Option<aziot_identity_common::Credentials>,
     ) -> Result<aziot_identity_common::ProvisioningStatus, Error> {
         let device = match provisioning.provisioning {
             config::ProvisioningType::Manual {
@@ -668,18 +668,12 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
-                        // IoT Hub doesn't require device ID to match identity certificate CN
-                        let _ = self
-                            .create_identity_cert_if_not_exist_or_expired(
-                                &identity_pk,
-                                &identity_cert,
-                                Some(&device_id),
-                            )
-                            .await?;
-                        aziot_identity_common::Credentials::X509 {
-                            identity_cert,
-                            identity_pk,
-                        }
+                        self.get_identity_credentials(
+                            &identity_pk,
+                            &identity_cert,
+                            Some(&device_id),
+                        )
+                        .await?
                     }
                 };
                 let device = aziot_identity_common::IoTHubDevice {
@@ -722,25 +716,30 @@ impl IdentityManager {
                         identity_pk,
                         identity_auto_renew: _,
                     } => {
-                        // DPS requires registration ID to match identity certificate CN
-                        let cert_subject_name = self
-                            .create_identity_cert_if_not_exist_or_expired(
+                        let credentials = if let Some(credential_override) = credential_override {
+                            credential_override
+                        } else {
+                            self.get_identity_credentials(
                                 &identity_pk,
                                 &identity_cert,
                                 registration_id.as_ref(),
                             )
-                            .await?;
-
-                        let registration_id = match registration_id {
-                            Some(registration_id) => registration_id,
-                            None => cert_subject_name.map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                            })?,
+                            .await?
                         };
 
-                        let credentials = aziot_identity_common::Credentials::X509 {
-                            identity_cert: identity_cert.clone(),
-                            identity_pk: identity_pk.clone(),
+                        // Determine the registration ID. Prefer the registration ID specified in config, but
+                        // use cert subject if that is not available.
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id
+                        } else if let aziot_identity_common::Credentials::X509 {
+                            identity_cert,
+                            ..
+                        } = &credentials
+                        {
+                            get_cert_subject(&identity_cert.1)?
+                        } else {
+                            // get_identity_credentials will always return an X509 variant of Credentials.
+                            unreachable!()
                         };
 
                         (registration_id, credentials)
@@ -785,7 +784,9 @@ impl IdentityManager {
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
-        let backup_device = self.get_backup_provisioning_info(credentials.clone()).await;
+        let backup_device = self
+            .get_backup_provisioning_info(credentials.clone())
+            .await?;
 
         if skip_if_backup_is_valid && backup_device.is_some() {
             let backup_device = backup_device.expect("backup device cannot be none");
@@ -798,7 +799,6 @@ impl IdentityManager {
             credentials.clone(),
             self.key_client.clone(),
             self.key_engine.clone(),
-            self.cert_client.clone(),
             self.tpm_client.clone(),
         )
         .with_endpoint(global_endpoint)
@@ -821,11 +821,30 @@ impl IdentityManager {
         }
 
         let credentials = if let Some(identity_cert) = response.identity_cert {
-            self.save_dps_identity_cert(identity_cert).await?;
+            let identity_cert = openssl::x509::X509::from_pem(identity_cert.as_bytes())
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+            self.save_dps_identity_cert(&identity_cert).await?;
+
+            let key_handle = self
+                .key_client
+                .load_key_pair(aziot_identity_common::DPS_IDENTITY_CERT_KEY)
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
+
+            let (identity_cert_key, _) = crate::get_keys(key_handle, &self.key_engine)
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
             aziot_identity_common::Credentials::X509 {
-                identity_cert: aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
-                identity_pk: aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
+                identity_cert: (
+                    aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
+                    identity_cert,
+                ),
+                identity_pk: (
+                    aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
+                    identity_cert_key,
+                ),
             }
         } else {
             // New provisioning info does not use a DPS-issued identity certificate.
@@ -887,10 +906,10 @@ impl IdentityManager {
         Ok(())
     }
 
-    async fn save_dps_identity_cert(&self, identity_cert: String) -> Result<(), Error> {
-        let identity_cert = openssl::x509::X509::from_pem(identity_cert.as_bytes())
-            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
+    async fn save_dps_identity_cert(
+        &self,
+        identity_cert: &openssl::x509::X509,
+    ) -> Result<(), Error> {
         let identity_cert = identity_cert
             .to_pem()
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
@@ -933,12 +952,12 @@ impl IdentityManager {
     async fn get_backup_provisioning_info(
         &self,
         credentials: aziot_identity_common::Credentials,
-    ) -> Option<aziot_identity_common::IoTHubDevice> {
+    ) -> Result<Option<aziot_identity_common::IoTHubDevice>, Error> {
         let mut prev_device_info_path = self.homedir_path.clone();
         prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
         if !prev_device_info_path.exists() {
-            return None;
+            return Ok(None);
         }
 
         match HubDeviceInfo::new(&prev_device_info_path) {
@@ -954,10 +973,32 @@ impl IdentityManager {
                     );
 
                     let credentials = match (cert, key) {
-                        (Ok(_), Ok(_)) => aziot_identity_common::Credentials::X509 {
-                            identity_cert: aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
-                            identity_pk: aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
-                        },
+                        (Ok(cert), Ok(key_handle)) => {
+                            let cert = openssl::x509::X509::from_pem(&cert).map_err(|_| {
+                                Error::Internal(InternalError::LoadDeviceInfo(std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    "invalid DPS-issued identity cert",
+                                )))
+                            })?;
+                            let (private_key, _) = crate::get_keys(key_handle, &self.key_engine)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::LoadDeviceInfo(
+                                        std::io::Error::new(std::io::ErrorKind::Other, err),
+                                    ))
+                                })?;
+
+                            aziot_identity_common::Credentials::X509 {
+                                identity_cert: (
+                                    aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
+                                    cert,
+                                ),
+                                identity_pk: (
+                                    aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
+                                    private_key,
+                                ),
+                            }
+                        }
                         _ => credentials,
                     };
 
@@ -969,9 +1010,9 @@ impl IdentityManager {
                         credentials,
                     };
 
-                    Some(device)
+                    Ok(Some(device))
                 }
-                None => None,
+                None => Ok(None),
             },
             Err(err) => {
                 log::warn!("Ignoring invalid device info backup: {}", err);
@@ -981,107 +1022,84 @@ impl IdentityManager {
                     log::warn!("Failed to delete invalid device info backup: {}", err);
                 }
 
-                None
+                Ok(None)
             }
         }
     }
 
-    async fn create_identity_cert_if_not_exist_or_expired(
+    async fn get_identity_credentials(
         &self,
         identity_pk: &str,
         identity_cert: &str,
         subject: Option<&String>,
-    ) -> Result<Result<String, Error>, Error> {
-        // Retrieve existing cert and check it for expiry.
-        let (device_id_cert, old_cert_subject_name) = match self
-            .cert_client
-            .get_cert(identity_cert)
-            .await
-        {
-            Ok(pem) => {
-                let cert = openssl::x509::X509::from_pem(&pem).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let cert_expiration = cert.as_ref().not_after();
-                let cert_subject = cert.as_ref().subject_name();
-                let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
-                  .map_or(Err(Error::Internal(InternalError::CreateCertificate("old device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
-                    String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
-                });
-                let current_time = openssl::asn1::Asn1Time::days_from_now(0).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
-                let expiration_time = current_time.diff(cert_expiration).map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?;
+    ) -> Result<aziot_identity_common::Credentials, Error> {
+        let (cert, private_key) = if let Some(engine) = &self.identity_cert_renewal {
+            cert_renewal::engine::get_credential(engine, identity_cert, identity_pk)
+                .await
+                .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?
+        } else {
+            let key_handle = self.key_client.load_key_pair(identity_pk).await;
 
-                if expiration_time.days < 1 {
-                    log::info!("{} has expired. Renewing certificate", identity_cert);
+            if let Ok(cert) = self.cert_client.get_cert(identity_cert).await {
+                let cert = openssl::x509::X509::from_pem(&cert)
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
-                    (None, cert_subject)
+                let key_handle = key_handle
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                let (private_key, _) = crate::get_keys(key_handle, &self.key_engine)
+                    .await
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                (cert, private_key)
+            } else {
+                let subject = if let Some(subject) = subject {
+                    subject
                 } else {
-                    (Some(pem), cert_subject)
+                    return Err(Error::Internal(InternalError::CreateCertificate(
+                        "identity cert does not exist; cannot create new cert as registration ID is unknown".into()
+                    )));
+                };
+
+                if let Ok(key_handle) = key_handle {
+                    self.key_client
+                        .delete_key_pair(&key_handle)
+                        .await
+                        .map_err(|err| {
+                            Error::Internal(InternalError::CreateCertificate(err.into()))
+                        })?;
                 }
-            }
-            Err(_) => {
-                (None, Err(Error::Internal(InternalError::CreateCertificate("old device identity certificate, which should contain the common name field required for registration, could not be retrieved".to_string().into()))))
+
+                let key_handle = self
+                    .key_client
+                    .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
+                    .await
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                let (private_key, public_key) = crate::get_keys(key_handle, &self.key_engine)
+                    .await
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                let csr = create_csr(subject, &public_key, &private_key, None)
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                let cert = self
+                    .cert_client
+                    .create_cert(identity_cert, &csr, None)
+                    .await
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                let cert = openssl::x509::X509::from_pem(&cert)
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+                (cert, private_key)
             }
         };
 
-        // Create new certificate if needed.
-        if device_id_cert.is_none() {
-            if let Ok(key_handle) = self.key_client.load_key_pair(identity_pk).await {
-                self.key_client
-                    .delete_key_pair(&key_handle)
-                    .await
-                    .map_err(|err| {
-                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                    })?;
-            }
-            let new_cert_subject = match subject {
-                Some(subject) => subject.to_string(),
-                None => old_cert_subject_name.map_err(|err| {
-                    Error::Internal(InternalError::CreateCertificate(Box::new(err)))
-                })?,
-            };
-
-            let key_handle = self
-                .key_client
-                .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let key_handle = std::ffi::CString::new(key_handle.0)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let mut key_engine = self.key_engine.lock().await;
-            let private_key = key_engine
-                .load_private_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let public_key = key_engine
-                .load_public_key(&key_handle)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let csr = create_csr(new_cert_subject.as_str(), &public_key, &private_key, None)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let new_cert_pem = self
-                .cert_client
-                .create_cert(identity_cert, &csr, None)
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
-            let cert = openssl::x509::X509::from_pem(&new_cert_pem)
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let cert_subject = cert.as_ref().subject_name();
-            let cert_subject = cert_subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next()
-                .map_or(Err(Error::Internal(InternalError::CreateCertificate("new device identity certificate does not contain common name field required for registration".to_string().into()))), |common_name_entry| {
-                    String::from_utf8(common_name_entry.data().as_slice().into()).map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))
-            });
-
-            Ok(cert_subject)
-        } else {
-            Ok(old_cert_subject_name)
-        }
+        Ok(aziot_identity_common::Credentials::X509 {
+            identity_cert: (identity_cert.to_string(), cert),
+            identity_pk: (identity_pk.to_string(), private_key),
+        })
     }
 
     pub async fn reconcile_hub_identities(&self, settings: config::Settings) -> Result<(), Error> {
@@ -1162,6 +1180,25 @@ impl IdentityManager {
         }
 
         Ok(())
+    }
+}
+
+fn get_cert_subject(cert: &openssl::x509::X509) -> Result<String, Error> {
+    if let Some(common_name) = cert
+        .subject_name()
+        .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+        .next()
+    {
+        let cert_subject =
+            String::from_utf8(common_name.data().as_slice().into()).map_err(|_| {
+                Error::Internal(InternalError::CreateCertificate("bad cert subject".into()))
+            })?;
+
+        Ok(cert_subject)
+    } else {
+        Err(Error::Internal(InternalError::CreateCertificate(
+            "cannot determine cert subject".into(),
+        )))
     }
 }
 

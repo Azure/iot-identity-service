@@ -13,5 +13,6 @@ identity_cert = "device-id"
 identity_pk = "device-id"
 
 [provisioning.attestation.identity_auto_renew]
+rotate_key = false
 threshold = "50%"
 retry = "10%"

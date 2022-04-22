@@ -11,3 +11,8 @@ method = "x509"
 registration_id = "my-device"
 identity_cert = "device-id"
 identity_pk = "device-id"
+
+[provisioning.attestation.identity_auto_renew]
+rotate_key = true
+threshold = "90%"
+retry = "1%"

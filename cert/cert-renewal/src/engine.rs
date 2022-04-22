@@ -135,7 +135,11 @@ where
         )
         .await?;
 
-    log::info!("Certificate {} was renewed.", credential.cert_id);
+    log::info!(
+        "Certificate {} was renewed. Next renewal at {}.",
+        credential.cert_id,
+        credential.next_renewal
+    );
 
     Ok(())
 }

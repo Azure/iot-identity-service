@@ -44,7 +44,7 @@ impl http_common::server::Route for Route {
         };
 
         match api
-            .reprovision_device(auth_id, crate::ReprovisionTrigger::Api)
+            .reprovision_device(auth_id, crate::ReprovisionTrigger::Api, None)
             .await
         {
             Ok(()) => (),

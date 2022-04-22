@@ -85,12 +85,12 @@ pub struct Est {
     ///
     /// This setting applies to EST identity certs for all EST `cert_issuance` configurations. Default values
     /// to renew at 80% of cert lifetime with retries every 4% of cert lifetime will be used if this setting
-    /// is not provided.
+    /// is not provided. By default, keys will also be rotated.
     #[serde(
-        default = "default_est_renew",
-        skip_serializing_if = "is_default_est_renew"
+        default,
+        skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
     )]
-    pub identity_auto_renew: cert_renewal::RenewalPolicy,
+    pub identity_auto_renew: cert_renewal::AutoRenewConfig,
 
     /// Map of certificate IDs to EST endpoint URLs.
     ///
@@ -327,6 +327,7 @@ trusted_certs = [
 ]
 
 [cert_issuance.est.identity_auto_renew]
+rotate_key = true
 threshold = "50%"
 retry = "10%"
 
@@ -355,9 +356,12 @@ certs = ["test"]
                 cert_issuance: CertIssuance {
                     est: Some(Est {
                         trusted_certs: vec!["est-ca".to_owned(),],
-                        identity_auto_renew: cert_renewal::RenewalPolicy {
-                            threshold: cert_renewal::Policy::Percentage(50),
-                            retry: cert_renewal::Policy::Percentage(10)
+                        identity_auto_renew: cert_renewal::AutoRenewConfig {
+                            rotate_key: true,
+                            policy: cert_renewal::RenewalPolicy {
+                                threshold: cert_renewal::Policy::Percentage(50),
+                                retry: cert_renewal::Policy::Percentage(10)
+                            }
                         },
                         auth: EstAuth {
                             basic: None,
@@ -540,7 +544,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             cert_issuance: CertIssuance {
                 est: Some(Est {
                     trusted_certs: vec!["est-ca".to_owned()],
-                    identity_auto_renew: super::default_est_renew(),
+                    identity_auto_renew: cert_renewal::AutoRenewConfig::default(),
                     auth: EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {

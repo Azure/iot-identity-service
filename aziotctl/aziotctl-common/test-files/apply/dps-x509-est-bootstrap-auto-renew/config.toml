@@ -19,6 +19,7 @@ ST = "Antarctica"
 CN = "my-device"
 
 [provisioning.attestation.identity_cert.auto_renew]
+rotate_key = false
 threshold = "50%"
 retry = "10%"
 
