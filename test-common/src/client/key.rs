@@ -5,6 +5,8 @@ pub struct KeyClient {
     pub create_key_if_not_exists_ok: bool,
     pub create_key_pair_if_not_exists_ok: bool,
 
+    pub load_key_pair_ok: bool,
+
     pub encrypt_ok: bool,
     pub decrypt_ok: bool,
     pub sign_ok: bool,
@@ -15,6 +17,7 @@ impl Default for KeyClient {
         KeyClient {
             create_key_if_not_exists_ok: true,
             create_key_pair_if_not_exists_ok: true,
+            load_key_pair_ok: true,
             encrypt_ok: true,
             decrypt_ok: true,
             sign_ok: true,
@@ -43,6 +46,27 @@ impl KeyClient {
     ) -> std::io::Result<aziot_key_common::KeyHandle> {
         if self.create_key_pair_if_not_exists_ok {
             Ok(aziot_key_common::KeyHandle("key-pair-handle".to_string()))
+        } else {
+            Err(super::client_error())
+        }
+    }
+
+    pub async fn move_key_pair(&self, _from: &str, _to: &str) -> std::io::Result<()> {
+        // This function has to exist, but current tests don't check that it does anything.
+        Ok(())
+    }
+
+    pub async fn delete_key_pair(
+        &self,
+        _key_handle: &aziot_key_common::KeyHandle,
+    ) -> std::io::Result<()> {
+        // This function has to exist, but current tests don't check that it does anything.
+        Ok(())
+    }
+
+    pub async fn load_key_pair(&self, _id: &str) -> std::io::Result<aziot_key_common::KeyHandle> {
+        if self.load_key_pair_ok {
+            Ok(aziot_key_common::KeyHandle("key-handle".to_string()))
         } else {
             Err(super::client_error())
         }
