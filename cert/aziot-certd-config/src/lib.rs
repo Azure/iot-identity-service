@@ -77,7 +77,7 @@ pub struct Est {
 
     /// Authentication parameters for the EST server.
     // NOTE: DO NOT MOVE. Tables must be after values!
-    #[serde(flatten)]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub auth: Option<EstAuth>,
 
     /// Parameters for auto-renewal of EST identity certs. These certs are issued by the EST servers after

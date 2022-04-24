@@ -91,7 +91,7 @@ pub async fn main(
             cert_issuance,
             preloaded_certs,
             principals: principal_to_map(principal),
-            renewal_engine: renewal_engine.clone(),
+            renewal_engine,
 
             key_client: key_client_async,
             key_engine,
@@ -99,7 +99,7 @@ pub async fn main(
         }
     };
 
-    init_est_id_renewal(&api).await?;
+    api.init_est_id_renewal().await?;
 
     let api = Arc::new(Mutex::new(api));
 
@@ -108,68 +108,6 @@ pub async fn main(
     let service = http::Service { api };
 
     Ok((connector, service))
-}
-
-async fn init_est_id_renewal(api: &Api) -> Result<(), Error> {
-    // Get a list of existing EST ID certs to renew. Use a BTreeMap to remove duplicates.
-    let mut est_credentials = BTreeMap::new();
-
-    // Add the default EST ID cert.
-    if let Some(est) = &api.cert_issuance.est {
-        if let Some(auth) = &est.auth {
-            if let Some(x509) = &auth.x509 {
-                if let Ok(cert) =
-                    get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
-                {
-                    if cert.is_some() {
-                        est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
-                    }
-                }
-            }
-        }
-    }
-
-    // Add EST ID certs for individual issuance options.
-    for (cert_id, options) in &api.cert_issuance.certs {
-        if let CertIssuanceMethod::Est {
-            auth: Some(auth), ..
-        } = &options.method
-        {
-            if let Some(x509) = &auth.x509 {
-                if let Ok(cert) =
-                    get_cert_inner(&api.homedir_path, &api.preloaded_certs, &x509.identity.cert)
-                {
-                    if cert.is_some() {
-                        est_credentials.insert(x509.identity.clone(), cert_id);
-                    }
-                }
-            }
-        }
-    }
-
-    // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
-    // exist yet will be added when they are created.
-    let policy = {
-        let est_config = api.est_config.read().await;
-
-        est_config.renewal.policy.clone()
-    };
-
-    for (credential, cert_id) in est_credentials {
-        let interface = renewal::EstIdRenewal::new(cert_id, credential.clone(), api).await?;
-
-        cert_renewal::engine::add_credential(
-            &api.renewal_engine,
-            &credential.cert,
-            &credential.pk,
-            policy.clone(),
-            interface,
-        )
-        .await
-        .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
-    }
-
-    Ok(())
 }
 
 struct Api {
@@ -288,6 +226,72 @@ impl Api {
 
         false
     }
+
+    async fn init_est_id_renewal(&self) -> Result<(), Error> {
+        // Get a list of existing EST ID certs to renew. Use a BTreeMap to remove duplicates.
+        let mut est_credentials = BTreeMap::new();
+
+        // Add the default EST ID cert.
+        if let Some(est) = &self.cert_issuance.est {
+            if let Some(auth) = &est.auth {
+                if let Some(x509) = &auth.x509 {
+                    if let Ok(cert) = get_cert_inner(
+                        &self.homedir_path,
+                        &self.preloaded_certs,
+                        &x509.identity.cert,
+                    ) {
+                        if cert.is_some() {
+                            est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add EST ID certs for individual issuance options.
+        for (cert_id, options) in &self.cert_issuance.certs {
+            if let CertIssuanceMethod::Est {
+                auth: Some(auth), ..
+            } = &options.method
+            {
+                if let Some(x509) = &auth.x509 {
+                    if let Ok(cert) = get_cert_inner(
+                        &self.homedir_path,
+                        &self.preloaded_certs,
+                        &x509.identity.cert,
+                    ) {
+                        if cert.is_some() {
+                            est_credentials.insert(x509.identity.clone(), cert_id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add existing EST credentials to auto-renewal. Credentials specified in the config that do not
+        // exist yet will be added when they are created.
+        let policy = {
+            let est_config = self.est_config.read().await;
+
+            est_config.renewal.policy.clone()
+        };
+
+        for (credential, cert_id) in est_credentials {
+            let interface = renewal::EstIdRenewal::new(cert_id, credential.clone(), self).await?;
+
+            cert_renewal::engine::add_credential(
+                &self.renewal_engine,
+                &credential.cert,
+                &credential.pk,
+                policy.clone(),
+                interface,
+            )
+            .await
+            .map_err(|err| Error::Internal(InternalError::CreateCert(err.into())))?;
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -323,7 +327,7 @@ impl UpdateConfig for Api {
         self.preloaded_certs = preloaded_certs;
         self.principals = principal_to_map(principal);
 
-        init_est_id_renewal(self).await?;
+        self.init_est_id_renewal().await?;
 
         log::info!("Config update finished.");
         Ok(())

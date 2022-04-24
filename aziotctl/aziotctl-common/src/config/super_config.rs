@@ -213,6 +213,7 @@ pub struct Est {
         skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
     )]
     pub identity_auto_renew: cert_renewal::AutoRenewConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<EstAuth>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub urls: BTreeMap<String, Url>,
