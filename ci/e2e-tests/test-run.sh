@@ -54,12 +54,27 @@ get_package() {
     #
     # Ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
     echo "Getting latest workflow run's artifacts URL..." >&2
-    artifacts_url="$(
-        github_curl -L \
-            -H 'accept: application/vnd.github.v3+json' \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
-            jq -r '.workflow_runs[0].artifacts_url'
-    )"
+    artifacts_url='null'
+
+    # GitHub API calls may fail if too many other tests make the same call concurrently.
+    # Allow a few retries before failing.
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        artifacts_url="$(
+            github_curl -L \
+                -H 'accept: application/vnd.github.v3+json' \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
+                jq -r '.workflow_runs[0].artifacts_url'
+        )"
+
+        if [ "$artifacts_url" != 'null' ]; then
+            break
+        fi
+    done
+
     if [ "$artifacts_url" = 'null' ]; then
         echo "No successfully-concluded packages workflow found for branch $BRANCH" >&2
         exit 1
@@ -103,15 +118,28 @@ get_package() {
     artifact_name="packages_${artifact_name}_amd64"
 
     echo 'Getting artifact download URL...' >&2
-    artifact_download_url="$(
-        github_curl -L \
-            -H 'accept: application/vnd.github.v3+json' \
-            "$artifacts_url" |
-            jq \
-                --arg artifact_name "$artifact_name" \
-                -r \
-                '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
-    )"
+    artifact_download_url=""
+
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        artifact_download_url="$(
+            github_curl -L \
+                -H 'accept: application/vnd.github.v3+json' \
+                "$artifacts_url" |
+                jq \
+                    --arg artifact_name "$artifact_name" \
+                    -r \
+                    '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
+        )"
+
+        if [ ! -z "$artifact_download_url" ]; then
+            break
+        fi
+    done
+
     if [ -z "$artifact_download_url" ]; then
         echo "Could not find artifact for OS $OS" >&2
         exit 1
@@ -119,9 +147,19 @@ get_package() {
     echo "Artifact download URL: $artifact_download_url" >&2
 
     echo 'Downloading artifact...' >&2
-    github_curl -L \
-        -o package.zip \
-        "$artifact_download_url"
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        github_curl -L \
+            -o package.zip \
+            "$artifact_download_url"
+
+        if [ -f package.zip ]; then
+            break
+        fi
+    done
     echo 'Downloaded artifact' >&2
 
 
@@ -690,8 +728,8 @@ case "$OS" in
             set -euxo pipefail
 
             sudo apt-get update -y
-            sudo apt-get install -y bc curl jq perl
-            sudo apt-get install -y /home/aziot/aziot-identity-service.deb
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
         '
         ;;
 
