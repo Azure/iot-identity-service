@@ -689,6 +689,7 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
+            sudo apt-get update -y
             sudo apt-get install -y bc curl jq perl
             sudo apt-get install -y /home/aziot/aziot-identity-service.deb
         '
