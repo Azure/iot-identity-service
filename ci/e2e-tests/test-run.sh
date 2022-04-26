@@ -71,7 +71,7 @@ get_package() {
                 jq -r '.workflow_runs[0].artifacts_url'
         )"
 
-        if [ "$artifacts_url" != 'null' ] && [ ! -z "$artifacts_url" ]; then
+        if [ -n "$artifacts_url" ] && [ "$artifacts_url" != 'null' ]; then
             break
         fi
     done
@@ -138,7 +138,7 @@ get_package() {
                     '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
         )"
 
-        if [ "$artifact_download_url" != 'null' ] && [ ! -z "$artifact_download_url" ]; then
+        if [ -n "$artifact_download_url" ] && [ "$artifact_download_url" != 'null' ]; then
             break
         fi
     done
