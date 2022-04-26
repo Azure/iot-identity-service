@@ -37,15 +37,12 @@ get_package() {
     #
     # It would be nice to use the v4 graphql API and get the artifact URL in one shot,
     # but it doesn't appear to support artifacts.
-    #
-    # Note that the curl commands have || : appended to allow them to be retried. Otherwise,
-    # this script would exit if they failed.
 
     github_curl() {
         if [ -n "${GITHUB_PAT:-}" ]; then
-            curl --user "$GITHUB_PAT" "$@" || :
+            curl --user "$GITHUB_PAT" "$@"
         elif [ -n "${GITHUB_TOKEN:-}" ]; then
-            curl --header "authorization: Bearer $GITHUB_TOKEN" "$@" || :
+            curl --header "authorization: Bearer $GITHUB_TOKEN" "$@"
         else
             echo 'Neither PACKAGE nor GITHUB_PAT nor GITHUB_TOKEN have been set.' >&2
             exit 1
@@ -61,6 +58,7 @@ get_package() {
 
     # GitHub API calls may fail if too many other tests make the same call concurrently.
     # Allow a few retries before failing.
+    set +e
     for retry in {0..3}; do
         if [ "$retry" != '0' ]; then
             sleep 10
@@ -73,10 +71,11 @@ get_package() {
                 jq -r '.workflow_runs[0].artifacts_url'
         )"
 
-        if [ "$artifacts_url" != 'null' ]; then
+        if [ "$artifacts_url" != 'null' ] && [ ! -z "$artifacts_url" ]; then
             break
         fi
     done
+    set -e
 
     if [ "$artifacts_url" = 'null' ]; then
         echo "No successfully-concluded packages workflow found for branch $BRANCH" >&2
@@ -123,6 +122,7 @@ get_package() {
     echo 'Getting artifact download URL...' >&2
     artifact_download_url=""
 
+    set +e
     for retry in {0..3}; do
         if [ "$retry" != '0' ]; then
             sleep 10
@@ -138,10 +138,11 @@ get_package() {
                     '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
         )"
 
-        if [ ! -z "$artifact_download_url" ]; then
+        if [ "$artifact_download_url" != 'null' ] && [ ! -z "$artifact_download_url" ]; then
             break
         fi
     done
+    set -e
 
     if [ -z "$artifact_download_url" ]; then
         echo "Could not find artifact for OS $OS" >&2
