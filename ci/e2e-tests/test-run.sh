@@ -659,9 +659,20 @@ case "$OS" in
 
     debian:*|ubuntu:*)
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            for retry in {0..3}; do
+                if [ "$retry" != "0" ]; then
+                    sleep 10
+                fi
+
+                sudo apt-get update -y
+
+                if [ "$?" == "0" ]; then
+                    break
+                fi
+            done
+
             set -euxo pipefail
 
-            sudo apt-get update -y
             sudo DEBIAN_FRONTEND=noninteractive \
                 apt-get \
                 -o 'Dpkg::Options::=--force-confnew' \
@@ -736,7 +747,18 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
-            sudo apt-get update -y
+            for retry in {0..3}; do
+                if [ "$retry" != "0" ]; then
+                    sleep 10
+                fi
+
+                sudo apt-get update -y
+
+                if [ "$?" == "0" ]; then
+                    break
+                fi
+            done
+
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
         '
