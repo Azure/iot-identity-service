@@ -745,8 +745,6 @@ case "$OS" in
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.deb"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
-            set -euxo pipefail
-
             for retry in {0..3}; do
                 if [ "$retry" != "0" ]; then
                     sleep 10
@@ -758,6 +756,8 @@ case "$OS" in
                     break
                 fi
             done
+
+            set -euxo pipefail
 
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
