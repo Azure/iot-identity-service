@@ -37,12 +37,15 @@ get_package() {
     #
     # It would be nice to use the v4 graphql API and get the artifact URL in one shot,
     # but it doesn't appear to support artifacts.
+    #
+    # Note that the curl commands have || : appended to allow them to be retried. Otherwise,
+    # this script would exit if they failed.
 
     github_curl() {
         if [ -n "${GITHUB_PAT:-}" ]; then
-            curl --user "$GITHUB_PAT" "$@"
+            curl --user "$GITHUB_PAT" "$@" || :
         elif [ -n "${GITHUB_TOKEN:-}" ]; then
-            curl --header "authorization: Bearer $GITHUB_TOKEN" "$@"
+            curl --header "authorization: Bearer $GITHUB_TOKEN" "$@" || :
         else
             echo 'Neither PACKAGE nor GITHUB_PAT nor GITHUB_TOKEN have been set.' >&2
             exit 1
@@ -147,6 +150,7 @@ get_package() {
     echo "Artifact download URL: $artifact_download_url" >&2
 
     echo 'Downloading artifact...' >&2
+    set +e
     for retry in {0..3}; do
         if [ "$retry" != '0' ]; then
             sleep 10
@@ -156,10 +160,14 @@ get_package() {
             -o package.zip \
             "$artifact_download_url"
 
-        if [ -f package.zip ]; then
+        # Check if a valid zipfile was downloaded.
+        unzip -t package.zip >& /dev/null
+
+        if [ "$?" == '0' ]; then
             break
         fi
     done
+    set -e
     echo 'Downloaded artifact' >&2
 
 
