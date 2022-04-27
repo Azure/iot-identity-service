@@ -82,7 +82,7 @@ pub async fn main(
         let key_engine = aziot_key_openssl_engine::load(key_client)
             .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
 
-        let key_engine = Arc::new(Mutex::new(key_engine));
+        let key_engine = Arc::new(std::sync::Mutex::new(key_engine));
 
         let est_config = Arc::new(tokio::sync::RwLock::new(est_config));
 
@@ -118,7 +118,7 @@ struct Api {
     renewal_engine: Arc<Mutex<cert_renewal::RenewalEngine<renewal::EstIdRenewal>>>,
 
     key_client: Arc<aziot_key_client_async::Client>,
-    key_engine: Arc<Mutex<FunctionalEngine>>,
+    key_engine: Arc<std::sync::Mutex<FunctionalEngine>>,
 
     est_config: Arc<tokio::sync::RwLock<est::EstConfig>>,
 }
@@ -373,7 +373,7 @@ async fn create_cert_inner<'a>(
             .unwrap_or_else(|| req.subject_name());
 
         let issuer_pk = {
-            let mut key_engine = api.key_engine.lock().await;
+            let mut key_engine = api.key_engine.lock().expect("mutex poisoned");
 
             key_engine.load_private_key(issuer_handle)?
         };
@@ -498,7 +498,7 @@ async fn create_cert_inner<'a>(
                                 .await?;
                             let cstr = CString::new(handle.0)?;
 
-                            let mut key_engine = api.key_engine.lock().await;
+                            let mut key_engine = api.key_engine.lock().expect("mutex poisoned");
 
                             let id_pubkey = key_engine.load_public_key(&cstr)?;
                             let id_pk = key_engine.load_private_key(&cstr)?;
@@ -652,7 +652,7 @@ async fn get_credentials(
 
     let pk_handle = CString::new(pk_handle.0)?;
 
-    let mut key_engine = api.key_engine.lock().await;
+    let mut key_engine = api.key_engine.lock().expect("mutex poisoned");
 
     let pk = key_engine.load_private_key(&pk_handle).map_err(|err| {
         format!(

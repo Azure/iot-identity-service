@@ -9,7 +9,7 @@ pub(crate) struct EstIdRenewal {
     url: url::Url,
     basic_auth: Option<aziot_certd_config::EstAuthBasic>,
     key_client: std::sync::Arc<aziot_key_client_async::Client>,
-    key_engine: std::sync::Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: std::sync::Arc<std::sync::Mutex<openssl2::FunctionalEngine>>,
     est_config: std::sync::Arc<tokio::sync::RwLock<crate::est::EstConfig>>,
 }
 
@@ -80,7 +80,7 @@ impl EstIdRenewal {
         let key_handle = std::ffi::CString::new(key_handle.0)
             .map_err(|_| cert_renewal::Error::retryable_error("bad key handle"))?;
 
-        let mut key_engine = self.key_engine.lock().await;
+        let mut key_engine = self.key_engine.lock().expect("mutex poisoned");
 
         let private_key = key_engine
             .load_private_key(&key_handle)
@@ -124,7 +124,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         let key_handle = std::ffi::CString::new(key_handle.0)
             .map_err(|_| cert_renewal::Error::fatal_error("bad key handle"))?;
 
-        let mut key_engine = self.key_engine.lock().await;
+        let mut key_engine = self.key_engine.lock().expect("mutex poisoned");
 
         key_engine
             .load_private_key(&key_handle)
