@@ -129,7 +129,13 @@ impl EstIdentityBootstrapCerts {
             .cert_issuance
             .est
             .as_ref()
-            .and_then(|est| est.auth.x509.as_ref())
+            .and_then(|est| {
+                if let Some(auth) = &est.auth {
+                    auth.x509.as_ref()
+                } else {
+                    None
+                }
+            })
             .map(|x509| {
                 (
                     (&x509.identity.cert, "x509 identity"),

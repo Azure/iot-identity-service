@@ -342,64 +342,71 @@ pub fn run(
             urls,
         }) = est
         {
-            let super_config::EstAuth { basic, x509 } = auth;
-            let x509 = match x509 {
-                Some(super_config::EstAuthX509::BootstrapIdentity {
-                    bootstrap_identity_cert,
-                    bootstrap_identity_pk,
-                }) => {
-                    preloaded_certs.insert(
-                        super::EST_BOOTSTRAP_ID.to_owned(),
-                        aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert),
-                    );
+            let auth = auth.map(|auth| {
+                let x509 = match auth.x509 {
+                    Some(super_config::EstAuthX509::BootstrapIdentity {
+                        bootstrap_identity_cert,
+                        bootstrap_identity_pk,
+                    }) => {
+                        preloaded_certs.insert(
+                            super::EST_BOOTSTRAP_ID.to_owned(),
+                            aziot_certd_config::PreloadedCert::Uri(bootstrap_identity_cert),
+                        );
 
-                    preloaded_keys
-                        .insert(super::EST_BOOTSTRAP_ID.to_owned(), bootstrap_identity_pk);
-                    aziotcs_keys.keys.push(super::EST_BOOTSTRAP_ID.to_owned());
-                    aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
+                        preloaded_keys
+                            .insert(super::EST_BOOTSTRAP_ID.to_owned(), bootstrap_identity_pk);
+                        aziotcs_keys.keys.push(super::EST_BOOTSTRAP_ID.to_owned());
+                        aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
 
-                    // Certificates Service needs authorization to manage a temporary key
-                    // during key rotation.
-                    if identity_auto_renew.rotate_key {
-                        aziotcs_keys.keys.push(format!("{}-temp", super::EST_ID_ID));
+                        // Certificates Service needs authorization to manage a temporary key
+                        // during key rotation.
+                        if identity_auto_renew.rotate_key {
+                            aziotcs_keys.keys.push(format!("{}-temp", super::EST_ID_ID));
+                        }
+
+                        Some(aziot_certd_config::EstAuthX509 {
+                            identity: aziot_certd_config::CertificateWithPrivateKey {
+                                cert: super::EST_ID_ID.to_owned(),
+                                pk: super::EST_ID_ID.to_owned(),
+                            },
+                            bootstrap_identity: Some(
+                                aziot_certd_config::CertificateWithPrivateKey {
+                                    cert: super::EST_BOOTSTRAP_ID.to_owned(),
+                                    pk: super::EST_BOOTSTRAP_ID.to_owned(),
+                                },
+                            ),
+                        })
                     }
 
-                    Some(aziot_certd_config::EstAuthX509 {
-                        identity: aziot_certd_config::CertificateWithPrivateKey {
-                            cert: super::EST_ID_ID.to_owned(),
-                            pk: super::EST_ID_ID.to_owned(),
-                        },
-                        bootstrap_identity: Some(aziot_certd_config::CertificateWithPrivateKey {
-                            cert: super::EST_BOOTSTRAP_ID.to_owned(),
-                            pk: super::EST_BOOTSTRAP_ID.to_owned(),
-                        }),
-                    })
+                    Some(super_config::EstAuthX509::Identity {
+                        identity_cert,
+                        identity_pk,
+                    }) => {
+                        preloaded_certs.insert(
+                            super::EST_ID_ID.to_owned(),
+                            aziot_certd_config::PreloadedCert::Uri(identity_cert),
+                        );
+
+                        preloaded_keys.insert(super::EST_ID_ID.to_owned(), identity_pk);
+                        aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
+
+                        Some(aziot_certd_config::EstAuthX509 {
+                            identity: aziot_certd_config::CertificateWithPrivateKey {
+                                cert: super::EST_ID_ID.to_owned(),
+                                pk: super::EST_ID_ID.to_owned(),
+                            },
+                            bootstrap_identity: None,
+                        })
+                    }
+
+                    None => None,
+                };
+
+                aziot_certd_config::EstAuth {
+                    basic: auth.basic,
+                    x509,
                 }
-
-                Some(super_config::EstAuthX509::Identity {
-                    identity_cert,
-                    identity_pk,
-                }) => {
-                    preloaded_certs.insert(
-                        super::EST_ID_ID.to_owned(),
-                        aziot_certd_config::PreloadedCert::Uri(identity_cert),
-                    );
-
-                    preloaded_keys.insert(super::EST_ID_ID.to_owned(), identity_pk);
-                    aziotcs_keys.keys.push(super::EST_ID_ID.to_owned());
-
-                    Some(aziot_certd_config::EstAuthX509 {
-                        identity: aziot_certd_config::CertificateWithPrivateKey {
-                            cert: super::EST_ID_ID.to_owned(),
-                            pk: super::EST_ID_ID.to_owned(),
-                        },
-                        bootstrap_identity: None,
-                    })
-                }
-
-                None => None,
-            };
-            let auth = aziot_certd_config::EstAuth { basic, x509 };
+            });
 
             let trusted_certs = trusted_certs
                 .into_iter()
