@@ -27,7 +27,3 @@ retry = "10%"
 trusted_certs = [
     "file:///var/secrets/est-id-ca.pem",
 ]
-
-[cert_issuance.est.auth]
-
-[cert_issuance.est.urls]

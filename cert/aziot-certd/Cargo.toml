@@ -25,7 +25,7 @@ percent-encoding = "2"
 regex = "1"
 serde = "1"
 serde_json = "1"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["sync", "time"] }
 url = "2"
 wildmatch = "1"
 
@@ -36,6 +36,7 @@ aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
+cert-renewal = { path = "../cert-renewal" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }

@@ -55,6 +55,30 @@ impl CertClient {
         Ok(cert)
     }
 
+    pub async fn import_cert(&self, id: &str, pem: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+        let cert = pem.to_owned();
+
+        let certs = self.certs.lock().await;
+        certs.replace_with(|certs| {
+            certs.insert(id.to_string(), cert.clone());
+
+            certs.clone()
+        });
+
+        Ok(cert)
+    }
+
+    pub async fn delete_cert(&self, id: &str) -> Result<(), std::io::Error> {
+        let certs = self.certs.lock().await;
+        certs.replace_with(|certs| {
+            certs.remove(id);
+
+            certs.clone()
+        });
+
+        Ok(())
+    }
+
     pub async fn get_cert(&self, id: &str) -> Result<Vec<u8>, std::io::Error> {
         let certs = self.certs.lock().await;
         let certs = certs.replace_with(|certs| certs.clone());

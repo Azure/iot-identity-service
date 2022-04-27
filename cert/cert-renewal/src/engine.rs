@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
+use futures_util::lock::Mutex;
+
+type ArcMutex<T> = std::sync::Arc<Mutex<T>>;
 
 /// The context used for certificate renewals.
 #[allow(clippy::module_name_repetitions)]
@@ -168,7 +170,7 @@ where
 
 /// Add an existing certificate and key to the renewal engine.
 pub async fn add_credential<I>(
-    engine: &ArcMutex<RenewalEngine<I>>,
+    engine: &Mutex<RenewalEngine<I>>,
     cert_id: &str,
     key_id: &str,
     policy: crate::RenewalPolicy,
@@ -205,7 +207,7 @@ where
 /// with this function will ensure that credentials are not retrieved mid-renewal and that
 /// the retrieved credentials are valid.
 pub async fn get_credential<I>(
-    engine: &ArcMutex<RenewalEngine<I>>,
+    engine: &Mutex<RenewalEngine<I>>,
     cert_id: &str,
     key_id: &str,
 ) -> Result<
@@ -265,6 +267,16 @@ where
     }
 
     output
+}
+
+/// Remove all credentials from the renewal engine.
+pub async fn clear<I>(engine: &Mutex<RenewalEngine<I>>)
+where
+    I: crate::CertInterface + Clone,
+{
+    let mut engine = engine.lock().await;
+
+    engine.credentials.clear();
 }
 
 async fn get_cert<I>(
