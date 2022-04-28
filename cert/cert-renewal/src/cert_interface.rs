@@ -184,15 +184,15 @@ impl CertInterface for ArcMutex<TestInterface> {
 
     async fn write_credentials(
         &mut self,
-        _old_cert: &[openssl::x509::X509],
-        new_cert: (&str, &[openssl::x509::X509]),
+        _old_cert_chain: &[openssl::x509::X509],
+        new_cert_chain: (&str, &[openssl::x509::X509]),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error> {
         let mut interface = self.lock().await;
 
         interface
             .certs
-            .insert(new_cert.0.to_string(), new_cert.1.to_vec())
+            .insert(new_cert_chain.0.to_string(), new_cert_chain.1.to_vec())
             .unwrap();
         interface.keys.insert(key.0.to_string(), key.1).unwrap();
 
