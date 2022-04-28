@@ -102,10 +102,16 @@ where
 {
     log::info!("Attempting to renew certificate {}.", credential.cert_id);
 
-    let old_cert = credential.interface.get_cert(&credential.cert_id).await?;
+    let old_cert_chain = credential.interface.get_cert(&credential.cert_id).await?;
+
+    if old_cert_chain.is_empty() {
+        return Err(crate::Error::Fatal(
+            "cert chain contains no certificates".to_string(),
+        ));
+    }
 
     // Check that the cert digest is the same as the last renewal. Renew certs only if the digests match.
-    if let Ok(digest) = old_cert.digest(openssl::hash::MessageDigest::sha256()) {
+    if let Ok(digest) = old_cert_chain[0].digest(openssl::hash::MessageDigest::sha256()) {
         if digest.to_vec() != credential.digest {
             return Err(crate::Error::Fatal(
                 "certificate has changed since last renewal".to_string(),
@@ -119,19 +125,19 @@ where
 
     let (new_cert, key) = credential
         .interface
-        .renew_cert(&old_cert, &credential.key_id)
+        .renew_cert(&old_cert_chain, &credential.key_id)
         .await?;
 
     // This function may fail if `new_cert` is invalid or expired. Map these failures
     // to `Retryable` errors; discard `new_cert` and fall back to `old_cert` for now.
     credential
-        .reset(&new_cert)
+        .reset(&new_cert[0])
         .map_err(|err| crate::Error::Retryable(err.to_string()))?;
 
     credential
         .interface
         .write_credentials(
-            &old_cert,
+            &old_cert_chain,
             (&credential.cert_id, &new_cert),
             (&credential.key_id, key),
         )
@@ -181,8 +187,8 @@ where
 {
     let mut engine = engine.lock().await;
 
-    let (cert, _) = get_cert(&mut interface, cert_id, key_id, &policy).await?;
-    let credential = crate::Credential::new(cert_id, &cert, key_id, policy, interface)?;
+    let (cert_chain, _) = get_cert_chain(&mut interface, cert_id, key_id, &policy).await?;
+    let credential = crate::Credential::new(cert_id, &cert_chain[0], key_id, policy, interface)?;
 
     log::info!(
         "Certificate {} will be auto-renewed. Next renewal at {}.",
@@ -212,7 +218,7 @@ pub async fn get_credential<I>(
     key_id: &str,
 ) -> Result<
     (
-        openssl::x509::X509,
+        Vec<openssl::x509::X509>,
         openssl::pkey::PKey<openssl::pkey::Private>,
     ),
     crate::Error,
@@ -228,7 +234,7 @@ where
         return Err(crate::Error::fatal_error(format!("{} not found", cert_id)));
     };
 
-    let output = match get_cert(
+    let output = match get_cert_chain(
         &mut credential.interface,
         cert_id,
         key_id,
@@ -236,13 +242,13 @@ where
     )
     .await
     {
-        Ok((cert, cert_renewed)) => {
+        Ok((cert_chain, cert_renewed)) => {
             if cert_renewed {
-                credential.reset(&cert)?;
+                credential.reset(&cert_chain[0])?;
             }
 
             match credential.interface.get_key(key_id).await {
-                Ok(key) => Ok((cert, key)),
+                Ok(key) => Ok((cert_chain, key)),
                 Err(crate::Error::Retryable(message)) => {
                     Err(crate::Error::retryable_error(message))
                 }
@@ -279,27 +285,33 @@ where
     engine.credentials.clear();
 }
 
-async fn get_cert<I>(
+async fn get_cert_chain<I>(
     interface: &mut I,
     cert_id: &str,
     key_id: &str,
     policy: &crate::RenewalPolicy,
-) -> Result<(openssl::x509::X509, bool), crate::Error>
+) -> Result<(Vec<openssl::x509::X509>, bool), crate::Error>
 where
     I: crate::CertInterface,
 {
-    let mut cert = interface.get_cert(cert_id).await?;
+    let mut cert_chain = interface.get_cert(cert_id).await?;
     let mut cert_renewed = false;
 
-    if policy.threshold.should_renew(&cert) {
-        match interface.renew_cert(&cert, key_id).await {
-            Ok((new_cert, key)) => {
+    if cert_chain.is_empty() {
+        return Err(crate::Error::Fatal(
+            "cert chain contains no certificates".to_string(),
+        ));
+    }
+
+    if policy.threshold.should_renew(&cert_chain[0]) {
+        match interface.renew_cert(&cert_chain, key_id).await {
+            Ok((new_cert_chain, key)) => {
                 match interface
-                    .write_credentials(&cert, (cert_id, &new_cert), (key_id, key))
+                    .write_credentials(&cert_chain, (cert_id, &new_cert_chain), (key_id, key))
                     .await
                 {
                     Ok(()) => {
-                        cert = new_cert;
+                        cert_chain = new_cert_chain;
                         cert_renewed = true;
                     }
                     Err(crate::Error::Retryable(message)) => {
@@ -331,7 +343,7 @@ where
         };
     }
 
-    let expiry = crate::Time::from(cert.not_after());
+    let expiry = crate::Time::from(cert_chain[0].not_after());
 
     if expiry.in_past() {
         let message = format!("Cert {} is expired and could not be renewed", cert_id);
@@ -339,7 +351,7 @@ where
 
         Err(crate::Error::retryable_error(message))
     } else {
-        Ok((cert, cert_renewed))
+        Ok((cert_chain, cert_renewed))
     }
 }
 
@@ -621,7 +633,7 @@ mod tests {
             let interface = interface.lock().await;
 
             let cert = interface.certs.get("cert-1").unwrap();
-            let new_digest = calculate_digest(cert);
+            let new_digest = calculate_digest(&cert[0]);
             assert_eq!(digest, new_digest);
         }
     }
@@ -734,7 +746,7 @@ mod tests {
         let (cert, _) = super::get_credential(&engine, "cert-1", "key-1")
             .await
             .unwrap();
-        let new_digest = calculate_digest(&cert);
+        let new_digest = calculate_digest(&cert[0]);
         assert_eq!(cert_digest, new_digest);
 
         {
@@ -778,7 +790,7 @@ mod tests {
         let (cert, _) = super::get_credential(&engine, "cert-1", "key-1")
             .await
             .unwrap();
-        let new_digest = calculate_digest(&cert);
+        let new_digest = calculate_digest(&cert[0]);
         assert_ne!(cert_digest, new_digest);
 
         // Check that the renewed cert has its renewal time recalculated.
@@ -874,7 +886,7 @@ mod tests {
         let (cert, _) = super::get_credential(&engine, "cert-1", "key-1")
             .await
             .unwrap();
-        let new_digest = calculate_digest(&cert);
+        let new_digest = calculate_digest(&cert[0]);
         assert_ne!(cert_digest, new_digest);
 
         {
@@ -932,7 +944,7 @@ mod tests {
         let (cert, _) = super::get_credential(&engine, "cert-1", "key-1")
             .await
             .unwrap();
-        let new_digest = calculate_digest(&cert);
+        let new_digest = calculate_digest(&cert[0]);
         assert_eq!(cert_digest, new_digest);
 
         {
