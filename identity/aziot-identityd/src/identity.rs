@@ -800,9 +800,14 @@ impl IdentityManager {
         subject: Option<&String>,
     ) -> Result<aziot_identity_common::Credentials, Error> {
         let (cert, private_key) = if let Some(engine) = &self.identity_cert_renewal {
-            cert_renewal::engine::get_credential(engine, identity_cert, identity_pk)
-                .await
-                .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?
+            let (cert_chain, private_key) =
+                cert_renewal::engine::get_credential(engine, identity_cert, identity_pk)
+                    .await
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+
+            // Identity certificates are TLS client certificates. The full chain is not needed for authentication,
+            // so discard it.
+            (cert_chain[0].clone(), private_key)
         } else {
             let key_handle = self.key_client.load_key_pair(identity_pk).await;
 
