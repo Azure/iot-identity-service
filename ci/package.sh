@@ -108,7 +108,7 @@ case "$OS" in
 
     'mariner:1' | 'mariner:2')
         case "$ARCH" in
-            'arm32v7'|'aarch64')
+            'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
                 ;;
