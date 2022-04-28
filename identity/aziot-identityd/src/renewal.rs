@@ -114,8 +114,14 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             cert_renewal::Error::retryable_error("failed to retrieve identity cert")
         })?;
 
-        openssl::x509::X509::stack_from_pem(&cert)
-            .map_err(|_| cert_renewal::Error::fatal_error("failed to parse identity cert"))
+        let cert_chain = openssl::x509::X509::stack_from_pem(&cert)
+            .map_err(|_| cert_renewal::Error::fatal_error("failed to parse identity cert"))?;
+
+        if cert_chain.is_empty() {
+            Err(cert_renewal::Error::fatal_error("no certs in cert chain"))
+        } else {
+            Ok(cert_chain)
+        }
     }
 
     async fn get_key(
@@ -209,17 +215,29 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
         let new_cert_chain = openssl::x509::X509::stack_from_pem(&new_cert)
             .map_err(|_| cert_renewal::Error::retryable_error("failed to parse new cert"))?;
 
-        Ok((new_cert_chain, key_id))
+        if new_cert_chain.is_empty() {
+            Err(cert_renewal::Error::retryable_error(
+                "no certs in cert chain",
+            ))
+        } else {
+            Ok((new_cert_chain, key_id))
+        }
     }
 
     async fn write_credentials(
         &mut self,
-        _old_cert: &[openssl::x509::X509],
+        _old_cert_chain: &[openssl::x509::X509],
         new_cert_chain: (&str, &[openssl::x509::X509]),
         key: (&str, Self::NewKey),
     ) -> Result<(), cert_renewal::Error> {
         let (cert_id, new_cert_chain) = (new_cert_chain.0, new_cert_chain.1);
         let (old_key, new_key) = (key.0, key.1);
+
+        if new_cert_chain.is_empty() {
+            return Err(cert_renewal::Error::retryable_error(
+                "no certs in cert chain",
+            ));
+        }
 
         let mut new_cert_chain_pem = Vec::new();
 

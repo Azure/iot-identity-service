@@ -107,8 +107,14 @@ impl cert_renewal::CertInterface for EstIdRenewal {
             cert_renewal::Error::retryable_error(format!("failed to read cert chain: {}", err))
         })?;
 
-        openssl::x509::X509::stack_from_pem(&cert)
-            .map_err(|_| cert_renewal::Error::fatal_error("failed to parse cert chain"))
+        let cert_chain = openssl::x509::X509::stack_from_pem(&cert)
+            .map_err(|_| cert_renewal::Error::fatal_error("failed to parse cert chain"))?;
+
+        if cert_chain.is_empty() {
+            Err(cert_renewal::Error::fatal_error("no certs in cert chain"))
+        } else {
+            Ok(cert_chain)
+        }
     }
 
     async fn get_key(
@@ -226,7 +232,13 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         let cert_chain = openssl::x509::X509::stack_from_pem(&cert)
             .map_err(|_| cert_renewal::Error::retryable_error("failed to parse new cert"))?;
 
-        Ok((cert_chain, key_id))
+        if cert_chain.is_empty() {
+            Err(cert_renewal::Error::retryable_error(
+                "no certs in cert chain",
+            ))
+        } else {
+            Ok((cert_chain, key_id))
+        }
     }
 
     async fn write_credentials(
@@ -237,6 +249,12 @@ impl cert_renewal::CertInterface for EstIdRenewal {
     ) -> Result<(), cert_renewal::Error> {
         let new_cert_chain = new_cert_chain.1;
         let (old_key, new_key) = (key.0, key.1);
+
+        if old_cert_chain.is_empty() || new_cert_chain.is_empty() {
+            return Err(cert_renewal::Error::retryable_error(
+                "no certs in cert chain",
+            ));
+        }
 
         let mut new_cert_chain_pem = Vec::new();
 
