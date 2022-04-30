@@ -6,8 +6,9 @@ pub trait CertInterface {
     /// temporary key, and later written to persistent storage with the renewed cert.
     type NewKey: Send + Sync;
 
-    /// Retrieve a certificate from the provided `cert_id`.
-    async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error>;
+    /// Retrieve a certificate from the provided `cert_id`. May return a chain where the certificate
+    /// with `cert_id` is element 0.
+    async fn get_cert(&mut self, cert_id: &str) -> Result<Vec<openssl::x509::X509>, crate::Error>;
 
     /// Retrieve a private key from the provided `key_id`.
     async fn get_key(
@@ -17,9 +18,9 @@ pub trait CertInterface {
 
     /// Renew the provided certificate.
     ///
-    /// This function should renew `old_cert` and its key and return the renewed certificate and
-    /// key. It MUST leave `old_cert` and its key intact upon returning; i.e. it must not erase
-    /// `old_cert` or its key.
+    /// This function should renew `old_cert_chain` and its key and return the renewed certificate and
+    /// key. It MUST leave `old_cert_chain` and its key intact upon returning; i.e. it must not erase
+    /// `old_cert_chain` or its key.
     ///
     /// After this function returns, the renewal engine needs to perform additional checks and
     /// calculations on the renewed certificate. If the renewal engine determines the new certificate
@@ -29,9 +30,9 @@ pub trait CertInterface {
     /// `write_credentials`. The old certificate and its key may then be overwritten.
     async fn renew_cert(
         &mut self,
-        old_cert: &openssl::x509::X509,
+        old_cert_chain: &[openssl::x509::X509],
         key_id: &str,
-    ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error>;
+    ) -> Result<(Vec<openssl::x509::X509>, Self::NewKey), crate::Error>;
 
     /// Write the new credentials to storage, replacing any existing credentials with the same IDs.
     ///
@@ -43,8 +44,8 @@ pub trait CertInterface {
     /// function must revert any changes to `cert` before returning an error.
     async fn write_credentials(
         &mut self,
-        old_cert: &openssl::x509::X509,
-        new_cert: (&str, &openssl::x509::X509),
+        old_cert_chain: &[openssl::x509::X509],
+        new_cert_chain: (&str, &[openssl::x509::X509]),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error>;
 }
@@ -53,7 +54,7 @@ pub trait CertInterface {
 #[derive(Clone, Debug)]
 pub(crate) struct TestInterface {
     pub keys: std::collections::BTreeMap<String, openssl::pkey::PKey<openssl::pkey::Private>>,
-    pub certs: std::collections::BTreeMap<String, openssl::x509::X509>,
+    pub certs: std::collections::BTreeMap<String, Vec<openssl::x509::X509>>,
     pub renew_err: Option<crate::Error>,
 }
 
@@ -99,7 +100,9 @@ pub(crate) mod test_interface {
             cert.set_not_after(&not_after).unwrap();
         });
 
-        interface.certs.insert(cert_id.to_string(), cert.clone());
+        interface
+            .certs
+            .insert(cert_id.to_string(), vec![cert.clone()]);
         interface.keys.insert(key_id.to_string(), key);
 
         cert
@@ -120,7 +123,7 @@ pub(crate) mod test_interface {
 impl CertInterface for ArcMutex<TestInterface> {
     type NewKey = openssl::pkey::PKey<openssl::pkey::Private>;
 
-    async fn get_cert(&mut self, cert_id: &str) -> Result<openssl::x509::X509, crate::Error> {
+    async fn get_cert(&mut self, cert_id: &str) -> Result<Vec<openssl::x509::X509>, crate::Error> {
         let interface = self.lock().await;
 
         if let Some(cert) = interface.certs.get(cert_id) {
@@ -145,23 +148,23 @@ impl CertInterface for ArcMutex<TestInterface> {
 
     async fn renew_cert(
         &mut self,
-        old_cert: &openssl::x509::X509,
+        old_cert: &[openssl::x509::X509],
         _key_id: &str,
-    ) -> Result<(openssl::x509::X509, Self::NewKey), crate::Error> {
+    ) -> Result<(Vec<openssl::x509::X509>, Self::NewKey), crate::Error> {
         let interface = self.lock().await;
 
         if let Some(err) = &interface.renew_err {
             Err(err.clone())
         } else {
-            Ok(test_common::credential::custom_test_certificate(
+            let (cert, key) = test_common::credential::custom_test_certificate(
                 // This is ignored as the subject name, but still used as the issuer name.
                 "test-cert",
                 |cert| {
-                    cert.set_subject_name(old_cert.subject_name()).unwrap();
+                    cert.set_subject_name(old_cert[0].subject_name()).unwrap();
 
                     // Match the lifetime of the new cert to the old cert.
-                    let not_before = crate::Time::from(old_cert.not_before());
-                    let not_after = crate::Time::from(old_cert.not_after());
+                    let not_before = crate::Time::from(old_cert[0].not_before());
+                    let not_after = crate::Time::from(old_cert[0].not_after());
                     let lifetime = not_after - not_before;
                     assert!(lifetime > 0);
 
@@ -173,21 +176,23 @@ impl CertInterface for ArcMutex<TestInterface> {
                     let not_after = openssl::asn1::Asn1Time::from_unix(not_after).unwrap();
                     cert.set_not_after(&not_after).unwrap();
                 },
-            ))
+            );
+
+            Ok((vec![cert], key))
         }
     }
 
     async fn write_credentials(
         &mut self,
-        _old_cert: &openssl::x509::X509,
-        new_cert: (&str, &openssl::x509::X509),
+        _old_cert_chain: &[openssl::x509::X509],
+        new_cert_chain: (&str, &[openssl::x509::X509]),
         key: (&str, Self::NewKey),
     ) -> Result<(), crate::Error> {
         let mut interface = self.lock().await;
 
         interface
             .certs
-            .insert(new_cert.0.to_string(), new_cert.1.clone())
+            .insert(new_cert_chain.0.to_string(), new_cert_chain.1.to_vec())
             .unwrap();
         interface.keys.insert(key.0.to_string(), key.1).unwrap();
 

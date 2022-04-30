@@ -451,14 +451,16 @@ async fn create_cert_inner<'a>(
 
                 // Get the EST identity cert if configured. If it does not exist, create it.
                 let client_credentials = if let Some(x509) = &auth.x509 {
-                    if let Ok((id_cert, id_pk)) = cert_renewal::engine::get_credential(
+                    if let Ok((id_cert_chain, id_pk)) = cert_renewal::engine::get_credential(
                         &api.renewal_engine,
                         &x509.identity.cert,
                         &x509.identity.pk,
                     )
                     .await
                     {
-                        let id_cert = id_cert.to_pem()?;
+                        // Identity certificates are TLS client certificates. The full chain is not needed for authentication,
+                        // so discard it.
+                        let id_cert = id_cert_chain[0].to_pem()?;
 
                         Some((id_cert, id_pk))
                     } else {
