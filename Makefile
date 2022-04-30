@@ -279,7 +279,7 @@ rpm: dist
 rpm:
 	# Move dist tarball to rpmbuild sources directory
 	mkdir -p $(RPMBUILDDIR)/SOURCES
-	mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(RPMBUILDDIR)/SOURCES/aziot-identity-service-$(PACKAGE_VERSION)-$(PACKAGE_RELEASE).tar.gz
+	mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(RPMBUILDDIR)/SOURCES/aziot-identity-service-$(PACKAGE_VERSION)-$(PACKAGE_RELEASE).$(PACKAGE_DIST).tar.gz
 
 	# Copy spec file to rpmbuild specs directory
 	mkdir -p $(RPMBUILDDIR)/SPECS
