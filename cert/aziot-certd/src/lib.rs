@@ -458,9 +458,13 @@ async fn create_cert_inner<'a>(
                     )
                     .await
                     {
-                        // Identity certificates are TLS client certificates. The full chain is not needed for authentication,
-                        // so discard it.
-                        let id_cert = id_cert_chain[0].to_pem()?;
+                        let mut id_cert = Vec::new();
+
+                        for cert in id_cert_chain {
+                            let mut cert = cert.to_pem()?;
+
+                            id_cert.append(&mut cert);
+                        }
 
                         Some((id_cert, id_pk))
                     } else {
