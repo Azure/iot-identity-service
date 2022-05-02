@@ -16,12 +16,21 @@ pub(crate) fn from_auth(
             identity_cert,
             identity_pk,
         } => {
-            let identity_cert = identity_cert
-                .1
-                .to_pem()
-                .map_err(|_| Error::new(ErrorKind::Other, "bad cert"))?;
+            if identity_cert.1.is_empty() {
+                return Err(Error::new(ErrorKind::InvalidInput, "no certs in stack"));
+            }
 
-            crate::CloudConnector::new(proxy_uri, Some((&identity_cert, &identity_pk.1)), &[])
+            let mut identity_cert_pem = Vec::new();
+
+            for cert in &identity_cert.1 {
+                let mut cert = cert
+                    .to_pem()
+                    .map_err(|_| Error::new(ErrorKind::Other, "bad cert"))?;
+
+                identity_cert_pem.append(&mut cert);
+            }
+
+            crate::CloudConnector::new(proxy_uri, Some((&identity_cert_pem, &identity_pk.1)), &[])
         }
     }
 }
