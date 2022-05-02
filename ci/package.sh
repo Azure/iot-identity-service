@@ -113,7 +113,7 @@ case "$OS" in
                 exit 1
                 ;;
             'aarch64')
-                MarinerArch=arm64
+                MarinerArch=aarch64
                 ;;
             'arm64')
                 MarinerArch=x86_64
