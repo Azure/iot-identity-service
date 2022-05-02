@@ -115,7 +115,7 @@ case "$OS" in
             'aarch64')
                 MarinerArch=aarch64
                 ;;
-            'arm64')
+            'amd64')
                 MarinerArch=x86_64
                 ;;
         esac
