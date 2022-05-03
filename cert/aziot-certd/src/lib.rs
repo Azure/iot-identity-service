@@ -384,27 +384,74 @@ async fn create_cert_inner<'a>(
         builder.set_pubkey(pubkey)?;
         builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
+        let (subject_name, expiry, issuer_ref) =
+            stack.get(0).map_or((subject_name, expiry, None), |x509| {
+                let issuer_expiry = x509.not_after();
+
+                (
+                    x509.subject_name(),
+                    if expiry < issuer_expiry {
+                        expiry
+                    } else {
+                        issuer_expiry
+                    },
+                    Some(x509.as_ref()),
+                )
+            });
+
         // x509_req.extensions() returns an Err variant if no extensions are
         // present in the req. Ignore this Err and only copy extensions if
         // provided in the req.
         if let Ok(exts) = req.extensions() {
             for ext in exts {
+                // Add the Subject Key ID extension to CA certs.
+                if let Some(basic_constraints) =
+                    openssl2::extension::BasicConstraints::from_ext(&ext)
+                {
+                    if basic_constraints.ca {
+                        let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
+                        let context = builder.x509v3_context(issuer_ref, None);
+                        let subj_key_id = subj_key_id.build(&context)?;
+                        builder.append_extension(subj_key_id)?;
+                    }
+                }
+
                 builder.append_extension(ext)?;
             }
         }
 
-        let (subject_name, expiry) = stack.get(0).map_or((subject_name, expiry), |x509| {
-            let issuer_expiry = x509.not_after();
+        let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
+        auth_key_id.keyid(true);
 
-            (
-                x509.subject_name(),
-                if expiry < issuer_expiry {
-                    expiry
-                } else {
-                    issuer_expiry
-                },
-            )
-        });
+        let auth_key_id = if issuer_ref.is_none() {
+            // Issuer is None: this is a self-signed CA cert. Despite the openssl documentation
+            // saying that the issuer context should be None for self-signed certificates, this
+            // fails at runtime, as openssl is not able to determine the key ID when given None.
+            //
+            // Workaround: generate another cert that bears the same key as the cert being issued
+            // and use that as the issuer.
+            let mut issuer_builder = X509::builder()?;
+            issuer_builder.set_version(2)?;
+            issuer_builder.set_subject_name(subject_name)?;
+            issuer_builder.set_pubkey(pubkey)?;
+            issuer_builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
+            issuer_builder.set_not_after(expiry)?;
+
+            let issuer_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
+            let issuer_context = issuer_builder.x509v3_context(None, None);
+            let issuer_key_id = issuer_key_id.build(&issuer_context)?;
+            issuer_builder.append_extension(issuer_key_id)?;
+
+            let issuer = issuer_builder.build();
+
+            let context = builder.x509v3_context(Some(&issuer), None);
+            auth_key_id.build(&context)?
+        } else {
+            let context = builder.x509v3_context(issuer_ref, None);
+            auth_key_id.build(&context)?
+        };
+
+        builder.append_extension(auth_key_id)?;
 
         builder.set_not_after(expiry)?;
         builder.set_issuer_name(subject_name)?;
