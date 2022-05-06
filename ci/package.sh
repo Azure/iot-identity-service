@@ -108,9 +108,15 @@ case "$OS" in
 
     'mariner:1' | 'mariner:2')
         case "$ARCH" in
-            'arm32v7'|'aarch64')
+            'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
+                ;;
+            'aarch64')
+                MarinerArch=aarch64
+                ;;
+            'amd64')
+                MarinerArch=x86_64
                 ;;
         esac
 
@@ -211,8 +217,8 @@ EOF
         rm -rf "/src/packages/$TARGET_DIR"
         mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
             "/src/packages/$TARGET_DIR"
         ;;
 
