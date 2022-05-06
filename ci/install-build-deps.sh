@@ -176,7 +176,7 @@ mkdir -p ~/.cargo/bin
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
-    baseArch=$(uname -m)
+    baseArch="$(uname -m)"
     case "$baseArch" in
         'x86_64')
             curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
