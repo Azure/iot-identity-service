@@ -384,6 +384,15 @@ async fn create_cert_inner<'a>(
         builder.set_pubkey(pubkey)?;
         builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
+        // x509_req.extensions() returns an Err variant if no extensions are
+        // present in the req. Ignore this Err and only copy extensions if
+        // provided in the req.
+        if let Ok(exts) = req.extensions() {
+            for ext in exts {
+                builder.append_extension(ext)?;
+            }
+        }
+
         let (subject_name, expiry, issuer_ref) =
             stack.get(0).map_or((subject_name, expiry, None), |x509| {
                 let issuer_expiry = x509.not_after();
@@ -399,26 +408,10 @@ async fn create_cert_inner<'a>(
                 )
             });
 
-        // x509_req.extensions() returns an Err variant if no extensions are
-        // present in the req. Ignore this Err and only copy extensions if
-        // provided in the req.
-        if let Ok(exts) = req.extensions() {
-            for ext in exts {
-                // Add the Subject Key ID extension to CA certs.
-                if let Some(basic_constraints) =
-                    openssl2::extension::BasicConstraints::from_ext(&ext)
-                {
-                    if basic_constraints.ca {
-                        let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
-                        let context = builder.x509v3_context(issuer_ref, None);
-                        let subj_key_id = subj_key_id.build(&context)?;
-                        builder.append_extension(subj_key_id)?;
-                    }
-                }
-
-                builder.append_extension(ext)?;
-            }
-        }
+        let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
+        let context = builder.x509v3_context(issuer_ref, None);
+        let subj_key_id = subj_key_id.build(&context)?;
+        builder.append_extension(subj_key_id)?;
 
         let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
         auth_key_id.keyid(true);
