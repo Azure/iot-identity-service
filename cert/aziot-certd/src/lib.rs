@@ -384,27 +384,59 @@ async fn create_cert_inner<'a>(
         builder.set_pubkey(pubkey)?;
         builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
+        let (mut has_skid, mut has_akid) = (false, false);
+
         // x509_req.extensions() returns an Err variant if no extensions are
         // present in the req. Ignore this Err and only copy extensions if
         // provided in the req.
         if let Ok(exts) = req.extensions() {
             for ext in exts {
+                let (name, _) = openssl2::extension::parse(&ext);
+
+                if name == openssl::nid::Nid::SUBJECT_KEY_IDENTIFIER {
+                    has_skid = true;
+                } else if name == openssl::nid::Nid::AUTHORITY_KEY_IDENTIFIER {
+                    has_akid = true;
+                }
+
                 builder.append_extension(ext)?;
             }
         }
 
-        let (subject_name, expiry) = stack.get(0).map_or((subject_name, expiry), |x509| {
-            let issuer_expiry = x509.not_after();
+        let (subject_name, expiry, issuer_ref) =
+            stack.get(0).map_or((subject_name, expiry, None), |x509| {
+                let issuer_expiry = x509.not_after();
 
-            (
-                x509.subject_name(),
-                if expiry < issuer_expiry {
-                    expiry
-                } else {
-                    issuer_expiry
-                },
-            )
-        });
+                (
+                    x509.subject_name(),
+                    if expiry < issuer_expiry {
+                        expiry
+                    } else {
+                        issuer_expiry
+                    },
+                    Some(x509.as_ref()),
+                )
+            });
+
+        if !has_skid {
+            let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
+            let context = builder.x509v3_context(issuer_ref, None);
+            let subj_key_id = subj_key_id.build(&context)?;
+            builder.append_extension(subj_key_id)?;
+        }
+
+        if issuer_ref.is_some() && !has_akid {
+            let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
+            auth_key_id.keyid(true);
+
+            let context = builder.x509v3_context(issuer_ref, None);
+
+            // OpenSSL fails if the issuer does not contain an SKID. If this happens,
+            // skip the AKID extension and continue.
+            if let Ok(auth_key_id) = auth_key_id.build(&context) {
+                builder.append_extension(auth_key_id)?;
+            }
+        }
 
         builder.set_not_after(expiry)?;
         builder.set_issuer_name(subject_name)?;
@@ -458,9 +490,13 @@ async fn create_cert_inner<'a>(
                     )
                     .await
                     {
-                        // Identity certificates are TLS client certificates. The full chain is not needed for authentication,
-                        // so discard it.
-                        let id_cert = id_cert_chain[0].to_pem()?;
+                        let mut id_cert = Vec::new();
+
+                        for cert in id_cert_chain {
+                            let mut cert = cert.to_pem()?;
+
+                            id_cert.append(&mut cert);
+                        }
 
                         Some((id_cert, id_pk))
                     } else {

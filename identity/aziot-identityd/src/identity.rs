@@ -736,7 +736,13 @@ impl IdentityManager {
                             ..
                         } = &credentials
                         {
-                            get_cert_subject(&identity_cert.1)?
+                            if identity_cert.1.is_empty() {
+                                return Err(Error::Internal(InternalError::CreateCertificate(
+                                    "no certs in stack".into(),
+                                )));
+                            }
+
+                            get_cert_subject(&identity_cert.1[0])?
                         } else {
                             // get_identity_credentials will always return an X509 variant of Credentials.
                             unreachable!()
@@ -1039,14 +1045,12 @@ impl IdentityManager {
                     .await
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
-            // Identity certificates are TLS client certificates. The full chain is not needed for authentication,
-            // so discard it.
-            (cert_chain[0].clone(), private_key)
+            (cert_chain, private_key)
         } else {
             let key_handle = self.key_client.load_key_pair(identity_pk).await;
 
             if let Ok(cert) = self.cert_client.get_cert(identity_cert).await {
-                let cert = openssl::x509::X509::from_pem(&cert)
+                let cert = openssl::x509::X509::stack_from_pem(&cert)
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
                 let key_handle = key_handle
@@ -1094,12 +1098,18 @@ impl IdentityManager {
                     .await
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
-                let cert = openssl::x509::X509::from_pem(&cert)
+                let cert = openssl::x509::X509::stack_from_pem(&cert)
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
                 (cert, private_key)
             }
         };
+
+        if cert.is_empty() {
+            return Err(Error::Internal(InternalError::CreateCertificate(
+                "no certs in stack".into(),
+            )));
+        }
 
         Ok(aziot_identity_common::Credentials::X509 {
             identity_cert: (identity_cert.to_string(), cert),

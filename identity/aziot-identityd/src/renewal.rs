@@ -260,7 +260,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             .map_err(|_| cert_renewal::Error::retryable_error("failed to get cert key"))?;
 
         let credentials = aziot_identity_common::Credentials::X509 {
-            identity_cert: (cert_id.to_string(), new_cert_chain[0].clone()),
+            identity_cert: (cert_id.to_string(), new_cert_chain.to_vec()),
             identity_pk: (new_key.clone(), private_key),
         };
 
@@ -289,7 +289,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             .await
             .map_err(|_| cert_renewal::Error::retryable_error("failed to import new cert"))?;
 
-        let cert = openssl::x509::X509::from_pem(&cert)
+        let cert = openssl::x509::X509::stack_from_pem(&cert)
             .map_err(|_| cert_renewal::Error::retryable_error("bad cert"))?;
 
         // Commit the new key to storage if the key was rotated.

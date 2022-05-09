@@ -146,6 +146,7 @@
 ## USING AUTO-RENEWAL FOR AN INDIVIDUAL ENROLLMENT WILL CAUSE THE DEVICE TO BE UNABLE
 ## TO REPROVISION.
 # [provisioning.attestation.identity_cert.auto_renew]
+# rotate_key = true
 # threshold = "80%"
 # retry = "4%"
 
@@ -196,6 +197,7 @@
 ## Controls the renewal of EST identity certs. These certs are issued by the EST server after
 ## initial authentication with the bootstrap cert and managed by Certificates Service.
 # [cert_issuance.est.identity_auto_renew]
+# rotate_key = true
 # threshold = "80%"
 # retry = "4%"
 #

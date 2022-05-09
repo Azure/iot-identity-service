@@ -185,7 +185,7 @@ pub enum Credentials {
     SharedPrivateKey(String),
 
     X509 {
-        identity_cert: (String, openssl::x509::X509),
+        identity_cert: (String, Vec<openssl::x509::X509>),
         identity_pk: (String, openssl::pkey::PKey<openssl::pkey::Private>),
     },
 

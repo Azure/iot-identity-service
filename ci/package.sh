@@ -22,10 +22,12 @@ case "$OS" in
         case "$OS" in
             'centos:7')
                 TARGET_DIR="centos7/$ARCH"
+                PACKAGE_DIST="el7"
                 ;;
 
             'platform:el8')
                 TARGET_DIR="el8/$ARCH"
+                PACKAGE_DIST="el8"
                 ;;
         esac
 
@@ -33,15 +35,15 @@ case "$OS" in
 
         rm -rf ~/rpmbuild
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 rpm
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" V=1 rpm
 
         rm -rf "packages/$TARGET_DIR"
         mkdir -p "packages/$TARGET_DIR"
         cp \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/SRPMS/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.src.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/SRPMS/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.src.rpm" \
             "packages/$TARGET_DIR/"
         ;;
 
