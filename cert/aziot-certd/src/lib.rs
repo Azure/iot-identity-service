@@ -384,11 +384,21 @@ async fn create_cert_inner<'a>(
         builder.set_pubkey(pubkey)?;
         builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
 
+        let (mut has_skid, mut has_akid) = (false, false);
+
         // x509_req.extensions() returns an Err variant if no extensions are
         // present in the req. Ignore this Err and only copy extensions if
         // provided in the req.
         if let Ok(exts) = req.extensions() {
             for ext in exts {
+                let (name, _) = openssl2::extension::parse(&ext);
+
+                if name == openssl::nid::Nid::SUBJECT_KEY_IDENTIFIER {
+                    has_skid = true;
+                } else if name == openssl::nid::Nid::AUTHORITY_KEY_IDENTIFIER {
+                    has_akid = true;
+                }
+
                 builder.append_extension(ext)?;
             }
         }
@@ -408,12 +418,14 @@ async fn create_cert_inner<'a>(
                 )
             });
 
-        let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
-        let context = builder.x509v3_context(issuer_ref, None);
-        let subj_key_id = subj_key_id.build(&context)?;
-        builder.append_extension(subj_key_id)?;
+        if !has_skid {
+            let subj_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
+            let context = builder.x509v3_context(issuer_ref, None);
+            let subj_key_id = subj_key_id.build(&context)?;
+            builder.append_extension(subj_key_id)?;
+        }
 
-        if issuer_ref.is_some() {
+        if issuer_ref.is_some() && !has_akid {
             let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
             auth_key_id.keyid(true);
 
