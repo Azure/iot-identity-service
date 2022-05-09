@@ -413,38 +413,15 @@ async fn create_cert_inner<'a>(
         let subj_key_id = subj_key_id.build(&context)?;
         builder.append_extension(subj_key_id)?;
 
-        let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
-        auth_key_id.keyid(true);
+        if issuer_ref.is_some() {
+            let mut auth_key_id = openssl::x509::extension::AuthorityKeyIdentifier::new();
+            auth_key_id.keyid(true);
 
-        let auth_key_id = if issuer_ref.is_none() {
-            // Issuer is None: this is a self-signed CA cert. Despite the openssl documentation
-            // saying that the issuer context should be None for self-signed certificates, this
-            // fails at runtime, as openssl is not able to determine the key ID when given None.
-            //
-            // Workaround: generate another cert that bears the same key as the cert being issued
-            // and use that as the issuer.
-            let mut issuer_builder = X509::builder()?;
-            issuer_builder.set_version(2)?;
-            issuer_builder.set_subject_name(subject_name)?;
-            issuer_builder.set_pubkey(pubkey)?;
-            issuer_builder.set_not_before(&*Asn1Time::days_from_now(0)?)?;
-            issuer_builder.set_not_after(expiry)?;
-
-            let issuer_key_id = openssl::x509::extension::SubjectKeyIdentifier::new();
-            let issuer_context = issuer_builder.x509v3_context(None, None);
-            let issuer_key_id = issuer_key_id.build(&issuer_context)?;
-            issuer_builder.append_extension(issuer_key_id)?;
-
-            let issuer = issuer_builder.build();
-
-            let context = builder.x509v3_context(Some(&issuer), None);
-            auth_key_id.build(&context)?
-        } else {
             let context = builder.x509v3_context(issuer_ref, None);
-            auth_key_id.build(&context)?
-        };
+            let auth_key_id = auth_key_id.build(&context)?;
 
-        builder.append_extension(auth_key_id)?;
+            builder.append_extension(auth_key_id)?;
+        }
 
         builder.set_not_after(expiry)?;
         builder.set_issuer_name(subject_name)?;
