@@ -418,9 +418,12 @@ async fn create_cert_inner<'a>(
             auth_key_id.keyid(true);
 
             let context = builder.x509v3_context(issuer_ref, None);
-            let auth_key_id = auth_key_id.build(&context)?;
 
-            builder.append_extension(auth_key_id)?;
+            // OpenSSL fails if the issuer does not contain an SKID. If this happens,
+            // skip the AKID extension and continue.
+            if let Ok(auth_key_id) = auth_key_id.build(&context) {
+                builder.append_extension(auth_key_id)?;
+            }
         }
 
         builder.set_not_after(expiry)?;
