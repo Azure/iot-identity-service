@@ -211,6 +211,27 @@ pub enum CertSubject {
     Subject(BTreeMap<String, String>),
 }
 
+impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
+    type Error = openssl::error::ErrorStack;
+
+    fn try_from(
+        subject: &CertSubject,
+    ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
+        let mut builder = openssl::x509::X509Name::builder()?;
+
+        match subject {
+            CertSubject::CommonName(cn) => builder.append_entry_by_text("CN", cn)?,
+            CertSubject::Subject(fields) => {
+                for (name, value) in fields {
+                    builder.append_entry_by_text(name, value)?;
+                }
+            }
+        }
+
+        Ok(builder.build())
+    }
+}
+
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
