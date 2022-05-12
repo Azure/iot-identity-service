@@ -217,13 +217,28 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
     fn try_from(
         subject: &CertSubject,
     ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
+        // X.509 requires CNs to be shorter than 64 characters.
+        const CN_MAX_LENGTH: usize = 64;
+
         let mut builder = openssl::x509::X509Name::builder()?;
 
         match subject {
-            CertSubject::CommonName(cn) => builder.append_entry_by_text("CN", cn)?,
+            CertSubject::CommonName(cn) => {
+                let mut cn = cn.to_string();
+                cn.truncate(CN_MAX_LENGTH);
+
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+            }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
-                    builder.append_entry_by_text(name, value)?;
+                    if name.to_lowercase() == "cn" {
+                        let mut cn = value.to_string();
+                        cn.truncate(CN_MAX_LENGTH);
+
+                        builder.append_entry_by_text(name, &cn)?;
+                    } else {
+                        builder.append_entry_by_text(name, value)?;
+                    }
                 }
             }
         }
