@@ -235,7 +235,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
                         let mut cn = value.to_string();
                         cn.truncate(CN_MAX_LENGTH);
 
-                        builder.append_entry_by_text(name, value)?;
+                        builder.append_entry_by_text(name, &cn)?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
