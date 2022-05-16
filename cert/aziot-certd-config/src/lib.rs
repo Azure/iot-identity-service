@@ -211,6 +211,42 @@ pub enum CertSubject {
     Subject(BTreeMap<String, String>),
 }
 
+impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
+    type Error = openssl::error::ErrorStack;
+
+    fn try_from(
+        subject: &CertSubject,
+    ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
+        // X.509 requires CNs to be shorter than 64 characters.
+        const CN_MAX_LENGTH: usize = 64;
+
+        let mut builder = openssl::x509::X509Name::builder()?;
+
+        match subject {
+            CertSubject::CommonName(cn) => {
+                let mut cn = cn.to_string();
+                cn.truncate(CN_MAX_LENGTH);
+
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+            }
+            CertSubject::Subject(fields) => {
+                for (name, value) in fields {
+                    if name.to_lowercase() == "cn" {
+                        let mut cn = value.to_string();
+                        cn.truncate(CN_MAX_LENGTH);
+
+                        builder.append_entry_by_text(name, &cn)?;
+                    } else {
+                        builder.append_entry_by_text(name, value)?;
+                    }
+                }
+            }
+        }
+
+        Ok(builder.build())
+    }
+}
+
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: serde::de::Deserializer<'de>,

@@ -35,8 +35,8 @@ use openssl::x509::{extension, X509Name, X509NameRef, X509Req, X509ReqRef, X509}
 use openssl2::FunctionalEngine;
 
 use aziot_certd_config::{
-    CertIssuance, CertIssuanceMethod, CertSubject, CertificateWithPrivateKey, Config, Endpoints,
-    EstAuth, EstAuthBasic, PreloadedCert, Principal,
+    CertIssuance, CertIssuanceMethod, CertificateWithPrivateKey, Config, Endpoints, EstAuth,
+    EstAuthBasic, PreloadedCert, Principal,
 };
 use config_common::watcher::UpdateConfig;
 use http_common::Connector;
@@ -334,22 +334,6 @@ impl UpdateConfig for Api {
     }
 }
 
-fn build_name(subj: &CertSubject) -> Result<X509Name, BoxedError> {
-    let mut builder = X509Name::builder()
-        .map_err(|err| Error::Internal(InternalError::CreateCert(Box::new(err))))?;
-
-    match subj {
-        CertSubject::CommonName(cn) => builder.append_entry_by_text("CN", cn)?,
-        CertSubject::Subject(fields) => {
-            for (name, value) in fields {
-                builder.append_entry_by_text(name, value)?;
-            }
-        }
-    }
-
-    Ok(builder.build())
-}
-
 #[async_recursion]
 async fn create_cert_inner<'a>(
     api: &'a mut Api,
@@ -365,7 +349,7 @@ async fn create_cert_inner<'a>(
         )?;
         let name_override = cert_options
             .and_then(|opts| opts.subject.as_ref())
-            .map(build_name)
+            .map(X509Name::try_from)
             .transpose()?;
 
         let subject_name = name_override
@@ -501,7 +485,7 @@ async fn create_cert_inner<'a>(
                         Some((id_cert, id_pk))
                     } else {
                         let subject_name = if let Some(subject) = &cert_options.subject {
-                            build_name(subject)?
+                            X509Name::try_from(subject)?
                         } else {
                             // X509NameRef to X509Name.
                             let subject = req.subject_name().to_der()?;
