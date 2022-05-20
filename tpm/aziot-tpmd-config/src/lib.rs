@@ -4,15 +4,51 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 use serde::{Deserialize, Serialize};
+use serde::de::Error;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+const _: () = assert!(valid_persistent_index(default_ak_index()));
+
+const fn default_ak_index() -> u32 {
+    0x00_01_00
+}
+
+/// TPM2 Specification Part 3: 28.5.1.c.1
+const fn valid_persistent_index(index: u32) -> bool {
+    index <= 0x7F_FF_FF
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
+    #[serde(default, skip_serializing_if = "empty_tcti")]
+    pub tcti: std::ffi::CString,
+
+    #[serde(default = "default_ak_index", deserialize_with = "persistent_index")]
+    pub auth_key_index: u32,
+
     /// Map of service names to endpoint URIs.
     ///
     /// Only configurable in debug builds for the sake of tests.
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: Endpoints,
+}
+
+fn empty_tcti(tcti: &std::ffi::CStr) -> bool {
+    tcti.to_bytes().is_empty()
+}
+
+fn persistent_index<'de, D>(de: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>
+{
+    let value = u32::deserialize(de)?;
+    if !valid_persistent_index(value) {
+        return Err(D::Error::invalid_value(
+            serde::de::Unexpected::Unsigned(u64::from(value)),
+            &"persistent handle index cannot exceed 0x7F_FF_FF",
+        ));
+    }
+    Ok(value)
 }
 
 /// Map of service names to endpoint URIs.
