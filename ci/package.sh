@@ -22,10 +22,12 @@ case "$OS" in
         case "$OS" in
             'centos:7')
                 TARGET_DIR="centos7/$ARCH"
+                PACKAGE_DIST="el7"
                 ;;
 
             'platform:el8')
                 TARGET_DIR="el8/$ARCH"
+                PACKAGE_DIST="el8"
                 ;;
         esac
 
@@ -33,15 +35,15 @@ case "$OS" in
 
         rm -rf ~/rpmbuild
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 rpm
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" V=1 rpm
 
         rm -rf "packages/$TARGET_DIR"
         mkdir -p "packages/$TARGET_DIR"
         cp \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.x86_64.rpm" \
-            ~/"rpmbuild/SRPMS/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.src.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.x86_64.rpm" \
+            ~/"rpmbuild/SRPMS/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PACKAGE_DIST.src.rpm" \
             "packages/$TARGET_DIR/"
         ;;
 
@@ -107,11 +109,17 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'mariner')
+    'mariner:1' | 'mariner:2')
         case "$ARCH" in
-            'arm32v7'|'aarch64')
+            'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
+                ;;
+            'aarch64')
+                MarinerArch=aarch64
+                ;;
+            'amd64')
+                MarinerArch=x86_64
                 ;;
         esac
 
@@ -128,15 +136,37 @@ case "$OS" in
         tar xzvf toolkit.tar.gz
         popd
 
+        case "$OS" in
+            'mariner:1')
+                UsePreview=n
+                TARGET_DIR="mariner1/$ARCH"
+                PackageExtension="cm1"
+                ;;
+            'mariner:2')
+                # mariner 2.0 pacakges are currntly only available in preview change this to use production after mariner 2.0's release
+                UsePreview=y
+                TARGET_DIR="mariner2/$ARCH"
+                PackageExtension="cm2"
+                ;;
+        esac
+
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$MarinerSourceDir"
         mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
+
+        tmp_dir=$(mktemp -d)
+        pushd $tmp_dir
+        mkdir "rust"
+        cp -r ~/.cargo "rust"
+        cp -r ~/.rustup "rust"
+        tar cf "$MarinerSourceDir/rust.tar.gz" "rust"
+        popd
 
         curl -Lo "/tmp/cbindgen-$CBINDGEN_VERSION.tar.gz" "https://github.com/eqrion/cbindgen/archive/refs/tags/v$CBINDGEN_VERSION.tar.gz"
         pushd /tmp
         tar xf "cbindgen-$CBINDGEN_VERSION.tar.gz" --no-same-owner
         pushd "/tmp/cbindgen-$CBINDGEN_VERSION"
-        cp /src/rust-toolchain .
+        cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
         cat > .cargo/config << EOF
@@ -154,7 +184,7 @@ EOF
         pushd /tmp
         tar xf "rust-bindgen-$BINDGEN_VERSION.tar.gz" --no-same-owner
         pushd "/tmp/rust-bindgen-$BINDGEN_VERSION"
-        cp /src/rust-toolchain .
+        cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
         cat > .cargo/config << EOF
@@ -180,18 +210,19 @@ EOF
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.spec
+        cp /src/contrib/mariner/gcc-11.patch .
 
         # Build package
         pushd "$MarinerRPMBUILDDIR/toolkit"
-        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update CONFIG_FILE= -j$(nproc)
+        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
         popd
 
-        rm -rf "/src/packages/mariner/$ARCH"
-        mkdir -p "/src/packages/mariner/$ARCH"
+        rm -rf "/src/packages/$TARGET_DIR"
+        mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.cm1.x86_64.rpm" \
-            "/src/packages/mariner/$ARCH/"
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "/src/packages/$TARGET_DIR"
         ;;
 
     *)

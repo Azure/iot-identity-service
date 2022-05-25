@@ -120,7 +120,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'mariner:amd64')
+    'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -140,10 +140,19 @@ case "$OS:$ARCH" in
             mv /.dockerenv /.dockerenv.old
         fi
 
+        case "$OS" in
+            'mariner:1')
+                BranchTag='1.0-stable'
+                ;;
+            'mariner:2')
+                BranchTag='2.0-stable'
+                ;;
+        esac
+
         MarinerToolkitDir='/tmp/CBL-Mariner'
         if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
             rm -rf "$MarinerToolkitDir"
-            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch '1.0-stable' --depth 1 "$MarinerToolkitDir"
+            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
             pushd "$MarinerToolkitDir/toolkit/"
             make package-toolkit REBUILD_TOOLS=y
             popd
@@ -168,7 +177,20 @@ mkdir -p ~/.cargo/bin
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
-    curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+    baseArch="$(uname -m)"
+    case "$baseArch" in
+        'x86_64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+            ;;
+
+        'aarch64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init'
+            ;;
+        *)
+            echo "Unsupported ARCH $baseArch" >&2
+            exit 1
+            ;;
+    esac
     chmod +x ~/.cargo/bin/rustup
     hash -r
 fi

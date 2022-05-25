@@ -206,13 +206,20 @@ pub struct CertIssuance {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Est {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_certs: Vec<Url>,
-    pub auth: EstAuth,
+    #[serde(
+        default,
+        skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
+    )]
+    pub identity_auto_renew: cert_renewal::AutoRenewConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<EstAuth>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub urls: BTreeMap<String, Url>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct EstAuth {
     #[serde(flatten)]
     pub basic: Option<aziot_certd_config::EstAuthBasic>,
@@ -221,7 +228,7 @@ pub struct EstAuth {
     pub x509: Option<EstAuthX509>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum EstAuthX509 {
     BootstrapIdentity {
@@ -237,6 +244,7 @@ pub enum EstAuthX509 {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum LocalCa {
     Issued {
         cert: CertIssuanceOptions,
@@ -263,6 +271,7 @@ pub enum SymmetricKey {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum X509Identity {
     Issued {
         identity_cert: CertIssuanceOptions,
@@ -274,7 +283,7 @@ pub enum X509Identity {
     },
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CertIssuanceOptions {
     #[serde(flatten)]
     pub method: CertIssuanceMethod,
@@ -285,12 +294,15 @@ pub struct CertIssuanceOptions {
     )]
     pub expiry_days: Option<u32>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_renew: Option<cert_renewal::AutoRenewConfig>,
+
     #[serde(flatten)]
     pub subject: Option<aziot_certd_config::CertSubject>,
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]

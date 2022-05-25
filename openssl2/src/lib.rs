@@ -9,6 +9,9 @@
     clippy::use_self
 )]
 
+/// X.509 extension parsing.
+pub mod extension;
+
 /// Error type for openssl engine operations.
 #[derive(Debug)]
 pub enum Error {

@@ -77,7 +77,35 @@ impl http_common::server::Route for Route {
         Ok(res)
     }
 
-    type PostBody = serde::de::IgnoredAny;
+    type PostBody = aziot_key_common_http::r#move::Request;
+    async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
+        let body = body.ok_or_else(|| http_common::server::Error {
+            status_code: http::StatusCode::BAD_REQUEST,
+            message: "missing request body".into(),
+        })?;
+
+        if body.from == self.key_id {
+            return Err(http_common::server::Error {
+                status_code: hyper::StatusCode::BAD_REQUEST,
+                message: "source and destination for move are identical".into(),
+            });
+        }
+
+        let mut api = self.api.lock().await;
+
+        if &self.type_ != "keypair" {
+            return Err(http_common::server::Error {
+                status_code: hyper::StatusCode::BAD_REQUEST,
+                message: format!("invalid type {:?}", self.type_).into(),
+            });
+        }
+
+        if let Err(err) = api.move_key_pair(&body.from, &self.key_id, self.user) {
+            Err(super::to_http_error(&err))
+        } else {
+            Ok(http_common::server::response::no_content())
+        }
+    }
 
     type PutBody = serde::de::IgnoredAny;
 }

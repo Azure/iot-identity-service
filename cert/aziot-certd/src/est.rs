@@ -8,6 +8,62 @@ use url::Url;
 use aziot_certd_config::EstAuthBasic;
 use http_common::MaybeProxyConnector;
 
+pub(crate) struct EstConfig {
+    pub renewal: cert_renewal::AutoRenewConfig,
+    pub trusted_certs: Vec<X509>,
+    pub proxy_uri: Option<hyper::Uri>,
+}
+
+impl EstConfig {
+    /// Get the EST renewal policy and trusted certs, which are global for all EST issuance options.
+    pub(crate) fn new(
+        cert_issuance: &aziot_certd_config::CertIssuance,
+        homedir_path: &std::path::Path,
+        preloaded_certs: &std::collections::BTreeMap<String, aziot_certd_config::PreloadedCert>,
+    ) -> Result<Self, crate::Error> {
+        let (renewal, trusted_certs) = if let Some(est) = &cert_issuance.est {
+            let mut trusted_certs = vec![];
+
+            for cert in &est.trusted_certs {
+                let pem = crate::get_cert_inner(homedir_path, preloaded_certs, cert)?.ok_or_else(
+                    || {
+                        crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            format!(
+                                "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
+                                cert
+                            ),
+                        )))
+                    },
+                )?;
+
+                let x509 = X509::stack_from_pem(&pem).map_err(|err| {
+                    crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        err,
+                    )))
+                })?;
+
+                trusted_certs.extend(x509);
+            }
+
+            (est.identity_auto_renew.clone(), trusted_certs)
+        } else {
+            (cert_renewal::AutoRenewConfig::default(), Vec::new())
+        };
+
+        let proxy_uri = http_common::get_proxy_uri(None).map_err(|err| {
+            crate::Error::Internal(crate::InternalError::InvalidProxyUri(Box::new(err)))
+        })?;
+
+        Ok(EstConfig {
+            renewal,
+            trusted_certs,
+            proxy_uri,
+        })
+    }
+}
+
 pub(crate) async fn create_cert(
     csr: Vec<u8>,
     url: &Url,

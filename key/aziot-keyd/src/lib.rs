@@ -121,6 +121,26 @@ impl Api {
         Ok(handle)
     }
 
+    pub fn move_key_pair(&mut self, from: &str, to: &str, user: libc::uid_t) -> Result<(), Error> {
+        // Require the caller to be authorized to modify both keys.
+        if !self.authorize(user, from) {
+            return Err(Error::Unauthorized(user, from.to_owned()));
+        }
+
+        if !self.authorize(user, to) {
+            return Err(Error::Unauthorized(user, to.to_owned()));
+        }
+
+        let from_cstr = std::ffi::CString::new(from.to_owned())
+            .map_err(|err| Error::invalid_parameter("from", err))?;
+        let to_cstr = std::ffi::CString::new(to.to_owned())
+            .map_err(|err| Error::invalid_parameter("to", err))?;
+
+        self.keys.move_key_pair(&from_cstr, &to_cstr)?;
+
+        Ok(())
+    }
+
     pub fn load_key_pair(
         &mut self,
         id: &str,
@@ -310,7 +330,7 @@ impl Api {
                 self.keys.sign(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_SIGN_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     digest,
                 )?
             }
@@ -346,7 +366,7 @@ impl Api {
                 self.keys.encrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     plaintext,
                 )?
             }
@@ -384,15 +404,13 @@ impl Api {
                     derivation_data: derivation_data.as_ptr(),
                     derivation_data_len: derivation_data.len(),
                     mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    parameters: (&parameters
-                        as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS)
-                        .cast(),
+                    parameters: std::ptr::addr_of!(parameters).cast(),
                 };
 
                 self.keys.encrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     plaintext,
                 )?
             }
@@ -428,7 +446,7 @@ impl Api {
                 self.keys.decrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     ciphertext,
                 )?
             }
@@ -448,15 +466,13 @@ impl Api {
                     derivation_data: derivation_data.as_ptr(),
                     derivation_data_len: derivation_data.len(),
                     mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    parameters: (&parameters
-                        as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS)
-                        .cast(),
+                    parameters: std::ptr::addr_of!(parameters).cast(),
                 };
 
                 self.keys.decrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     ciphertext,
                 )?
             }

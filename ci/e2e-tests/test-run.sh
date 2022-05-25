@@ -54,12 +54,29 @@ get_package() {
     #
     # Ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
     echo "Getting latest workflow run's artifacts URL..." >&2
-    artifacts_url="$(
-        github_curl -L \
-            -H 'accept: application/vnd.github.v3+json' \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
-            jq -r '.workflow_runs[0].artifacts_url'
-    )"
+    artifacts_url='null'
+
+    # GitHub API calls may fail if too many other tests make the same call concurrently.
+    # Allow a few retries before failing.
+    set +e
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        artifacts_url="$(
+            github_curl -L \
+                -H 'accept: application/vnd.github.v3+json' \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
+                jq -r '.workflow_runs[0].artifacts_url'
+        )"
+
+        if [ -n "$artifacts_url" ] && [ "$artifacts_url" != 'null' ]; then
+            break
+        fi
+    done
+    set -e
+
     if [ "$artifacts_url" = 'null' ]; then
         echo "No successfully-concluded packages workflow found for branch $BRANCH" >&2
         exit 1
@@ -103,15 +120,30 @@ get_package() {
     artifact_name="packages_${artifact_name}_amd64"
 
     echo 'Getting artifact download URL...' >&2
-    artifact_download_url="$(
-        github_curl -L \
-            -H 'accept: application/vnd.github.v3+json' \
-            "$artifacts_url" |
-            jq \
-                --arg artifact_name "$artifact_name" \
-                -r \
-                '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
-    )"
+    artifact_download_url=""
+
+    set +e
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        artifact_download_url="$(
+            github_curl -L \
+                -H 'accept: application/vnd.github.v3+json' \
+                "$artifacts_url" |
+                jq \
+                    --arg artifact_name "$artifact_name" \
+                    -r \
+                    '.artifacts[] | select(.name == $artifact_name) | .archive_download_url'
+        )"
+
+        if [ -n "$artifact_download_url" ] && [ "$artifact_download_url" != 'null' ]; then
+            break
+        fi
+    done
+    set -e
+
     if [ -z "$artifact_download_url" ]; then
         echo "Could not find artifact for OS $OS" >&2
         exit 1
@@ -119,9 +151,24 @@ get_package() {
     echo "Artifact download URL: $artifact_download_url" >&2
 
     echo 'Downloading artifact...' >&2
-    github_curl -L \
-        -o package.zip \
-        "$artifact_download_url"
+    set +e
+    for retry in {0..3}; do
+        if [ "$retry" != '0' ]; then
+            sleep 10
+        fi
+
+        github_curl -L \
+            -o package.zip \
+            "$artifact_download_url"
+
+        # Check if a valid zipfile was downloaded.
+        unzip -t package.zip >& /dev/null
+
+        if [ "$?" == '0' ]; then
+            break
+        fi
+    done
+    set -e
     echo 'Downloaded artifact' >&2
 
 
@@ -486,7 +533,7 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'OpenLogic' --offer 'CentOS' --sku '7' \
         #     --query "[?publisher == 'OpenLogic' && offer == 'CentOS'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='OpenLogic:CentOS:7_9-gen2:7.9.2021071901'
+        vm_image='OpenLogic:CentOS:7_9-gen2:7.9.2022020701'
         ;;
 
     'debian:9')
@@ -502,7 +549,7 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Debian' --offer 'debian-10' --sku '10' \
         #     --query "[?publisher == 'Debian' && offer == 'debian-10'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Debian:debian-10:10-gen2:0.20210721.710'
+        vm_image='Debian:debian-10:10-gen2:0.20220328.962'
         ;;
 
     'debian:11')
@@ -511,7 +558,7 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Debian' --offer 'debian-11' --sku '11-gen2' \
         #     --query "[?publisher == 'Debian' && offer == 'debian-11'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Debian:debian-11:11-gen2:0.20210814.734'
+        vm_image='Debian:debian-11:11-gen2:0.20220328.962'
         ;;
 
     'platform:el8')
@@ -531,7 +578,7 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Canonical' --offer 'UbuntuServer' --sku '18' \
         #     --query "[?publisher == 'Canonical' && offer == 'UbuntuServer'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:UbuntuServer:18_04-lts-gen2:18.04.202109180'
+        vm_image='Canonical:UbuntuServer:18_04-lts-gen2:18.04.202204190'
         ;;
 
     'ubuntu:20.04')
@@ -543,7 +590,7 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Canonical' --offer '0001-com-ubuntu-server-focal' --sku '20' \
         #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-server-focal'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202109080'
+        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202204190'
         ;;
 
     *)
@@ -612,10 +659,29 @@ case "$OS" in
 
     debian:*|ubuntu:*)
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            for retry in {0..3}; do
+                if [ "$retry" != "0" ]; then
+                    sleep 10
+                fi
+
+                sudo apt-get update -y
+
+                if [ "$?" == "0" ]; then
+                    break
+                fi
+            done
+
             set -euxo pipefail
 
-            sudo apt-get update -y
-            sudo apt-get upgrade -y
+            sudo DEBIAN_FRONTEND=noninteractive \
+                apt-get \
+                -o 'Dpkg::Options::=--force-confnew' \
+                -o 'Dpkg::Options::=--force-confdef' \
+                -y \
+                --allow-downgrades \
+                --allow-remove-essential \
+                --allow-change-held-packages \
+                upgrade
         '
         ;;
 
@@ -679,10 +745,22 @@ case "$OS" in
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.deb"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            for retry in {0..3}; do
+                if [ "$retry" != "0" ]; then
+                    sleep 10
+                fi
+
+                sudo apt-get update -y
+
+                if [ "$?" == "0" ]; then
+                    break
+                fi
+            done
+
             set -euxo pipefail
 
-            sudo apt-get install -y bc curl jq perl
-            sudo apt-get install -y /home/aziot/aziot-identity-service.deb
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
         '
         ;;
 

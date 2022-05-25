@@ -13,8 +13,6 @@ pub struct Client {
     auth: aziot_identity_common::Credentials,
 
     key_client: crate::KeyClient,
-    key_engine: crate::KeyEngine,
-    cert_client: crate::CertClient,
     tpm_client: crate::TpmClient,
 
     timeout: std::time::Duration,
@@ -28,8 +26,6 @@ impl Client {
     pub fn new(
         credentials: aziot_identity_common::Credentials,
         key_client: crate::KeyClient,
-        key_engine: crate::KeyEngine,
-        cert_client: crate::CertClient,
         tpm_client: crate::TpmClient,
     ) -> Self {
         // The default DPS global endpoint.
@@ -40,8 +36,6 @@ impl Client {
             endpoint,
             auth: credentials,
             key_client,
-            key_engine,
-            cert_client,
             tpm_client,
             timeout: std::time::Duration::from_secs(30),
             retries: 0,
@@ -49,24 +43,28 @@ impl Client {
         }
     }
 
+    #[must_use]
     pub fn with_endpoint(mut self, endpoint: url::Url) -> Self {
         self.endpoint = endpoint;
 
         self
     }
 
+    #[must_use]
     pub fn with_retry(mut self, retries: u32) -> Self {
         self.retries = retries;
 
         self
     }
 
+    #[must_use]
     pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.timeout = timeout;
 
         self
     }
 
+    #[must_use]
     pub fn with_proxy(mut self, proxy: Option<hyper::Uri>) -> Self {
         self.proxy = proxy;
 
@@ -78,14 +76,7 @@ impl Client {
         scope_id: &str,
         registration_id: &str,
     ) -> Result<schema::Device, Error> {
-        let connector = crate::connector::from_auth(
-            &self.auth,
-            self.proxy.clone(),
-            &self.key_client,
-            &self.key_engine,
-            &self.cert_client,
-        )
-        .await?;
+        let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
         let register_uri = {
             let register_path = format!("{}/registrations/{}/register", scope_id, registration_id);
@@ -240,7 +231,10 @@ impl Client {
             log::info!("Checking DPS registration status.");
             let response = status_request.json_response().await?;
 
-            let registration = response.parse_expect_ok::<schema::response::DeviceRegistration, schema::response::ServiceError>()?;
+            let registration = response
+                .parse::<schema::response::DeviceRegistration, schema::response::ServiceError>(
+                    &[hyper::StatusCode::OK, hyper::StatusCode::ACCEPTED],
+                )?;
 
             match registration {
                 schema::response::DeviceRegistration::Assigned { device, tpm } => {

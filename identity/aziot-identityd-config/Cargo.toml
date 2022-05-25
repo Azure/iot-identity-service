@@ -16,7 +16,7 @@ serde = { version = "1", features = ["derive"] }
 url = { version = "2", features = ["serde"] }
 
 aziot-identity-common = { path = "../aziot-identity-common" }
-
+cert-renewal = { path = "../../cert/cert-renewal"}
 
 [dev-dependencies]
 toml = "0.5"

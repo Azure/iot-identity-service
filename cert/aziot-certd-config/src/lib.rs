@@ -6,7 +6,8 @@
     clippy::default_trait_access,
     clippy::too_many_lines,
     clippy::let_unit_value,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate
 )]
 
 pub mod util;
@@ -71,18 +72,42 @@ pub struct CertIssuance {
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Est {
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_certs: Vec<String>,
 
     /// Authentication parameters for the EST server.
     // NOTE: DO NOT MOVE. Tables must be after values!
-    #[serde(flatten)]
-    pub auth: EstAuth,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<EstAuth>,
+
+    /// Parameters for auto-renewal of EST identity certs. These certs are issued by the EST servers after
+    /// initial authentication with the bootstrap cert and managed by Certificates Service.
+    ///
+    /// This setting applies to EST identity certs for all EST `cert_issuance` configurations. Default values
+    /// to renew at 80% of cert lifetime with retries every 4% of cert lifetime will be used if this setting
+    /// is not provided. By default, keys will also be rotated.
+    #[serde(
+        default,
+        skip_serializing_if = "cert_renewal::AutoRenewConfig::is_default"
+    )]
+    pub identity_auto_renew: cert_renewal::AutoRenewConfig,
 
     /// Map of certificate IDs to EST endpoint URLs.
     ///
     /// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub urls: BTreeMap<String, Url>,
+}
+
+pub fn default_est_renew() -> cert_renewal::RenewalPolicy {
+    cert_renewal::RenewalPolicy {
+        threshold: cert_renewal::Policy::Percentage(80),
+        retry: cert_renewal::Policy::Percentage(4),
+    }
+}
+
+pub fn is_default_est_renew(auto_renew: &cert_renewal::RenewalPolicy) -> bool {
+    auto_renew == &default_est_renew()
 }
 
 /// Authentication parameters for the EST server.
@@ -114,6 +139,7 @@ impl TryFrom<EstAuthInner> for EstAuth {
 
     fn try_from(value: EstAuthInner) -> Result<Self, Self::Error> {
         let EstAuthInner { basic, x509 } = value;
+
         if basic.is_none() && x509.is_none() {
             Err(Self::Error::missing_field(
                 "empty authentication parameters",
@@ -153,7 +179,7 @@ with_prefix!(prefix_identity "identity_");
 with_prefix!(prefix_bootstrap_identity "bootstrap_identity_");
 
 /// Configuration of parameters for issuing certs via a local CA cert.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub struct CertificateWithPrivateKey {
     /// Certificate ID.
     pub cert: String,
@@ -183,6 +209,42 @@ pub struct CertIssuanceOptions {
 pub enum CertSubject {
     CommonName(String),
     Subject(BTreeMap<String, String>),
+}
+
+impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
+    type Error = openssl::error::ErrorStack;
+
+    fn try_from(
+        subject: &CertSubject,
+    ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
+        // X.509 requires CNs to be shorter than 64 characters.
+        const CN_MAX_LENGTH: usize = 64;
+
+        let mut builder = openssl::x509::X509Name::builder()?;
+
+        match subject {
+            CertSubject::CommonName(cn) => {
+                let mut cn = cn.to_string();
+                cn.truncate(CN_MAX_LENGTH);
+
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+            }
+            CertSubject::Subject(fields) => {
+                for (name, value) in fields {
+                    if name.to_lowercase() == "cn" {
+                        let mut cn = value.to_string();
+                        cn.truncate(CN_MAX_LENGTH);
+
+                        builder.append_entry_by_text(name, &cn)?;
+                    } else {
+                        builder.append_entry_by_text(name, value)?;
+                    }
+                }
+            }
+        }
+
+        Ok(builder.build())
+    }
 }
 
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -302,6 +364,11 @@ trusted_certs = [
 	"est-ca",
 ]
 
+[cert_issuance.est.identity_auto_renew]
+rotate_key = true
+threshold = "50%"
+retry = "10%"
+
 [cert_issuance.est.urls]
 default = "https://estendpoint.com/.well-known/est/"
 device-ca = "https://estendpoint.com/.well-known/est/device-ca/"
@@ -327,7 +394,14 @@ certs = ["test"]
                 cert_issuance: CertIssuance {
                     est: Some(Est {
                         trusted_certs: vec!["est-ca".to_owned(),],
-                        auth: EstAuth {
+                        identity_auto_renew: cert_renewal::AutoRenewConfig {
+                            rotate_key: true,
+                            policy: cert_renewal::RenewalPolicy {
+                                threshold: cert_renewal::Policy::Percentage(50),
+                                retry: cert_renewal::Policy::Percentage(10)
+                            }
+                        },
+                        auth: Some(EstAuth {
                             basic: None,
                             x509: Some(EstAuthX509 {
                                 identity: CertificateWithPrivateKey {
@@ -339,7 +413,7 @@ certs = ["test"]
                                     pk: "bootstrap".to_owned()
                                 }),
                             })
-                        },
+                        }),
                         urls: vec![
                             (
                                 "default".to_owned(),
@@ -508,7 +582,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             cert_issuance: CertIssuance {
                 est: Some(Est {
                     trusted_certs: vec!["est-ca".to_owned()],
-                    auth: EstAuth {
+                    identity_auto_renew: cert_renewal::AutoRenewConfig::default(),
+                    auth: Some(EstAuth {
                         basic: None,
                         x509: Some(EstAuthX509 {
                             identity: CertificateWithPrivateKey {
@@ -520,7 +595,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
                                 pk: "bootstrap".to_owned(),
                             }),
                         }),
-                    },
+                    }),
                     urls: vec![
                         (
                             "default".to_owned(),
