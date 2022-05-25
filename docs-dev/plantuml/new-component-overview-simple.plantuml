@@ -1,4 +1,4 @@
-@@startuml
+@startuml
 title Data Flow - new architecture
 
 cloud "DPS Service" {
@@ -87,4 +87,4 @@ skinparam component {
     backgroundColor<<service>> White
 }
 
-@@enduml
+@enduml
