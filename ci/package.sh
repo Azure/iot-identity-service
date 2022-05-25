@@ -144,7 +144,7 @@ case "$OS" in
                 ;;
             'mariner:2')
                 # mariner 2.0 pacakges are currntly only available in preview change this to use production after mariner 2.0's release
-                UsePreview=y
+                UsePreview=n
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
                 ;;
