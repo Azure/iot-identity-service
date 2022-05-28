@@ -37,7 +37,8 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let (endorsement_key, storage_root_key) = api.get_tpm_keys()
+        let (endorsement_key, storage_root_key) = api
+            .get_tpm_keys()
             .map_err(|e| super::to_http_error(&Error::Internal(InternalError::GetTpmKeys(e))))?;
 
         let res = aziot_tpm_common_http::get_tpm_keys::Response {

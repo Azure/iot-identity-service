@@ -43,9 +43,9 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let digest = api
-            .sign_with_auth_key(&body.data.0)
-            .map_err(|e| super::to_http_error(&Error::Internal(InternalError::SignWithAuthKey(e))))?;
+        let digest = api.sign_with_auth_key(&body.data.0).map_err(|e| {
+            super::to_http_error(&Error::Internal(InternalError::SignWithAuthKey(e)))
+        })?;
 
         let res = aziot_tpm_common_http::sign_with_auth_key::Response {
             digest: http_common::ByteString(digest),

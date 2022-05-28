@@ -31,7 +31,7 @@ pub const EK_RSA_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
             | DEF_TPMA_OBJECT_DECRYPT,
         authPolicy: TPM2B_AUTH {
             size: ENDORSEMENT_KEY_POLICY.len() as _,
-            buffer: fill_tpm2b_buffer(ENDORSEMENT_KEY_POLICY)
+            buffer: fill_tpm2b_buffer(ENDORSEMENT_KEY_POLICY),
         },
         parameters: TPMU_PUBLIC_PARMS {
             rsaDetail: TPMS_RSA_PARMS {
@@ -57,7 +57,7 @@ pub const EK_RSA_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
         unique: TPMU_PUBLIC_ID {
             rsa: TPM2B_PUBLIC_KEY_RSA {
                 size: 256,
-                buffer: fill_tpm2b_buffer(&[])
+                buffer: fill_tpm2b_buffer(&[]),
             },
         },
     },
@@ -77,7 +77,7 @@ pub const EK_ECC_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
             | DEF_TPMA_OBJECT_DECRYPT,
         authPolicy: TPM2B_AUTH {
             size: ENDORSEMENT_KEY_POLICY.len() as _,
-            buffer: fill_tpm2b_buffer(ENDORSEMENT_KEY_POLICY)
+            buffer: fill_tpm2b_buffer(ENDORSEMENT_KEY_POLICY),
         },
         parameters: TPMU_PUBLIC_PARMS {
             eccDetail: TPMS_ECC_PARMS {
@@ -111,11 +111,11 @@ pub const EK_ECC_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
             ecc: TPMS_ECC_POINT {
                 x: TPM2B_ECC_PARAMETER {
                     size: 32,
-                    buffer: fill_tpm2b_buffer(&[])
+                    buffer: fill_tpm2b_buffer(&[]),
                 },
                 y: TPM2B_ECC_PARAMETER {
                     size: 32,
-                    buffer: fill_tpm2b_buffer(&[])
+                    buffer: fill_tpm2b_buffer(&[]),
                 },
             },
         },
@@ -137,7 +137,7 @@ pub const SRK_RSA_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
             | DEF_TPMA_OBJECT_DECRYPT,
         authPolicy: TPM2B_AUTH {
             size: 0,
-            buffer: fill_tpm2b_buffer(&[])
+            buffer: fill_tpm2b_buffer(&[]),
         },
         parameters: TPMU_PUBLIC_PARMS {
             rsaDetail: TPMS_RSA_PARMS {
@@ -163,7 +163,7 @@ pub const SRK_RSA_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
         unique: TPMU_PUBLIC_ID {
             rsa: TPM2B_PUBLIC_KEY_RSA {
                 size: 256,
-                buffer: fill_tpm2b_buffer(&[])
+                buffer: fill_tpm2b_buffer(&[]),
             },
         },
     },
@@ -184,7 +184,7 @@ pub const SRK_ECC_TEMPLATE: TPM2B_PUBLIC = TPM2B_PUBLIC {
             | DEF_TPMA_OBJECT_DECRYPT,
         authPolicy: TPM2B_AUTH {
             size: 0,
-            buffer: fill_tpm2b_buffer(&[])
+            buffer: fill_tpm2b_buffer(&[]),
         },
         parameters: TPMU_PUBLIC_PARMS {
             eccDetail: TPMS_ECC_PARMS {

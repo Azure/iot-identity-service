@@ -1,7 +1,5 @@
 fn main() {
-    let lib_cfg = pkg_config::Config::new()
-        .probe("tss2-sys")
-        .unwrap();
+    let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
 
     println!("cargo:rerun-if-changed=wrapper.h.in");
     println!("cargo:rerun-if-changed=const_define.sh");

@@ -3,8 +3,8 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
-use serde::{Deserialize, Serialize};
 use serde::de::Error;
+use serde::{Deserialize, Serialize};
 
 const _: () = assert!(valid_persistent_index(default_ak_index()));
 
@@ -59,7 +59,7 @@ fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
 
 fn persistent_index<'de, D>(de: D) -> Result<u32, D::Error>
 where
-    D: serde::Deserializer<'de>
+    D: serde::Deserializer<'de>,
 {
     let value = u32::deserialize(de)?;
     if !valid_persistent_index(value) {
