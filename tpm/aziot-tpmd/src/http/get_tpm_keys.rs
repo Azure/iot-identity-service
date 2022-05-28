@@ -2,6 +2,8 @@
 
 use http_common::server::RouteResponse;
 
+use crate::error::{Error, InternalError};
+
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
@@ -35,13 +37,14 @@ impl http_common::server::Route for Route {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
-        let keys = api.get_tpm_keys().map_err(|e| super::to_http_error(&e))?;
+        let (endorsement_key, storage_root_key) = api.get_tpm_keys()
+            .map_err(|e| super::to_http_error(&Error::Internal(InternalError::GetTpmKeys(e))))?;
 
         let res = aziot_tpm_common_http::get_tpm_keys::Response {
             /// The TPM's Endorsement Key
-            endorsement_key: http_common::ByteString(keys.endorsement_key),
+            endorsement_key: http_common::ByteString(endorsement_key),
             /// The TPM's Storage Root Key
-            storage_root_key: http_common::ByteString(keys.storage_root_key),
+            storage_root_key: http_common::ByteString(storage_root_key),
         };
 
         let res = http_common::server::response::json(hyper::StatusCode::OK, &res);

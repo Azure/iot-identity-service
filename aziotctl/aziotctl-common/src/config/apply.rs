@@ -507,6 +507,9 @@ pub fn run(
     };
 
     let tpmd_config = aziot_tpmd_config::Config {
+        tcti: std::ffi::CString::default(),
+        auth_key_index: 0x00_01_00,
+        tpm_auth: aziot_tpmd_config::TpmAuthConfig::default(),
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,
         },

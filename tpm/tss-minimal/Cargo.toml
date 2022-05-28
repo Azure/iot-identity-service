@@ -1,0 +1,28 @@
+[package]
+name = "tss-minimal"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+paste = "1"
+
+esys-sys = { path = "./esys-sys" }
+mu-sys = { path = "./mu-sys" }
+rc-sys = { path = "./rc-sys" }
+tcti-sys = { path = "./tcti-sys" }
+types-sys = { path = "./types-sys" }
+
+[dev-dependencies]
+env_logger = "0.9"
+
+# [workspace]
+# members = [
+#     "esys-sys",
+#     "mu-sys",
+#     "rc-sys",
+#     "tcti-sys",
+#     "types-sys"
+# ]

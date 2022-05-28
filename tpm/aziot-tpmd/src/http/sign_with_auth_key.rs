@@ -2,6 +2,8 @@
 
 use http_common::server::RouteResponse;
 
+use crate::error::{Error, InternalError};
+
 pub(super) struct Route {
     api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
 }
@@ -43,7 +45,7 @@ impl http_common::server::Route for Route {
 
         let digest = api
             .sign_with_auth_key(&body.data.0)
-            .map_err(|e| super::to_http_error(&e))?;
+            .map_err(|e| super::to_http_error(&Error::Internal(InternalError::SignWithAuthKey(e))))?;
 
         let res = aziot_tpm_common_http::sign_with_auth_key::Response {
             digest: http_common::ByteString(digest),

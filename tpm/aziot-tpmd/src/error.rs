@@ -25,10 +25,10 @@ impl std::error::Error for Error {
 #[derive(Debug)]
 pub enum InternalError {
     ReadConfig(Box<dyn std::error::Error + Send + Sync>),
-    InitTpm(aziot_tpm::Error),
-    GetTpmKeys(aziot_tpm::Error),
-    SignWithAuthKey(aziot_tpm::Error),
-    ImportAuthKey(aziot_tpm::Error),
+    InitTpm(tss_minimal::Error),
+    GetTpmKeys(tss_minimal::Error),
+    SignWithAuthKey(tss_minimal::Error),
+    ImportAuthKey(tss_minimal::Error),
 }
 
 impl std::fmt::Display for InternalError {

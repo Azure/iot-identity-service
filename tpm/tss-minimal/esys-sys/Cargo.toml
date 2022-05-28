@@ -1,0 +1,15 @@
+[package]
+name = "esys-sys"
+version = "0.1.0"
+edition = "2021"
+links = "tss2-esys"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tcti-sys = { path = "../tcti-sys" }
+types-sys = { path = "../types-sys" }
+
+[build-dependencies]
+bindgen = { version = "0.59", features = [ "runtime" ], default-features = false }
+pkg-config = "0.3"

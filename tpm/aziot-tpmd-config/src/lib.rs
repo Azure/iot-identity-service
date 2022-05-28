@@ -19,11 +19,14 @@ const fn valid_persistent_index(index: u32) -> bool {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
-    #[serde(default, skip_serializing_if = "empty_tcti")]
+    #[serde(default, skip_serializing_if = "empty_cstr")]
     pub tcti: std::ffi::CString,
 
     #[serde(default = "default_ak_index", deserialize_with = "persistent_index")]
     pub auth_key_index: u32,
+
+    #[serde(default)]
+    pub tpm_auth: TpmAuthConfig,
 
     /// Map of service names to endpoint URIs.
     ///
@@ -33,8 +36,25 @@ pub struct Config {
     pub endpoints: Endpoints,
 }
 
-fn empty_tcti(tcti: &std::ffi::CStr) -> bool {
-    tcti.to_bytes().is_empty()
+/*
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct TpmKeyConfig {
+    #[serde(deserialize_with = "persistent_index")]
+    pub index: u32,
+    pub overwrite: bool,
+}
+*/
+
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct TpmAuthConfig {
+    #[serde(default, skip_serializing_if = "empty_cstr")]
+    pub endorsement: std::ffi::CString,
+    #[serde(default, skip_serializing_if = "empty_cstr")]
+    pub storage: std::ffi::CString,
+}
+
+fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
+    cstr.to_bytes().is_empty()
 }
 
 fn persistent_index<'de, D>(de: D) -> Result<u32, D::Error>

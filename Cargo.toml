@@ -47,9 +47,8 @@ members = [
 	"tpm/aziot-tpm-client-async",
 	"tpm/aziot-tpm-common-http",
 	"tpm/aziot-tpm-common",
-	"tpm/aziot-tpm-rs",
-	"tpm/aziot-tpm-sys",
 	"tpm/aziot-tpmd",
+	"tpm/tss-minimal",
 ]
 
 
