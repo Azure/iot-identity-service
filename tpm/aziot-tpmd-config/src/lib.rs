@@ -98,6 +98,9 @@ mod tests {
         assert_eq!(
             actual,
             super::Config {
+                tcti: std::ffi::CString::default(),
+                auth_key_index: super::default_ak_index(),
+                tpm_auth: super::TpmAuthConfig::default(),
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into()
@@ -119,6 +122,9 @@ aziot_tpmd = "unix:///custom/path/tpmd.sock"
         assert_eq!(
             actual,
             super::Config {
+                tcti: std::ffi::CString::default(),
+                auth_key_index: super::default_ak_index(),
+                tpm_auth: super::TpmAuthConfig::default(),
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/custom/path/tpmd.sock").into()
