@@ -18,5 +18,6 @@ url = "2"
 aziot-tpm-common = { path = "../aziot-tpm-common" }
 aziot-tpm-common-http = { path = "../aziot-tpm-common-http" }
 aziot-tpmd-config = { path = "../aziot-tpmd-config" }
-tss-minimal = { path = "../tss-minimal" }
 http-common = { path = "../../http-common" }
+
+tss-minimal = { git = "https://github.com/onalante-msft/tss-minimal.git" }

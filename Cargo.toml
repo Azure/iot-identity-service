@@ -48,7 +48,6 @@ members = [
 	"tpm/aziot-tpm-common-http",
 	"tpm/aziot-tpm-common",
 	"tpm/aziot-tpmd",
-	"tpm/tss-minimal",
 ]
 
 
