@@ -31,6 +31,7 @@ BuildRequires: cmake
 BuildRequires: openssl-devel
 BuildRequires: pkg-config
 BuildRequires: tar
+BuildRequires: tpm2-tss
 BuildRequires: systemd
 Requires(pre): shadow-utils
 
