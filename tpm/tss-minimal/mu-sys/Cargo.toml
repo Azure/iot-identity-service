@@ -1,0 +1,14 @@
+[package]
+name = "mu-sys"
+version = "0.1.0"
+edition = "2021"
+links = "tss2-mu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+types-sys = { path = "../types-sys" }
+
+[build-dependencies]
+bindgen = { version = "0.59", features = [ "runtime" ], default-features = false }
+pkg-config = "0.3"
