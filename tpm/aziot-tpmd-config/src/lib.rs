@@ -22,10 +22,10 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub tcti: std::ffi::CString,
 
-    #[serde(default = "default_ak_index", deserialize_with = "persistent_index")]
+    #[serde(default = "default_ak_index", deserialize_with = "persistent_index", skip_serializing_if = "is_default_ak_index")]
     pub auth_key_index: u32,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_default_tpm_auth_config")]
     pub tpm_auth: TpmAuthConfig,
 
     /// Map of service names to endpoint URIs.
@@ -55,6 +55,14 @@ pub struct TpmAuthConfig {
 
 fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
     cstr.to_bytes().is_empty()
+}
+
+fn is_default_ak_index(index: &u32) -> bool {
+    *index == default_ak_index()
+}
+
+fn is_default_tpm_auth_config(conf: &TpmAuthConfig) -> bool {
+    conf == &TpmAuthConfig::default()
 }
 
 fn persistent_index<'de, D>(de: D) -> Result<u32, D::Error>
