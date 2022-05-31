@@ -16,12 +16,12 @@ fn main() {
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
-        .allowlist_function("Tss2_MU_UINT16_Unmarshal")
+        .allowlist_function("Tss2_MU_TPM2B_PUBLIC_Marshal")
         .allowlist_function("Tss2_MU_TPM2B_ENCRYPTED_SECRET_Unmarshal")
         .allowlist_function("Tss2_MU_TPM2B_ID_OBJECT_Unmarshal")
         .allowlist_function("Tss2_MU_TPM2B_PRIVATE_Unmarshal")
         .allowlist_function("Tss2_MU_TPM2B_PUBLIC_Unmarshal")
-        .allowlist_function("Tss2_MU_TPM2B_PUBLIC_Marshal")
+        .allowlist_function("Tss2_MU_UINT16_Unmarshal")
         .blocklist_type("TPM.*")
         .clang_args(
             lib_cfg

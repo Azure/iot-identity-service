@@ -10,6 +10,7 @@ mod private {
 
 pub use error::{try_decode_rc, Error, Result};
 pub use handle::{AuthSession, Handle, Hierarchy, TpmResource};
+pub use marshal::{Marshal, Unmarshal};
 
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -376,6 +377,9 @@ impl EsysContext {
                 &mut out,
                 ptr::null_mut()
             ))?;
+            // SequenceComplete flushes the transient handle for seq, so we do
+            // not need to run its drop code.
+            std::mem::forget(seq);
         }
 
         Ok(EsysBox(unsafe { NonNull::new_unchecked(out) }))

@@ -13,9 +13,8 @@ mod http;
 
 use aziot_tpmd_config::{Config, TpmAuthConfig};
 use tss_minimal::handle::FixedHandle;
-use tss_minimal::marshal::Unmarshal;
 use tss_minimal::types::{fill_tpm2b_buffer, sys as types_sys};
-use tss_minimal::{AuthSession, EsysContext, Handle, Hierarchy};
+use tss_minimal::{AuthSession, EsysContext, Handle, Hierarchy, Marshal, Unmarshal};
 
 use error::{Error, InternalError};
 
@@ -37,10 +36,11 @@ pub struct Api {
     context: EsysContext,
     endorsement_key: FixedHandle,
     storage_root_key: FixedHandle,
-    auth_key: FixedHandle,
+    auth_key: Option<FixedHandle>,
 }
 
 impl Api {
+    #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &Config) -> tss_minimal::Result<Self> {
         let TpmAuthConfig {
             endorsement,
@@ -53,33 +53,37 @@ impl Api {
 
         context.set_auth(
             &tss_minimal::Hierarchy::ENDORSEMENT,
+            #[allow(clippy::cast_possible_truncation)]
             &types_sys::TPM2B_AUTH {
+                // TODO: restrict length in configuration
                 size: endorsement.len() as _,
                 buffer: fill_tpm2b_buffer(endorsement),
             },
         )?;
         context.set_auth(
             &tss_minimal::Hierarchy::OWNER,
+            #[allow(clippy::cast_possible_truncation)]
             &types_sys::TPM2B_AUTH {
+                // TODO: restrict length in configuration
                 size: storage.len() as _,
                 buffer: fill_tpm2b_buffer(storage),
             },
         )?;
 
-        let endorsement_key = match context.from_tpm_public(0x81010001, None) {
+        let endorsement_key = match context.from_tpm_public(0x8101_0001, None) {
             Ok(Handle::Fixed(handle)) => handle,
             Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
             Err(e) => return Err(e),
         };
-        let storage_root_key = match context.from_tpm_public(0x81000001, None) {
+        let storage_root_key = match context.from_tpm_public(0x8100_0001, None) {
             Ok(Handle::Fixed(handle)) => handle,
             Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
             Err(e) => return Err(e),
         };
-        let auth_key = match context.from_tpm_public(0x81000001, None) {
-            Ok(Handle::Fixed(handle)) => handle,
+        let auth_key = match context.from_tpm_public(0x8100_1000, None) {
+            Ok(Handle::Fixed(handle)) => Some(handle),
             Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
-            _ => FixedHandle::NONE,
+            _ => None,
         };
 
         Ok(Self {
@@ -94,15 +98,23 @@ impl Api {
         let endorsement_public = self.context.read_public(&self.endorsement_key)?;
         let storage_public = self.context.read_public(&self.storage_root_key)?;
 
-        let endorsement_public = extract_key_data(&endorsement_public);
-        let storage_public = extract_key_data(&storage_public);
+        let mut size = 0;
+        size.marshal(&*endorsement_public)?;
+        let mut endorsement_out = vec![0; size];
+        endorsement_out
+            .as_mut_slice()
+            .marshal(&*endorsement_public)?;
 
-        Ok((endorsement_public, storage_public))
+        size.marshal(&*storage_public)?;
+        let mut storage_out = vec![0; size];
+        storage_out.as_mut_slice().marshal(&*storage_public)?;
+
+        Ok((endorsement_out, storage_out))
     }
 
     pub fn sign_with_auth_key(&mut self, data: &[u8]) -> tss_minimal::Result<Vec<u8>> {
         let hmac = self.context.hmac(
-            &self.auth_key,
+            self.auth_key.as_ref().unwrap_or(&FixedHandle::NONE),
             &tss_minimal::AuthSession::PASSWORD,
             types_sys::DEF_TPM2_ALG_SHA256,
             data,
@@ -111,7 +123,17 @@ impl Api {
         Ok(hmac.buffer[..usize::from(hmac.size)].to_vec())
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn import_auth_key(&mut self, mut key: &[u8]) -> tss_minimal::Result<()> {
+        if let Some(handle) = self.auth_key.take() {
+            self.context.evict(
+                Hierarchy::OWNER,
+                Handle::Fixed(handle),
+                &AuthSession::PASSWORD,
+                0,
+            )?;
+        }
+
         let credential_blob = key.unmarshal()?;
         let secret = key.unmarshal()?;
 
@@ -168,66 +190,6 @@ impl Api {
             },
         )?;
 
-        /*
-        let pub_template = types_sys::TPM2B_PUBLIC {
-            size: 0,
-            publicArea: types_sys::TPMT_PUBLIC {
-                type_: types_sys::DEF_TPM2_ALG_SYMCIPHER,
-                nameAlg: types_sys::DEF_TPM2_ALG_SHA256,
-                objectAttributes:
-                    types_sys::DEF_TPMA_OBJECT_FIXEDTPM
-                    | types_sys::DEF_TPMA_OBJECT_FIXEDPARENT
-                    | types_sys::DEF_TPMA_OBJECT_USERWITHAUTH
-                    | types_sys::DEF_TPMA_OBJECT_DECRYPT,
-                authPolicy: types_sys::TPM2B_AUTH {
-                    size: 0,
-                    buffer: fill_tpm2b_buffer(&[])
-                },
-                parameters: types_sys::TPMU_PUBLIC_PARMS {
-                    symDetail: types_sys::TPMS_SYMCIPHER_PARMS {
-                        sym: types_sys::TPMT_SYM_DEF_OBJECT {
-                            algorithm: types_sys::DEF_TPM2_ALG_AES,
-                            keyBits: types_sys::TPMU_SYM_KEY_BITS {
-                                sym: inner.size * 8
-                            },
-                            mode: types_sys::TPMU_SYM_MODE {
-                                sym: types_sys::DEF_TPM2_ALG_AES
-                            }
-                        }
-                    }
-                },
-                unique: types_sys::TPMU_PUBLIC_ID {
-                    sym: types_sys::TPM2B_DIGEST {
-                        size: 0,
-                        buffer: fill_tpm2b_buffer(&[])
-                    }
-                }
-            }
-        };
-
-        let sen_template = types_sys::TPM2B_SENSITIVE_CREATE {
-            size: 0,
-            sensitive: types_sys::TPMS_SENSITIVE_CREATE {
-                userAuth: types_sys::TPM2B_AUTH {
-                    size: 0,
-                    buffer: fill_tpm2b_buffer(&[]),
-                },
-                data: types_sys::TPM2B_SENSITIVE_DATA {
-                    size: inner.size,
-                    buffer: fill_tpm2b_buffer(&inner.buffer)
-                }
-            }
-        };
-
-        let (key_priv, key_pub) = self.context.create(
-            &self.storage_root_key,
-            &AuthSession::PASSWORD,
-            &sen_template,
-            &pub_template,
-            None
-        )?;
-        */
-
         let auth_key_handle = self.context.load(
             &self.storage_root_key,
             &AuthSession::PASSWORD,
@@ -241,35 +203,16 @@ impl Api {
                 Hierarchy::OWNER,
                 auth_key_handle,
                 &AuthSession::PASSWORD,
-                0x81001000,
+                0x8100_1000,
             )?
             .expect("Esys_EvictControl with a transient handle returns a persistent handle");
 
         if let Handle::Fixed(handle) = auth_key_handle {
-            self.auth_key = handle;
+            self.auth_key = Some(handle);
         } else {
             panic!("Esys_EvictControl with a transient handle returns a persistent handle");
         }
 
         Ok(())
-    }
-}
-
-fn extract_key_data(public_area: &types_sys::TPM2B_PUBLIC) -> Vec<u8> {
-    match public_area.publicArea.type_ {
-        types_sys::DEF_TPM2_ALG_RSA => unsafe {
-            let key = public_area.publicArea.unique.rsa;
-            key.buffer[..usize::from(key.size)].to_vec()
-        },
-        types_sys::DEF_TPM2_ALG_ECC => unsafe {
-            let points = public_area.publicArea.unique.ecc;
-            assert_eq!(points.x.size, points.y.size);
-            [
-                &points.x.buffer[..usize::from(points.x.size)],
-                &points.y.buffer[..usize::from(points.y.size)],
-            ]
-            .concat()
-        },
-        _ => panic!("unsupported algorithm type"),
     }
 }

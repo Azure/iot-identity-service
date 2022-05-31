@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+#![allow(unused_imports)]
 
 use tcti_sys::TSS2_TCTI_CONTEXT;
 use types_sys::{

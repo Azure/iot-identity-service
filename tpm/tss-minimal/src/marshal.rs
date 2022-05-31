@@ -11,6 +11,22 @@ pub trait Unmarshal<T> {
 macro_rules! marshal {
     ($($ts:ident),*) => {
         $(
+            impl Marshal<types::sys::$ts> for usize {
+                fn marshal(&mut self, data: &types::sys::$ts) -> Result<()> {
+                    let mut out = 0;
+                    paste::paste! {
+                        wrap_rc!(mu_sys::[< Tss2_MU_ $ts _Marshal >](
+                            data,
+                            std::ptr::null_mut(),
+                            u64::MAX,
+                            &mut out
+                        ))?;
+                    }
+                    *self = out as _;
+                    Ok(())
+                }
+            }
+
             impl Marshal<types::sys::$ts> for &mut [u8] {
                 fn marshal(&mut self, data: &types::sys::$ts) -> Result<()> {
                     let mut index = 0;
