@@ -940,7 +940,7 @@ dependencies = [
 [[package]]
 name = "esys-sys"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "bindgen",
  "pkg-config",
@@ -1676,7 +1676,7 @@ dependencies = [
 [[package]]
 name = "mu-sys"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "bindgen",
  "pkg-config",
@@ -2046,7 +2046,7 @@ dependencies = [
 [[package]]
 name = "rc-sys"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "bindgen",
  "pkg-config",
@@ -2328,7 +2328,7 @@ dependencies = [
 [[package]]
 name = "tcti-sys"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "bindgen",
  "pkg-config",
@@ -2511,7 +2511,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "tss-minimal"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "esys-sys",
  "log",
@@ -2531,7 +2531,7 @@ checksum = "373c8a200f9e67a0c95e62a4f52fbf80c23b4381c05a17845531982fa99e6b33"
 [[package]]
 name = "types-sys"
 version = "0.1.0"
-source = "git+https://github.com/onalante-msft/tss-minimal.git#93b057cb65a077e00e95441d1e114b7b26e415a5"
+source = "git+https://github.com/onalante-msft/tss-minimal.git#1f04d56d8f53774579f09e54e807da1aee0c5b2d"
 dependencies = [
  "bindgen",
  "pkg-config",
