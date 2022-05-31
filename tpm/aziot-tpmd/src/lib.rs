@@ -126,12 +126,18 @@ impl Api {
     #[allow(clippy::missing_panics_doc)]
     pub fn import_auth_key(&mut self, mut key: &[u8]) -> tss_minimal::Result<()> {
         if let Some(handle) = self.auth_key.take() {
-            self.context.evict(
+            let res = self.context.evict(
                 Hierarchy::OWNER,
                 Handle::Fixed(handle),
                 &AuthSession::PASSWORD,
                 0,
-            )?;
+            );
+
+            if let Err(e) = res {
+                // NOTE: It is likely that another process interacting with the
+                // TPM evicted the key.
+                log::warn!("could not evict previous auth key: {e}");
+            }
         }
 
         let credential_blob = key.unmarshal()?;
