@@ -476,7 +476,7 @@ impl<'a> Policy<'a> {
     }
 }
 
-// NOTE: Only PolicySecret needed for now.
+// NOTE: Only PolicySecret needed for now
 pub enum PolicyKind<'a> {
     Secret {
         handle: &'a dyn TpmResource,

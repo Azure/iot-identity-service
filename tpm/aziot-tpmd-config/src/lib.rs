@@ -57,6 +57,8 @@ fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
     cstr.to_bytes().is_empty()
 }
 
+// NOTE: reference required by serde
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_default_ak_index(index: &u32) -> bool {
     *index == default_ak_index()
 }
