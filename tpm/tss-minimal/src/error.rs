@@ -30,7 +30,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct Error(pub(crate) u32);
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",

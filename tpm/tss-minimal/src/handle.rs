@@ -15,10 +15,12 @@ pub enum Handle<'a> {
 }
 
 impl<'a> Handle<'a> {
+    #[must_use]
     pub fn fixed(index: ESYS_TR) -> Self {
         Self::Fixed(FixedHandle(index))
     }
 
+    #[must_use]
     pub fn transient(index: ESYS_TR, context: &'a EsysContext) -> Self {
         Self::Transient(TransientHandle { index, context })
     }
@@ -35,6 +37,7 @@ impl TpmResource for Handle<'_> {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FixedHandle(ESYS_TR);
 
@@ -56,6 +59,7 @@ impl TpmResource for FixedHandle {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct TransientHandle<'a> {
     index: ESYS_TR,
     context: &'a EsysContext,
@@ -98,7 +102,7 @@ pub struct AuthSession<'a>(pub(crate) Handle<'a>);
 impl AuthSession<'_> {
     pub const PASSWORD: Self = Self(Handle::Fixed(FixedHandle::PASSWORD));
 
-    pub fn with_policy(mut self, policy: crate::Policy) -> crate::Result<Self> {
+    pub fn with_policy(mut self, policy: crate::Policy<'_>) -> crate::Result<Self> {
         policy.apply(&mut self)?;
 
         Ok(self)

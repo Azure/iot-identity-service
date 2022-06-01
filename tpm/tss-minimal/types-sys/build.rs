@@ -1,3 +1,6 @@
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+
 fn main() {
     let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
 

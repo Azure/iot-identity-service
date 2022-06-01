@@ -1,7 +1,12 @@
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-#![allow(non_upper_case_globals)]
-#![allow(clippy::missing_safety_doc)]
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    clippy::missing_safety_doc,
+    clippy::unreadable_literal
+)]
 // https://github.com/rust-lang/rust-bindgen/issues/1651
 #![cfg_attr(test, allow(deref_nullptr))]
 

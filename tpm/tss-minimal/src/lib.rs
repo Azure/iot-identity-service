@@ -1,3 +1,7 @@
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+
 pub mod handle;
 pub mod marshal;
 pub mod types;
@@ -47,9 +51,9 @@ impl EsysContext {
     pub fn activate_credential(
         &self,
         credential_handle: &dyn TpmResource,
-        credential_auth: Option<&AuthSession>,
+        credential_auth: Option<&AuthSession<'_>>,
         key_handle: &dyn TpmResource,
-        key_auth: Option<&AuthSession>,
+        key_auth: Option<&AuthSession<'_>>,
         blob: &types::sys::TPM2B_ID_OBJECT,
         secret: &types::sys::TPM2B_ENCRYPTED_SECRET,
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
@@ -96,7 +100,7 @@ impl EsysContext {
     pub fn create(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession,
+        auth: &AuthSession<'_>,
         sensitive: &types::sys::TPM2B_SENSITIVE_CREATE,
         public: &types::sys::TPM2B_PUBLIC,
         data: Option<&types::sys::TPM2B_DATA>,
@@ -141,7 +145,7 @@ impl EsysContext {
     pub fn import(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession,
+        auth: &AuthSession<'_>,
         key: Option<&types::sys::TPM2B_DATA>,
         public: &types::sys::TPM2B_PUBLIC,
         dup: &types::sys::TPM2B_PRIVATE,
@@ -169,7 +173,7 @@ impl EsysContext {
 
     pub fn policy_digest(
         &self,
-        auth_session: &AuthSession,
+        auth_session: &AuthSession<'_>,
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
         let mut out = ptr::null_mut();
 
@@ -197,7 +201,7 @@ impl EsysContext {
         session_type: SessionType,
         sym: &types::sys::TPMT_SYM_DEF,
         auth_hash: types::sys::TPMI_ALG_HASH,
-    ) -> Result<AuthSession> {
+    ) -> Result<AuthSession<'_>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_StartAuthSession(
@@ -220,10 +224,10 @@ impl EsysContext {
     pub fn load(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession,
+        auth: &AuthSession<'_>,
         private: &types::sys::TPM2B_PRIVATE,
         public: &types::sys::TPM2B_PUBLIC,
-    ) -> Result<Handle> {
+    ) -> Result<Handle<'_>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_Load(
@@ -242,12 +246,12 @@ impl EsysContext {
 
     pub fn create_primary(
         &self,
-        auth: &AuthSession,
+        auth: &AuthSession<'_>,
         hierarchy: Hierarchy,
         sensitive: &types::sys::TPM2B_SENSITIVE_CREATE,
         public: &types::sys::TPM2B_PUBLIC,
         data: Option<&types::sys::TPM2B_DATA>,
-    ) -> Result<Handle> {
+    ) -> Result<Handle<'_>> {
         let mut out = 0;
         let mut pcrs = MaybeUninit::<types::sys::TPML_PCR_SELECTION>::uninit();
 
@@ -280,8 +284,8 @@ impl EsysContext {
     pub fn from_tpm_public(
         &self,
         index: types::sys::TPM2_HANDLE,
-        auth: Option<&AuthSession>,
-    ) -> Result<Handle> {
+        auth: Option<&AuthSession<'_>>,
+    ) -> Result<Handle<'_>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_TR_FromTPMPublic(
@@ -304,10 +308,11 @@ impl EsysContext {
     }
 
     // Instantiates a Handle that is dropped on exit
+    #[allow(clippy::cast_possible_truncation)]
     pub fn hmac(
         &self,
         key: &dyn TpmResource,
-        auth: &AuthSession,
+        auth: &AuthSession<'_>,
         alg: types::sys::TPM2_ALG_ID,
         mut buf: &[u8],
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
@@ -388,10 +393,10 @@ impl EsysContext {
     pub fn evict(
         &self,
         hierarchy: Hierarchy,
-        object: Handle,
-        auth: &AuthSession,
+        object: Handle<'_>,
+        auth: &AuthSession<'_>,
         persist: u32,
-    ) -> Result<Option<Handle>> {
+    ) -> Result<Option<Handle<'_>>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_EvictControl(
@@ -404,11 +409,12 @@ impl EsysContext {
             persist,
             &mut out
         ))?;
+        drop(object);
 
-        Ok(if out != ESYS_TR_NONE {
-            Some(Handle::fixed(out))
-        } else {
+        Ok(if out == ESYS_TR_NONE {
             None
+        } else {
+            Some(Handle::fixed(out))
         })
     }
 }
@@ -464,6 +470,7 @@ pub struct Policy<'a> {
 }
 
 impl<'a> Policy<'a> {
+    #[must_use]
     pub fn new(kind: PolicyKind<'a>, context: &'a EsysContext) -> Self {
         Self { kind, context }
     }
@@ -478,7 +485,7 @@ pub enum PolicyKind<'a> {
 }
 
 impl Policy<'_> {
-    fn apply(self, session: &mut AuthSession) -> Result<()> {
+    fn apply(self, session: &mut AuthSession<'_>) -> Result<()> {
         match self.kind {
             PolicyKind::Secret { handle, auth } => {
                 wrap_rc!(esys_sys::Esys_PolicySecret(

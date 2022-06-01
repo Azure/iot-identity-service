@@ -1,3 +1,6 @@
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+
 fn main() {
     let lib_cfg = pkg_config::Config::new()
         .atleast_version("2.3.0") // tss2-rc introduction

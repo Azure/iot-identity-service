@@ -1,5 +1,8 @@
+#![allow(clippy::cast_possible_truncation)]
+
 pub use types_sys as sys;
 
+#[must_use]
 pub const fn fill_tpm2b_buffer<const N: usize>(buf: &[u8]) -> [u8; N] {
     let mut out = [0; N];
     let mut i = 0;
