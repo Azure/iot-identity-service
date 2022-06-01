@@ -16,7 +16,7 @@ fn main() {
     }
 
     for path in lib_cfg.link_paths {
-        println!("cargo:rustc-link-path={}", path.to_str().unwrap());
+        println!("cargo:rustc-link-search={}", path.to_str().unwrap());
     }
 
     let bindings = bindgen::Builder::default()
