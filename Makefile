@@ -194,7 +194,7 @@ test:
 
 	find . -name '*.c' -or -name '*.rs' | \
 		grep -v '^\./target/' | \
-		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
+		grep -v '^\./tpm/tss-minimal/tpm2-tss/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if ! (head -n1 "$$f" | grep -q 'Copyright (c) Microsoft. All rights reserved.'); then \
