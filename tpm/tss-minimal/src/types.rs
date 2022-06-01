@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #![allow(clippy::cast_possible_truncation)]
 
 pub use types_sys as sys;

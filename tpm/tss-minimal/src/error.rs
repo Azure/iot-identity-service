@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use std::ffi::CStr;
 use std::fmt;
 

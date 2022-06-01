@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 pub use esys_sys::ESYS_TR;
 
 use std::fmt;

@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 use crate::{types, wrap_rc, Result};
 
 pub trait Marshal<T> {

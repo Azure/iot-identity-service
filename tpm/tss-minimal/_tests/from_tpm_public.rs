@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft. All rights reserved.
+
 #[test]
 fn main() -> tss_minimal::Result<()> {
     let _ = env_logger::builder().is_test(true).try_init();
