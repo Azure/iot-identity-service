@@ -22,7 +22,11 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub tcti: std::ffi::CString,
 
-    #[serde(default = "default_ak_index", deserialize_with = "persistent_index", skip_serializing_if = "is_default_ak_index")]
+    #[serde(
+        default = "default_ak_index",
+        deserialize_with = "persistent_index",
+        skip_serializing_if = "is_default_ak_index"
+    )]
     pub auth_key_index: u32,
 
     #[serde(default, skip_serializing_if = "is_default_tpm_auth_config")]
