@@ -7,8 +7,9 @@
     clippy::missing_safety_doc,
     clippy::unreadable_literal
 )]
+#![cfg_attr(test, allow(clippy::too_many_lines))]
 // https://github.com/rust-lang/rust-bindgen/issues/1651
-#![cfg_attr(test, allow(deref_nullptr))]
+#![cfg_attr(test, allow(deref_nullptr, clippy::borrow_as_ptr))]
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 

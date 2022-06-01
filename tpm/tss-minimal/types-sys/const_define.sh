@@ -1,4 +1,4 @@
-#! /usr/bin/env -S sh -xe
+#! /bin/sh -ex
 HEADER=$(find "${1:?}" -name tss2_tpm2_types.h)
 test -n "${HEADER}"
 (
