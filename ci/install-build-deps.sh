@@ -15,7 +15,7 @@ case "$OS:$ARCH" in
         yum install -y epel-release
         yum install -y \
             curl gcc gcc-c++ git jq make pkgconfig cmake \
-            clang llvm-devel openssl-devel which tpm2-tss-devel
+            clang llvm-devel openssl-devel
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -61,7 +61,7 @@ case "$OS:$ARCH" in
     'platform:el8:amd64')
         yum install -y \
             curl gcc gcc-c++ git jq make pkgconfig cmake \
-            clang llvm-devel openssl-devel tpm2-tss-devel
+            clang llvm-devel openssl-devel
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')

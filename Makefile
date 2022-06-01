@@ -294,7 +294,7 @@ rpm:
 	# the output of `openssl version` and `openssl version -e` ourselves. This wouldn't be right
 	# if we were cross-compiling, but we don't support cross-compiling for either of those two OSes,
 	# so it's fine.
-	which openssl # Assert that openssl exists
+	command -v openssl # Assert that openssl exists
 	case "$$(openssl version)" in \
 		'OpenSSL 1.0.'*) OPENSSL_ENGINE_FILENAME='%\{_libdir\}/openssl/engines/libaziot_keys.so' ;; \
 		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
