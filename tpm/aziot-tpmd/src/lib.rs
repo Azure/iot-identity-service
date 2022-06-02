@@ -129,26 +129,25 @@ impl Api {
         let credential_blob = key.unmarshal()?;
         let secret = key.unmarshal()?;
 
-        let mut ek_auth = self
-            .context
-            .start_auth_session(
-                tss_minimal::types::sys::DEF_TPM2_SE_POLICY,
-                &types_sys::TPMT_SYM_DEF {
-                    algorithm: types_sys::DEF_TPM2_ALG_AES,
-                    keyBits: types_sys::TPMU_SYM_KEY_BITS { aes: 128 },
-                    mode: types_sys::TPMU_SYM_MODE {
-                        aes: types_sys::DEF_TPM2_ALG_CFB,
-                    },
+        let mut ek_auth = self.context.start_auth_session(
+            tss_minimal::types::sys::DEF_TPM2_SE_POLICY,
+            &types_sys::TPMT_SYM_DEF {
+                algorithm: types_sys::DEF_TPM2_ALG_AES,
+                keyBits: types_sys::TPMU_SYM_KEY_BITS { aes: 128 },
+                mode: types_sys::TPMU_SYM_MODE {
+                    aes: types_sys::DEF_TPM2_ALG_CFB,
                 },
-                types_sys::DEF_TPM2_ALG_SHA256,
-            )?;
+            },
+            types_sys::DEF_TPM2_ALG_SHA256,
+        )?;
         tss_minimal::Policy::new(
             tss_minimal::PolicyKind::Secret {
                 handle: &Persistent::ENDORSEMENT_HIERARCHY,
                 auth: &Persistent::PASSWORD_SESSION,
             },
             &self.context,
-        ).apply(&mut ek_auth)?;
+        )
+        .apply(&mut ek_auth)?;
 
         let inner = self.context.activate_credential(
             &self.storage_root_key,
