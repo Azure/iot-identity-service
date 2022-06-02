@@ -14,8 +14,8 @@ mod private {
     pub trait Sealed {}
 }
 
-pub use error::{try_decode_rc, Error, Result};
-pub use handle::{AuthSession, Handle, Hierarchy, TpmResource};
+pub use error::{Error, Result};
+pub use handle::{Persistent, TpmResource, Transient};
 pub use marshal::{Marshal, Unmarshal};
 
 use std::ffi::CStr;
@@ -53,9 +53,9 @@ impl EsysContext {
     pub fn activate_credential(
         &self,
         credential_handle: &dyn TpmResource,
-        credential_auth: Option<&AuthSession<'_>>,
+        credential_auth: Option<&dyn TpmResource>,
         key_handle: &dyn TpmResource,
-        key_auth: Option<&AuthSession<'_>>,
+        key_auth: Option<&dyn TpmResource>,
         blob: &types::sys::TPM2B_ID_OBJECT,
         secret: &types::sys::TPM2B_ENCRYPTED_SECRET,
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
@@ -102,7 +102,7 @@ impl EsysContext {
     pub fn create(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession<'_>,
+        auth: &dyn TpmResource,
         sensitive: &types::sys::TPM2B_SENSITIVE_CREATE,
         public: &types::sys::TPM2B_PUBLIC,
         data: Option<&types::sys::TPM2B_DATA>,
@@ -147,7 +147,7 @@ impl EsysContext {
     pub fn import(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession<'_>,
+        auth: &dyn TpmResource,
         key: Option<&types::sys::TPM2B_DATA>,
         public: &types::sys::TPM2B_PUBLIC,
         dup: &types::sys::TPM2B_PRIVATE,
@@ -175,7 +175,7 @@ impl EsysContext {
 
     pub fn policy_digest(
         &self,
-        auth_session: &AuthSession<'_>,
+        auth_session: &dyn TpmResource,
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
         let mut out = ptr::null_mut();
 
@@ -200,10 +200,10 @@ impl EsysContext {
 impl EsysContext {
     pub fn start_auth_session(
         &self,
-        session_type: SessionType,
+        session_type: types::sys::TPM2_SE,
         sym: &types::sys::TPMT_SYM_DEF,
         auth_hash: types::sys::TPMI_ALG_HASH,
-    ) -> Result<AuthSession<'_>> {
+    ) -> Result<Transient<'_>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_StartAuthSession(
@@ -214,22 +214,22 @@ impl EsysContext {
             ESYS_TR_NONE,
             ESYS_TR_NONE,
             ptr::null(),
-            session_type.into_tpm_se(),
+            session_type,
             sym,
             auth_hash,
             &mut out
         ))?;
 
-        Ok(AuthSession(Handle::transient(out, self)))
+        Ok(Transient::new(out, self))
     }
 
     pub fn load(
         &self,
         parent: &dyn TpmResource,
-        auth: &AuthSession<'_>,
+        auth: &dyn TpmResource,
         private: &types::sys::TPM2B_PRIVATE,
         public: &types::sys::TPM2B_PUBLIC,
-    ) -> Result<Handle<'_>> {
+    ) -> Result<Transient<'_>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_Load(
@@ -243,17 +243,17 @@ impl EsysContext {
             &mut out
         ))?;
 
-        Ok(Handle::transient(out, self))
+        Ok(Transient::new(out, self))
     }
 
     pub fn create_primary(
         &self,
-        auth: &AuthSession<'_>,
-        hierarchy: Hierarchy,
+        auth: &dyn TpmResource,
+        hierarchy: Persistent,
         sensitive: &types::sys::TPM2B_SENSITIVE_CREATE,
         public: &types::sys::TPM2B_PUBLIC,
         data: Option<&types::sys::TPM2B_DATA>,
-    ) -> Result<Handle<'_>> {
+    ) -> Result<Transient<'_>> {
         let mut out = 0;
         let mut pcrs = MaybeUninit::<types::sys::TPML_PCR_SELECTION>::uninit();
 
@@ -280,14 +280,14 @@ impl EsysContext {
             ptr::null_mut()
         ))?;
 
-        Ok(Handle::transient(out, self))
+        Ok(Transient::new(out, self))
     }
 
     pub fn from_tpm_public(
         &self,
         index: types::sys::TPM2_HANDLE,
-        auth: Option<&AuthSession<'_>>,
-    ) -> Result<Handle<'_>> {
+        auth: Option<&dyn TpmResource>,
+    ) -> Result<Persistent> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_TR_FromTPMPublic(
@@ -306,7 +306,7 @@ impl EsysContext {
         // Esys_TR_Close.  However, since we do not need to deal with
         // serialization of resource objects, it is fine to defer cleanup to the
         // final context flush.
-        Ok(Handle::fixed(out))
+        Ok(Persistent::new(out))
     }
 
     // Instantiates a Handle that is dropped on exit
@@ -314,7 +314,7 @@ impl EsysContext {
     pub fn hmac(
         &self,
         key: &dyn TpmResource,
-        auth: &AuthSession<'_>,
+        auth: &dyn TpmResource,
         alg: types::sys::TPM2_ALG_ID,
         mut buf: &[u8],
     ) -> Result<EsysBox<types::sys::TPM2B_DIGEST>> {
@@ -353,7 +353,7 @@ impl EsysContext {
                 &mut seq
             ))?;
 
-            let seq = Handle::transient(seq, self);
+            let seq = Transient::new(seq, self);
 
             while buf.len() > MAX_BUF {
                 let chunk;
@@ -380,7 +380,7 @@ impl EsysContext {
                 ESYS_TR_NONE,
                 ESYS_TR_NONE,
                 &payload,
-                Hierarchy::NULL.tr(),
+                Persistent::NULL_HIERARCHY.tr(),
                 &mut out,
                 ptr::null_mut()
             ))?;
@@ -394,11 +394,11 @@ impl EsysContext {
 
     pub fn evict(
         &self,
-        hierarchy: Hierarchy,
-        object: Handle<'_>,
-        auth: &AuthSession<'_>,
+        hierarchy: Persistent,
+        object: &dyn TpmResource,
+        auth: &dyn TpmResource,
         persist: u32,
-    ) -> Result<Option<Handle<'_>>> {
+    ) -> Result<Option<Persistent>> {
         let mut out = 0;
 
         wrap_rc!(esys_sys::Esys_EvictControl(
@@ -411,12 +411,11 @@ impl EsysContext {
             persist,
             &mut out
         ))?;
-        drop(object);
 
         Ok(if out == ESYS_TR_NONE {
             None
         } else {
-            Some(Handle::fixed(out))
+            Some(Persistent::new(out))
         })
     }
 }
@@ -482,12 +481,12 @@ impl<'a> Policy<'a> {
 pub enum PolicyKind<'a> {
     Secret {
         handle: &'a dyn TpmResource,
-        auth: &'a AuthSession<'a>,
+        auth: &'a dyn TpmResource,
     },
 }
 
 impl Policy<'_> {
-    fn apply(self, session: &mut AuthSession<'_>) -> Result<()> {
+    pub fn apply(self, session: &mut dyn TpmResource) -> Result<()> {
         match self.kind {
             PolicyKind::Secret { handle, auth } => {
                 wrap_rc!(esys_sys::Esys_PolicySecret(
@@ -505,23 +504,6 @@ impl Policy<'_> {
                     ptr::null_mut()
                 ))
             }
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum SessionType {
-    HMAC,
-    Policy,
-    Trial,
-}
-
-impl SessionType {
-    pub(crate) fn into_tpm_se(self) -> types::sys::TPM2_SE {
-        match self {
-            Self::HMAC => types::sys::DEF_TPM2_SE_HMAC,
-            Self::Policy => types::sys::DEF_TPM2_SE_POLICY,
-            Self::Trial => types::sys::DEF_TPM2_SE_TRIAL,
         }
     }
 }

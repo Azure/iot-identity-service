@@ -36,7 +36,7 @@ impl fmt::Display for Error {
         write!(
             f,
             "{}",
-            crate::try_decode_rc(self.0).as_deref().unwrap_or("unknown")
+            try_decode_rc(self.0).as_deref().unwrap_or("unknown")
         )
     }
 }

@@ -12,9 +12,8 @@ mod error;
 mod http;
 
 use aziot_tpmd_config::{Config, TpmAuthConfig};
-use tss_minimal::handle::FixedHandle;
 use tss_minimal::types::{fill_tpm2b_buffer, sys as types_sys};
-use tss_minimal::{AuthSession, EsysContext, Handle, Hierarchy, Marshal, Unmarshal};
+use tss_minimal::{EsysContext, Marshal, Persistent, Unmarshal};
 
 use error::{Error, InternalError};
 
@@ -34,13 +33,12 @@ pub async fn main(
 
 pub struct Api {
     context: EsysContext,
-    endorsement_key: FixedHandle,
-    storage_root_key: FixedHandle,
-    auth_key: Option<FixedHandle>,
+    endorsement_key: Persistent,
+    storage_root_key: Persistent,
+    auth_key: Option<Persistent>,
 }
 
 impl Api {
-    #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &Config) -> tss_minimal::Result<Self> {
         let TpmAuthConfig {
             endorsement,
@@ -52,7 +50,7 @@ impl Api {
         let context = EsysContext::new(&config.tcti)?;
 
         context.set_auth(
-            &tss_minimal::Hierarchy::ENDORSEMENT,
+            &Persistent::ENDORSEMENT_HIERARCHY,
             #[allow(clippy::cast_possible_truncation)]
             &types_sys::TPM2B_AUTH {
                 // TODO: restrict length in configuration
@@ -61,7 +59,7 @@ impl Api {
             },
         )?;
         context.set_auth(
-            &tss_minimal::Hierarchy::OWNER,
+            &Persistent::OWNER_HIERARCHY,
             #[allow(clippy::cast_possible_truncation)]
             &types_sys::TPM2B_AUTH {
                 // TODO: restrict length in configuration
@@ -70,21 +68,9 @@ impl Api {
             },
         )?;
 
-        let endorsement_key = match context.from_tpm_public(0x8101_0001, None) {
-            Ok(Handle::Fixed(handle)) => handle,
-            Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
-            Err(e) => return Err(e),
-        };
-        let storage_root_key = match context.from_tpm_public(0x8100_0001, None) {
-            Ok(Handle::Fixed(handle)) => handle,
-            Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
-            Err(e) => return Err(e),
-        };
-        let auth_key = match context.from_tpm_public(0x8100_1000, None) {
-            Ok(Handle::Fixed(handle)) => Some(handle),
-            Ok(_) => panic!("EsysContext::from_tpm_public must return a FixedHandle"),
-            _ => None,
-        };
+        let endorsement_key = context.from_tpm_public(0x8101_0001, None)?;
+        let storage_root_key = context.from_tpm_public(0x8100_0001, None)?;
+        let auth_key = context.from_tpm_public(0x8100_1000, None).ok();
 
         Ok(Self {
             context,
@@ -114,8 +100,8 @@ impl Api {
 
     pub fn sign_with_auth_key(&mut self, data: &[u8]) -> tss_minimal::Result<Vec<u8>> {
         let hmac = self.context.hmac(
-            self.auth_key.as_ref().unwrap_or(&FixedHandle::NONE),
-            &tss_minimal::AuthSession::PASSWORD,
+            self.auth_key.as_ref().unwrap_or(&Persistent::NONE),
+            &Persistent::PASSWORD_SESSION,
             types_sys::DEF_TPM2_ALG_SHA256,
             data,
         )?;
@@ -127,9 +113,9 @@ impl Api {
     pub fn import_auth_key(&mut self, mut key: &[u8]) -> tss_minimal::Result<()> {
         if let Some(handle) = self.auth_key.take() {
             let res = self.context.evict(
-                Hierarchy::OWNER,
-                Handle::Fixed(handle),
-                &AuthSession::PASSWORD,
+                Persistent::OWNER_HIERARCHY,
+                &handle,
+                &Persistent::PASSWORD_SESSION,
                 0,
             );
 
@@ -143,10 +129,10 @@ impl Api {
         let credential_blob = key.unmarshal()?;
         let secret = key.unmarshal()?;
 
-        let ek_auth = self
+        let mut ek_auth = self
             .context
             .start_auth_session(
-                tss_minimal::SessionType::Policy,
+                tss_minimal::types::sys::DEF_TPM2_SE_POLICY,
                 &types_sys::TPMT_SYM_DEF {
                     algorithm: types_sys::DEF_TPM2_ALG_AES,
                     keyBits: types_sys::TPMU_SYM_KEY_BITS { aes: 128 },
@@ -155,18 +141,18 @@ impl Api {
                     },
                 },
                 types_sys::DEF_TPM2_ALG_SHA256,
-            )?
-            .with_policy(tss_minimal::Policy::new(
-                tss_minimal::PolicyKind::Secret {
-                    handle: &Hierarchy::ENDORSEMENT,
-                    auth: &AuthSession::PASSWORD,
-                },
-                &self.context,
-            ))?;
+            )?;
+        tss_minimal::Policy::new(
+            tss_minimal::PolicyKind::Secret {
+                handle: &Persistent::ENDORSEMENT_HIERARCHY,
+                auth: &Persistent::PASSWORD_SESSION,
+            },
+            &self.context,
+        ).apply(&mut ek_auth)?;
 
         let inner = self.context.activate_credential(
             &self.storage_root_key,
-            Some(&AuthSession::PASSWORD),
+            Some(&Persistent::PASSWORD_SESSION),
             &self.endorsement_key,
             Some(&ek_auth),
             &credential_blob,
@@ -179,7 +165,7 @@ impl Api {
 
         let id_key_private = self.context.import(
             &self.storage_root_key,
-            &AuthSession::PASSWORD,
+            &Persistent::PASSWORD_SESSION,
             Some(&types_sys::TPM2B_DATA {
                 size: inner.size,
                 buffer: fill_tpm2b_buffer(&inner.buffer),
@@ -198,7 +184,7 @@ impl Api {
 
         let auth_key_handle = self.context.load(
             &self.storage_root_key,
-            &AuthSession::PASSWORD,
+            &Persistent::PASSWORD_SESSION,
             &id_key_private,
             &id_key_public,
         )?;
@@ -206,18 +192,14 @@ impl Api {
         let auth_key_handle = self
             .context
             .evict(
-                Hierarchy::OWNER,
-                auth_key_handle,
-                &AuthSession::PASSWORD,
+                Persistent::OWNER_HIERARCHY,
+                &auth_key_handle,
+                &Persistent::PASSWORD_SESSION,
                 0x8100_1000,
             )?
             .expect("Esys_EvictControl with a transient handle returns a persistent handle");
 
-        if let Handle::Fixed(handle) = auth_key_handle {
-            self.auth_key = Some(handle);
-        } else {
-            panic!("Esys_EvictControl with a transient handle returns a persistent handle");
-        }
+        self.auth_key = Some(auth_key_handle);
 
         Ok(())
     }
