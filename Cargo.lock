@@ -1679,6 +1679,7 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
+ "tpm2-tss-sys",
  "types-sys",
 ]
 
@@ -2048,6 +2049,7 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
+ "tpm2-tss-sys",
 ]
 
 [[package]]

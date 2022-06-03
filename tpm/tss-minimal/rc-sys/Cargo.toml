@@ -6,6 +6,12 @@ links = "tss2-rc"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies]
+tpm2-tss-sys = { path = "../tpm2-tss-sys", optional = true }
+
 [build-dependencies]
 bindgen = { version = "0.59", features = ["runtime"], default-features = false }
 pkg-config = "0.3"
+
+[features]
+vendor = ["dep:tpm2-tss-sys"]

@@ -7,8 +7,8 @@ fn main() -> tss_minimal::Result<()> {
     let ctx = tss_minimal::EsysContext::new(&std::ffi::CString::default())?;
 
     let handle = ctx.create_primary(
-        &tss_minimal::AuthSession::PASSWORD,
-        tss_minimal::Hierarchy::ENDORSEMENT,
+        &tss_minimal::Persistent::PASSWORD_SESSION,
+        tss_minimal::Persistent::ENDORSEMENT_HIERARCHY,
         unsafe { &std::mem::MaybeUninit::zeroed().assume_init() },
         &tss_minimal::types::EK_RSA_TEMPLATE,
         None,
@@ -16,17 +16,17 @@ fn main() -> tss_minimal::Result<()> {
 
     let handle = ctx
         .evict(
-            tss_minimal::Hierarchy::OWNER,
-            handle,
-            &tss_minimal::AuthSession::PASSWORD,
-            0x81010001,
+            tss_minimal::Persistent::OWNER_HIERARCHY,
+            &handle,
+            &tss_minimal::Persistent::PASSWORD_SESSION,
+            0x8101_0001,
         )?
         .unwrap();
 
     let handle = ctx.evict(
-        tss_minimal::Hierarchy::OWNER,
-        handle,
-        &tss_minimal::AuthSession::PASSWORD,
+        tss_minimal::Persistent::OWNER_HIERARCHY,
+        &handle,
+        &tss_minimal::Persistent::PASSWORD_SESSION,
         0,
     )?;
 

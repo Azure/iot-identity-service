@@ -5,7 +5,7 @@ fn main() -> tss_minimal::Result<()> {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let ctx = tss_minimal::EsysContext::new(&std::ffi::CString::default())?;
-    let auth_session = tss_minimal::AuthSession::PASSWORD;
+    let auth_session = tss_minimal::Persistent::PASSWORD_SESSION;
 
     // ctx.set_auth(
     //     &tss_minimal::Hierarchy::ENDORSEMENT,
@@ -23,19 +23,19 @@ fn main() -> tss_minimal::Result<()> {
         },
     };
 
-    let auth = ctx
-        .start_auth_session(
-            tss_minimal::SessionType::Policy,
-            &sym,
-            tss_minimal::types::sys::DEF_TPM2_ALG_SHA256,
-        )?
-        .with_policy(tss_minimal::Policy::new(
-            tss_minimal::PolicyKind::Secret {
-                handle: &tss_minimal::Hierarchy::ENDORSEMENT,
-                auth: &auth_session,
-            },
-            &ctx,
-        ))?;
+    let mut auth = ctx.start_auth_session(
+        tss_minimal::types::sys::DEF_TPM2_SE_POLICY,
+        &sym,
+        tss_minimal::types::sys::DEF_TPM2_ALG_SHA256,
+    )?;
+    tss_minimal::Policy::new(
+        tss_minimal::PolicyKind::Secret {
+            handle: &tss_minimal::Persistent::ENDORSEMENT_HIERARCHY,
+            auth: &auth_session,
+        },
+        &ctx,
+    )
+    .apply(&mut auth)?;
 
     let dgst = ctx.policy_digest(&auth)?;
     let expected: [u8; 32] = [
