@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
+use nix::unistd::{Uid, User};
 use serde::Serialize;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
@@ -22,6 +23,7 @@ impl CertificateValidity {
         cert_path: impl AsRef<Path>,
         cert_name: &str,
         cert_id: &str,
+        aziotcs_user: &User,
     ) -> Result<CertificateValidity> {
         fn parse_openssl_time(
             time: &openssl::asn1::Asn1TimeRef,
@@ -36,6 +38,8 @@ impl CertificateValidity {
         }
 
         let cert_path = cert_path.as_ref();
+
+        aziotctl_common::config::check_readable(cert_path, aziotcs_user, false)?;
 
         let file_ctx = format!("operation on file {}", cert_path.display());
 
@@ -99,4 +103,18 @@ pub async fn resolve_and_tls_handshake(
         })?;
 
     Ok(())
+}
+
+pub(crate) fn get_system_user(name: &str) -> anyhow::Result<User> {
+    if Uid::current().is_root() {
+        Ok(User::from_name(name)
+            .with_context(|| format!("could not query {} user information", name))?
+            .ok_or_else(|| anyhow!("could not query {} user information", name))?)
+    } else if cfg!(debug_assertions) {
+        Ok(User::from_uid(Uid::current())
+            .context("could not query current user information")?
+            .ok_or_else(|| anyhow!("could not query current user information"))?)
+    } else {
+        Err(anyhow!("this command must be run as root"))
+    }
 }

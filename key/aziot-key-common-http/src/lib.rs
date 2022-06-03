@@ -179,6 +179,13 @@ pub mod delete {
     }
 }
 
+pub mod r#move {
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        pub from: String,
+    }
+}
+
 pub mod sign {
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub struct Request {

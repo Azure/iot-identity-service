@@ -13,6 +13,8 @@ RELEASE = 0
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
+INSTALL_PRESET = true
+
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -43,12 +45,11 @@ else
 	DPKG_ARCH_FLAGS =
 endif
 
-
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL := /bin/bash
 
 
-.PHONY: aziot-key-openssl-engine-shared-test clean default iotedged test test-release
+.PHONY: aziot-key-openssl-engine-shared-test clean default mock-iot-server test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
 
 
@@ -100,16 +101,16 @@ clean:
 	$(RM) key/aziot-keyd/src/keys.generated.rs
 	$(RM) key/aziot-keys/aziot-keys.h
 
-iotedged:
-	$(CARGO) build -p iotedged $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-
 
 aziot-key-openssl-engine-shared-test:
 	$(CARGO) build -p aziot-key-openssl-engine-shared-test $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
+mock-iot-server:
+	$(CARGO) build -p mock-iot-server $(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 target/openapi-schema-validated: cert/aziot-certd/openapi/*.yaml
 target/openapi-schema-validated: key/aziot-keyd/openapi/*.yaml
+target/openapi-schema-validated: identity/aziot-identityd/openapi/*.yaml
 target/openapi-schema-validated:
 	mkdir -p target
 	$(RM) target/openapi-schema-validated
@@ -122,7 +123,7 @@ target/openapi-schema-validated:
 	# The resolution is to have CI run this target separately after running `make test`.
 	if [ -f /usr/bin/docker ]; then \
 		set -euo pipefail; \
-		for f in cert/aziot-certd/openapi/*.yaml key/aziot-keyd/openapi/*.yaml; do \
+		for f in cert/aziot-certd/openapi/*.yaml key/aziot-keyd/openapi/*.yaml identity/aziot-identityd/openapi/*.yaml; do \
 			validator_output="$$( \
 				docker run --rm -v "$$PWD:/src" --user 1000 \
 					openapitools/openapi-generator-cli:v4.3.1 \
@@ -147,7 +148,7 @@ test-release: test
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
 
-test: aziot-key-openssl-engine-shared-test default iotedged
+test: aziot-key-openssl-engine-shared-test default mock-iot-server
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
@@ -203,6 +204,21 @@ test:
 		done
 
 
+codecov: default
+	mkdir -p coverage
+
+	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$$PWD/target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)" $(CARGO) tarpaulin --all --verbose \
+		--exclude aziot-key-openssl-engine-shared \
+		--exclude openssl-build --exclude test-common \
+		--exclude mock-iot-server \
+		--exclude aziot-key-openssl-engine-shared-test \
+		--exclude-files tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/* \
+		--exclude-files tpm/aziot-tpm-sys/tests/* \
+		--no-fail-fast \
+		--target $(CARGO_TARGET) --out Lcov \
+		--output-dir ./coverage
+
+
 # Packaging
 #
 # - `make PACKAGE_VERSION='...' PACKAGE_RELEASE='...' deb` builds deb packages for Debian and Ubuntu.
@@ -220,10 +236,10 @@ dist:
 		./cert \
 		./identity \
 		./key \
+		./test-common \
 		./tpm \
-		./iotedged \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
-	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
+	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain.toml ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
@@ -258,16 +274,40 @@ deb: dist
 #
 # Ref: https://rpm-packaging-guide.github.io
 RPMBUILDDIR = $(HOME)/rpmbuild
-rpm: contrib/centos/aziot-identity-service.spec
+rpm: contrib/enterprise-linux/aziot-identity-service.spec
 rpm: dist
 rpm:
 	# Move dist tarball to rpmbuild sources directory
 	mkdir -p $(RPMBUILDDIR)/SOURCES
-	mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(RPMBUILDDIR)/SOURCES/aziot-identity-service-$(PACKAGE_VERSION)-$(PACKAGE_RELEASE).tar.gz
+	mv /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz $(RPMBUILDDIR)/SOURCES/aziot-identity-service-$(PACKAGE_VERSION)-$(PACKAGE_RELEASE).$(PACKAGE_DIST).tar.gz
 
 	# Copy spec file to rpmbuild specs directory
 	mkdir -p $(RPMBUILDDIR)/SPECS
-	sed -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' contrib/centos/aziot-identity-service.spec >$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
+
+	# Engine needs to be installed to what openssl considers the enginesdir,
+	# which we can get from openssl 1.1 with `openssl version -e` but not from openssl 1.0.
+	# Also, the filename for 1.0 should have a `lib` prefix.
+	#
+	# CentOS 7 has 1.0 and RedHat 8 has 1.1, so we need to support both here.
+	#
+	# Since there is no RPM macro for those two things, we have to infer them from
+	# the output of `openssl version` and `openssl version -e` ourselves. This wouldn't be right
+	# if we were cross-compiling, but we don't support cross-compiling for either of those two OSes,
+	# so it's fine.
+	which openssl # Assert that openssl exists
+	case "$$(openssl version)" in \
+		'OpenSSL 1.0.'*) OPENSSL_ENGINE_FILENAME='%\{_libdir\}/openssl/engines/libaziot_keys.so' ;; \
+		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
+		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
+	esac; \
+	<contrib/enterprise-linux/aziot-identity-service.spec sed \
+		-e 's/@version@/$(PACKAGE_VERSION)/g' \
+		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
+		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
+		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
+
+	# Copy preset file to be included in the package
+	cp contrib/enterprise-linux/00-aziot.preset $(RPMBUILDDIR)/SOURCES
 
 	# Build package
 	rpmbuild -ba $(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
@@ -293,6 +333,7 @@ localstatedir = $(prefix)/var
 sysconfdir = $(prefix)/etc
 
 unitdir = $(libdir)/systemd/system
+presetdir = $(libdir)/systemd/system-preset
 
 # Note: This default is almost certainly wrong for most distros and architectures, so it ought to be overridden by the caller of `make`.
 #
@@ -304,7 +345,7 @@ INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = $(INSTALL) -m 644
 
-# Do not invoke directly; this is invoked by `rpmbuild` or `dpkg-buildpackage`. Use `make centos` or `make deb` instead.
+# Do not invoke directly; this is invoked by `dpkg-buildpackage` or `rpmbuild`. Use `make deb` or `make rpm` instead.
 install-common: default
 install-common:
 	# Ref: https://www.gnu.org/software/make/manual/html_node/DESTDIR.html
@@ -373,7 +414,11 @@ install-rpm: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
 		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
-		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/libaziot_keys.so
+		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
+
+	if [ $(INSTALL_PRESET) == "true" ]; then \
+		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
+	fi
 
 	# README.md and LICENSE are automatically installed by %doc and %license directives in the spec file
 

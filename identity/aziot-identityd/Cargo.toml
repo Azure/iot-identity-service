@@ -6,7 +6,7 @@ publish = false
 description = """
 The code used for Identity Service.
 """
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
@@ -30,8 +30,7 @@ url = "2"
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
-aziot-dps-client-async = { path = "../aziot-dps-client-async" }
-aziot-hub-client-async = { path = "../aziot-hub-client-async" }
+aziot-cloud-client-async = { path = "../aziot-cloud-client-async" }
 aziot-identity-common = { path = "../aziot-identity-common" }
 aziot-identity-common-http = { path = "../aziot-identity-common-http" }
 aziot-identityd-config = { path = "../aziot-identityd-config" }
@@ -42,8 +41,10 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
+
+cert-renewal = { path = "../../cert/cert-renewal" }
 config-common = { path = "../../config-common", features = ["watcher"] }
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
 

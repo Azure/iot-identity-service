@@ -23,6 +23,7 @@ use aziot_keyd_config::{Config, Endpoints, Principal};
 
 use config_common::watcher::UpdateConfig;
 
+#[allow(clippy::unused_async)]
 pub async fn main(
     config: Config,
     config_path: std::path::PathBuf,
@@ -118,6 +119,26 @@ impl Api {
 
         let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
         Ok(handle)
+    }
+
+    pub fn move_key_pair(&mut self, from: &str, to: &str, user: libc::uid_t) -> Result<(), Error> {
+        // Require the caller to be authorized to modify both keys.
+        if !self.authorize(user, from) {
+            return Err(Error::Unauthorized(user, from.to_owned()));
+        }
+
+        if !self.authorize(user, to) {
+            return Err(Error::Unauthorized(user, to.to_owned()));
+        }
+
+        let from_cstr = std::ffi::CString::new(from.to_owned())
+            .map_err(|err| Error::invalid_parameter("from", err))?;
+        let to_cstr = std::ffi::CString::new(to.to_owned())
+            .map_err(|err| Error::invalid_parameter("to", err))?;
+
+        self.keys.move_key_pair(&from_cstr, &to_cstr)?;
+
+        Ok(())
     }
 
     pub fn load_key_pair(
@@ -309,7 +330,7 @@ impl Api {
                 self.keys.sign(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_SIGN_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     digest,
                 )?
             }
@@ -345,7 +366,7 @@ impl Api {
                 self.keys.encrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     plaintext,
                 )?
             }
@@ -383,15 +404,13 @@ impl Api {
                     derivation_data: derivation_data.as_ptr(),
                     derivation_data_len: derivation_data.len(),
                     mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    parameters: (&parameters
-                        as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS)
-                        .cast(),
+                    parameters: std::ptr::addr_of!(parameters).cast(),
                 };
 
                 self.keys.encrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     plaintext,
                 )?
             }
@@ -427,7 +446,7 @@ impl Api {
                 self.keys.decrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     ciphertext,
                 )?
             }
@@ -447,15 +466,13 @@ impl Api {
                     derivation_data: derivation_data.as_ptr(),
                     derivation_data_len: derivation_data.len(),
                     mechanism: keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD,
-                    parameters: (&parameters
-                        as *const keys::sys::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS)
-                        .cast(),
+                    parameters: std::ptr::addr_of!(parameters).cast(),
                 };
 
                 self.keys.decrypt(
                     &id_cstr,
                     keys::sys::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED,
-                    (&parameters as *const keys::sys::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS).cast(),
+                    std::ptr::addr_of!(parameters).cast(),
                     ciphertext,
                 )?
             }
@@ -491,6 +508,7 @@ impl UpdateConfig for Api {
     type Config = Config;
     type Error = Error;
 
+    #[allow(clippy::unused_async)]
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
         log::info!("Detected change in config files. Updating config.");
 
@@ -614,7 +632,7 @@ fn key_handle_to_id(
         }
 
         KeyId::Derived(base_handle, _) => {
-            let (_, base_id_cstr) = key_handle_to_id(&base_handle, keys)?;
+            let (_, base_id_cstr) = key_handle_to_id(base_handle, keys)?;
             base_id_cstr
         }
     };

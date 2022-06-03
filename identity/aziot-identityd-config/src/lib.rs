@@ -45,7 +45,7 @@ impl Settings {
     }
 
     pub fn default_cloud_retries() -> u32 {
-        0
+        1
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -127,6 +127,8 @@ pub enum DpsAttestationMethod {
         registration_id: Option<String>,
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        identity_auto_renew: Option<cert_renewal::AutoRenewConfig>,
     },
     Tpm {
         registration_id: String,

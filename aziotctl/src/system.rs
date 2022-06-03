@@ -91,8 +91,9 @@ async fn reprovision(uri: &url::Url) -> Result<()> {
     let connector =
         http_common::Connector::new(uri).map_err(|err| anyhow!("Invalid URI {}: {}", uri, err))?;
     let client = aziot_identity_client_async::Client::new(
-        aziot_identity_common_http::ApiVersion::V2020_09_01,
+        aziot_identity_common_http::ApiVersion::V2021_12_01,
         connector,
+        0,
     );
 
     match client.reprovision().await {

@@ -53,6 +53,7 @@ pub enum InternalError {
     InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     LoadKeyOpensslEngine(openssl2::Error),
     ReadFile(std::io::Error),
+    WriteFile(std::io::Error),
 }
 
 impl std::fmt::Display for InternalError {
@@ -68,6 +69,7 @@ impl std::fmt::Display for InternalError {
                 f.write_str("could not load aziot-key-openssl-engine")
             }
             InternalError::ReadFile(_) => f.write_str("could not read cert file"),
+            InternalError::WriteFile(_) => f.write_str("could not write cert file"),
         }
     }
 }
@@ -82,6 +84,7 @@ impl std::error::Error for InternalError {
             InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
             InternalError::ReadFile(err) => Some(err),
+            InternalError::WriteFile(err) => Some(err),
         }
     }
 }

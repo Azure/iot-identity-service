@@ -18,23 +18,17 @@ mod dynrange;
 pub use dynrange::DynRangeBounds;
 
 mod connector;
-#[cfg(feature = "tokio1")]
 pub use connector::AsyncStream;
 pub use connector::{Connector, ConnectorError, Stream};
 
-#[cfg(feature = "tokio1")]
 mod proxy;
-#[cfg(feature = "tokio1")]
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
-#[cfg(feature = "tokio1")]
 mod request;
-#[cfg(feature = "tokio1")]
-pub use request::{request, request_no_content};
+pub use request::HttpRequest;
 
 pub mod server;
 
-#[cfg(feature = "tokio1")]
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
@@ -92,4 +86,10 @@ impl serde::Serialize for ByteString {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ErrorBody<'a> {
     pub message: std::borrow::Cow<'a, str>,
+}
+
+impl std::convert::From<ErrorBody<'_>> for std::io::Error {
+    fn from(err: ErrorBody<'_>) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Other, err.message)
+    }
 }

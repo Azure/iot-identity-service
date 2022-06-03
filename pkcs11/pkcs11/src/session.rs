@@ -108,16 +108,16 @@ impl Session {
     ) -> Result<pkcs11_sys::CK_OBJECT_HANDLE, GetKeyError> {
         let mut templates = vec![pkcs11_sys::CK_ATTRIBUTE_IN {
             r#type: pkcs11_sys::CKA_CLASS,
-            pValue: (&class as *const pkcs11_sys::CK_OBJECT_CLASS).cast(),
-            ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&class))
+            pValue: std::ptr::addr_of!(class).cast(),
+            ulValueLen: std::mem::size_of_val(&class)
+                .try_into()
                 .expect("usize -> CK_ULONG"),
         }];
         if let Some(label) = label {
             templates.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                 r#type: pkcs11_sys::CKA_LABEL,
                 pValue: label.as_ptr().cast(),
-                ulValueLen: std::convert::TryInto::try_into(label.len())
-                    .expect("usize -> CK_ULONG"),
+                ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
             });
         }
         let key_handle = {
@@ -137,11 +137,12 @@ impl Session {
         key_handle: pkcs11_sys::CK_OBJECT_HANDLE,
     ) -> Result<pkcs11_sys::CK_KEY_TYPE, GetKeyError> {
         let mut key_type = pkcs11_sys::CKK_EC;
-        let key_type_size = std::convert::TryInto::try_into(std::mem::size_of_val(&key_type))
+        let key_type_size = std::mem::size_of_val(&key_type)
+            .try_into()
             .expect("usize -> CK_ULONG");
         let mut attribute = pkcs11_sys::CK_ATTRIBUTE {
             r#type: pkcs11_sys::CKA_KEY_TYPE,
-            pValue: (&mut key_type as *mut pkcs11_sys::CK_KEY_TYPE).cast(),
+            pValue: std::ptr::addr_of_mut!(key_type).cast(),
             ulValueLen: key_type_size,
         };
         let result = (self.context.C_GetAttributeValue)(self.handle, key_handle, &mut attribute, 1);
@@ -194,6 +195,71 @@ impl std::error::Error for GetKeyError {
     }
 }
 
+/// An error from renaming a key.
+#[derive(Debug)]
+pub enum RenameKeyError {
+    LoginFailed(LoginError),
+    SourceNotFound,
+    ChangeLabelFailed(pkcs11_sys::CK_RV),
+}
+
+impl std::fmt::Display for RenameKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RenameKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
+            RenameKeyError::SourceNotFound => f.write_str("source not found"),
+            RenameKeyError::ChangeLabelFailed(result) => {
+                write!(f, "C_SetAttributeValue failed with {}", result)
+            }
+        }
+    }
+}
+
+impl std::error::Error for RenameKeyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        #[allow(clippy::match_same_arms)]
+        match self {
+            RenameKeyError::LoginFailed(inner) => Some(inner),
+            RenameKeyError::SourceNotFound => None,
+            RenameKeyError::ChangeLabelFailed(_) => None,
+        }
+    }
+}
+
+impl Session {
+    pub fn rename_key_pair(
+        self: std::sync::Arc<Self>,
+        from: &str,
+        to: &str,
+    ) -> Result<(), RenameKeyError> {
+        unsafe {
+            // Private key access needs login
+            self.login().map_err(RenameKeyError::LoginFailed)?;
+
+            let attribute = pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_LABEL,
+                pValue: to.as_ptr().cast(),
+                ulValueLen: to.len().try_into().expect("usize -> CK_ULONG"),
+            };
+
+            for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
+                let key_handle = self
+                    .get_key_inner(class, Some(from))
+                    .map_err(|_| RenameKeyError::SourceNotFound)?;
+
+                let result =
+                    (self.context.C_SetAttributeValue)(self.handle, key_handle, &attribute, 1);
+
+                if result != pkcs11_sys::CKR_OK {
+                    return Err(RenameKeyError::ChangeLabelFailed(result));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 struct FindObjects<'session> {
     session: &'session Session,
 }
@@ -206,7 +272,7 @@ impl<'session> FindObjects<'session> {
         let result = (session.context.C_FindObjectsInit)(
             session.handle,
             templates.as_ptr(),
-            std::convert::TryInto::try_into(templates.len()).expect("usize -> CK_ULONG"),
+            templates.len().try_into().expect("usize -> CK_ULONG"),
         );
         if result != pkcs11_sys::CKR_OK {
             return Err(FindObjectsError::FindObjectsInitFailed(result));
@@ -311,9 +377,10 @@ impl Session {
             }
 
             let r#true = pkcs11_sys::CK_TRUE;
-            let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
+            let true_size = std::mem::size_of_val(&r#true)
+                .try_into()
                 .expect("usize -> CK_ULONG");
-            let r#true = (&r#true as *const pkcs11_sys::CK_BBOOL).cast();
+            let r#true = std::ptr::addr_of!(r#true).cast();
 
             // Common to all keys
             let mut key_template = vec![
@@ -343,8 +410,7 @@ impl Session {
                 key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_LABEL,
                     pValue: label.as_ptr().cast(),
-                    ulValueLen: std::convert::TryInto::try_into(label.len())
-                        .expect("usize -> CK_ULONG"),
+                    ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
                 });
             }
 
@@ -377,24 +443,22 @@ impl Session {
                     let key_type = pkcs11_sys::CKK_AES;
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_KEY_TYPE,
-                        pValue: (&key_type as *const pkcs11_sys::CK_KEY_TYPE).cast(),
-                        ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
-                            &key_type,
-                        ))
-                        .expect("usize -> CK_ULONG"),
+                        pValue: std::ptr::addr_of!(key_type).cast(),
+                        ulValueLen: std::mem::size_of_val(&key_type)
+                            .try_into()
+                            .expect("usize -> CK_ULONG"),
                     });
 
                     let key_template_except_value_len = key_template.clone();
 
-                    let mut len: pkcs11_sys::CK_ULONG =
-                        std::convert::TryInto::try_into(32).expect("usize -> CK_ULONG");
-                    let len_size: pkcs11_sys::CK_ULONG =
-                        std::convert::TryInto::try_into(std::mem::size_of_val(&len))
-                            .expect("usize -> CK_ULONG");
+                    let mut len: pkcs11_sys::CK_ULONG = 32;
+                    let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
+                        .try_into()
+                        .expect("usize -> CK_ULONG");
 
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: (&len as *const pkcs11_sys::CK_ULONG).cast(),
+                        pValue: std::ptr::addr_of!(len).cast(),
                         ulValueLen: len_size,
                     });
 
@@ -403,8 +467,7 @@ impl Session {
                         self.handle,
                         &mechanism,
                         key_template.as_ptr().cast(),
-                        std::convert::TryInto::try_into(key_template.len())
-                            .expect("usize -> CK_ULONG"),
+                        key_template.len().try_into().expect("usize -> CK_ULONG"),
                         &mut key_handle,
                     );
                     if result == pkcs11_sys::CKR_OK
@@ -419,7 +482,7 @@ impl Session {
                     len = 16;
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: (&len as *const pkcs11_sys::CK_ULONG).cast(),
+                        pValue: std::ptr::addr_of!(len).cast(),
                         ulValueLen: len_size,
                     });
 
@@ -428,8 +491,7 @@ impl Session {
                         self.handle,
                         &mechanism,
                         key_template.as_ptr().cast(),
-                        std::convert::TryInto::try_into(key_template.len())
-                            .expect("usize -> CK_ULONG"),
+                        key_template.len().try_into().expect("usize -> CK_ULONG"),
                         &mut key_handle,
                     );
                     if result != pkcs11_sys::CKR_OK {
@@ -451,11 +513,10 @@ impl Session {
                         ulParameterLen: 0,
                     };
 
-                    let len: pkcs11_sys::CK_ULONG =
-                        std::convert::TryInto::try_into(32).expect("usize -> CK_ULONG");
-                    let len_size: pkcs11_sys::CK_ULONG =
-                        std::convert::TryInto::try_into(std::mem::size_of_val(&len))
-                            .expect("usize -> CK_ULONG");
+                    let len: pkcs11_sys::CK_ULONG = 32;
+                    let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
+                        .try_into()
+                        .expect("usize -> CK_ULONG");
 
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_SIGN,
@@ -464,18 +525,17 @@ impl Session {
                     });
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: (&len as *const pkcs11_sys::CK_ULONG).cast(),
+                        pValue: std::ptr::addr_of!(len).cast(),
                         ulValueLen: len_size,
                     });
 
                     let key_type = pkcs11_sys::CKK_GENERIC_SECRET;
                     key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                         r#type: pkcs11_sys::CKA_KEY_TYPE,
-                        pValue: (&key_type as *const pkcs11_sys::CK_KEY_TYPE).cast(),
-                        ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
-                            &key_type,
-                        ))
-                        .expect("usize -> CK_ULONG"),
+                        pValue: std::ptr::addr_of!(key_type).cast(),
+                        ulValueLen: std::mem::size_of_val(&key_type)
+                            .try_into()
+                            .expect("usize -> CK_ULONG"),
                     });
 
                     let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
@@ -483,8 +543,7 @@ impl Session {
                         self.handle,
                         &mechanism,
                         key_template.as_ptr().cast(),
-                        std::convert::TryInto::try_into(key_template.len())
-                            .expect("usize -> CK_ULONG"),
+                        key_template.len().try_into().expect("usize -> CK_ULONG"),
                         &mut key_handle,
                     );
                     if result != pkcs11_sys::CKR_OK {
@@ -566,16 +625,18 @@ impl Session {
             let class = pkcs11_sys::CKO_SECRET_KEY;
 
             let r#true = pkcs11_sys::CK_TRUE;
-            let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
+            let true_size = std::mem::size_of_val(&r#true)
+                .try_into()
                 .expect("usize -> CK_ULONG");
-            let r#true = (&r#true as *const pkcs11_sys::CK_BBOOL).cast();
+            let r#true = std::ptr::addr_of!(r#true).cast();
 
             // Common to all keys
             let mut key_template = vec![
                 pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_CLASS,
-                    pValue: (&class as *const pkcs11_sys::CK_OBJECT_CLASS).cast(),
-                    ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&class))
+                    pValue: std::ptr::addr_of!(class).cast(),
+                    ulValueLen: std::mem::size_of_val(&class)
+                        .try_into()
                         .expect("usize -> CK_ULONG"),
                 },
                 pkcs11_sys::CK_ATTRIBUTE_IN {
@@ -596,8 +657,7 @@ impl Session {
                 pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_VALUE,
                     pValue: bytes.as_ptr().cast(),
-                    ulValueLen: std::convert::TryInto::try_into(bytes.len())
-                        .expect("usize -> CK_ULONG"),
+                    ulValueLen: bytes.len().try_into().expect("usize -> CK_ULONG"),
                 },
             ];
 
@@ -605,8 +665,7 @@ impl Session {
                 key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_LABEL,
                     pValue: label.as_ptr().cast(),
-                    ulValueLen: std::convert::TryInto::try_into(label.len())
-                        .expect("usize -> CK_ULONG"),
+                    ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
                 });
             }
 
@@ -644,8 +703,9 @@ impl Session {
 
             key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                 r#type: pkcs11_sys::CKA_KEY_TYPE,
-                pValue: (&key_type as *const pkcs11_sys::CK_KEY_TYPE).cast(),
-                ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(&key_type))
+                pValue: std::ptr::addr_of!(key_type).cast(),
+                ulValueLen: std::mem::size_of_val(&key_type)
+                    .try_into()
                     .expect("usize -> CK_ULONG"),
             });
 
@@ -654,7 +714,7 @@ impl Session {
             let result = (self.context.C_CreateObject)(
                 self.handle,
                 key_template.as_ptr().cast(),
-                std::convert::TryInto::try_into(key_template.len()).expect("usize -> CK_ULONG"),
+                key_template.len().try_into().expect("usize -> CK_ULONG"),
                 &mut key_handle,
             );
             if result != pkcs11_sys::CKR_OK {
@@ -724,7 +784,7 @@ impl Session {
             let public_key_template = vec![pkcs11_sys::CK_ATTRIBUTE_IN {
                 r#type: pkcs11_sys::CKA_EC_PARAMS,
                 pValue: oid.as_ptr().cast(),
-                ulValueLen: std::convert::TryInto::try_into(oid.len()).expect("usize -> CK_ULONG"),
+                ulValueLen: oid.len().try_into().expect("usize -> CK_ULONG"),
             }];
 
             let private_key_template = vec![];
@@ -757,17 +817,15 @@ impl Session {
             let public_key_template = vec![
                 pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_MODULUS_BITS,
-                    pValue: (&modulus_bits as *const pkcs11_sys::CK_ULONG).cast(),
-                    ulValueLen: std::convert::TryInto::try_into(std::mem::size_of_val(
-                        &modulus_bits,
-                    ))
-                    .expect("usize -> CK_ULONG"),
+                    pValue: std::ptr::addr_of!(modulus_bits).cast(),
+                    ulValueLen: std::mem::size_of_val(&modulus_bits)
+                        .try_into()
+                        .expect("usize -> CK_ULONG"),
                 },
                 pkcs11_sys::CK_ATTRIBUTE_IN {
                     r#type: pkcs11_sys::CKA_PUBLIC_EXPONENT,
                     pValue: exponent.as_ptr().cast(),
-                    ulValueLen: std::convert::TryInto::try_into(exponent.len())
-                        .expect("usize -> CK_ULONG"),
+                    ulValueLen: exponent.len().try_into().expect("usize -> CK_ULONG"),
                 },
             ];
 
@@ -815,14 +873,16 @@ impl Session {
         };
 
         let r#true = pkcs11_sys::CK_TRUE;
-        let true_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#true))
+        let true_size = std::mem::size_of_val(&r#true)
+            .try_into()
             .expect("usize -> CK_ULONG");
-        let r#true = (&r#true as *const pkcs11_sys::CK_BBOOL).cast();
+        let r#true = std::ptr::addr_of!(r#true).cast();
 
         let r#false = pkcs11_sys::CK_FALSE;
-        let false_size = std::convert::TryInto::try_into(std::mem::size_of_val(&r#false))
+        let false_size = std::mem::size_of_val(&r#false)
+            .try_into()
             .expect("usize -> CK_ULONG");
-        let r#false = (&r#false as *const pkcs11_sys::CK_BBOOL).cast();
+        let r#false = std::ptr::addr_of!(r#false).cast();
 
         // The spec's example also passes in CKA_WRAP for the public key and CKA_UNWRAP for the private key,
         // but tpm2-pkcs11's impl of `C_GenerateKeyPair` does not recognize those and fails.
@@ -853,8 +913,7 @@ impl Session {
             public_key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                 r#type: pkcs11_sys::CKA_LABEL,
                 pValue: label.as_ptr().cast(),
-                ulValueLen: std::convert::TryInto::try_into(label.len())
-                    .expect("usize -> CK_ULONG"),
+                ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
             });
         }
 
@@ -887,8 +946,7 @@ impl Session {
             private_key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
                 r#type: pkcs11_sys::CKA_LABEL,
                 pValue: label.as_ptr().cast(),
-                ulValueLen: std::convert::TryInto::try_into(label.len())
-                    .expect("usize -> CK_ULONG"),
+                ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
             });
         }
 
@@ -899,9 +957,15 @@ impl Session {
             self.handle,
             &mechanism,
             public_key_template.as_ptr().cast(),
-            std::convert::TryInto::try_into(public_key_template.len()).expect("usize -> CK_ULONG"),
+            public_key_template
+                .len()
+                .try_into()
+                .expect("usize -> CK_ULONG"),
             private_key_template.as_ptr().cast(),
-            std::convert::TryInto::try_into(private_key_template.len()).expect("usize -> CK_ULONG"),
+            private_key_template
+                .len()
+                .try_into()
+                .expect("usize -> CK_ULONG"),
             &mut public_key_handle,
             &mut private_key_handle,
         );
@@ -987,7 +1051,6 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum DeleteKeyError {
     DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GetExistingKeyFailed(GetKeyError),
@@ -1049,7 +1112,6 @@ impl Session {
 
 /// An error from generating a key pair.
 #[derive(Debug)]
-#[allow(clippy::pub_enum_variant_names)]
 pub enum DeleteKeyPairError {
     DeleteExistingKeyFailed(pkcs11_sys::CK_RV),
     GetExistingKeyFailed(GetKeyError),
@@ -1103,7 +1165,7 @@ impl Session {
                 self.handle,
                 pkcs11_sys::CKU_USER,
                 pin.as_ptr().cast(),
-                std::convert::TryInto::try_into(pin.len()).expect("usize -> CK_ULONG"),
+                pin.len().try_into().expect("usize -> CK_ULONG"),
             );
             if result != pkcs11_sys::CKR_OK && result != pkcs11_sys::CKR_USER_ALREADY_LOGGED_IN {
                 return Err(LoginError::LoginFailed(result));

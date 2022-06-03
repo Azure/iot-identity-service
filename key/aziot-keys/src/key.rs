@@ -247,8 +247,7 @@ pub(crate) unsafe fn sign(
             let signature_len = key
                 .sign(digest, &mut signature)
                 .map_err(crate::implementation::err_external)?;
-            let signature_len =
-                std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+            let signature_len = signature_len.try_into().expect("CK_ULONG -> usize");
             signature.truncate(signature_len);
             Ok((signature_len, signature))
         }
@@ -407,8 +406,7 @@ pub(crate) unsafe fn encrypt(
             let ciphertext_len = key
                 .encrypt(iv, aad, plaintext, &mut ciphertext[1..])
                 .map_err(crate::implementation::err_external)?;
-            let ciphertext_len: usize =
-                std::convert::TryInto::try_into(ciphertext_len).expect("CK_ULONG -> usize");
+            let ciphertext_len: usize = ciphertext_len.try_into().expect("CK_ULONG -> usize");
             let ciphertext_len = ciphertext_len + 1;
             ciphertext.truncate(ciphertext_len);
 
@@ -513,8 +511,7 @@ pub(crate) unsafe fn decrypt(
             let plaintext_len = key
                 .decrypt(iv, aad, ciphertext, &mut plaintext)
                 .map_err(crate::implementation::err_external)?;
-            let plaintext_len =
-                std::convert::TryInto::try_into(plaintext_len).expect("CK_ULONG -> usize");
+            let plaintext_len = plaintext_len.try_into().expect("CK_ULONG -> usize");
             plaintext.truncate(plaintext_len);
             Ok((plaintext_len, plaintext))
         }
@@ -619,6 +616,8 @@ fn create_inner(
                     CreateMethod::Generate => {
                         let result =
                             pkcs11_session.generate_key(uri.object_label.as_deref(), usage);
+
+                        #[allow(clippy::unnested_or_patterns)]
                         match result {
                             Ok(_) => return Ok(()),
 
@@ -774,7 +773,7 @@ unsafe fn derive_key_common(
         Key::FileSystem(key) => {
             use hmac::{Mac, NewMac};
 
-            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
+            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(key)
                 .map_err(crate::implementation::err_external)?;
 
             signer.update(derivation_data);
@@ -789,8 +788,7 @@ unsafe fn derive_key_common(
             let signature_len = key
                 .sign(derivation_data, &mut signature)
                 .map_err(crate::implementation::err_external)?;
-            let signature_len =
-                std::convert::TryInto::try_into(signature_len).expect("CK_ULONG -> usize");
+            let signature_len = signature_len.try_into().expect("CK_ULONG -> usize");
             signature.truncate(signature_len);
             Ok(signature)
         }

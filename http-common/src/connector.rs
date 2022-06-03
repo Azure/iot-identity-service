@@ -1,5 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::sync::atomic;
+
+use futures_util::future;
+
+const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Connector {
     Tcp {
@@ -9,6 +15,9 @@ pub enum Connector {
     Unix {
         socket_path: std::sync::Arc<std::path::Path>,
     },
+    Fd {
+        fd: std::os::unix::io::RawFd,
+    },
 }
 
 #[derive(Debug)]
@@ -17,14 +26,12 @@ pub enum Stream {
     Unix(std::os::unix::net::UnixStream),
 }
 
-#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum AsyncStream {
     Tcp(tokio::net::TcpStream),
     Unix(tokio::net::UnixStream),
 }
 
-#[cfg(feature = "tokio1")]
 #[derive(Debug)]
 pub enum Incoming {
     Tcp {
@@ -32,13 +39,16 @@ pub enum Incoming {
     },
     Unix {
         listener: tokio::net::UnixListener,
-        user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<tokio::sync::Semaphore>>,
+        user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<atomic::AtomicUsize>>,
     },
 }
 
-#[cfg(feature = "tokio1")]
 impl Incoming {
-    pub async fn serve<H>(&mut self, server: H) -> std::io::Result<()>
+    pub async fn serve<H>(
+        &mut self,
+        server: H,
+        shutdown: tokio::sync::oneshot::Receiver<()>,
+    ) -> std::io::Result<()>
     where
         H: hyper::service::Service<
                 hyper::Request<hyper::Body>,
@@ -51,56 +61,110 @@ impl Incoming {
     {
         const MAX_REQUESTS_PER_USER: usize = 10;
 
+        // Keep track of the number of running tasks.
+        let tasks = atomic::AtomicUsize::new(0);
+        let tasks = std::sync::Arc::new(tasks);
+
+        let shutdown_loop = shutdown;
+        futures_util::pin_mut!(shutdown_loop);
+
         match self {
             Incoming::Tcp { listener } => loop {
-                let (tcp_stream, _) = listener.accept().await?;
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
 
-                // TCP is available in test builds only (not production). Assume current user is root.
-                let server = crate::uid::UidService::new(0, server.clone());
-                tokio::spawn(async move {
-                    if let Err(http_err) = hyper::server::conn::Http::new()
-                        .serve_connection(tcp_stream, server)
-                        .await
-                    {
-                        log::info!("Error while serving HTTP connection: {}", http_err);
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((tcp_stream, shutdown)) => {
+                        let tcp_stream = tcp_stream?.0;
+
+                        let server = crate::uid::UidService::new(None, 0, server.clone());
+
+                        tasks.fetch_add(1, atomic::Ordering::AcqRel);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            if let Err(http_err) = hyper::server::conn::Http::new()
+                                .serve_connection(tcp_stream, server)
+                                .await
+                            {
+                                log::info!("Error while serving HTTP connection: {}", http_err);
+                            }
+
+                            server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
+                        });
+
+                        shutdown_loop = shutdown;
                     }
-                });
+                }
             },
 
             Incoming::Unix {
                 listener,
                 user_state,
             } => loop {
-                let (unix_stream, _) = listener.accept().await?;
-                let ucred = unix_stream.peer_cred()?;
-                let user_state = user_state
-                    .entry(ucred.uid())
-                    .or_insert_with(|| {
-                        std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_REQUESTS_PER_USER))
-                    })
-                    .clone();
+                let accept = listener.accept();
+                futures_util::pin_mut!(accept);
 
-                let server = crate::uid::UidService::new(ucred.uid(), server.clone());
-                tokio::spawn(async move {
-                    match user_state.try_acquire_owned() {
-                        Ok(_permit) => {
-                            if let Err(http_err) = hyper::server::conn::Http::new()
-                                .serve_connection(unix_stream, server)
-                                .await
-                            {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
+                // Await either the next established connection or the shutdown signal.
+                match future::select(shutdown_loop, accept).await {
+                    future::Either::Left((_, _)) => break,
+                    future::Either::Right((unix_stream, shutdown)) => {
+                        let unix_stream = unix_stream?.0;
+
+                        let ucred = unix_stream.peer_cred()?;
+                        let servers_available = user_state
+                            .entry(ucred.uid())
+                            .or_insert_with(|| {
+                                std::sync::Arc::new(atomic::AtomicUsize::new(MAX_REQUESTS_PER_USER))
+                            })
+                            .clone();
+
+                        let server =
+                            crate::uid::UidService::new(ucred.pid(), ucred.uid(), server.clone());
+                        tasks.fetch_add(1, atomic::Ordering::AcqRel);
+                        let server_tasks = tasks.clone();
+                        tokio::spawn(async move {
+                            let available = servers_available
+                                .fetch_update(
+                                    atomic::Ordering::AcqRel,
+                                    atomic::Ordering::Acquire,
+                                    |current| current.checked_sub(1),
+                                )
+                                .is_ok();
+
+                            if available {
+                                if let Err(http_err) = hyper::server::conn::Http::new()
+                                    .serve_connection(unix_stream, server)
+                                    .await
+                                {
+                                    log::info!("Error while serving HTTP connection: {}", http_err);
+                                }
+
+                                servers_available.fetch_add(1, atomic::Ordering::AcqRel);
+                            } else {
+                                log::info!(
+                                    "Max simultaneous connections reached for user {}",
+                                    ucred.uid()
+                                );
                             }
-                        }
-                        Err(limit_err) => {
-                            log::info!(
-                                "Error while acquiring permit for HTTP connection: {}",
-                                limit_err
-                            );
-                        }
+
+                            server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
+                        });
+
+                        shutdown_loop = shutdown;
                     }
-                });
+                };
             },
         }
+
+        // Wait for all running server tasks to finish before returning.
+        let poll_ms = std::time::Duration::from_millis(100);
+
+        while tasks.load(atomic::Ordering::Acquire) != 0 {
+            tokio::time::sleep(poll_ms).await;
+        }
+
+        Ok(())
     }
 }
 
@@ -130,10 +194,48 @@ impl Connector {
                 Ok(Connector::Unix { socket_path })
             }
 
+            "fd" => {
+                let host = uri.host_str().ok_or_else(|| ConnectorError {
+                    uri: uri.clone(),
+                    inner: "fd URI does not have a host".into(),
+                })?;
+
+                // Try to parse the host as an fd number.
+                let fd = match host.parse::<std::os::unix::io::RawFd>() {
+                    Ok(fd) => {
+                        // Host is an fd number.
+                        fd
+                    }
+                    Err(_) => {
+                        // Host is not an fd number. Parse it as an fd name.
+                        socket_name_to_fd(host).map_err(|message| ConnectorError {
+                            uri: uri.clone(),
+                            inner: message.into(),
+                        })?
+                    }
+                };
+
+                Ok(Connector::Fd { fd })
+            }
+
             scheme => Err(ConnectorError {
                 uri: uri.clone(),
                 inner: format!("unrecognized scheme {:?}", scheme).into(),
             }),
+        }
+    }
+
+    pub fn into_client<B>(self) -> hyper::Client<Connector, B>
+    where
+        B: hyper::body::HttpBody + Send,
+        B::Data: Send,
+    {
+        match self {
+            Connector::Tcp { .. } | Connector::Fd { .. } => hyper::Client::builder().build(self),
+            // we don't need connection pool'ing for unix sockets.
+            Connector::Unix { .. } => hyper::Client::builder()
+                .pool_max_idle_per_host(0)
+                .build(self),
         }
     }
 
@@ -148,73 +250,69 @@ impl Connector {
                 let inner = std::os::unix::net::UnixStream::connect(socket_path)?;
                 Ok(Stream::Unix(inner))
             }
+
+            Connector::Fd { fd } => {
+                let inner = if is_unix_fd(*fd)? {
+                    let inner: std::os::unix::net::UnixStream =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(*fd) };
+
+                    Stream::Unix(inner)
+                } else {
+                    let inner: std::net::TcpStream =
+                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(*fd) };
+
+                    Stream::Tcp(inner)
+                };
+
+                Ok(inner)
+            }
         }
     }
 
-    #[cfg(feature = "tokio1")]
-    pub async fn incoming(self) -> std::io::Result<Incoming> {
-        let systemd_socket = get_systemd_socket()
+    pub async fn incoming(
+        self,
+        unix_socket_permission: u32,
+        socket_name: Option<String>,
+    ) -> std::io::Result<Incoming> {
+        // Check for systemd sockets.
+        let systemd_socket = get_systemd_socket(socket_name)
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-        if let Some(fd) = systemd_socket {
-            let sock_addr = nix::sys::socket::getsockname(fd)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            match sock_addr {
-                // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
-                nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => {
-                    let listener: std::net::TcpListener =
-                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-                    listener.set_nonblocking(true)?;
-                    let listener = tokio::net::TcpListener::from_std(listener)?;
-                    Ok(Incoming::Tcp { listener })
+
+        match (systemd_socket, self) {
+            // Prefer use of systemd sockets.
+            (_, Connector::Fd { fd }) | (Some(fd), _) => fd_to_listener(fd),
+
+            (None, Connector::Unix { socket_path }) => {
+                match std::fs::remove_file(&*socket_path) {
+                    Ok(()) => (),
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(err) => return Err(err),
                 }
 
-                nix::sys::socket::SockAddr::Unix(_) => {
-                    let listener: std::os::unix::net::UnixListener =
-                        unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
-                    listener.set_nonblocking(true)?;
-                    let listener = tokio::net::UnixListener::from_std(listener)?;
-                    Ok(Incoming::Unix {
-                        listener,
-                        user_state: Default::default(),
-                    })
-                }
+                let listener = tokio::net::UnixListener::bind(socket_path.clone())?;
 
-                sock_addr => Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "systemd socket has unsupported address family {:?}",
-                        sock_addr.family()
+                std::fs::set_permissions(
+                    socket_path.as_ref(),
+                    <std::fs::Permissions as std::os::unix::prelude::PermissionsExt>::from_mode(
+                        unix_socket_permission,
                     ),
-                )),
+                )?;
+
+                Ok(Incoming::Unix {
+                    listener,
+                    user_state: Default::default(),
+                })
             }
-        } else {
-            match self {
-                Connector::Tcp { host, port } =>
-                // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
-                {
-                    if cfg!(debug_assertions) {
-                        let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
-                        Ok(Incoming::Tcp { listener })
-                    } else {
-                        Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "servers can only use `unix://` connectors, not `http://` connectors",
-                        ))
-                    }
-                }
 
-                Connector::Unix { socket_path } => {
-                    match std::fs::remove_file(&*socket_path) {
-                        Ok(()) => (),
-                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
-                        Err(err) => return Err(err),
-                    }
-
-                    let listener = tokio::net::UnixListener::bind(socket_path)?;
-                    Ok(Incoming::Unix {
-                        listener,
-                        user_state: Default::default(),
-                    })
+            (None, Connector::Tcp { host, port }) => {
+                if cfg!(debug_assertions) {
+                    let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
+                    Ok(Incoming::Tcp { listener })
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "servers can only use `unix://` connectors, not `http://` connectors",
+                    ))
                 }
             }
         }
@@ -248,6 +346,14 @@ impl Connector {
                 url.set_path(socket_path);
                 Ok(url)
             }
+
+            Connector::Fd { fd } => {
+                let fd_path = format!("fd://{}", fd);
+
+                let url = url::Url::parse(&fd_path).expect("hard-coded URL parses successfully");
+
+                Ok(url)
+            }
         }
     }
 }
@@ -269,7 +375,6 @@ impl std::str::FromStr for Connector {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl hyper::service::Service<hyper::Uri> for Connector {
     type Response = AsyncStream;
     type Error = std::io::Error;
@@ -301,6 +406,32 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                     let inner = tokio::net::UnixStream::connect(&*socket_path).await?;
                     Ok(AsyncStream::Unix(inner))
                 };
+                Box::pin(f)
+            }
+
+            Connector::Fd { fd } => {
+                let fd = *fd;
+
+                let f = async move {
+                    if is_unix_fd(fd)? {
+                        let stream: std::os::unix::net::UnixStream =
+                            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+
+                        stream.set_nonblocking(true)?;
+                        let stream = tokio::net::UnixStream::from_std(stream)?;
+
+                        Ok(AsyncStream::Unix(stream))
+                    } else {
+                        let stream: std::net::TcpStream =
+                            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+
+                        stream.set_nonblocking(true)?;
+                        let stream = tokio::net::TcpStream::from_std(stream)?;
+
+                        Ok(AsyncStream::Tcp(stream))
+                    }
+                };
+
                 Box::pin(f)
             }
         }
@@ -382,7 +513,6 @@ impl std::io::Write for Stream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncRead for AsyncStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
@@ -396,7 +526,6 @@ impl tokio::io::AsyncRead for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl tokio::io::AsyncWrite for AsyncStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -448,7 +577,6 @@ impl tokio::io::AsyncWrite for AsyncStream {
     }
 }
 
-#[cfg(feature = "tokio1")]
 impl hyper::client::connect::Connection for AsyncStream {
     fn connected(&self) -> hyper::client::connect::Connected {
         match self {
@@ -476,28 +604,35 @@ impl std::error::Error for ConnectorError {
     }
 }
 
-/// Finds the systemd socket if one has been used to socket-activate this process.
+/// Returns `true` if the given fd is a Unix socket; `false` if the given fd is a TCP socket.
 ///
-/// This mimics `sd_listen_fds` from libsystemd, then returns the very first fd.
-#[cfg(feature = "tokio1")]
-fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
-    // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
-    //
-    // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
-    // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
-    //
-    // Note that this function always returns the first fd. It cannot be used for processes which expect more than one socket.
-    // CS/IS/KS only expect one socket, so this is fine, but it is not the case for iotedged (mgmt and workload sockets) for example.
-    //
-    // If obtaining more than one fd is required in the future, keep in mind that it requires getting fds by name (by inspecting the LISTEN_FDNAMES env var)
-    // instead of by number, since systemd does not pass down multiple fds in a deterministic order. The complication with LISTEN_FDNAMES is that
-    // CentOS 7's systemd is too old and doesn't support it, which would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7
-    // (just like iotedged). This creates more complications, because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does)
-    // which means host modules need to try both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot
-    // but have to create /run/aziot themselves on startup with ACLs for all three users and all three groups.
+/// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
+/// so this function returns an Err for release builds using a TCP socket.
+fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
+    let sock_addr = nix::sys::socket::getsockname(fd)
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-    const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
+    match sock_addr {
+        nix::sys::socket::SockAddr::Unix(_) => Ok(true),
 
+        // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
+        nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => Ok(false),
+
+        sock_addr => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!(
+                "systemd socket has unsupported address family {:?}",
+                sock_addr.family()
+            ),
+        )),
+    }
+}
+
+/// Get the value of the `LISTEN_FDS` or `LISTEN_FDNAMES` environment variable.
+///
+/// Checks the `LISTEN_PID` variable to ensure that the requested environment variable is for this process.
+fn get_env(env: &str) -> Result<Option<String>, String> {
+    // Check that the LISTEN_* environment variable is for this process.
     let listen_pid = {
         let listen_pid = match std::env::var("LISTEN_PID") {
             Ok(listen_pid) => listen_pid,
@@ -506,11 +641,14 @@ fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
                 return Err(format!("could not read LISTEN_PID env var: {}", err))
             }
         };
+
         let listen_pid = listen_pid
             .parse()
             .map_err(|err| format!("could not read LISTEN_PID env var: {}", err))?;
+
         nix::unistd::Pid::from_raw(listen_pid)
     };
+
     let current_pid = nix::unistd::Pid::this();
     if listen_pid != current_pid {
         // The env vars are not for us. Perhaps we're being spawned by another socket-activated service and we inherited these env vars from it.
@@ -520,22 +658,97 @@ fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
         return Ok(None);
     }
 
-    // At this point, we expect that the remaining env vars are set and contain the socket we're looking for, else we error.
-    // That is, falling back is no longer an option, so we won't return `Ok(None)`
+    // Get the requested environment variable.
+    match std::env::var(env) {
+        Ok(value) => Ok(Some(value)),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(err @ std::env::VarError::NotUnicode(_)) => {
+            Err(format!("could not read {} env var: {}", env, err))
+        }
+    }
+}
 
-    let listen_fds = {
-        let listen_fds = match std::env::var("LISTEN_FDS") {
-            Ok(listen_fds) => listen_fds,
-            Err(std::env::VarError::NotPresent) => return Ok(None),
-            Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_FDS env var: {}", err))
-            }
-        };
-        let listen_fds: std::os::unix::io::RawFd = listen_fds
-            .parse()
-            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?;
-        listen_fds
+fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
+    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
+        Some(listen_fdnames) => listen_fdnames,
+        None => return Err("LISTEN_FDNAMES not found".to_string()),
     };
+
+    let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
+
+    let index: std::os::unix::io::RawFd =
+        match listen_fdnames.iter().position(|&fdname| fdname == name) {
+            Some(index) => match index.try_into() {
+                Ok(index) => index,
+                Err(_) => return Err("couldn't convert LISTEN_FDNAMES index to fd".to_string()),
+            },
+            None => return Err(format!("socket {} not found", name)),
+        };
+
+    // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
+    let fd = index + SD_LISTEN_FDS_START;
+
+    Ok(fd)
+}
+
+fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
+    if is_unix_fd(fd)? {
+        let listener: std::os::unix::net::UnixListener =
+            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+        listener.set_nonblocking(true)?;
+        let listener = tokio::net::UnixListener::from_std(listener)?;
+        Ok(Incoming::Unix {
+            listener,
+            user_state: Default::default(),
+        })
+    } else {
+        let listener: std::net::TcpListener =
+            unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
+        listener.set_nonblocking(true)?;
+        let listener = tokio::net::TcpListener::from_std(listener)?;
+        Ok(Incoming::Tcp { listener })
+    }
+}
+
+/// Return a matching systemd socket. Checks if this process has been socket-activated.
+///
+/// This mimics `sd_listen_fds` from libsystemd, then returns the fd of systemd socket.
+fn get_systemd_socket(
+    socket_name: Option<String>,
+) -> Result<Option<std::os::unix::io::RawFd>, String> {
+    // Ref: <https://www.freedesktop.org/software/systemd/man/sd_listen_fds.html>
+    //
+    // Try to find a systemd socket to match when non "fd" path has been provided.
+    // We consider 4 cases:
+    // 1. When there is only 1 socket. In this case, we can ignore the socket name. It means
+    // the call is made by identity service which uses only one systemd socket. So matching is simple
+    // 2. There are > 1 systemd sockets and a socket name is provided. It means edged is telling us to match an fd with the provided socket name.
+    // 3. There are > 1 systemd sockets and a socket name is provided but no LISTEN_FDNAMES. We can't match.
+    // 4. There are > 1 systemd sockets but no socket name is provided. In this case it means there is no corresponding systemd socket we should match
+    //
+    // >sd_listen_fds parses the number passed in the $LISTEN_FDS environment variable, then sets the FD_CLOEXEC flag
+    // >for the parsed number of file descriptors starting from SD_LISTEN_FDS_START. Finally, it returns the parsed number.
+    //
+    // Note that it's not possible to distinguish between fd numbers if a process requires more than one socket.
+    // That is why in edged's case we use the systemd socket name to know which fd the function should return
+    // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
+    // for example.
+    //
+    // The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
+    // would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7 (just like iotedged). This creates more complications,
+    // because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does) which means host modules need to try
+    // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
+    // /run/aziot themselves on startup with ACLs for all three users and all three groups.
+
+    let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
+        Some(listen_fds) => listen_fds
+            .parse()
+            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?,
+
+        None => return Ok(None),
+    };
+
+    // If there is no socket available, no match is possible.
     if listen_fds == 0 {
         return Ok(None);
     }
@@ -554,10 +767,52 @@ fn get_systemd_socket() -> Result<Option<std::os::unix::io::RawFd>, String> {
         }
     }
 
-    #[allow(clippy::identity_op)]
-    // Explicitly indicating that we're returning the first fd, ie start + 0
-    let fd = SD_LISTEN_FDS_START + 0;
-    Ok(Some(fd))
+    // If there is only one socket, we know this is the identity service which uses only one socket, so we have a match:
+    if listen_fds == 1 {
+        return Ok(Some(SD_LISTEN_FDS_START));
+    }
+
+    // If there is more than 1 socket and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
+    let socket_name = match socket_name {
+        Some(socket_name) => socket_name,
+        None => return Ok(None),
+    };
+
+    // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
+    // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created nonetheless, so we still prefer to use them.
+    // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, and we can't match either.
+    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
+        Some(listen_fdnames) => listen_fdnames,
+        None => return Ok(None),
+    };
+    let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
+
+    let len: std::os::unix::io::RawFd = listen_fdnames
+        .len()
+        .try_into()
+        .map_err(|_| "invalid number of sockets".to_string())?;
+    if listen_fds != len {
+        return Err(format!(
+            "Mismatch, there are {} fds, and {} names",
+            listen_fds,
+            listen_fdnames.len()
+        ));
+    }
+
+    if let Some(index) = listen_fdnames
+        .iter()
+        .position(|fdname| (*fdname).eq(&socket_name))
+    {
+        let index: std::os::unix::io::RawFd = index
+            .try_into()
+            .map_err(|_| "invalid number of sockets".to_string())?;
+        Ok(Some(SD_LISTEN_FDS_START + index))
+    } else {
+        Err(format!(
+            "Could not find a match for {} in the fd list",
+            socket_name
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -629,6 +884,7 @@ mod tests {
             assert_eq!(*expected, deserialized_connector);
         }
 
+        #[allow(clippy::single_element_loop)]
         for input in &[
             // unsupported scheme
             "ftp://127.0.0.1",

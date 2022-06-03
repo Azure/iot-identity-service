@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use aziot_identity_common::{ID_TYPE_AZIOT, ID_TYPE_LOCAL};
 use aziot_identityd_config as config;
 
 pub mod auth;
@@ -27,15 +28,10 @@ pub mod configext;
 pub mod error;
 mod http;
 pub mod identity;
+mod renewal;
 
 use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
-
-/// URI query parameter that identifies module identity type.
-const ID_TYPE_AZIOT: &str = "aziot";
-
-/// URI query parameter that identifies local identity type.
-const ID_TYPE_LOCAL: &str = "local";
 
 macro_rules! match_id_type {
     ($id_type:ident { $( $type:ident => $action:block ,)+ }) => {
@@ -70,18 +66,83 @@ pub async fn main(
     let connector = settings.endpoints.aziot_identityd.clone();
 
     if !homedir_path.exists() {
-        let () =
-            std::fs::create_dir_all(&homedir_path).map_err(error::InternalError::CreateHomeDir)?;
+        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+            log::error!("Failed to create home directory: {}", err);
+
+            return Err(error::InternalError::CreateHomeDir(err).into());
+        }
     }
 
-    let api = Api::new(settings.clone())?;
+    let mut api = Api::new(settings)?;
+
+    let auto_renew_config = if let config::ProvisioningType::Dps {
+        attestation:
+            config::DpsAttestationMethod::X509 {
+                registration_id,
+                identity_cert,
+                identity_pk,
+                identity_auto_renew: Some(auto_renew),
+            },
+        ..
+    } = &api.settings.provisioning.provisioning
+    {
+        let engine = cert_renewal::engine::new();
+        api.id_manager.identity_cert_renewal = Some(engine.clone());
+
+        Some((
+            engine,
+            registration_id.clone(),
+            identity_cert.clone(),
+            identity_pk.clone(),
+            auto_renew.clone(),
+        ))
+    } else {
+        None
+    };
+
     let api = Arc::new(futures_util::lock::Mutex::new(api));
 
-    let api_startup = api.clone();
-    let mut api_ = api_startup.lock().await;
-    let _ = api_
-        .update_config_inner(settings.clone(), ReprovisionTrigger::Startup)
+    // Configure the device identity certificate to auto-renew if enabled.
+    if let Some((engine, registration_id, identity_cert, identity_pk, auto_renew)) =
+        auto_renew_config
+    {
+        let interface = renewal::IdentityCertRenewal::new(
+            auto_renew.rotate_key,
+            &identity_cert,
+            &identity_pk,
+            registration_id.as_deref(),
+            api.clone(),
+        )
         .await?;
+
+        cert_renewal::engine::add_credential(
+            &engine,
+            &identity_cert,
+            &identity_pk,
+            auto_renew.policy.clone(),
+            interface,
+        )
+        .await
+        .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+    }
+
+    // Attempt to reprovision the device. Failure to reprovision on startup means that provisioning
+    // with IoT Hub failed and no valid backup could be loaded. Treat this as a fatal error.
+    {
+        let mut api = api.lock().await;
+
+        if let Err(err) = api
+            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup, None)
+            .await
+        {
+            log::error!(
+                "Failed to provision with IoT Hub, and no valid device backup was found: {}",
+                err
+            );
+
+            return Err(err.into());
+        }
+    }
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 
@@ -115,6 +176,7 @@ impl Api {
             let key_client = aziot_key_client_async::Client::new(
                 aziot_key_common_http::ApiVersion::V2021_05_01,
                 key_service_connector.clone(),
+                1,
             );
             let key_client = Arc::new(key_client);
             key_client
@@ -137,6 +199,7 @@ impl Api {
             let cert_client = aziot_cert_client_async::Client::new(
                 aziot_cert_common_http::ApiVersion::V2020_09_01,
                 cert_service_connector,
+                1,
             );
             let cert_client = Arc::new(cert_client);
             cert_client
@@ -156,9 +219,7 @@ impl Api {
             .map_err(|err| Error::Internal(InternalError::InvalidProxyUri(Box::new(err))))?;
 
         let id_manager = identity::IdentityManager::new(
-            settings.homedir.clone(),
-            std::time::Duration::from_secs(settings.cloud_timeout_sec),
-            settings.cloud_retries,
+            &settings,
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
@@ -167,12 +228,14 @@ impl Api {
             proxy_uri.clone(),
         );
 
+        let (authorizer, authenticator, local_identities) = get_auth(&settings);
+
         Ok(Api {
             settings,
-            authenticator: Box::new(auth::authentication::DefaultAuthenticator),
-            authorizer: Box::new(auth::authorization::DefaultAuthorizer),
+            authenticator,
+            authorizer,
             id_manager,
-            local_identities: Default::default(),
+            local_identities,
 
             key_client,
             key_engine,
@@ -203,7 +266,96 @@ impl Api {
             }
         }
 
-        return Err(Error::Authorization);
+        Err(Error::Authorization)
+    }
+
+    pub async fn get_provisioning_info(
+        &self,
+    ) -> Result<aziot_identity_common_http::get_provisioning_info::Response, Error> {
+        match &self.settings.provisioning.provisioning {
+            config::ProvisioningType::Dps {
+                global_endpoint,
+                scope_id,
+                attestation,
+            } => {
+                let (auth, registration_id) = match attestation {
+                    config::DpsAttestationMethod::SymmetricKey {
+                        registration_id, ..
+                    } => ("symmetric_key".to_string(), registration_id.to_string()),
+                    config::DpsAttestationMethod::Tpm { registration_id } => {
+                        ("tpm".to_string(), registration_id.to_string())
+                    }
+                    config::DpsAttestationMethod::X509 {
+                        registration_id,
+                        identity_cert,
+                        ..
+                    } => {
+                        let registration_id = if let Some(registration_id) = registration_id {
+                            registration_id.to_string()
+                        } else {
+                            // Get the registration ID from the identity certificate if it was not provided
+                            // in the config.
+                            let identity_cert = self
+                                .cert_client
+                                .get_cert(identity_cert)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let identity_cert = openssl::x509::X509::from_pem(&identity_cert)
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
+
+                            let cert_subject = identity_cert
+                                .subject_name()
+                                .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+                                .next()
+                                .ok_or_else(|| {
+                                    Error::Internal(InternalError::CreateCertificate(
+                                        "identity certificate missing common name".into(),
+                                    ))
+                                })?;
+
+                            let registration_id =
+                                String::from_utf8(cert_subject.data().as_slice().to_vec())
+                                    .map_err(|err| {
+                                        Error::Internal(InternalError::CreateCertificate(
+                                            err.into(),
+                                        ))
+                                    })?;
+
+                            registration_id
+                        };
+
+                        ("x509".to_string(), registration_id)
+                    }
+                };
+
+                Ok(
+                    aziot_identity_common_http::get_provisioning_info::Response::Dps {
+                        auth,
+                        endpoint: global_endpoint.to_string(),
+                        scope_id: scope_id.to_string(),
+                        registration_id,
+                    },
+                )
+            }
+            config::ProvisioningType::Manual { authentication, .. } => {
+                let auth = match authentication {
+                    aziot_identityd_config::ManualAuthMethod::SharedPrivateKey { .. } => {
+                        "sas".to_string()
+                    }
+                    aziot_identityd_config::ManualAuthMethod::X509 { .. } => "x509".to_string(),
+                };
+
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::Manual { auth })
+            }
+            aziot_identityd_config::ProvisioningType::None => {
+                Ok(aziot_identity_common_http::get_provisioning_info::Response::None)
+            }
+        }
     }
 
     pub async fn get_identity(
@@ -358,15 +510,14 @@ impl Api {
         }
 
         //TODO: invoke get trust bundle
-        Ok(aziot_cert_common_http::Pem {
-            0: std::vec::Vec::default(),
-        })
+        Ok(aziot_cert_common_http::Pem(std::vec::Vec::default()))
     }
 
     pub async fn reprovision_device(
         &mut self,
         auth_id: auth::AuthId,
         trigger: ReprovisionTrigger,
+        credential_override: Option<aziot_identity_common::Credentials>,
     ) -> Result<(), Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -377,39 +528,36 @@ impl Api {
 
         log::info!("Provisioning starting. Reason: {:?}", trigger);
 
-        let _ = match trigger {
+        match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
                 // For now, skip reprovisioning if there's a valid backup. This means config file
                 // updates will only reconcile identities.
-                self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
             }
             ReprovisionTrigger::Api => {
-                // Clear the backed up device state before reprovisioning.
-                // If this fails, log a warning but continue with reprovisioning.
-                let mut backup_file = self.settings.homedir.clone();
-                backup_file.push(identity::DEVICE_BACKUP_LOCATION);
-
-                if let Err(err) = std::fs::remove_file(backup_file) {
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        log::warn!(
-                            "Failed to clear device state before reprovisioning: {}",
-                            err
-                        );
-                    }
-                }
+                // Purge current device information before reprovisioning. This is needed only
+                // when triggered by the reprovision API, since:
+                // - The ConfigurationFileUpdate trigger doesn't reprovision
+                // - The Startup trigger is a new process, so it will not have a device in memory
+                self.id_manager.clear_device();
 
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), false)
-                    .await?
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        false,
+                        credential_override,
+                    )
+                    .await?;
             }
             ReprovisionTrigger::Startup => {
                 self.id_manager
-                    .provision_device(self.settings.provisioning.clone(), true)
-                    .await?
+                    .provision_device(
+                        self.settings.provisioning.clone(),
+                        true,
+                        credential_override,
+                    )
+                    .await?;
             }
-        };
+        }
 
         log::info!("Provisioning complete.");
 
@@ -435,7 +583,7 @@ impl Api {
 
                         if let Err(err) = self
                             .id_manager
-                            .provision_device(self.settings.provisioning.clone(), false)
+                            .provision_device(self.settings.provisioning.clone(), false, None)
                             .await
                         {
                             if err.is_network() {
@@ -444,8 +592,6 @@ impl Api {
                                 return Err(err);
                             }
                         } else {
-                            log::info!("Successfully reprovisioned.");
-
                             self.id_manager
                                 .reconcile_hub_identities(self.settings.clone())
                                 .await?;
@@ -515,7 +661,7 @@ impl Api {
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
-                .create_cert(&module_id, &csr, None)
+                .create_cert(module_id, &csr, None)
                 .await
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = String::from_utf8(certificate)
@@ -536,42 +682,50 @@ impl Api {
 
         Ok(local_identity)
     }
+}
 
-    async fn update_config_inner(
-        &mut self,
-        settings: config::Settings,
-        trigger: ReprovisionTrigger,
-    ) -> Result<(), Error> {
-        let (allowed_users, _, local_modules) =
-            configext::prepare_authorized_principals(&settings.principal);
+fn get_auth(
+    settings: &config::Settings,
+) -> (
+    Box<SettingsAuthorizer>,
+    Box<SettingsAuthenticator>,
+    std::collections::BTreeMap<
+        aziot_identity_common::ModuleId,
+        Option<aziot_identity_common::LocalIdOpts>,
+    >,
+) {
+    let (allowed_users, _, local_modules) =
+        configext::prepare_authorized_principals(&settings.principal);
 
-        let authorizer = Box::new(SettingsAuthorizer {});
+    let authorizer = Box::new(SettingsAuthorizer {});
+
+    // All uids in the principals are authenticated users to this service
+    let authenticator = Box::new(SettingsAuthenticator { allowed_users });
+
+    (authorizer, authenticator, local_modules)
+}
+
+#[async_trait]
+impl UpdateConfig for Api {
+    type Config = config::Settings;
+    type Error = Error;
+
+    async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
+        let (authorizer, authenticator, local_modules) = get_auth(&new_config);
+
         self.authorizer = authorizer;
-
-        // All uids in the principals are authenticated users to this service
-        let authenticator = Box::new(SettingsAuthenticator {
-            allowed_users: allowed_users.clone(),
-        });
         self.authenticator = authenticator;
         self.local_identities = local_modules;
-        self.settings = settings;
+        self.settings = new_config;
 
-        // Attempt to re-provision the device. Failures need to be logged and the device should
-        // run offline.
         if let Err(err) = self
-            .reprovision_device(auth::AuthId::LocalRoot, trigger)
+            .reprovision_device(
+                auth::AuthId::LocalRoot,
+                ReprovisionTrigger::ConfigurationFileUpdate,
+                None,
+            )
             .await
         {
-            // Failure to reprovision on startup means that provisioning with IoT Hub failed and
-            // no valid backup could be loaded. Treat this as a fatal error.
-            if let ReprovisionTrigger::Startup = trigger {
-                log::error!(
-                    "Failed to provision with IoT Hub, and no valid device backup was found."
-                );
-
-                return Err(err);
-            }
-
             log::warn!(
                 "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
                 err
@@ -582,15 +736,30 @@ impl Api {
     }
 }
 
-#[async_trait]
-impl UpdateConfig for Api {
-    type Config = config::Settings;
-    type Error = Error;
+pub(crate) async fn get_keys(
+    key_handle: aziot_key_common::KeyHandle,
+    key_engine: &futures_util::lock::Mutex<openssl2::FunctionalEngine>,
+) -> Result<
+    (
+        openssl::pkey::PKey<openssl::pkey::Private>,
+        openssl::pkey::PKey<openssl::pkey::Public>,
+    ),
+    String,
+> {
+    let key_handle =
+        std::ffi::CString::new(key_handle.0).map_err(|_| "bad key handle".to_string())?;
 
-    async fn update_config(&mut self, new_config: config::Settings) -> Result<(), Self::Error> {
-        self.update_config_inner(new_config, ReprovisionTrigger::ConfigurationFileUpdate)
-            .await
-    }
+    let mut key_engine = key_engine.lock().await;
+
+    let private_key = key_engine
+        .load_private_key(&key_handle)
+        .map_err(|_| "failed to load identity cert key".to_string())?;
+
+    let public_key = key_engine
+        .load_public_key(&key_handle)
+        .map_err(|_| "failed to load identity cert key".to_string())?;
+
+    Ok((private_key, public_key))
 }
 
 pub(crate) fn create_csr(
@@ -714,7 +883,7 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 
     let epoch = openssl::asn1::Asn1Time::from_unix(0).expect("unix epoch must be valid");
     let diff = epoch
-        .diff(&cert.not_after())
+        .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
     let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);

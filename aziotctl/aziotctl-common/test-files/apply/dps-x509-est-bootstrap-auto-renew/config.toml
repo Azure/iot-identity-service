@@ -1,0 +1,29 @@
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+id_scope = "0ab1234C5D6"
+
+[provisioning.attestation]
+method = "x509"
+registration_id = "my-device"
+
+[provisioning.attestation.identity_cert]
+method = "est"
+url = "https://example.org/.well-known/est"
+bootstrap_identity_cert = "file:///var/secrets/est-bootstrap-id.pem"
+bootstrap_identity_pk = "file:///var/secrets/est-bootstrap-id-key.pem"
+
+[provisioning.attestation.identity_cert.subject]
+L = "AQ"
+ST = "Antarctica"
+CN = "my-device"
+
+[provisioning.attestation.identity_cert.auto_renew]
+rotate_key = false
+threshold = "50%"
+retry = "10%"
+
+[cert_issuance.est]
+trusted_certs = [
+    "file:///var/secrets/est-id-ca.pem",
+]

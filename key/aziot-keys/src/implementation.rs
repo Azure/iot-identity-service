@@ -52,6 +52,7 @@ pub(crate) unsafe fn get_function_list(
 
                 set_parameter,
                 create_key_pair_if_not_exists: crate::key_pair::create_key_pair_if_not_exists,
+                move_key_pair: crate::key_pair::move_key_pair,
                 load_key_pair: crate::key_pair::load_key_pair,
                 get_key_pair_parameter: crate::key_pair::get_key_pair_parameter,
                 delete_key_pair: crate::key_pair::delete_key_pair,
@@ -70,18 +71,16 @@ pub(crate) unsafe fn get_function_list(
             crate::function_list::v2_0_0_0::AZIOT_KEYS_VERSION_2_0_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_0_0_0
-                    as *const crate::function_list::v2_0_0_0::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0)
-                    .cast();
+                *function_list_out.as_mut() =
+                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_0_0_0).cast();
                 Ok(())
             }
 
             crate::function_list::v2_1_0_0::AZIOT_KEYS_VERSION_2_1_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() = (&AZIOT_KEYS_FUNCTION_LIST_2_1_0_0
-                    as *const crate::function_list::v2_1_0_0::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0)
-                    .cast();
+                *function_list_out.as_mut() =
+                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_1_0_0).cast();
                 Ok(())
             }
 
@@ -485,14 +484,14 @@ impl Location {
 
         match (preloaded_keys.get(id), pkcs11_lib_path) {
             (Some(PreloadedKeyLocation::Filesystem { path }), _) => {
-                locations.push(Location::Filesystem(path.clone()))
+                locations.push(Location::Filesystem(path.clone()));
             }
 
             (Some(PreloadedKeyLocation::Pkcs11 { uri }), Some(pkcs11_lib_path)) => {
                 locations.push(Location::Pkcs11 {
                     lib_path: pkcs11_lib_path.clone(),
                     uri: uri.clone(),
-                })
+                });
             }
 
             (Some(PreloadedKeyLocation::Pkcs11 { .. }), None) => {

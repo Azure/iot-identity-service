@@ -29,12 +29,16 @@ AZURE_LOCATION='...'
 
 az group create --name "$AZURE_RESOURCE_GROUP_NAME" --location "$AZURE_LOCATION"
 
+AZURE_SP=$(az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment)
+
 # Save the output of this command. It contains the password for the SP
 # which cannot be obtained later.
-az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment
+echo "$AZURE_SP"
+
+AZURE_SP_ID="$(<<< "$AZURE_SP" jq --raw-output '.appId')"
 
 az role assignment create \
-    --assignee "$AZURE_SP_NAME" \
+    --assignee "$AZURE_SP_ID" \
     --role 'Contributor' \
     --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP_NAME"
 ```
@@ -42,7 +46,7 @@ az role assignment create \
 Next, the identity of this SP and the name of this resource group must be set in GitHub secrets on the repo:
 
 - `AZURE_TENANT_ID`: The `tenant` property from the `az ad sp create-for-rbac` output.
-- `AZURE_USERNAME`: The `AZURE_SP_NAME` variable in the script.
+- `AZURE_USERNAME`: The `appId` property from the `az ad sp create-for-rbac` output.
 - `AZURE_PASSWORD`: The `password` property from the `az ad sp create-for-rbac` output.
 - `AZURE_RESOURCE_GROUP_NAME`: The `AZURE_RESOURCE_GROUP_NAME` variable in the script.
 - `AZURE_LOCATION`: The `AZURE_LOCATION` variable in the script. Note that this can be changed afterwards to start putting the resources in a different location instead of the resource group's location. (The location of a resource group is just a default for new resources.)
@@ -78,7 +82,8 @@ cd ~/src/iot-identity-service
 # The `tenant` property from the `az ad sp create-for-rbac` output.
 export AZURE_TENANT_ID='...'
 
-export AZURE_USERNAME="$AZURE_SP_NAME"
+# The `appId` property from the `az ad sp create-for-rbac` output.
+export AZURE_USERNAME='...'
 
 # The `password` property from the `az ad sp create-for-rbac` output.
 export AZURE_PASSWORD='...'
@@ -122,9 +127,28 @@ export GITHUB_RUN_NUMBER='1'
 export OS='ubuntu:18.04'
 
 
+# Suite-level setup for things shared between all tests (IoT Hub, DPS, etc)
+./ci/e2e-tests/suite-setup.sh
+
+
 # The parameter to the script is the name of the test to run.
 # The names can be found in the doc comment at the top of the script.
-./ci/e2e-tests.sh 'manual-symmetric-key'
+./ci/e2e-tests/test-run.sh 'manual-symmetric-key'
 ```
 
-Note: The script deletes the resources on exit. If you want to keep the resources around for debugging, comment out the `trap ... EXIT` command in the script.
+To clean up the test-level resources, run `./ci/e2e-tests/test-cleanup.sh $test_name`
+
+To clean up both suite-level and test-level resources, run `./ci/e2e-tests/suite-cleanup.sh`
+
+
+# Miscellaenous
+
+1. For AlmaLinux runs (`OS=platform:el8`), you must accept the VM image terms before you can deploy a VM.
+
+   ```sh
+   az vm image terms accept --urn '$publisher:$offer:$sku:$version'
+   ```
+
+   Get the URN from `/ci/e2e-tests/test-run.sh`
+
+   The Azure SP does not have permissions to do this. Use your regular Azure account.

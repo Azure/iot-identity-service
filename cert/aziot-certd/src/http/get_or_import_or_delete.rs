@@ -43,11 +43,7 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
-    async fn delete(
-        self,
-        _body: Option<Self::DeleteBody>,
-    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+    async fn delete(self, _body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -55,11 +51,10 @@ impl http_common::server::Route for Route {
             return Err(super::to_http_error(&err));
         }
 
-        Ok((hyper::StatusCode::NO_CONTENT, None))
+        Ok(http_common::server::response::no_content())
     }
 
-    type GetResponse = aziot_cert_common_http::get_cert::Response;
-    async fn get(self) -> http_common::server::RouteResponse<Self::GetResponse> {
+    async fn get(self) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -72,18 +67,14 @@ impl http_common::server::Route for Route {
         let res = aziot_cert_common_http::get_cert::Response {
             pem: aziot_cert_common_http::Pem(pem),
         };
-        Ok((hyper::StatusCode::OK, res))
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PostBody = serde::de::IgnoredAny;
-    type PostResponse = ();
 
     type PutBody = aziot_cert_common_http::import_cert::Request;
-    type PutResponse = aziot_cert_common_http::import_cert::Response;
-    async fn put(
-        self,
-        body: Self::PutBody,
-    ) -> http_common::server::RouteResponse<Self::PutResponse> {
+    async fn put(self, body: Self::PutBody) -> http_common::server::RouteResponse {
         let mut api = self.api.lock().await;
         let api = &mut *api;
 
@@ -93,6 +84,7 @@ impl http_common::server::Route for Route {
         };
 
         let res = aziot_cert_common_http::import_cert::Response { pem: body.pem };
-        Ok((hyper::StatusCode::CREATED, res))
+        let res = http_common::server::response::json(hyper::StatusCode::CREATED, &res);
+        Ok(res)
     }
 }

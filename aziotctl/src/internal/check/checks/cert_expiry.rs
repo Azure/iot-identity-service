@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use anyhow::{anyhow, Result};
+use nix::unistd::User;
 use serde::Serialize;
 
 use crate::internal::check::util::CertificateValidityExt;
@@ -46,6 +47,8 @@ impl IdentityCert {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType};
 
+        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+
         let provisioning = &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning
             .provisioning
@@ -75,8 +78,13 @@ impl IdentityCert {
         if let Some((identity_cert, identity_cert_name)) = cert {
             let certd_config = unwrap_or_skip!(&cache.cfg.certd);
 
-            let (res, cert_info) =
-                validate_cert(certd_config, identity_cert, identity_cert_name).await?;
+            let (res, cert_info) = validate_cert(
+                certd_config,
+                identity_cert,
+                identity_cert_name,
+                &aziotcs_user,
+            )
+            .await?;
             self.certificate_info = cert_info;
             Ok(res)
         } else {
@@ -115,17 +123,27 @@ impl EstIdentityBootstrapCerts {
     ) -> Result<CheckResult> {
         let certd_config = unwrap_or_skip!(&cache.cfg.certd);
 
+        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+
         let certs = certd_config
             .cert_issuance
             .est
             .as_ref()
-            .and_then(|est| est.auth.x509.as_ref())
+            .and_then(|est| {
+                if let Some(auth) = &est.auth {
+                    auth.x509.as_ref()
+                } else {
+                    None
+                }
+            })
             .map(|x509| {
                 (
-                    (&x509.identity.0, "x509 identity"),
-                    x509.bootstrap_identity
-                        .as_ref()
-                        .map(|(cert, _)| (cert, "x509 bootstrap")),
+                    (&x509.identity.cert, "x509 identity"),
+                    x509.bootstrap_identity.as_ref().map(
+                        |aziot_certd_config::CertificateWithPrivateKey { cert, .. }| {
+                            (cert, "x509 bootstrap")
+                        },
+                    ),
                 )
             });
 
@@ -133,8 +151,13 @@ impl EstIdentityBootstrapCerts {
             Some((identity, bootstrap)) => {
                 let (identity_cert_id, identity_cert_name) = identity;
 
-                let (identity_cert_res, identity_certificate_info) =
-                    validate_cert(certd_config, identity_cert_id, identity_cert_name).await?;
+                let (identity_cert_res, identity_certificate_info) = validate_cert(
+                    certd_config,
+                    identity_cert_id,
+                    identity_cert_name,
+                    &aziotcs_user,
+                )
+                .await?;
                 self.identity_certificate_info = identity_certificate_info;
 
                 // TODO: clean this up if a checks ever get the ability to return multiple results
@@ -143,8 +166,13 @@ impl EstIdentityBootstrapCerts {
                 }
 
                 if let Some((bootstrap_cert_id, bootstrap_cert_name)) = bootstrap {
-                    let (bootstrap_cert_res, bootstrap_certificate_info) =
-                        validate_cert(certd_config, bootstrap_cert_id, bootstrap_cert_name).await?;
+                    let (bootstrap_cert_res, bootstrap_certificate_info) = validate_cert(
+                        certd_config,
+                        bootstrap_cert_id,
+                        bootstrap_cert_name,
+                        &aziotcs_user,
+                    )
+                    .await?;
                     self.bootstrap_certificate_info = bootstrap_certificate_info;
 
                     if !matches!(bootstrap_cert_res, CheckResult::Ok) {
@@ -198,7 +226,10 @@ impl LocalCaCert {
             None => return Ok(CheckResult::Ignored),
         };
 
-        let (res, cert_info) = validate_cert(certd_config, cert_id, "Local CA").await?;
+        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+
+        let (res, cert_info) =
+            validate_cert(certd_config, cert_id, "Local CA", &aziotcs_user).await?;
         self.certificate_info = cert_info;
         Ok(res)
     }
@@ -213,6 +244,7 @@ async fn validate_cert(
     certd_config: &aziot_certd_config::Config,
     cert_id: &str,
     cert_name: &str,
+    aziotcs_user: &User,
 ) -> anyhow::Result<(CheckResult, Option<CertificateValidity>)> {
     let path = aziot_certd_config::util::get_path(
         &certd_config.homedir_path,
@@ -223,7 +255,7 @@ async fn validate_cert(
     .map_err(|e| anyhow!("{}", e))?;
 
     if path.exists() {
-        let cert_info = CertificateValidity::new(path, cert_name, cert_id).await?;
+        let cert_info = CertificateValidity::new(path, cert_name, cert_id, aziotcs_user).await?;
         cert_info
             .to_check_result()
             .map(|res| (res, Some(cert_info)))

@@ -1,17 +1,17 @@
 homedir_path = "/var/lib/aziot/certd"
 [cert_issuance.est]
+trusted_certs = ["est-server-ca-1"]
 username = "estuser"
 password = "estpwd"
 identity_cert = "est-id"
 identity_pk = "est-id"
-trusted_certs = ["est-server-ca-1"]
 
 [cert_issuance.est.urls]
 default = "https://example.org/.well-known/est"
 
 [cert_issuance.device-id]
-common_name = "my-device"
 method = "est"
+common_name = "my-device"
 
 [preloaded_certs]
 est-id = "file:///var/secrets/est-id.pem"

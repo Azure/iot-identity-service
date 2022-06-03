@@ -12,7 +12,7 @@
     clippy::unusual_byte_groupings
 )]
 
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{ToSocketAddrs, UdpSocket};
 
 mod error;
 pub use error::{BadServerResponseReason, Error};
@@ -27,16 +27,7 @@ pub struct SntpTimeQueryResult {
 /// Executes an SNTP query against the NTPv3 server at the given address.
 ///
 /// Ref: <https://tools.ietf.org/html/rfc2030>
-pub fn query<A>(addr: &A) -> Result<SntpTimeQueryResult, Error>
-where
-    A: ToSocketAddrs,
-{
-    let addr = addr
-        .to_socket_addrs()
-        .map_err(|err| Error::ResolveNtpPoolHostname(Some(err)))?
-        .next()
-        .ok_or(Error::ResolveNtpPoolHostname(None))?;
-
+pub fn query(addr: impl ToSocketAddrs + Copy) -> Result<SntpTimeQueryResult, Error> {
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(Error::BindLocalSocket)?;
     socket
         .set_read_timeout(Some(std::time::Duration::from_secs(10)))
@@ -51,6 +42,10 @@ where
             Ok(result) => return Ok(result),
             Err(err) => {
                 let is_retriable = match &err {
+                    // Transient errors from DNS failure or bad unsynchronized servers in the pool.
+                    Error::BadServerResponse(_) | Error::ResolveNtpPoolHostname(_) => true,
+
+                    // Read / write timeout expired
                     Error::SendClientRequest(err) | Error::ReceiveServerResponse(err) => {
                         err.kind() == std::io::ErrorKind::TimedOut
                             || err.kind() == std::io::ErrorKind::WouldBlock
@@ -58,20 +53,22 @@ where
 
                     _ => false,
                 };
-                if is_retriable {
-                    num_retries_remaining -= 1;
-                    if num_retries_remaining == 0 {
-                        return Err(err);
-                    }
-                } else {
+                if !is_retriable || num_retries_remaining == 0 {
                     return Err(err);
                 }
+                num_retries_remaining -= 1;
             }
         }
     }
 }
 
-fn query_inner(socket: &UdpSocket, addr: SocketAddr) -> Result<SntpTimeQueryResult, Error> {
+fn query_inner(socket: &UdpSocket, addr: impl ToSocketAddrs) -> Result<SntpTimeQueryResult, Error> {
+    let addr = addr
+        .to_socket_addrs()
+        .map_err(|err| Error::ResolveNtpPoolHostname(Some(err)))?
+        .next()
+        .ok_or(Error::ResolveNtpPoolHostname(None))?;
+
     let request_transmit_timestamp = {
         let (buf, request_transmit_timestamp) = create_client_request();
 
@@ -227,6 +224,7 @@ fn sntp_epoch() -> chrono::DateTime<chrono::Utc> {
     )
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Packet {
     leap_indicator: u8,

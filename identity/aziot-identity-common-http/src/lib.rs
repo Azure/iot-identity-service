@@ -6,12 +6,14 @@
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2020_09_01,
+    V2021_12_01,
 }
 
 impl std::fmt::Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             ApiVersion::V2020_09_01 => "2020-09-01",
+            ApiVersion::V2021_12_01 => "2021-12-01",
         })
     }
 }
@@ -22,6 +24,7 @@ impl std::str::FromStr for ApiVersion {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "2020-09-01" => Ok(ApiVersion::V2020_09_01),
+            "2021-12-01" => Ok(ApiVersion::V2021_12_01),
             _ => Err(()),
         }
     }
@@ -75,6 +78,14 @@ pub mod create_module_identity {
 
 pub mod update_module_identity {
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Request {
+        #[serde(rename = "type")]
+        pub id_type: String,
+        #[serde(rename = "moduleId")]
+        pub module_id: String,
+    }
+
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
     pub struct Response {
         #[serde(flatten)]
         pub identity: aziot_identity_common::Identity,
@@ -108,5 +119,22 @@ pub mod reprovision_device {
     pub struct Request {
         #[serde(rename = "type")]
         pub id_type: String,
+    }
+}
+
+pub mod get_provisioning_info {
+    #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(tag = "source", rename_all = "lowercase")]
+    pub enum Response {
+        Dps {
+            auth: String,
+            endpoint: String,
+            scope_id: String,
+            registration_id: String,
+        },
+        Manual {
+            auth: String,
+        },
+        None,
     }
 }

@@ -3,6 +3,12 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+/// URI query parameter that identifies module identity type.
+pub const ID_TYPE_AZIOT: &str = "aziot";
+
+/// URI query parameter that identifies local identity type.
+pub const ID_TYPE_LOCAL: &str = "local";
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeviceId(pub String);
 #[derive(Clone, Debug, Eq, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -155,8 +161,8 @@ pub enum Credentials {
     SharedPrivateKey(String),
 
     X509 {
-        identity_cert: String,
-        identity_pk: String,
+        identity_cert: (String, Vec<openssl::x509::X509>),
+        identity_pk: (String, openssl::pkey::PKey<openssl::pkey::Private>),
     },
 
     Tpm,
@@ -175,8 +181,8 @@ impl From<Credentials> for AuthenticationInfo {
                 identity_pk,
             } => AuthenticationInfo {
                 auth_type: AuthenticationType::X509,
-                key_handle: Some(aziot_key_common::KeyHandle(identity_pk)),
-                cert_id: Some(identity_cert),
+                key_handle: Some(aziot_key_common::KeyHandle(identity_pk.0)),
+                cert_id: Some(identity_cert.0),
             },
             Credentials::Tpm => AuthenticationInfo {
                 auth_type: AuthenticationType::Tpm,

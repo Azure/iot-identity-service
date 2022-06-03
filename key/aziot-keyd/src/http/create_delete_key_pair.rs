@@ -32,11 +32,7 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = aziot_key_common_http::delete::Request;
-    type DeleteResponse = ();
-    async fn delete(
-        self,
-        body: Option<Self::DeleteBody>,
-    ) -> http_common::server::RouteResponse<Option<Self::DeleteResponse>> {
+    async fn delete(self, body: Option<Self::DeleteBody>) -> http_common::server::RouteResponse {
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),
@@ -48,17 +44,11 @@ impl http_common::server::Route for Route {
         api.delete_key_pair(&body.key_handle)
             .map_err(|err| super::to_http_error(&err))?;
 
-        Ok((hyper::StatusCode::NO_CONTENT, None))
+        Ok(http_common::server::response::no_content())
     }
 
-    type GetResponse = ();
-
     type PostBody = aziot_key_common_http::create_key_pair_if_not_exists::Request;
-    type PostResponse = aziot_key_common_http::create_key_pair_if_not_exists::Response;
-    async fn post(
-        self,
-        body: Option<Self::PostBody>,
-    ) -> http_common::server::RouteResponse<Option<Self::PostResponse>> {
+    async fn post(self, body: Option<Self::PostBody>) -> http_common::server::RouteResponse {
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),
@@ -77,9 +67,9 @@ impl http_common::server::Route for Route {
         };
 
         let res = aziot_key_common_http::create_key_pair_if_not_exists::Response { handle };
-        Ok((hyper::StatusCode::OK, Some(res)))
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }

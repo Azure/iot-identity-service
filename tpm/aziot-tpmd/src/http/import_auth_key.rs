@@ -30,13 +30,9 @@ impl http_common::server::Route for Route {
     }
 
     type DeleteBody = serde::de::IgnoredAny;
-    type DeleteResponse = ();
-
-    type GetResponse = aziot_tpm_common_http::import_auth_key::Response;
 
     type PostBody = aziot_tpm_common_http::import_auth_key::Request;
-    type PostResponse = aziot_tpm_common_http::import_auth_key::Response;
-    async fn post(self, body: Option<Self::PostBody>) -> RouteResponse<Option<Self::PostResponse>> {
+    async fn post(self, body: Option<Self::PostBody>) -> RouteResponse {
         let body = body.ok_or_else(|| http_common::server::Error {
             status_code: http::StatusCode::BAD_REQUEST,
             message: "missing request body".into(),
@@ -49,9 +45,9 @@ impl http_common::server::Route for Route {
             .map_err(|e| super::to_http_error(&e))?;
 
         let res = aziot_tpm_common_http::import_auth_key::Response {};
-        Ok((hyper::StatusCode::OK, Some(res)))
+        let res = http_common::server::response::json(hyper::StatusCode::OK, &res);
+        Ok(res)
     }
 
     type PutBody = serde::de::IgnoredAny;
-    type PutResponse = ();
 }

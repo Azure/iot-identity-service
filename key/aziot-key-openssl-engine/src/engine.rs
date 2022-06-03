@@ -31,7 +31,7 @@ impl Engine {
             std::ffi::CStr::from_bytes_with_nul(Self::ENGINE_ID)
                 .expect("hard-coded engine ID is valid CStr"),
         )?;
-        let e: openssl2::FunctionalEngine = std::convert::TryInto::try_into(e)?;
+        let e: openssl2::FunctionalEngine = e.try_into()?;
 
         Self::init(foreign_types_shared::ForeignType::as_ptr(&e), client)?;
 
@@ -344,7 +344,7 @@ unsafe extern "C" fn engine_pkey_meths(
                 *nids = SUPPORTED_NIDS.as_ptr();
             }
 
-            Ok(std::convert::TryInto::try_into(SUPPORTED_NIDS.len()).expect("usize -> c_int"))
+            Ok(SUPPORTED_NIDS.len().try_into().expect("usize -> c_int"))
         } else {
             // Mode 2
 

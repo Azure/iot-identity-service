@@ -326,7 +326,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
             };
 
             if let Err(err) = serde_json::to_writer(std::io::stdout(), &check_results) {
-                eprintln!("Could not write JSON output: {}", err,);
+                eprintln!("Could not write JSON output: {}", err);
             }
         }
         OutputFormat::Text => {}

@@ -36,9 +36,6 @@ pub mod get_tpm_keys {
     use super::*;
 
     #[derive(Debug, Deserialize, Serialize)]
-    pub struct Request {}
-
-    #[derive(Debug, Deserialize, Serialize)]
     pub struct Response {
         /// The TPM's Endorsement Key
         pub endorsement_key: http_common::ByteString,

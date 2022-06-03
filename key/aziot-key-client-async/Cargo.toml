@@ -2,13 +2,13 @@
 name = "aziot-key-client-async"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 http = "0.2"
 hyper = "0.14"
 percent-encoding = "2"
 
-http-common = { path = "../../http-common", features = ["tokio1"] }
+http-common = { path = "../../http-common" }
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }

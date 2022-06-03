@@ -17,6 +17,8 @@ mod error;
 
 use error::{Error, ErrorKind};
 
+const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
+
 #[tokio::main]
 async fn main() {
     logger::try_init()
@@ -50,7 +52,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_CERTD_CONFIG_DIR",
                 "/etc/aziot/certd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Identityd => {
@@ -61,7 +63,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_IDENTITYD_CONFIG_DIR",
                 "/etc/aziot/identityd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Keyd => {
@@ -72,7 +74,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_KEYD_CONFIG_DIR",
                 "/etc/aziot/keyd/config.d",
             )
-            .await?
+            .await?;
         }
 
         ProcessName::Tpmd => {
@@ -83,7 +85,7 @@ async fn main_inner() -> Result<(), Error> {
                 "AZIOT_TPMD_CONFIG_DIR",
                 "/etc/aziot/tpmd/config.d",
             )
-            .await?
+            .await?;
         }
     }
 
@@ -204,11 +206,15 @@ where
     log::info!("Starting server...");
 
     let mut incoming = connector
-        .incoming()
+        .incoming(SOCKET_DEFAULT_PERMISSION, None)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
+
+    // Channel to gracefully shut down the server. It's currently not used.
+    let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+
     let () = incoming
-        .serve(server)
+        .serve(server, shutdown_rx)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
