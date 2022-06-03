@@ -60,7 +60,7 @@ case "$OS:$ARCH" in
 
     'platform:el8:amd64')
         yum install -y \
-            curl gcc gcc-c++ git jq make pkgconfig cmake \
+            curl gcc gcc-c++ git jq make openssl pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
