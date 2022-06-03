@@ -13,3 +13,8 @@ types-sys = { path = "../types-sys" }
 [build-dependencies]
 bindgen = { version = "0.59", features = ["runtime"], default-features = false }
 pkg-config = "0.3"
+
+tpm2-tss-sys = { path = "../tpm2-tss-sys", optional = true }
+
+[features]
+vendor = ["dep:tpm2-tss-sys", "tcti-sys/vendor", "types-sys/vendor"]

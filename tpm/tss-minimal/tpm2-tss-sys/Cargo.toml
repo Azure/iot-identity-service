@@ -1,7 +1,11 @@
 [package]
-name = "tpm2-tss-src"
+name = "tpm2-tss-sys"
 version = "0.1.0"
 edition = "2021"
+links = "tpm2-tss"
+
+[lib]
+path = "lib.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

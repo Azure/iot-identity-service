@@ -4,6 +4,11 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 fn main() {
+    #[cfg(feature = "vendor")]
+    {
+        let tpm2_tss_root = std::path::PathBuf::from(std::env::var("DEP_TPM2_TSS_ROOT").unwrap());
+        std::env::set_var("PKG_CONFIG_PATH", tpm2_tss_root.join("lib").join("pkgconfig"));
+    }
     let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
 
     println!("cargo:rerun-if-changed=wrapper.h.in");

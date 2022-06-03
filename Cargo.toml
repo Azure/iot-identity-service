@@ -51,7 +51,6 @@ members = [
 	"tpm/tss-minimal",
 ]
 
-
 # Don't let panics from callbacks cross FFI boundary
 
 [profile.dev]
