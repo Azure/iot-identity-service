@@ -17,12 +17,3 @@ types-sys = { path = "./types-sys" }
 
 [dev-dependencies]
 env_logger = "0.9"
-
-[features]
-vendor = [
-    "esys-sys/vendor",
-    "mu-sys/vendor",
-    "rc-sys/vendor",
-    "tcti-sys/vendor",
-    "types-sys/vendor"
-]

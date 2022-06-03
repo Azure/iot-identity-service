@@ -944,7 +944,6 @@ dependencies = [
  "bindgen",
  "pkg-config",
  "tcti-sys",
- "tpm2-tss-sys",
  "types-sys",
 ]
 
@@ -1679,7 +1678,6 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
- "tpm2-tss-sys",
  "types-sys",
 ]
 
@@ -2049,7 +2047,6 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
- "tpm2-tss-sys",
 ]
 
 [[package]]
@@ -2331,7 +2328,6 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
- "tpm2-tss-sys",
 ]
 
 [[package]]
@@ -2470,10 +2466,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "360dfd1d6d30e05fda32ace2c8c70e9c0a9da713275777f5a4dbb8a1893930c6"
 
 [[package]]
-name = "tpm2-tss-sys"
-version = "0.1.0"
-
-[[package]]
 name = "tracing"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2538,7 +2530,6 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "pkg-config",
- "tpm2-tss-sys",
 ]
 
 [[package]]
