@@ -239,7 +239,9 @@ mod tests {
         let s = load_settings(config_filename).unwrap();
 
         let actual_payload_uri = match s.provisioning.provisioning {
-            ProvisioningType::Dps { payload_uri: uri, .. } => uri,
+            ProvisioningType::Dps {
+                payload_uri: uri, ..
+            } => uri,
             _ => panic!("wrong provisioning type specified in test config file"),
         };
 

@@ -75,6 +75,7 @@ impl Client {
         &self,
         scope_id: &str,
         registration_id: &str,
+        payload_uri: Option<String>,
     ) -> Result<schema::Device, Error> {
         let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
@@ -88,9 +89,21 @@ impl Client {
             register_uri
         };
 
+        // Read payload from specified file
+        let payload = match payload_uri {
+            Some(uri) => {
+                let url = url::Url::parse(&uri)
+                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+                let content = std::fs::read_to_string(uri)?;
+                Some(serde_json::from_str(content.as_str())?)
+            },
+            None => None,
+        };
+
         // Perform the DPS registration.
         let register_body = schema::request::DeviceRegistration {
             registration_id: registration_id.to_string(),
+            payload,
         };
 
         let device = self

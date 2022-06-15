@@ -635,6 +635,7 @@ impl IdentityManager {
                 global_endpoint,
                 scope_id,
                 attestation,
+                payload_uri,
             } => {
                 if provisioning.local_gateway_hostname.is_some() {
                     return Err(Error::DpsNotSupportedInNestedMode);
@@ -705,6 +706,7 @@ impl IdentityManager {
                         &registration_id,
                         credentials,
                         provisioning.local_gateway_hostname,
+                        payload_uri,
                     )
                     .await?;
 
@@ -730,6 +732,7 @@ impl IdentityManager {
         registration_id: &str,
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
+        payload_uri: Option<String>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
@@ -751,7 +754,7 @@ impl IdentityManager {
         .with_proxy(self.proxy_uri.clone());
 
         let response = dps_request
-            .register(scope_id, registration_id)
+            .register(scope_id, registration_id, payload)
             .await
             .map_err(Error::DpsClient)?;
 
