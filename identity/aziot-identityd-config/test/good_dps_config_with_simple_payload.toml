@@ -1,0 +1,19 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+source = "dps"
+"global_endpoint" = "http://globaldevices.net"
+"scope_id" = "scope"
+payload_uri = "file:///tmp/simple_payload.json"
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "regid"
+symmetric_key = "dps"
+
+[provisioning.payload]
+model_id = "ACME 2000"

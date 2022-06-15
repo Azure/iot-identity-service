@@ -13,11 +13,10 @@ edition = "2021"
 http-common = { path = "../../http-common" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
-toml = { version = "0.5", features = ["preserve_order"] }
 url = { version = "2", features = ["serde"] }
 
 aziot-identity-common = { path = "../aziot-identity-common" }
 cert-renewal = { path = "../../cert/cert-renewal"}
 
 [dev-dependencies]
-serde_json = { version = "1.0", features = ["preserve_order"] }
+toml = "0.5"
