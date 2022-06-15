@@ -4,6 +4,8 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
+use std::collections::HashMap;
+
 mod check;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -157,6 +159,8 @@ pub enum ProvisioningType {
         global_endpoint: url::Url,
         scope_id: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<HashMap<String, toml::value::Value>>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
@@ -192,6 +196,13 @@ impl Default for Endpoints {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use toml::value::{
+        Map,
+        Value::{self, Float, Integer, Table},
+    };
+
     use super::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType, Settings};
 
     fn load_settings(
@@ -230,6 +241,74 @@ mod tests {
         ) {
             panic!("incorrect provisioning type selected");
         }
+    }
+
+    // Loads settings from config file and validates payload
+    fn check_payload(
+        config_filename: &str,
+        expected_payload: Option<HashMap<String, Value>>,
+        expected_payload_json: String,
+    ) {
+        let s = load_settings(config_filename).unwrap();
+        let actual_payload = match s.provisioning.provisioning {
+            ProvisioningType::Dps { payload: p, .. } => p,
+            _ => panic!("incorrect provisioning type specified"),
+        };
+
+        assert_eq!(
+            expected_payload, actual_payload,
+            "unexpected payload value parsed from config file"
+        );
+
+        // Make sure payload serializes to expected JSON string
+        assert_eq!(
+            expected_payload_json.to_owned(),
+            serde_json::to_string(&actual_payload.unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn dps_provisioning_with_simple_payload_succeeds() {
+        let config_filename = "test/good_dps_config_with_simple_payload.toml";
+        let expected_payload = Some(HashMap::from([(
+            "model_id".to_string(),
+            toml::value::Value::String("ACME 2000".to_string()),
+        )]));
+        let expected_json = r#"{"model_id":"ACME 2000"}"#.to_string();
+
+        check_payload(config_filename, expected_payload, expected_json);
+    }
+
+    #[test]
+    fn dps_provisioning_with_complex_payload_succeeds() {
+        let config_filename = "test/good_dps_config_with_complex_payload.toml";
+
+        // Create expected payload
+        let mut cpu_info_0 = Map::new();
+        cpu_info_0.insert(
+            "cache size".to_string(),
+            toml::value::Value::String("8192 KB".to_string()),
+        );
+        cpu_info_0.insert("cpu MHz".to_string(), Float(2112.007));
+        cpu_info_0.insert("processor".to_string(), Integer(0));
+        let mut cpu_info_1 = cpu_info_0.clone();
+        cpu_info_1
+            .insert("processor".to_string(), Integer(1))
+            .unwrap();
+        let expected_payload = Some(HashMap::from([
+            (
+                "model_id".to_string(),
+                toml::value::Value::String("ACME 2000".to_string()),
+            ),
+            (
+                "cpu_info".to_string(),
+                toml::value::Value::Array(vec![Table(cpu_info_0), Table(cpu_info_1)]),
+            ),
+        ]));
+
+        let expected_json = r#"{"model_id":"ACME 2000","cpu_info":[{"processor":0,"cpu MHz":2112.007,"cache size":"8192 KB"},{"processor":1,"cpu MHz":2112.007,"cache size":"8192 KB"}]}"#.to_string();
+
+        check_payload(config_filename, expected_payload, expected_json);
     }
 
     #[test]
