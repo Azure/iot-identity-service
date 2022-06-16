@@ -92,8 +92,8 @@ impl Client {
         // Read payload from specified file
         let payload = match payload_uri {
             Some(payload_uri) => {
-                let url =
-                    url::Url::parse(&payload_uri).map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+                let url = url::Url::parse(&payload_uri)
+                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
                 let content = std::fs::read_to_string(url.path())?;
                 Some(serde_json::from_str(content.as_str())?)
             }

@@ -343,9 +343,8 @@ impl Api {
                                 err,
                             )))
                         })?;
-                        let content = std::fs::read_to_string(url.path()).map_err(|err| {
-                            Error::Internal(InternalError::BadSettings(err))
-                        })?;
+                        let content = std::fs::read_to_string(url.path())
+                            .map_err(|err| Error::Internal(InternalError::BadSettings(err)))?;
                         Some(serde_json::from_str(content.as_str()).map_err(|err| {
                             Error::Internal(InternalError::BadSettings(err.into()))
                         })?)
