@@ -94,7 +94,7 @@ impl Client {
             Some(uri) => {
                 let url =
                     url::Url::parse(&uri).map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-                let content = std::fs::read_to_string(uri)?;
+                let content = std::fs::read_to_string(url.path())?;
                 Some(serde_json::from_str(content.as_str())?)
             }
             None => None,

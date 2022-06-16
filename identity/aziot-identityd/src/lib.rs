@@ -16,7 +16,7 @@
 )]
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::{io::ErrorKind, sync::Arc};
 
 use async_trait::async_trait;
 
@@ -277,6 +277,7 @@ impl Api {
                 global_endpoint,
                 scope_id,
                 attestation,
+                payload_uri,
             } => {
                 let (auth, registration_id) = match attestation {
                     config::DpsAttestationMethod::SymmetricKey {
@@ -333,12 +334,32 @@ impl Api {
                     }
                 };
 
+                // Read payload from specified file
+                let payload = match payload_uri {
+                    Some(uri) => {
+                        let url = url::Url::parse(&uri).map_err(|err| {
+                            Error::Internal(InternalError::BadSettings(std::io::Error::new(
+                                ErrorKind::InvalidData,
+                                err,
+                            )))
+                        })?;
+                        let content = std::fs::read_to_string(url.path()).map_err(|err| {
+                            Error::Internal(InternalError::BadSettings(err.into()))
+                        })?;
+                        Some(serde_json::from_str(content.as_str()).map_err(|err| {
+                            Error::Internal(InternalError::BadSettings(err.into()))
+                        })?)
+                    }
+                    None => None,
+                };
+
                 Ok(
                     aziot_identity_common_http::get_provisioning_info::Response::Dps {
                         auth,
                         endpoint: global_endpoint.to_string(),
                         scope_id: scope_id.to_string(),
                         registration_id,
+                        payload,
                     },
                 )
             }

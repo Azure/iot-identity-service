@@ -94,6 +94,7 @@ pub enum ProvisioningType {
         global_endpoint: Url,
         id_scope: String,
         attestation: DpsAttestationMethod,
+        payload_uri: Option<String>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.

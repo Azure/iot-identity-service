@@ -754,7 +754,7 @@ impl IdentityManager {
         .with_proxy(self.proxy_uri.clone());
 
         let response = dps_request
-            .register(scope_id, registration_id, payload)
+            .register(scope_id, registration_id, payload_uri)
             .await
             .map_err(Error::DpsClient)?;
 
