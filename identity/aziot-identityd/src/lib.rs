@@ -336,15 +336,15 @@ impl Api {
 
                 // Read payload from specified file
                 let payload = match payload_uri {
-                    Some(uri) => {
-                        let url = url::Url::parse(&uri).map_err(|err| {
+                    Some(payload_uri) => {
+                        let url = url::Url::parse(payload_uri).map_err(|err| {
                             Error::Internal(InternalError::BadSettings(std::io::Error::new(
                                 ErrorKind::InvalidData,
                                 err,
                             )))
                         })?;
                         let content = std::fs::read_to_string(url.path()).map_err(|err| {
-                            Error::Internal(InternalError::BadSettings(err.into()))
+                            Error::Internal(InternalError::BadSettings(err))
                         })?;
                         Some(serde_json::from_str(content.as_str()).map_err(|err| {
                             Error::Internal(InternalError::BadSettings(err.into()))

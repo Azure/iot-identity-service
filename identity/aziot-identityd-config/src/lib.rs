@@ -235,7 +235,7 @@ mod tests {
     }
 
     // Checks for successful parsing of a config file containing a 'payload_uri' in the 'provisioning' table
-    fn check_payload_uri(config_filename: &str, expected_payload_uri: Option<String>) {
+    fn check_payload_uri(config_filename: &str, expected_payload_uri: &Option<String>) {
         let s = load_settings(config_filename).unwrap();
 
         let actual_payload_uri = match s.provisioning.provisioning {
@@ -246,7 +246,7 @@ mod tests {
         };
 
         assert_eq!(
-            expected_payload_uri, actual_payload_uri,
+            expected_payload_uri, &actual_payload_uri,
             "unexpected payload uri parsed from config file"
         );
     }
@@ -260,7 +260,7 @@ mod tests {
         let config_filename = "test/good_dps_config_with_simple_payload.toml";
         let expected_payload_uri = Some("file:///tmp/simple_payload.json".to_owned());
 
-        check_payload_uri(config_filename, expected_payload_uri);
+        check_payload_uri(config_filename, &expected_payload_uri);
     }
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         let config_filename = "test/good_dps_config_with_complex_payload.toml";
         let expected_payload_uri = Some("file:///tmp/complex_payload.json".to_owned());
 
-        check_payload_uri(config_filename, expected_payload_uri);
+        check_payload_uri(config_filename, &expected_payload_uri);
     }
 
     #[test]
