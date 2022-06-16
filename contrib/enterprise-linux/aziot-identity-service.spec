@@ -1,6 +1,7 @@
 # spec file for package aziot-identity-service
 #
 # Copyright (c) Microsoft. All rights reserved.
+%global debug_package %{nil}
 
 Name: aziot-identity-service
 Version: @version@
