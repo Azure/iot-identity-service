@@ -14,6 +14,3 @@ payload_uri = "file:///tmp/simple_payload.json"
 method = "symmetric_key"
 registration_id = "regid"
 symmetric_key = "dps"
-
-[provisioning.payload]
-model_id = "ACME 2000"
