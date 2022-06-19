@@ -6,6 +6,10 @@ cd /src
 . ./ci/install-runtime-deps.sh
 . ./ci/mock-iot-tests/mock-iot-setup.sh
 
+# Create an example custom DPS payload file
+payload_file="/etc/aziot/identityd/payload.json"
+cp /src/identity/aziot-identityd-config/test/complex_payload.json $payload_file
+
 # Start mock-iot-server and wait for it to come up.
 ./mock-iot-server --port 8443 --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
 server_pid="$!"
@@ -20,6 +24,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
+payload_uri = "file://$payload_file"
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -100,6 +105,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
+payload_uri = "file://$payload_file"
 
 [provisioning.attestation]
 method = "x509"
@@ -122,7 +128,8 @@ curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/dev
 
 # Check provisioning info.
 result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
+expected=$(echo '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
+    $(cat $payload_file) '}' | jq .)
 
 if [ "$result" != "$expected" ]; then
     echo ""
