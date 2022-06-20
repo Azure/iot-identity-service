@@ -132,10 +132,10 @@ case "$OS:$ARCH" in
         apt-get install -y \
             cmake curl gcc g++ git jq make pkg-config \
             libclang1 libssl-dev llvm-dev \
-            cpio genisoimage golang-1.13-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+            cpio genisoimage golang-1.17-go qemu-utils pigz python-pip python3-distutils rpm tar wget
 
         rm -f /usr/bin/go
-        ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+        ln -vs /usr/lib/go-1.17/bin/go /usr/bin/go
         if [ -f /.dockerenv ]; then
             mv /.dockerenv /.dockerenv.old
         fi
@@ -211,9 +211,9 @@ CBINDGEN_VERSION='0.15.0'
 
 # Mariner build installs them as part of the specfile
 if [ "$OS" != 'mariner' ]; then
-    cargo install bindgen --version "=$BINDGEN_VERSION"
+    cargo install bindgen --version "=$BINDGEN_VERSION" --locked
 
-    cargo install cbindgen --version "=$CBINDGEN_VERSION"
+    cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
 fi
 
 export CARGO_INCREMENTAL=0
