@@ -211,9 +211,9 @@ CBINDGEN_VERSION='0.15.0'
 
 # Mariner build installs them as part of the specfile
 if [ "$OS" != 'mariner' ]; then
-    cargo install bindgen --version "=$BINDGEN_VERSION"
+    cargo install bindgen --version "=$BINDGEN_VERSION" --locked
 
-    cargo install cbindgen --version "=$CBINDGEN_VERSION"
+    cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
 fi
 
 export CARGO_INCREMENTAL=0
