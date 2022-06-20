@@ -54,8 +54,9 @@ result=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
     "http://localhost/identities/provisioning?api-version=2021-12-01" \
     --fail \
-    | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
+    | jq --sort-keys .)
+expected=$(echo '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
+    $(cat $payload_file) '}' | jq --sort-keys .)
 
 if [ "$result" != "$expected" ]; then
     echo ""
@@ -127,9 +128,9 @@ curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/dev
     -H "content-type: application/json" --data '{"type": "aziot"}' &> /dev/null
 
 # Check provisioning info.
-result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
+result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq --sort-keys .)
 expected=$(echo '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
-    $(cat $payload_file) '}' | jq .)
+    $(cat $payload_file) '}' | jq --sort-keys .)
 
 if [ "$result" != "$expected" ]; then
     echo ""
