@@ -40,15 +40,6 @@ pub struct Config {
     pub endpoints: Endpoints,
 }
 
-/*
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct TpmKeyConfig {
-    #[serde(deserialize_with = "persistent_index")]
-    pub index: u32,
-    pub overwrite: bool,
-}
-*/
-
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TpmAuthConfig {
     #[serde(default, skip_serializing_if = "empty_cstr")]

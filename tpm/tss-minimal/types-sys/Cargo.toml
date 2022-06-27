@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-bindgen = { version = "0.59", features = ["runtime"], default-features = false }
+bindgen = { version = "0.60", features = ["runtime"], default-features = false }
 pkg-config = "0.3"

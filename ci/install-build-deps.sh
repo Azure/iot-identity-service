@@ -31,7 +31,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y \
             curl gcc g++ git jq make pkg-config cmake \
-            libclang-dev libssl-dev libtss2-dev llvm-dev
+            libclang-dev libssl-dev llvm-dev
         ;;
 
     'debian:9:arm32v7'|'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf libtss2-dev llvm-dev
+            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf llvm-dev
         ;;
 
     'debian:9:aarch64'|'debian:10:aarch64'|'debian:11:aarch64')
@@ -55,7 +55,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 libtss2-dev llvm-dev
+            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 llvm-dev
         ;;
 
     'platform:el8:amd64')
@@ -92,7 +92,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf libtss2-dev llvm-dev
+            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf llvm-dev
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -117,7 +117,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 libtss2-dev llvm-dev
+            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 llvm-dev
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64')

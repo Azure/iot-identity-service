@@ -19,7 +19,7 @@ macro_rules! wrap_rc {
     ($e:expr) => {{
         let rc = unsafe { $e };
         if rc > 0 {
-            Err(crate::Error(rc))
+            Err($crate::Error(rc))
         } else {
             Ok(())
         }

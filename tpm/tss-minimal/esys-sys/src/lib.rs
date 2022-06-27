@@ -3,12 +3,12 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(non_camel_case_types, non_snake_case, clippy::borrow_as_ptr)]
-// https://github.com/rust-lang/rust-bindgen/issues/1651
-#![cfg_attr(test, allow(deref_nullptr))]
+// https://github.com/rust-lang/rust-bindgen/pull/2230
+#![cfg_attr(test, allow(clippy::items_after_statements))]
 
 use tcti_sys::TSS2_TCTI_CONTEXT;
-#[allow(unused_imports)]
 // TPMI_RH_HIERARCHY is required on 2.3.2 (non-exhaustive)
+#[allow(unused_imports)]
 use types_sys::TPMI_RH_HIERARCHY;
 use types_sys::{
     TPM2B_AUTH, TPM2B_CREATION_DATA, TPM2B_DATA, TPM2B_DIGEST, TPM2B_ENCRYPTED_SECRET,

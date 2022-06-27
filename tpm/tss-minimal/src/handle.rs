@@ -6,10 +6,13 @@ use std::fmt;
 
 use crate::{private, EsysContext};
 
+/// Returns the index of the resource within the ESYS context. Note that this
+/// is not equivalent to the index of the resource on the TPM.
 pub trait TpmResource: private::Sealed {
     fn tr(&self) -> ESYS_TR;
 }
 
+/// Trusted Platform Module Library Part 1: Architecture: 15.7 Persistent Object Handles
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Persistent(ESYS_TR);
 
@@ -37,6 +40,7 @@ impl TpmResource for Persistent {
     }
 }
 
+/// Trusted Platform Module Library Part 1: Architecture: 15.6 Transient Object Handles
 pub struct Transient<'a> {
     index: ESYS_TR,
     context: &'a EsysContext,

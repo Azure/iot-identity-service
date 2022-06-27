@@ -10,5 +10,5 @@ links = "tss2-mu"
 types-sys = { path = "../types-sys" }
 
 [build-dependencies]
-bindgen = { version = "0.59", features = ["runtime"], default-features = false }
+bindgen = { version = "0.60", features = ["runtime"], default-features = false }
 pkg-config = "0.3"
