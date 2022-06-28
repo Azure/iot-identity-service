@@ -60,7 +60,7 @@ case "$OS:$ARCH" in
 
     'platform:el8:amd64')
         yum install -y \
-            curl gcc gcc-c++ git jq make pkgconfig cmake \
+            curl gcc gcc-c++ git jq make openssl pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
@@ -120,7 +120,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'mariner:1:amd64' | 'mariner:2:amd64')
+    'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -132,10 +132,10 @@ case "$OS:$ARCH" in
         apt-get install -y \
             cmake curl gcc g++ git jq make pkg-config \
             libclang1 libssl-dev llvm-dev \
-            cpio genisoimage golang-1.13-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+            cpio genisoimage golang-1.17-go qemu-utils pigz python-pip python3-distutils rpm tar wget
 
         rm -f /usr/bin/go
-        ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+        ln -vs /usr/lib/go-1.17/bin/go /usr/bin/go
         if [ -f /.dockerenv ]; then
             mv /.dockerenv /.dockerenv.old
         fi
@@ -177,7 +177,20 @@ mkdir -p ~/.cargo/bin
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
-    curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+    baseArch="$(uname -m)"
+    case "$baseArch" in
+        'x86_64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+            ;;
+
+        'aarch64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init'
+            ;;
+        *)
+            echo "Unsupported ARCH $baseArch" >&2
+            exit 1
+            ;;
+    esac
     chmod +x ~/.cargo/bin/rustup
     hash -r
 fi
