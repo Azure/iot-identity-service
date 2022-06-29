@@ -47,12 +47,22 @@ pub struct SharedConfig {
     pub auth: TpmAuthConfig,
 }
 
+impl Default for SharedConfig {
+    fn default() -> Self {
+        Self {
+            tcti: std::ffi::CString::default(),
+            auth_key_index: default_ak_index(),
+            auth: TpmAuthConfig::default()
+        }
+    }
+}
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TpmAuthConfig {
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub endorsement: std::ffi::CString,
     #[serde(default, skip_serializing_if = "empty_cstr")]
-    pub storage: std::ffi::CString,
+    pub owner: std::ffi::CString,
 }
 
 fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
@@ -110,9 +120,11 @@ mod tests {
         assert_eq!(
             actual,
             super::Config {
-                tcti: std::ffi::CString::default(),
-                auth_key_index: super::default_ak_index(),
-                tpm_auth: super::TpmAuthConfig::default(),
+                shared: super::SharedConfig {
+                    tcti: std::ffi::CString::default(),
+                    auth_key_index: super::default_ak_index(),
+                    auth: super::TpmAuthConfig::default(),
+                },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into()
@@ -134,9 +146,11 @@ aziot_tpmd = "unix:///custom/path/tpmd.sock"
         assert_eq!(
             actual,
             super::Config {
-                tcti: std::ffi::CString::default(),
-                auth_key_index: super::default_ak_index(),
-                tpm_auth: super::TpmAuthConfig::default(),
+                shared: super::SharedConfig {
+                    tcti: std::ffi::CString::default(),
+                    auth_key_index: super::default_ak_index(),
+                    auth: super::TpmAuthConfig::default(),
+                },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
                         socket_path: std::path::Path::new("/custom/path/tpmd.sock").into()

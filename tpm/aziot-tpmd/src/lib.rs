@@ -42,11 +42,11 @@ impl Api {
     pub fn new(config: &Config) -> tss_minimal::Result<Self> {
         let TpmAuthConfig {
             endorsement,
-            storage,
+            owner,
         } = &config.shared.auth;
 
         let endorsement = endorsement.to_bytes_with_nul();
-        let storage = storage.to_bytes_with_nul();
+        let owner = owner.to_bytes_with_nul();
         let context = EsysContext::new(&config.shared.tcti)?;
 
         context.set_auth(
@@ -63,8 +63,8 @@ impl Api {
             #[allow(clippy::cast_possible_truncation)]
             &types_sys::TPM2B_AUTH {
                 // TODO: restrict length in configuration
-                size: storage.len() as _,
-                buffer: fill_tpm2b_buffer(storage),
+                size: owner.len() as _,
+                buffer: fill_tpm2b_buffer(owner),
             },
         )?;
 
