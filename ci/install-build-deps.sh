@@ -14,8 +14,8 @@ case "$OS:$ARCH" in
     'centos:7:amd64')
         yum install -y epel-release
         yum install -y \
-            curl gcc gcc-c++ git jq make pkgconfig cmake \
-            clang llvm-devel openssl-devel which openssl
+            clang curl gcc gcc-c++ git jq llvm-devel make openssl \
+            openssl-devel pkgconfig
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -30,8 +30,8 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            curl gcc g++ git jq make pkg-config cmake \
-            libclang1 libssl-dev llvm-dev
+            cmake curl g++ gcc git jq libclang1 libssl-dev llvm-dev \
+            make pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -42,8 +42,9 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
+            ca-certificates cmake curl g++ g++-arm-linux-gnueabihf \
+            gcc gcc-arm-linux-gnueabihf git jq libc-dev libc-dev:armhf \
+            libclang1 libssl-dev:armhf llvm-dev make pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -54,14 +55,15 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
+            ca-certificates cmake curl g++ g++-aarch64-linux-gnu \
+            gcc gcc-aarch64-linux-gnu git jq libc-dev libc-dev:arm64 \
+            libclang1 libssl-dev:arm64 llvm-dev make pkg-config
         ;;
 
     'platform:el8:amd64')
         yum install -y \
-            curl gcc gcc-c++ git jq make openssl pkgconfig cmake \
-            clang llvm-devel openssl-devel
+            clang cmake curl gcc gcc-c++ git jq make llvm-devel openssl \
+            openssl-devel pkgconfig
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')
@@ -91,8 +93,9 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
+            build-essential ca-certificates cmake curl g++ g++-arm-linux-gnueabihf \
+            gcc gcc-arm-linux-gnueabihf git jq libc-dev libc-dev:armhf \
+            libclang1 libssl-dev:armhf llvm-dev make pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -116,8 +119,9 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
+            build-essential ca-certificates cmake curl g++ g++-aarch64-linux-gnu \
+            gcc gcc-aarch64-linux-gnu git jq libc-dev libc-dev:arm64 \
+            libclang1 libssl-dev:arm64 llvm-dev make pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
@@ -153,9 +157,9 @@ case "$OS:$ARCH" in
         if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
             rm -rf "$MarinerToolkitDir"
             git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
-            pushd "$MarinerToolkitDir/toolkit/"
+            pushd "$MarinerToolkitDir/toolkit/" || exit
             make package-toolkit REBUILD_TOOLS=y
-            popd
+            popd || exit
             cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
         fi
         ;;
@@ -169,12 +173,9 @@ esac
 
 # Rust
 
-mkdir -p ~/.cargo/bin
-
-# ShellCheck warns the exit code of `realpath` will be lost, but there'll be bigger problems if it fails
-# on a directory that was just created anyway.
-# shellcheck disable=SC2155
-export PATH="$PATH:$(realpath ~/.cargo/bin)"
+CARGO_BIN=$(readlink -f ~/.cargo/bin)
+mkdir -p "$CARGO_BIN"
+export PATH="$PATH:$CARGO_BIN"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
     baseArch="$(uname -m)"
