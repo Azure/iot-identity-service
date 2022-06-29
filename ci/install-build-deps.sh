@@ -23,7 +23,7 @@ case "$OS:$ARCH" in
         exit 1
         ;;
 
-    'debian:9:amd64'|'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
+    'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -34,7 +34,7 @@ case "$OS:$ARCH" in
             libclang1 libssl-dev llvm-dev
         ;;
 
-    'debian:9:arm32v7'|'debian:10:arm32v7'|'debian:11:arm32v7')
+    'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -46,7 +46,7 @@ case "$OS:$ARCH" in
             libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'debian:9:aarch64'|'debian:10:aarch64'|'debian:11:aarch64')
+    'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

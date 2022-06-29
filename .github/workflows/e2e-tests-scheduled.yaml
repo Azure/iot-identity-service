@@ -27,7 +27,6 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.2'
         - 'release/1.3'
 
       max-parallel: 10
@@ -61,11 +60,9 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.2'
         - 'release/1.3'
         os:
         - 'centos:7'
-        - 'debian:9'
         - 'debian:10'
         - 'debian:11'
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
@@ -130,7 +127,6 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.2'
         - 'release/1.3'
 
       max-parallel: 10
@@ -164,7 +160,6 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.2'
         - 'release/1.3'
 
       max-parallel: 10
