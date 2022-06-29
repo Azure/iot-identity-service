@@ -511,7 +511,7 @@ pub fn run(
         shared: tpm,
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,
-        }
+        },
     };
 
     Ok(RunOutput {
