@@ -18,7 +18,6 @@ jobs:
       matrix:
         container_os:
         - 'centos:7'
-        - 'debian:9-slim'
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
@@ -75,7 +74,6 @@ jobs:
       matrix:
         container_os:
         - 'centos:7'
-        - 'debian:9-slim'
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'

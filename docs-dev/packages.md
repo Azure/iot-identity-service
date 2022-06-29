@@ -20,10 +20,6 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <td><code>redhat/ubi8:latest</code></td>
 </tr>
 <tr>
-<td>Debian 9 / Raspberry Pi OS 9</td>
-<td><code>debian:9-slim</code></td>
-</tr>
-<tr>
 <td>Debian 10 / Raspberry Pi OS 10</td>
 <td><code>debian:10-slim</code></td>
 </tr>

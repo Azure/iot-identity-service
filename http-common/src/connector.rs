@@ -589,7 +589,7 @@ impl hyper::client::connect::Connection for AsyncStream {
 #[derive(Debug)]
 pub struct ConnectorError {
     uri: url::Url,
-    inner: Box<dyn std::error::Error>,
+    inner: Box<dyn std::error::Error + Send + Sync + 'static>,
 }
 
 impl std::fmt::Display for ConnectorError {
