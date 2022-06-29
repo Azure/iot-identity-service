@@ -43,11 +43,11 @@ impl Api {
         let TpmAuthConfig {
             endorsement,
             storage,
-        } = &config.tpm_auth;
+        } = &config.shared.auth;
 
         let endorsement = endorsement.to_bytes_with_nul();
         let storage = storage.to_bytes_with_nul();
-        let context = EsysContext::new(&config.tcti)?;
+        let context = EsysContext::new(&config.shared.tcti)?;
 
         context.set_auth(
             &Persistent::ENDORSEMENT_HIERARCHY,
@@ -68,9 +68,64 @@ impl Api {
             },
         )?;
 
-        let endorsement_key = context.from_tpm_public(0x8101_0001, None)?;
-        let storage_root_key = context.from_tpm_public(0x8100_0001, None)?;
-        let auth_key = context.from_tpm_public(0x8100_1000, None).ok();
+        let endorsement_key =
+            match context.from_tpm_public(tss_minimal::handle::ENDORSEMENT_KEY, None) {
+                Ok(handle) => handle,
+                Err(e) => {
+                    log::error!(
+                        "could not read endorsement key from {}: {}",
+                        tss_minimal::handle::ENDORSEMENT_KEY,
+                        e
+                    );
+                    let handle = context.create_primary(
+                        &Persistent::PASSWORD_SESSION,
+                        Persistent::ENDORSEMENT_HIERARCHY,
+                        unsafe { &std::mem::zeroed() },
+                        &tss_minimal::types::EK_RSA_TEMPLATE,
+                        None,
+                    )?;
+                    context
+                        .evict(
+                            Persistent::ENDORSEMENT_HIERARCHY,
+                            &handle,
+                            &Persistent::PASSWORD_SESSION,
+                            tss_minimal::handle::ENDORSEMENT_KEY,
+                        )?
+                        .expect("existing endorsement key was evicted, but could not be read!")
+                }
+            };
+        let storage_root_key =
+            match context.from_tpm_public(tss_minimal::handle::STORAGE_ROOT_KEY, None) {
+                Ok(handle) => handle,
+                Err(e) => {
+                    log::error!(
+                        "could not read storage root key from {}: {}",
+                        tss_minimal::handle::STORAGE_ROOT_KEY,
+                        e
+                    );
+                    let handle = context.create_primary(
+                        &Persistent::PASSWORD_SESSION,
+                        Persistent::OWNER_HIERARCHY,
+                        unsafe { &std::mem::zeroed() },
+                        &tss_minimal::types::SRK_RSA_TEMPLATE,
+                        None,
+                    )?;
+                    context
+                        .evict(
+                            Persistent::OWNER_HIERARCHY,
+                            &handle,
+                            &Persistent::PASSWORD_SESSION,
+                            tss_minimal::handle::STORAGE_ROOT_KEY,
+                        )?
+                        .expect("existing storage root key was evicted, but could not be read!")
+                }
+            };
+        let auth_key = context
+            .from_tpm_public(
+                tss_minimal::handle::PERSISTENT_OBJECT_BASE + config.shared.auth_key_index,
+                None,
+            )
+            .ok();
 
         Ok(Self {
             context,

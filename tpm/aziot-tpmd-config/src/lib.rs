@@ -19,6 +19,20 @@ const fn valid_persistent_index(index: u32) -> bool {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
+    #[serde(flatten)]
+    pub shared: SharedConfig,
+
+    /// Map of service names to endpoint URIs.
+    ///
+    /// Only configurable in debug builds for the sake of tests.
+    #[serde(default, skip_serializing)]
+    #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
+    pub endpoints: Endpoints,
+}
+
+// NOTE: for sharing with super-config
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct SharedConfig {
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub tcti: std::ffi::CString,
 
@@ -30,14 +44,7 @@ pub struct Config {
     pub auth_key_index: u32,
 
     #[serde(default, skip_serializing_if = "is_default_tpm_auth_config")]
-    pub tpm_auth: TpmAuthConfig,
-
-    /// Map of service names to endpoint URIs.
-    ///
-    /// Only configurable in debug builds for the sake of tests.
-    #[serde(default, skip_serializing)]
-    #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
-    pub endpoints: Endpoints,
+    pub auth: TpmAuthConfig,
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]

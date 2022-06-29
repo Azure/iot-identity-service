@@ -6,9 +6,13 @@ use std::fmt;
 
 use crate::{private, EsysContext};
 
+pub const PERSISTENT_OBJECT_BASE: u32 = 0x81_00_00_00;
+pub const ENDORSEMENT_KEY: u32 = PERSISTENT_OBJECT_BASE + 0x01_00_01;
+pub const STORAGE_ROOT_KEY: u32 = PERSISTENT_OBJECT_BASE + 0x00_10_00;
+
 /// Returns the index of the resource within the ESYS context. Note that this
 /// is not equivalent to the index of the resource on the TPM.
-pub trait TpmResource: private::Sealed {
+pub trait EsysResource: private::Sealed {
     fn tr(&self) -> ESYS_TR;
 }
 
@@ -34,7 +38,7 @@ impl Persistent {
 
 impl private::Sealed for Persistent {}
 
-impl TpmResource for Persistent {
+impl EsysResource for Persistent {
     fn tr(&self) -> ESYS_TR {
         self.0
     }
@@ -63,7 +67,7 @@ impl Eq for Transient<'_> {}
 
 impl private::Sealed for Transient<'_> {}
 
-impl TpmResource for Transient<'_> {
+impl EsysResource for Transient<'_> {
     fn tr(&self) -> ESYS_TR {
         self.index
     }
