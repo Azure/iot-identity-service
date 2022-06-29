@@ -88,10 +88,6 @@ get_package() {
             artifact_name='centos-7'
             ;;
 
-        'debian:9')
-            artifact_name='debian-9-slim'
-            ;;
-
         'debian:10')
             artifact_name='debian-10-slim'
             ;;
@@ -177,11 +173,6 @@ get_package() {
         'centos:7')
             unzip -j package.zip 'centos7/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
-            ;;
-
-        'debian:9')
-            unzip -j package.zip 'debian9/amd64/aziot-identity-service_*_amd64.deb' >&2
-            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
         'debian:10')
@@ -534,13 +525,6 @@ case "$OS" in
         #     --publisher 'OpenLogic' --offer 'CentOS' --sku '7' \
         #     --query "[?publisher == 'OpenLogic' && offer == 'CentOS'].{ sku: sku, version: version, urn: urn }" --output table
         vm_image='OpenLogic:CentOS:7_9-gen2:7.9.2022020701'
-        ;;
-
-    'debian:9')
-        # az vm image list --all \
-        #     --publisher 'credativ' --offer 'Debian' --sku '9' \
-        #     --query "[?publisher == 'credativ' && offer == 'Debian'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='credativ:Debian:9:9.20210721.0'
         ;;
 
     'debian:10')

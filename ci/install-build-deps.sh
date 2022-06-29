@@ -15,7 +15,7 @@ case "$OS:$ARCH" in
         yum install -y epel-release
         yum install -y \
             curl gcc gcc-c++ git jq make pkgconfig cmake \
-            clang llvm-devel openssl-devel
+            clang llvm-devel openssl-devel which openssl
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -23,7 +23,7 @@ case "$OS:$ARCH" in
         exit 1
         ;;
 
-    'debian:9:amd64'|'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
+    'debian:10:amd64'|'debian:11:amd64'|'ubuntu:18.04:amd64'|'ubuntu:20.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -31,10 +31,10 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y \
             curl gcc g++ git jq make pkg-config cmake \
-            libclang-dev libssl-dev llvm-dev
+            libclang1 libssl-dev llvm-dev
         ;;
 
-    'debian:9:arm32v7'|'debian:10:arm32v7'|'debian:11:arm32v7')
+    'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -43,10 +43,10 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf llvm-dev
+            libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
-    'debian:9:aarch64'|'debian:10:aarch64'|'debian:11:aarch64')
+    'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -55,12 +55,12 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 llvm-dev
+            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
     'platform:el8:amd64')
         yum install -y \
-            curl gcc gcc-c++ git jq make pkgconfig cmake \
+            curl gcc gcc-c++ git jq make openssl pkgconfig cmake \
             clang llvm-devel openssl-devel
         ;;
 
@@ -92,7 +92,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf git jq make pkg-config cmake \
-            libc-dev libc-dev:armhf libclang-dev libssl-dev:armhf llvm-dev
+            libc-dev libc-dev:armhf libclang1 libssl-dev:armhf llvm-dev
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -117,10 +117,10 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git jq make pkg-config cmake \
-            libc-dev libc-dev:arm64 libclang-dev libssl-dev:arm64 llvm-dev
+            libc-dev libc-dev:arm64 libclang1 libssl-dev:arm64 llvm-dev
         ;;
 
-    'mariner:1:amd64' | 'mariner:2:amd64')
+    'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -131,11 +131,11 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get install -y \
             cmake curl gcc g++ git jq make pkg-config \
-            libclang-dev libssl-dev llvm-dev \
-            cpio genisoimage golang-1.13-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+            libclang1 libssl-dev llvm-dev \
+            cpio genisoimage golang-1.17-go qemu-utils pigz python-pip python3-distutils rpm tar wget
 
         rm -f /usr/bin/go
-        ln -vs /usr/lib/go-1.13/bin/go /usr/bin/go
+        ln -vs /usr/lib/go-1.17/bin/go /usr/bin/go
         if [ -f /.dockerenv ]; then
             mv /.dockerenv /.dockerenv.old
         fi
@@ -177,7 +177,20 @@ mkdir -p ~/.cargo/bin
 export PATH="$PATH:$(realpath ~/.cargo/bin)"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
-    curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+    baseArch="$(uname -m)"
+    case "$baseArch" in
+        'x86_64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+            ;;
+
+        'aarch64')
+            curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/aarch64-unknown-linux-gnu/rustup-init'
+            ;;
+        *)
+            echo "Unsupported ARCH $baseArch" >&2
+            exit 1
+            ;;
+    esac
     chmod +x ~/.cargo/bin/rustup
     hash -r
 fi

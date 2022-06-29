@@ -17,7 +17,7 @@ case "$OS" in
             yum install -y epel-release
         fi
 
-        yum install -y curl jq openssl ca-certificates tpm2-tss
+        yum install -y curl jq openssl ca-certificates
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
@@ -38,11 +38,11 @@ case "$OS" in
         esac
         ;;
 
-    'debian:9'|'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         # openssl 1.1.0 for Debian 9, 1.1.1 for the others
 
         apt-get update -y
-        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates libtss2-esys0
+        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')

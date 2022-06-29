@@ -47,17 +47,12 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'debian:9'|'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 deb
 
         case "$OS" in
-            'debian:9')
-                TARGET_DIR="debian9/$ARCH"
-                DBGSYM_EXT='deb'
-                ;;
-
             'debian:10')
                 TARGET_DIR="debian10/$ARCH"
                 DBGSYM_EXT='deb'
@@ -111,9 +106,15 @@ case "$OS" in
 
     'mariner:1' | 'mariner:2')
         case "$ARCH" in
-            'arm32v7'|'aarch64')
+            'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
+                ;;
+            'aarch64')
+                MarinerArch=aarch64
+                ;;
+            'amd64')
+                MarinerArch=x86_64
                 ;;
         esac
 
@@ -137,8 +138,7 @@ case "$OS" in
                 PackageExtension="cm1"
                 ;;
             'mariner:2')
-                # mariner 2.0 pacakges are currntly only available in preview change this to use production after mariner 2.0's release
-                UsePreview=y
+                UsePreview=n
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"
                 ;;
@@ -214,8 +214,8 @@ EOF
         rm -rf "/src/packages/$TARGET_DIR"
         mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/x86_64/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.x86_64.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
             "/src/packages/$TARGET_DIR"
         ;;
 
