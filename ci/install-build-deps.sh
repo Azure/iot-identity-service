@@ -14,8 +14,8 @@ case "$OS:$ARCH" in
     'centos:7:amd64')
         yum install -y epel-release
         yum install -y \
-            clang curl gcc gcc-c++ git jq llvm-devel make openssl \
-            openssl-devel pkgconfig
+            autoconf autoconf-archive automake clang curl gcc gcc-c++ git jq libcurl-devel \
+            libtool llvm-devel make openssl openssl-devel pkgconfig
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -30,8 +30,8 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            cmake curl g++ gcc git jq libclang1 libssl-dev llvm-dev \
-            make pkg-config
+            autoconf autoconf-archive automake cmake curl g++ gcc git jq libclang1 \
+            libssl-dev libtool llvm-dev make pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -42,9 +42,10 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates cmake curl g++ g++-arm-linux-gnueabihf \
-            gcc gcc-arm-linux-gnueabihf git jq libc-dev libc-dev:armhf \
-            libclang1 libssl-dev:armhf llvm-dev make pkg-config
+            autoconf autoconf-archive automake ca-certificates cmake curl \
+            g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+            libssl-dev:armhf libtool:armhf llvm-dev make pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -55,15 +56,17 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            ca-certificates cmake curl g++ g++-aarch64-linux-gnu \
-            gcc gcc-aarch64-linux-gnu git jq libc-dev libc-dev:arm64 \
-            libclang1 libssl-dev:arm64 llvm-dev make pkg-config
+            autoconf autoconf-archive automake ca-certificates cmake curl \
+            g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libssl-dev:arm64 libtool:arm64 llvm-dev make pkg-config
         ;;
 
     'platform:el8:amd64')
         yum install -y \
-            clang cmake curl gcc gcc-c++ git jq make llvm-devel openssl \
-            openssl-devel pkgconfig
+            autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
+            git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
+            pkgconfig
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')
@@ -93,9 +96,10 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates cmake curl g++ g++-arm-linux-gnueabihf \
-            gcc gcc-arm-linux-gnueabihf git jq libc-dev libc-dev:armhf \
-            libclang1 libssl-dev:armhf llvm-dev make pkg-config
+            autoconf autoconf-archive automake build-essential ca-certificates \
+            cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+            libssl-dev:armhf libtool:armhf llvm-dev make pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -119,9 +123,10 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            build-essential ca-certificates cmake curl g++ g++-aarch64-linux-gnu \
-            gcc gcc-aarch64-linux-gnu git jq libc-dev libc-dev:arm64 \
-            libclang1 libssl-dev:arm64 llvm-dev make pkg-config
+            autoconf autoconf-archive automake build-essential ca-certificates \
+            cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libssl-dev:arm64 libtool:arm64 llvm-dev make pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
@@ -173,8 +178,8 @@ esac
 
 # Rust
 
+mkdir -p ~/.cargo/bin
 CARGO_BIN=$(readlink -f ~/.cargo/bin)
-mkdir -p "$CARGO_BIN"
 export PATH="$PATH:$CARGO_BIN"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
@@ -251,3 +256,16 @@ case "$OS:$ARCH" in
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR=/usr/include
         ;;
 esac
+
+
+# TPM2-TSS
+TPM_BUILD_DIR=$(mktemp -d)
+NPROCS=$(nproc)
+git clone tpm/tpm2-tss "${TPM_BUILD_DIR}"
+(
+    cd "${TPM_BUILD_DIR}";
+    ./bootstrap;
+    ./configure --disable-static --disable-fapi --disable-dependency-tracking;
+    make -j "${NPROCS}";
+    make install;
+)
