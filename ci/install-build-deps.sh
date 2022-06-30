@@ -30,7 +30,7 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            autoconf autoconf-archive automake cmake curl g++ gcc git jq libclang1 \
+            autoconf autoconf-archive automake clang cmake curl g++ gcc git jq libclang1 \
             libssl-dev libtool llvm-dev make pkg-config
         ;;
 
@@ -42,10 +42,10 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            autoconf autoconf-archive automake ca-certificates cmake curl \
+            autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool:armhf llvm-dev make pkg-config
+            libssl-dev:armhf libtool llvm-dev make pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -56,10 +56,10 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            autoconf autoconf-archive automake ca-certificates cmake curl \
+            autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool:arm64 llvm-dev make pkg-config
+            libssl-dev:arm64 libtool llvm-dev make pkg-config
         ;;
 
     'platform:el8:amd64')
@@ -97,9 +97,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             autoconf autoconf-archive automake build-essential ca-certificates \
-            cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            clang cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool:armhf llvm-dev make pkg-config
+            libssl-dev:armhf libtool llvm-dev make pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -124,9 +124,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             autoconf autoconf-archive automake build-essential ca-certificates \
-            cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            clang cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool:arm64 llvm-dev make pkg-config
+            libssl-dev:arm64 libtool llvm-dev make pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
