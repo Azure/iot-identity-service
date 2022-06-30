@@ -259,13 +259,13 @@ esac
 
 
 # TPM2-TSS
-TPM_BUILD_DIR=$(mktemp -d)
+pushd tpm/tpm2-tss
 NPROCS=$(nproc)
-git clone tpm/tpm2-tss "${TPM_BUILD_DIR}"
-(
-    cd "${TPM_BUILD_DIR}";
-    ./bootstrap;
-    ./configure --disable-static --disable-fapi --disable-dependency-tracking;
-    make -j "${NPROCS}";
-    make install;
-)
+TPM_BUILD_DIR=$(mktemp -d)
+TSS_PREFIX=$(readlink -f build)
+./bootstrap
+./configure --disable-static --disable-fapi --disable-dependency-tracking --prefix="${TSS_PREFIX}"
+make -j "${NPROCS}"
+make install
+popd
+export PKG_CONFIG_PATH="${TSS_PREFIX}/lib/pkgconfig"
