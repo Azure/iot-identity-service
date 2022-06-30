@@ -1,0 +1,13 @@
+{
+    "registrations": [
+        {
+            "component": {
+                "type": "git",
+                "git": {
+                    "repositoryUrl": "https://github.com/tpm2-software/tpm2-tss",
+                    "commitHash": "e237e4d33cbf280292a480edd8ad061dcd3a37a2"
+                }
+            }
+        }
+    ]
+}
