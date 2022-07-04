@@ -1,3 +1,4 @@
-[submodule "tpm/tpm2-tss"]
-	path = tpm/tpm2-tss
+[submodule "third-party/tpm2-tss"]
+	path = third-party/tpm2-tss
 	url = https://github.com/tpm2-software/tpm2-tss.git
+	branch = 3.1.x

@@ -257,15 +257,17 @@ case "$OS:$ARCH" in
         ;;
 esac
 
-
-# TPM2-TSS
-pushd tpm/tpm2-tss
-NPROCS=$(nproc)
-TPM_BUILD_DIR=$(mktemp -d)
-TSS_PREFIX=$(readlink -f build)
-./bootstrap
-./configure --disable-static --disable-fapi --disable-dependency-tracking --prefix="${TSS_PREFIX}"
-make -j "${NPROCS}"
-make install
-popd
-export PKG_CONFIG_PATH="${TSS_PREFIX}/lib/pkgconfig"
+(
+    cd third-party/tpm2-tss;
+    ./bootstrap;
+    ./configure \
+        --disable-dependency-tracking \
+        --disable-doxygen-doc \
+        --disable-fapi \
+        --disable-static \
+        --disable-weakcrypto \
+        --prefix=/usr/lib/aziot-identity-service;
+    make -j;
+    make install;
+)
+export THIRD_PARTY=1

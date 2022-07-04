@@ -10,6 +10,9 @@ V = 0
 # 0 => false, _ => true
 RELEASE = 0
 
+# 0 => false, _ => true
+THIRD_PARTY = 0
+
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
@@ -94,7 +97,6 @@ default:
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
@@ -212,6 +214,7 @@ codecov: default
 		--exclude openssl-build --exclude test-common \
 		--exclude mock-iot-server \
 		--exclude aziot-key-openssl-engine-shared-test \
+		--exclude-files third-party/* \
 		--exclude-files tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/* \
 		--exclude-files tpm/aziot-tpm-sys/tests/* \
 		--no-fail-fast \
@@ -240,6 +243,8 @@ dist:
 		./tpm \
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain.toml ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
+	# Remove spurious .git directories
+	$(RM) -r /tmp/aziot-identity-service$(PACKAGE_VERSION)/**/.git
 
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
@@ -361,6 +366,13 @@ install-common:
 
 	# libaziot-keys
 	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
+
+	# tpm2-tss
+	if [ $(THIRD_PARTY) != 0 ]; then \
+		for lib in /usr/lib/aziot-identity-service/libtss2-*.so*; do \
+			$(INSTALL_PROGRAM) -D "$$lib" -t $(DESTDIR)$(libdir)/aziot-identity-service; \
+		done; \
+	fi
 
 	# Default configs and config directories
 	$(INSTALL_DATA) -D cert/aziot-certd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/certd/config.toml.default
