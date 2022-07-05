@@ -23,13 +23,6 @@ case "$OS:$ARCH" in
         set +eu # scl_source fails with -eu
         . scl_source enable devtoolset-9 llvm-toolset-7
         set -eu
-        (
-            cd third-party/patchelf;
-            ./bootstrap.sh;
-            ./configure;
-            make -j;
-            make install-exec;
-        )
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -86,13 +79,6 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
             pkgconfig
-        (
-            cd third-party/patchelf;
-            ./bootstrap.sh;
-            ./configure;
-            make -j;
-            make install-exec;
-        )
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')
@@ -126,7 +112,7 @@ case "$OS:$ARCH" in
             clang cmake crossbuild-essential-armhf curl git jq \
             libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev \
-            patchelf pkg-config
+            pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -154,7 +140,7 @@ case "$OS:$ARCH" in
             clang cmake crossbuild-essential-arm64 curl git jq \
             libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev \
-            patchelf pkg-config
+            pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
@@ -271,6 +257,22 @@ case "$ARCH" in
         rustup target add aarch64-unknown-linux-gnu
         CONFIGURE_HOST=aarch64-linux-gnu
         ;;
+esac
+
+case "$OS" in
+    # Ubuntu 18.04 ships a version of patchelf affected by:
+    # > https://github.com/NixOS/patchelf/issues/10
+    #
+    # CentOS 7 and RHEL 8 do not have patchelf.
+    'ubuntu:18.04'|'centos:7'|'platform:el8')
+        (
+            cd third-party/patchelf;
+            ./bootstrap.sh;
+            ./configure;
+            make -j;
+            make install-exec;
+        ) ;;
+    *) ;;
 esac
 
 case "$OS:$ARCH" in
