@@ -305,7 +305,12 @@ rpm:
 		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
 		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
 	esac; \
-	<contrib/enterprise-linux/aziot-identity-service.spec sed \
+    case $$PACKAGE_DIST in \
+        'el7') CONTRIB_PATH=centos ;; \
+        'el8') CONTRIB_PATH=enterprise-linux ;; \
+        *) echo "Unknown RHEL derivative"; exit 1 ;; \
+    esac; \
+	<contrib/$$CONTRIB_PATH/aziot-identity-service.spec sed \
 		-e 's/@version@/$(PACKAGE_VERSION)/g' \
 		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
