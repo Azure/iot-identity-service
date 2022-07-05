@@ -49,6 +49,7 @@ case "$OS:$ARCH" in
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
+        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         dpkg --add-architecture armhf
@@ -64,6 +65,7 @@ case "$OS:$ARCH" in
 
     'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
+        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         dpkg --add-architecture arm64
@@ -101,6 +103,7 @@ case "$OS:$ARCH" in
 
     'ubuntu:18.04:arm32v7'|'ubuntu:20.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
+        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
@@ -129,6 +132,7 @@ case "$OS:$ARCH" in
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
+        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
