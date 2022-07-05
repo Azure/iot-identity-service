@@ -20,7 +20,7 @@ macro_rules! marshal {
                         wrap_rc!(mu_sys::[< Tss2_MU_ $ts _Marshal >](
                             data,
                             std::ptr::null_mut(),
-                            u64::MAX,
+                            usize::MAX as _,
                             &mut out
                         ))?;
                     }
