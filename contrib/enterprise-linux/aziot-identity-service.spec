@@ -78,7 +78,6 @@ make -j \
     RELEASE=1 \
     V=1 \
     THIRD_PARTY=$$THIRD_PARTY \
-    RUSTFLAGS="-C link-arg=-Wl,-rpath=%{_libdir}/%{name}"
     install-rpm
 
 %pre

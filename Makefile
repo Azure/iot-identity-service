@@ -369,10 +369,18 @@ install-common:
 
 	# tpm2-tss
 	if [ $(THIRD_PARTY) != 0 ]; then \
-		for lib in /usr/lib/aziot-identity-service/libtss2-*.so*; do \
+		for lib in /usr/local/lib/libtss2-*.so*; do \
 			$(INSTALL_PROGRAM) -D "$$lib" -t $(DESTDIR)$(libdir)/aziot-identity-service; \
 		done; \
 	fi
+
+	# Rewrite RUNPATHs
+	patchelf --set-rpath $(libdir)/aziot-identity-service $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
+	for lib in $(DESTDIR)$(libdir)/aziot-identity-service/*.so*; do \
+		if [ -f $$lib ]; then \
+			patchelf --set-rpath $(libdir)/aziot-identity-service $$lib; \
+		fi; \
+	done
 
 	# Default configs and config directories
 	$(INSTALL_DATA) -D cert/aziot-certd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/certd/config.toml.default
