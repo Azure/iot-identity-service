@@ -12,6 +12,9 @@ fi
 
 case "$OS:$ARCH" in
     'centos:7:amd64')
+        # CentOS pkg-config does not look in /usr/local
+        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+
         yum install -y centos-release-scl epel-release
         yum install -y \
             autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
@@ -71,7 +74,10 @@ case "$OS:$ARCH" in
         ;;
 
     'platform:el8:amd64')
-        yum install -y \
+        # RHEL pkg-config does not look in /usr/local
+        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+
+        dnf install -y \
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
             pkgconfig
@@ -230,14 +236,12 @@ case "$ARCH" in
         export PKG_CONFIG_ALLOW_CROSS=1
 
         rustup target add armv7-unknown-linux-gnueabihf
-        CONFIGURE_HOST=arm-linux-gnueabihf
         ;;
 
     'aarch64')
         export PKG_CONFIG_ALLOW_CROSS=1
 
         rustup target add aarch64-unknown-linux-gnu
-        CONFIGURE_HOST=aarch64-linux-gnu
         ;;
 esac
 
@@ -259,27 +263,6 @@ if [ "$OS" != 'mariner' ]; then
         make -j;
         make install-exec;
     )
-
-    PREFIX=$(readlink -f local);
-    (
-        cd third-party/tpm2-tss;
-        ./bootstrap;
-        ./configure \
-            --disable-dependency-tracking \
-            --disable-doxygen-doc \
-            --disable-fapi \
-            --disable-static \
-            --disable-weakcrypto \
-            --enable-debug=info \
-            --host=${CONFIGURE_HOST:-} \
-            --libdir="/aziot-identity-service" \
-            --prefix="";
-        make -j;
-        make DESTDIR=${PREFIX} install;
-    )
-    export PKG_CONFIG_PATH="${PREFIX}/aziot-identity-service/pkgconfig"
-    export PKG_CONFIG_SYSROOT_DIR="${PREFIX}"
-    export THIRD_PARTY=1
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.18'

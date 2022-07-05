@@ -35,7 +35,7 @@ case "$OS" in
 
         rm -rf ~/rpmbuild
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" V=1 rpm
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" VENDOR_LIBTSS=1 V=1 rpm
 
         rm -rf "packages/$TARGET_DIR"
         mkdir -p "packages/$TARGET_DIR"
@@ -50,7 +50,7 @@ case "$OS" in
     'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 deb
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" VENDOR_LIBTSS=1 V=1 deb
 
         case "$OS" in
             'debian:10')
