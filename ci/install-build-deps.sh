@@ -37,7 +37,7 @@ EOF
         apt-get upgrade -y
         apt-get install -y \
             acl autoconf autoconf-archive automake clang cmake curl g++ gcc git jq libclang1 \
-            libssl-dev libtool llvm-dev make patchelf pkg-config
+            libltdl-dev libssl-dev libtool llvm-dev make patchelf pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -51,7 +51,8 @@ EOF
             acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool llvm-dev make patchelf pkg-config
+            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
+            patchelf pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -65,7 +66,8 @@ EOF
             acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool llvm-dev make patchelf pkg-config
+            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
+            patchelf pkg-config
         ;;
 
     'platform:el8:amd64')
@@ -108,7 +110,8 @@ EOF
             acl autoconf autoconf-archive automake build-essential ca-certificates \
             clang cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool llvm-dev make patchelf pkg-config
+            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
+            patchelf pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -135,7 +138,8 @@ EOF
             acl autoconf autoconf-archive automake build-essential ca-certificates \
             clang cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool llvm-dev make patchelf pkg-config
+            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
+            patchelf pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
