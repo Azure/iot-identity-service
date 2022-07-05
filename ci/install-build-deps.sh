@@ -12,8 +12,6 @@ fi
 
 case "$OS:$ARCH" in
     'centos:7:amd64')
-        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
-
         yum install -y centos-release-scl epel-release
         yum install -y \
             autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
@@ -73,8 +71,6 @@ case "$OS:$ARCH" in
         ;;
 
     'platform:el8:amd64')
-        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
-
         yum install -y \
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
@@ -264,6 +260,7 @@ if [ "$OS" != 'mariner' ]; then
         make install-exec;
     )
 
+    PREFIX=$(readlink -f local);
     (
         cd third-party/tpm2-tss;
         ./bootstrap;
@@ -274,10 +271,14 @@ if [ "$OS" != 'mariner' ]; then
             --disable-static \
             --disable-weakcrypto \
             --enable-debug=info \
-            --host=${CONFIGURE_HOST:-};
+            --host=${CONFIGURE_HOST:-} \
+            --libdir="/aziot-identity-service" \
+            --prefix="";
         make -j;
-        make install;
+        make DESTDIR=${PREFIX} install;
     )
+    export PKG_CONFIG_PATH="${PREFIX}/aziot-identity-service/pkgconfig"
+    export PKG_CONFIG_SYSROOT_DIR="${PREFIX}"
     export THIRD_PARTY=1
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then

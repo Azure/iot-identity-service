@@ -305,11 +305,11 @@ rpm:
 		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
 		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
 	esac; \
-    case $$PACKAGE_DIST in \
-        'el7') CONTRIB_PATH=centos ;; \
-        'el8') CONTRIB_PATH=enterprise-linux ;; \
-        *) echo "Unknown RHEL derivative"; exit 1 ;; \
-    esac; \
+	case $$PACKAGE_DIST in \
+		'el7') CONTRIB_PATH=centos ;; \
+		'el8') CONTRIB_PATH=enterprise-linux ;; \
+		*) echo "Unknown RHEL derivative"; exit 1 ;; \
+	esac; \
 	<contrib/$$CONTRIB_PATH/aziot-identity-service.spec sed \
 		-e 's/@version@/$(PACKAGE_VERSION)/g' \
 		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
@@ -374,9 +374,8 @@ install-common:
 
 	# tpm2-tss
 	if [ $(THIRD_PARTY) != 0 ]; then \
-		for lib in /usr/local/lib/libtss2-*.so*; do \
-			$(INSTALL_PROGRAM) -D "$$lib" -t $(DESTDIR)$(libdir)/aziot-identity-service; \
-		done; \
+		cd third-party/tpm2-tss; \
+		make DESTDIR=$(DESTDIR) install-libLTLIBRARIES; \
 	fi
 
 	# Rewrite RUNPATHs
