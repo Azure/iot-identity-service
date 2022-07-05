@@ -55,7 +55,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
-            g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
             patchelf pkg-config
@@ -70,7 +70,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
-            g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
             patchelf pkg-config
@@ -120,7 +120,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            clang cmake curl dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
             patchelf pkg-config
@@ -148,7 +148,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            clang cmake curl dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
             patchelf pkg-config
@@ -257,10 +257,12 @@ export CARGO_INCREMENTAL=0
 case "$ARCH" in
     'arm32v7')
         rustup target add armv7-unknown-linux-gnueabihf
+        CONFIGURE_HOST="--host=arm-linux-gnueabihf"
         ;;
 
     'aarch64')
         rustup target add aarch64-unknown-linux-gnu
+        CONFIGURE_HOST="--host=aarch64-linux-gnu"
         ;;
 esac
 
@@ -290,7 +292,8 @@ esac
         --disable-doxygen-doc \
         --disable-fapi \
         --disable-static \
-        --disable-weakcrypto;
+        --disable-weakcrypto \
+        ${CONFIGURE_HOST};
     make -j;
     make install;
 )
