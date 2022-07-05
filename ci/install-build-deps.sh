@@ -42,9 +42,9 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            acl autoconf autoconf-archive automake build-essential clang cmake curl \
-            g++ gcc git jq libclang1 libltdl-dev libssl-dev libtool llvm-dev \
-            make patchelf pkg-config
+            acl autoconf autoconf-archive automake build-essential clang cmake \
+            curl git jq libclang1 libltdl-dev libssl-dev libtool llvm-dev \
+            patchelf pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -56,9 +56,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
-            git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
+            clang cmake crossbuild-essential-armhf curl git jq \
+            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev \
             patchelf pkg-config
         ;;
 
@@ -71,9 +71,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
-            git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
+            clang cmake crossbuild-essential-arm64 curl git jq \
+            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev \
             patchelf pkg-config
         ;;
 
@@ -121,9 +121,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
-            git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
+            clang cmake crossbuild-essential-armhf curl git jq \
+            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev \
             patchelf pkg-config
         ;;
 
@@ -149,9 +149,9 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
             acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake curl dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
-            git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
+            clang cmake crossbuild-essential-arm64 curl git jq \
+            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev \
             patchelf pkg-config
         ;;
 
@@ -258,12 +258,12 @@ export CARGO_INCREMENTAL=0
 case "$ARCH" in
     'arm32v7')
         rustup target add armv7-unknown-linux-gnueabihf
-        CONFIGURE_HOST="--host=arm-linux-gnueabihf"
+        CONFIGURE_HOST="arm-linux-gnueabihf"
         ;;
 
     'aarch64')
         rustup target add aarch64-unknown-linux-gnu
-        CONFIGURE_HOST="--host=aarch64-linux-gnu"
+        CONFIGURE_HOST="aarch64-linux-gnu"
         ;;
 esac
 
@@ -294,7 +294,7 @@ esac
         --disable-fapi \
         --disable-static \
         --disable-weakcrypto \
-        ${CONFIGURE_HOST};
+        --host=${CONFIGURE_HOST:-};
     make -j;
     make install;
 )
