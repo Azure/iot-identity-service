@@ -42,8 +42,9 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y \
-            acl autoconf autoconf-archive automake clang cmake curl g++ gcc git jq libclang1 \
-            libltdl-dev libssl-dev libtool llvm-dev make patchelf pkg-config
+            acl autoconf autoconf-archive automake build-essential clang cmake curl \
+            g++ gcc git jq libclang1 libltdl-dev libssl-dev libtool llvm-dev \
+            make patchelf pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -54,8 +55,8 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
-            dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
+            acl autoconf autoconf-archive automake build-essential ca-certificates \
+            clang cmake curl dpkg-dev g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev make \
             patchelf pkg-config
@@ -69,8 +70,8 @@ case "$OS:$ARCH" in
         apt-get update -y
         apt-get upgrade -y
         apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake ca-certificates clang cmake curl \
-            dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
+            acl autoconf autoconf-archive automake build-essential ca-certificates \
+            clang cmake curl dpkg-dev g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev make \
             patchelf pkg-config
