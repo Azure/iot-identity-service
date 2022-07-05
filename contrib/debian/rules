@@ -46,8 +46,8 @@ override_dh_auto_install:
 		unitdir=/lib/systemd/system \
 		OPENSSL_ENGINES_DIR=/usr/lib/$$arch_libdir/engines-1.1 \
 		RELEASE=1 \
+		THIRD_PARTY=1 \
 		V=1 \
-		THIRD_PARTY=$$THIRD_PARTY \
 		install-deb
 
 	# Default behavior of dh_systemd_enable and dh_systemd_start is to enable and start all installed units, ie both sockets and services.
