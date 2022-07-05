@@ -229,6 +229,21 @@ rustup set profile minimal
 BINDGEN_VERSION='0.54.0'
 CBINDGEN_VERSION='0.15.0'
 
+case "$ARCH" in
+    'arm32v7')
+        export PKG_CONFIG_ALLOW_CROSS=1
+
+        rustup target add armv7-unknown-linux-gnueabihf
+        CONFIGURE_HOST=arm-linux-gnueabihf
+        ;;
+
+    'aarch64')
+        export PKG_CONFIG_ALLOW_CROSS=1
+
+        rustup target add aarch64-unknown-linux-gnu
+        CONFIGURE_HOST=aarch64-linux-gnu
+        ;;
+esac
 
 # Mariner build installs them as part of the specfile
 if [ "$OS" != 'mariner' ]; then
@@ -249,36 +264,29 @@ if [ "$OS" != 'mariner' ]; then
         make install-exec;
     )
 
+    (
+        cd third-party/tpm2-tss;
+        ./bootstrap;
+        ./configure \
+            --disable-dependency-tracking \
+            --disable-doxygen-doc \
+            --disable-fapi \
+            --disable-static \
+            --disable-weakcrypto \
+            --enable-debug=info \
+            --host=${CONFIGURE_HOST:-};
+        make -j;
+        make install;
+    )
+    export THIRD_PARTY=1
+
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.18'
     fi
 fi
 
-export CARGO_INCREMENTAL=0
-
-case "$ARCH" in
-    'arm32v7')
-        export PKG_CONFIG_ALLOW_CROSS=1
-
-        rustup target add armv7-unknown-linux-gnueabihf
-        CONFIGURE_HOST=arm-linux-gnueabihf
-        ;;
-
-    'aarch64')
-        export PKG_CONFIG_ALLOW_CROSS=1
-
-        rustup target add aarch64-unknown-linux-gnu
-        CONFIGURE_HOST=aarch64-linux-gnu
-        ;;
-esac
-
-case "$OS" in
-    *) ;;
-esac
-
 case "$OS:$ARCH" in
     debian:*:arm32v7|ubuntu:*:arm32v7)
-        mkdir -p ~/.cargo
         echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config
         echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
@@ -286,7 +294,6 @@ case "$OS:$ARCH" in
         ;;
 
     debian:*:aarch64|ubuntu:*:aarch64)
-        mkdir -p ~/.cargo
         echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config
         echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu
@@ -294,18 +301,5 @@ case "$OS:$ARCH" in
         ;;
 esac
 
-(
-    cd third-party/tpm2-tss;
-    ./bootstrap;
-    ./configure \
-        --disable-dependency-tracking \
-        --disable-doxygen-doc \
-        --disable-fapi \
-        --disable-static \
-        --disable-weakcrypto \
-        --enable-debug=info \
-        --host=${CONFIGURE_HOST:-};
-    make -j;
-    make install;
-)
-export THIRD_PARTY=1
+export CARGO_INCREMENTAL=0
+
