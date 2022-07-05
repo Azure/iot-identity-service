@@ -39,7 +39,7 @@ case "$OS:$ARCH" in
         apt-get install -y \
             acl autoconf autoconf-archive automake build-essential clang cmake \
             curl git jq libclang1 libltdl-dev libssl-dev libtool llvm-dev \
-            patchelf pkg-config
+            pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -54,7 +54,7 @@ case "$OS:$ARCH" in
             clang cmake crossbuild-essential-armhf curl git jq \
             libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev \
-            patchelf pkg-config
+            pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -69,7 +69,7 @@ case "$OS:$ARCH" in
             clang cmake crossbuild-essential-arm64 curl git jq \
             libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev \
-            patchelf pkg-config
+            pkg-config
         ;;
 
     'platform:el8:amd64')
@@ -236,6 +236,19 @@ if [ "$OS" != 'mariner' ]; then
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
+    # Ubuntu 18.04 ships a version of patchelf affected by
+    # > https://github.com/NixOS/patchelf/issues/10
+    # CentOS 7 and RHEL 8 do not have patchelf. patchelf itself is a single C++
+    # file, so we just compile it ourselves everywhere instead of futzing
+    # around with the build matrix.
+    (
+        cd third-party/patchelf;
+        ./bootstrap.sh;
+        ./configure;
+        make -j;
+        make install-exec;
+    )
+
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.18'
     fi
@@ -260,18 +273,6 @@ case "$ARCH" in
 esac
 
 case "$OS" in
-    # Ubuntu 18.04 ships a version of patchelf affected by:
-    # > https://github.com/NixOS/patchelf/issues/10
-    #
-    # CentOS 7 and RHEL 8 do not have patchelf.
-    'ubuntu:18.04'|'centos:7'|'platform:el8')
-        (
-            cd third-party/patchelf;
-            ./bootstrap.sh;
-            ./configure;
-            make -j;
-            make install-exec;
-        ) ;;
     *) ;;
 esac
 
@@ -302,6 +303,7 @@ esac
         --disable-fapi \
         --disable-static \
         --disable-weakcrypto \
+        --enable-debug=info \
         --host=${CONFIGURE_HOST:-};
     make -j;
     make install;
