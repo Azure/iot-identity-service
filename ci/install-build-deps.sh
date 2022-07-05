@@ -12,10 +12,12 @@ fi
 
 case "$OS:$ARCH" in
     'centos:7:amd64')
-        yum install -y epel-release
+        yum install -y centos-release-scl epel-release
         yum install -y \
-            autoconf autoconf-archive automake clang curl gcc gcc-c++ git jq libcurl-devel \
-            libtool llvm-devel make openssl openssl-devel pkgconfig
+            autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
+            gcc gcc-c++ git jq libcurl-devel libtool llvm-devel make openssl openssl-devel pkgconfig
+
+        scl enable devtoolset-9 sh -c 'cd third-party/patchelf; ./bootstrap.sh; ./configure; make -j; make install'
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -31,7 +33,7 @@ case "$OS:$ARCH" in
         apt-get upgrade -y
         apt-get install -y \
             autoconf autoconf-archive automake clang cmake curl g++ gcc git jq libclang1 \
-            libssl-dev libtool llvm-dev make pkg-config
+            libssl-dev libtool llvm-dev make patchelf pkg-config
         ;;
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
@@ -45,7 +47,7 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool llvm-dev make pkg-config
+            libssl-dev:armhf libtool llvm-dev make patchelf pkg-config
         ;;
 
     'debian:10:aarch64'|'debian:11:aarch64')
@@ -59,7 +61,7 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake ca-certificates clang cmake curl \
             g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool llvm-dev make pkg-config
+            libssl-dev:arm64 libtool llvm-dev make patchelf pkg-config
         ;;
 
     'platform:el8:amd64')
@@ -67,6 +69,7 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
             pkgconfig
+        ( cd third-party/patchelf; ./boostrap.sh; ./configure; make -j; make install; )
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')
@@ -99,7 +102,7 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake build-essential ca-certificates \
             clang cmake curl g++ g++-arm-linux-gnueabihf gcc gcc-arm-linux-gnueabihf \
             git jq libc-dev libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libssl-dev:armhf libtool llvm-dev make pkg-config
+            libssl-dev:armhf libtool llvm-dev make patchelf pkg-config
         ;;
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
@@ -126,7 +129,7 @@ case "$OS:$ARCH" in
             autoconf autoconf-archive automake build-essential ca-certificates \
             clang cmake curl g++ g++-aarch64-linux-gnu gcc gcc-aarch64-linux-gnu \
             git jq libc-dev libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libssl-dev:arm64 libtool llvm-dev make pkg-config
+            libssl-dev:arm64 libtool llvm-dev make patchelf pkg-config
         ;;
 
     'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
@@ -265,8 +268,7 @@ esac
         --disable-doxygen-doc \
         --disable-fapi \
         --disable-static \
-        --disable-weakcrypto \
-        --prefix=/usr/lib/aziot-identity-service;
+        --disable-weakcrypto; \
     make -j;
     make install;
 )

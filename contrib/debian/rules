@@ -29,9 +29,7 @@ override_dh_auto_build:
 	# Default behavior is `make -j1`, which is not quite right for us.
 	make -j \
 		RELEASE=1 \
-		V=1 \
-		THIRD_PARTY=$$THIRD_PARTY \
-		RUSTFLAGS="-C link-arg=-Wl,-rpath,$(PRIVATE_LIBS)"
+		V=1
 
 override_dh_auto_install:
 	# Default behavior is `make -j1 install DESTDIR=$$PWD/debian/aziot-identity-service`, which is not quite right for us.
@@ -50,7 +48,6 @@ override_dh_auto_install:
 		RELEASE=1 \
 		V=1 \
 		THIRD_PARTY=$$THIRD_PARTY \
-		RUSTFLAGS="-C link-arg=-Wl,-rpath,$(PRIVATE_LIBS)" \
 		install-deb
 
 	# Default behavior of dh_systemd_enable and dh_systemd_start is to enable and start all installed units, ie both sockets and services.
