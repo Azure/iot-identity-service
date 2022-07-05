@@ -20,13 +20,15 @@ case "$OS:$ARCH" in
             git jq libcurl-devel libtool llvm-toolset-7-clang llvm-toolset-7-llvm-devel \
             make openssl openssl-devel pkgconfig
 
+        set +eu # scl_source fails with -eu
         . scl_source enable devtoolset-9 llvm-toolset-7
+        set -eu
         (
             cd third-party/patchelf;
             ./bootstrap.sh;
             ./configure;
             make -j;
-            make install;
+            make install-exec;
         )
         ;;
 
@@ -91,7 +93,7 @@ case "$OS:$ARCH" in
             ./bootstrap.sh;
             ./configure;
             make -j;
-            make install;
+            make install-exec;
         )
         ;;
 
