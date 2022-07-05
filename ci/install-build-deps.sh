@@ -17,11 +17,17 @@ case "$OS:$ARCH" in
         yum install -y centos-release-scl epel-release
         yum install -y \
             autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
-            gcc gcc-c++ git jq libcurl-devel libtool llvm-devel make openssl openssl-devel pkgconfig
+            git jq libcurl-devel libtool llvm-toolset-7-clang llvm-toolset-7-llvm-devel \
+            make openssl openssl-devel pkgconfig
 
-        scl enable devtoolset-9 - <<EOF
-sh -c 'cd third-party/patchelf; ./bootstrap.sh; ./configure; make -j; make install'
-EOF
+        . scl_source enable devtoolset-9 llvm-toolset-7
+        (
+            cd third-party/patchelf;
+            ./bootstrap.sh;
+            ./configure;
+            make -j;
+            make install;
+        )
         ;;
 
     'centos:7:arm32v7'|'centos:7:aarch64')
@@ -77,7 +83,13 @@ EOF
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
             pkgconfig
-        ( cd third-party/patchelf; ./bootstrap.sh; ./configure; make -j; make install; )
+        (
+            cd third-party/patchelf;
+            ./bootstrap.sh;
+            ./configure;
+            make -j;
+            make install;
+        )
         ;;
 
     'platform:el8:aarch64'|'platform:el8:arm32v7')
