@@ -198,7 +198,7 @@ auth_key_index = 0x80_00_00
         assert!(toml::from_str::<super::Config>(actual)
             .unwrap_err()
             .to_string()
-            .contains(super::AUTH_KEY_BOUND_MESSAGE))
+            .contains(super::AUTH_KEY_BOUND_MESSAGE));
     }
 
     #[cfg(debug_assertions)]
