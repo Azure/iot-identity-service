@@ -51,7 +51,6 @@ case "$OS:$ARCH" in
 
     'debian:10:arm32v7'|'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
-        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         dpkg --add-architecture armhf
@@ -67,7 +66,6 @@ case "$OS:$ARCH" in
 
     'debian:10:aarch64'|'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
-        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         dpkg --add-architecture arm64
@@ -105,7 +103,6 @@ case "$OS:$ARCH" in
 
     'ubuntu:18.04:arm32v7'|'ubuntu:20.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
-        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
@@ -134,7 +131,6 @@ case "$OS:$ARCH" in
 
     'ubuntu:18.04:aarch64'|'ubuntu:20.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
-        export PKG_CONFIG_ALLOW_CROSS=1
         export TZ=UTC
 
         sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
@@ -263,13 +259,17 @@ export CARGO_INCREMENTAL=0
 
 case "$ARCH" in
     'arm32v7')
+        export PKG_CONFIG_ALLOW_CROSS=1
+
         rustup target add armv7-unknown-linux-gnueabihf
-        CONFIGURE_HOST="arm-linux-gnueabihf"
+        CONFIGURE_HOST=arm-linux-gnueabihf
         ;;
 
     'aarch64')
+        export PKG_CONFIG_ALLOW_CROSS=1
+
         rustup target add aarch64-unknown-linux-gnu
-        CONFIGURE_HOST="aarch64-linux-gnu"
+        CONFIGURE_HOST=aarch64-linux-gnu
         ;;
 esac
 
