@@ -161,7 +161,7 @@ test:
 
 	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
-		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
+		grep -v '^\./third-party/' | \
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
 		while read -r f; do \
