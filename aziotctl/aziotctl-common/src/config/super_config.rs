@@ -215,7 +215,11 @@ pub struct Est {
     pub identity_auto_renew: cert_renewal::AutoRenewConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<EstAuth>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "aziot_certd_config::deserialize_map"
+    )]
     pub urls: BTreeMap<String, Url>,
 }
 
@@ -307,6 +311,7 @@ pub struct CertIssuanceOptions {
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]
     Est {
+        #[serde(default, deserialize_with = "deserialize_url")]
         url: Option<url::Url>,
         #[serde(flatten)]
         auth: Option<EstAuth>,
@@ -315,6 +320,25 @@ pub enum CertIssuanceMethod {
     LocalCa,
 
     SelfSigned,
+}
+
+fn deserialize_url<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt: Option<Url> = Deserialize::deserialize(de)?;
+    match &opt {
+        Some(url) => {
+            if url.scheme() == "http" {
+                println!(
+                    "Url {} utilizes HTTP, exposing it to security violations?",
+                    url.as_str()
+                );
+            }
+        }
+        None => (),
+    }
+    Ok(opt)
 }
 
 mod base64 {
