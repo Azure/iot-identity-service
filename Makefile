@@ -1,5 +1,3 @@
-CARGO = cargo
-
 # Installed via `cargo install`. See /ci/install-build-deps.sh for exact command and versions.
 BINDGEN = bindgen
 CBINDGEN = cbindgen
@@ -17,7 +15,6 @@ VENDOR_LIBTSS = 0
 ARCH =
 
 INSTALL_PRESET = true
-
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -48,15 +45,17 @@ else
 	DPKG_ARCH_FLAGS =
 endif
 
-CARGO_OUTPUT_RELATIVE = target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)
+CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY))
+PKG_CONFIG_SYSROOT_DIR = $(CARGO_OUTPUT_ABSPATH)/fakeroot
+PKG_CONFIG_PATH = $(PKG_CONFIG_SYSROOT_DIR)$(libdir)/aziot-identity-service/pkgconfig
+
+CARGO = PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) PKG_CONFIG_SYSROOT_DIR=$(PKG_CONFIG_SYSROOT_DIR) cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
-SHELL := /bin/bash
-
+SHELL = /bin/bash
 
 .PHONY: aziot-key-openssl-engine-shared-test clean default mock-iot-server test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
-
 
 default:
 	# Re-generate aziot-keys.h if necessary
@@ -90,7 +89,6 @@ default:
 	# incorrectly assuming /usr/local.  There is probably a better
 	# way to do this...
 	if [ -d third-party/tpm2-tss ]; then \
-		FAKEROOT="$$(readlink -m $(CARGO_OUTPUT_RELATIVE)/fakeroot)"; \
 		cd third-party/tpm2-tss; \
 		./bootstrap; \
 		./configure \
@@ -104,7 +102,7 @@ default:
 			--libdir=$(libdir)/aziot-identity-service \
 			--prefix=$(prefix); \
 		$(MAKE) libdir=$(libdir)/aziot-identity-service prefix=$(prefix) -j; \
-		$(MAKE) DESTDIR="$$FAKEROOT" libdir=$(libdir)/aziot-identity-service prefix=$(prefix) install; \
+		$(MAKE) DESTDIR=$(PKG_CONFIG_SYSROOT_DIR) libdir=$(libdir)/aziot-identity-service prefix=$(prefix) install; \
 	fi
 
 	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
@@ -112,14 +110,10 @@ default:
 	# So instead we do it manually.
 	#
 	# See the doc header of the aziot-keys-common crate for more info.
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/pkgconfig)" \
-	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)" \
-	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziotctl \
 		-p aziotd \
@@ -169,14 +163,12 @@ target/openapi-schema-validated:
 
 	touch target/openapi-schema-validated
 
-
 test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
 test-release: test
 	$(CARGO) fmt --all -- --check
 
 	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
-
 
 test: aziot-key-openssl-engine-shared-test default mock-iot-server
 test: target/openapi-schema-validated
@@ -233,11 +225,10 @@ test:
 			fi; \
 		done
 
-
 codecov: default
 	mkdir -p coverage
 
-	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$$(readlink -f $(CARGO_OUTPUT_RELATIVE))" $(CARGO) tarpaulin --all --verbose \
+	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH)" $(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--exclude openssl-build --exclude test-common \
 		--exclude mock-iot-server \
@@ -247,7 +238,6 @@ codecov: default
 		--no-fail-fast \
 		--target $(CARGO_TARGET) --out Lcov \
 		--output-dir ./coverage
-
 
 # Packaging
 #
@@ -395,16 +385,16 @@ install-common:
 	# Ref: https://www.gnu.org/software/make/manual/html_node/DESTDIR.html
 
 	# Binaries
-	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_RELATIVE)/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-tpmd
 
-	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_RELATIVE)/aziotctl $(DESTDIR)$(bindir)/aziotctl
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/aziotctl $(DESTDIR)$(bindir)/aziotctl
 
 	# libaziot-keys
-	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_RELATIVE)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
 
 	# tpm2-tss
 	# See comment above regarding environment bleedover on RPM
@@ -457,7 +447,7 @@ install-common:
 install-deb: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
-		$(CARGO_OUTPUT_RELATIVE)/libaziot_key_openssl_engine_shared.so \
+		$(CARGO_OUTPUT_ABSPATH)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
 
 	# README.md and LICENSE
@@ -471,7 +461,7 @@ install-deb: install-common
 install-rpm: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
-		$(CARGO_OUTPUT_RELATIVE)/libaziot_key_openssl_engine_shared.so \
+		$(CARGO_OUTPUT_ABSPATH)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
 	if [ $(INSTALL_PRESET) == "true" ]; then \
