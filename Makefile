@@ -85,6 +85,10 @@ default:
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
 
+	# Set libdir again due to environment bleedover from this
+	# Makefile during RPM build.  Set prefix due to config.status
+	# incorrectly assuming /usr/local.  There is probably a better
+	# way to do this...
 	if [ -d third-party/tpm2-tss ]; then \
 		FAKEROOT="$$(readlink -m $(CARGO_OUTPUT_RELATIVE)/fakeroot)"; \
 		cd third-party/tpm2-tss; \
@@ -97,9 +101,10 @@ default:
 			--disable-weakcrypto \
 			--enable-debug=info \
 			--host=$$CROSS_HOST_TRIPLE \
-			--libdir=$(libdir)/aziot-identity-service; \
-		$(MAKE) -j; \
-		$(MAKE) DESTDIR="$$FAKEROOT" install; \
+			--libdir=$(libdir)/aziot-identity-service \
+			--prefix=$(prefix); \
+		$(MAKE) libdir=$(libdir)/aziot-identity-service prefix=$(prefix) -j; \
+		$(MAKE) DESTDIR="$$FAKEROOT" libdir=$(libdir)/aziot-identity-service prefix=$(prefix) install; \
 	fi
 
 	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
@@ -107,14 +112,14 @@ default:
 	# So instead we do it manually.
 	#
 	# See the doc header of the aziot-keys-common crate for more info.
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)"; \
-	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)"; \
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/pkgconfig)" \
+	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)"; \
-	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)"; \
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)" \
+	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziotctl \
 		-p aziotd \
@@ -402,9 +407,11 @@ install-common:
 	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_RELATIVE)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
 
 	# tpm2-tss
+	# See comment above regarding environment bleedover on RPM
+	# builds.
 	if [ -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
-		$(MAKE) install-exec; \
+		$(MAKE) libdir=$(libdir)/aziot-identity-service install-exec; \
 	fi
 
 	# Remove libtool files
