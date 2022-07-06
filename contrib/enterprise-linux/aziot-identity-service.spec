@@ -77,7 +77,6 @@ make -j \
     OPENSSL_ENGINE_FILENAME=@openssl_engine_filename@ \
     RELEASE=1 \
     V=1 \
-    THIRD_PARTY=1 \
     install-rpm
 
 %pre
