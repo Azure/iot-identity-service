@@ -86,7 +86,7 @@ jobs:
         path: 'packages'
     - name: 'Upload Mariner error logs'
       uses: 'actions/upload-artifact@v1'
-      if: failure() && startsWith('mariner', matrix.os)
+      if: failure() && startsWith(matrix.os, mariner)
       with:
         name: join(matrix.os, '-error-logs')
         path: 'Mariner-Build/build/logs'
