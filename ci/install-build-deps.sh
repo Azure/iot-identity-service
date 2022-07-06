@@ -12,10 +12,6 @@ fi
 
 case "$OS:$ARCH" in
     'centos:7:amd64')
-        # CentOS pkg-config does not look in /usr/local
-        # > https://access.redhat.com/discussions/4734691
-        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
-
         yum install -y centos-release-scl epel-release
         yum install -y \
             autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
@@ -75,10 +71,6 @@ case "$OS:$ARCH" in
         ;;
 
     'platform:el8:amd64')
-        # RHEL pkg-config does not look in /usr/local
-        # > https://access.redhat.com/discussions/4734691
-        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
-
         dnf install -y \
             autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
