@@ -228,7 +228,7 @@ test:
 codecov: default
 	mkdir -p coverage
 
-	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH)" $(CARGO) tarpaulin --all --verbose \
+	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH):$(PKG_CONFIG_SYSROOT)$(libdir)/aziot-identity-service" $(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--exclude openssl-build --exclude test-common \
 		--exclude mock-iot-server \
