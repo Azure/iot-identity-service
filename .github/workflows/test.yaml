@@ -57,6 +57,7 @@ jobs:
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: |
+          target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/fakeroot/
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/aziotd
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/aziot-key-openssl-engine-shared-test
           target/${{ steps.generate-artifact-properties.outputs.target_dir }}/debug/libaziot_key_openssl_engine_shared.so
