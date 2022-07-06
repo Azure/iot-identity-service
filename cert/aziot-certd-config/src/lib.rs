@@ -259,7 +259,8 @@ where
     for url in map.values() {
         if url.scheme() == "http" {
             println!(
-                "Url {} utilizes HTTP, exposing it to security violations?",
+                "Warning: EST server URL {} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
+                    To clear this warning, configure HTTPS for your EST server and update the URL.",
                 url.as_str()
             );
         }
