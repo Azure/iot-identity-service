@@ -25,16 +25,6 @@ case "$OS" in
         ;;
 esac
 
-(
-    cd target/debug/fakeroot;
-    for priv_lib in $(find . -name '*.so*' | sed -e 's|^\./||'); do
-        lib_path="/$(dirname "$priv_lib")";
-        mkdir -p "$lib_path";
-        cp "$priv_lib" "$lib_path";
-    done;
-    ldconfig;
-)
-
 chmod +x ./target/debug/aziotd
 chmod +x ./target/debug/aziot-key-openssl-engine-shared-test
 
