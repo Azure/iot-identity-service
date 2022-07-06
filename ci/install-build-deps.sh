@@ -272,27 +272,6 @@ if [ "${OS#mariner}" = "$OS" ]; then
         make install-exec;
     )
 
-    # libtool is fussy about installation prefixes and necessitates a
-    # clean recompilation for the final package.  One option is to copy
-    # the system-level library installation into the final package, but
-    # this is risky.  Instead, since libtss builds relatively quickly,
-    # we install system-wide for the package build and then recompile
-    # for the package installation.
-    (
-        TMP_TSS_SRC=$(mktemp -d);
-        trap "rm -rf $TMP_TSS_SRC" EXIT;
-        git clone --depth 1 third-party/tpm2-tss "$TMP_TSS_SRC";
-        cd "$TMP_TSS_SRC";
-        ./bootstrap;
-        ./configure \
-            --disable-dependency-tracking \
-            --disable-fapi \
-            --disable-static \
-            --host="$CROSS_HOST_TRIPLE";
-        make -j;
-        make install;
-    )
-
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.18'
     fi

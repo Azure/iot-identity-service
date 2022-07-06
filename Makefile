@@ -86,6 +86,7 @@ default:
 	fi
 
 	if [ -d third-party/tpm2-tss ]; then \
+		FAKEROOT="$$(readlink -m $(CARGO_OUTPUT_RELATIVE)/fakeroot)"; \
 		cd third-party/tpm2-tss; \
 		./bootstrap; \
 		./configure \
@@ -95,8 +96,9 @@ default:
 			--disable-static \
 			--enable-debug=info \
 			--host=$$CROSS_HOST_TRIPLE \
-			--prefix=""; \
-		make -j; \
+			--libdir=$(libdir)/aziot-identity-service; \
+		$(MAKE) -j; \
+		$(MAKE) DESTDIR="$$FAKEROOT" install; \
 	fi
 
 	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
@@ -104,10 +106,14 @@ default:
 	# So instead we do it manually.
 	#
 	# See the doc header of the aziot-keys-common crate for more info.
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot/$(libdir)/aziot-identity-service/pkgconfig)" \
+	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot/$(libdir)/aziot-identity-service/pkgconfig)" \
+	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziotctl \
 		-p aziotd \
@@ -397,7 +403,7 @@ install-common:
 	# tpm2-tss
 	if [ -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
-		make install-exec; \
+		$(MAKE) install-exec; \
 	fi
 
 	# Remove libtool files
