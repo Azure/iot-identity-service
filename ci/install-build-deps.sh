@@ -173,7 +173,7 @@ case "$OS:$ARCH" in
             rm -rf "$MarinerToolkitDir"
             git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
             pushd "$MarinerToolkitDir/toolkit/" || exit
-            make package-toolkit REBUILD_TOOLS=y
+            make REBUILD_TOOLS=y package-toolkit
             popd || exit
             cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
         fi
@@ -245,7 +245,7 @@ case "$ARCH" in
         ;;
 esac
 
-# Mariner build installs them as part of the specfile
+# Mariner build installs the following as part of the specfile.
 if [ "${OS#mariner}" = "$OS" ]; then
     cargo install bindgen --version "=$BINDGEN_VERSION"
 
@@ -271,19 +271,20 @@ fi
 
 case "$OS:$ARCH" in
     debian:*:arm32v7|ubuntu:*:arm32v7)
-        echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config
-        echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_INCLUDE_DIR=/usr/include
+
+        echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config
+        echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config
         ;;
 
     debian:*:aarch64|ubuntu:*:aarch64)
-        echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config
-        echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR=/usr/include
+
+        echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config
+        echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
         ;;
 esac
 
 export CARGO_INCREMENTAL=0
-

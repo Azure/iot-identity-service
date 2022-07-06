@@ -24,15 +24,15 @@ Patch0:  gcc-11.patch
 Conflicts: iotedge, libiothsm-std
 
 BuildRequires: clang
+BuildRequires: cmake
 BuildRequires: gcc
 BuildRequires: llvm-devel
 BuildRequires: make
-BuildRequires: cmake
 BuildRequires: openssl-devel
 BuildRequires: pkg-config
+BuildRequires: systemd
 BuildRequires: tar
 BuildRequires: tpm2-tss
-BuildRequires: systemd
 Requires(pre): shadow-utils
 
 %description
