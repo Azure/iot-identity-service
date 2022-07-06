@@ -40,15 +40,12 @@ endif
 ifeq ($(ARCH), arm32v7)
 	CARGO_TARGET = armv7-unknown-linux-gnueabihf
 	DPKG_ARCH_FLAGS = --host-arch armhf
-	CROSS_HOST_TRIPLE = arm-linux-gnueabihf
 else ifeq ($(ARCH), aarch64)
 	CARGO_TARGET = aarch64-unknown-linux-gnu
 	DPKG_ARCH_FLAGS = --host-arch arm64 --host-type aarch64-linux-gnu --target-type aarch64-linux-gnu
-	CROSS_HOST_TRIPLE = aarch64-linux-gnu
 else
 	CARGO_TARGET = x86_64-unknown-linux-gnu
 	DPKG_ARCH_FLAGS =
-	CROSS_HOST_TRIPLE = x86_64-linux-gnu
 endif
 
 CARGO_OUTPUT_RELATIVE = target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)
@@ -97,11 +94,10 @@ default:
 			--disable-fapi \
 			--disable-static \
 			--enable-debug=info \
-			--host=$(CROSS_HOST_TRIPLE); \
+			--host=$$CROSS_HOST_TRIPLE \
+			--prefix=""; \
 		make -j; \
-		make install; \
 	fi
-
 
 	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
 	# But we can't do this with Cargo dependencies because of a cargo issue that causes spurious rebuilds.
@@ -401,7 +397,7 @@ install-common:
 	# tpm2-tss
 	if [ -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
-		make DESTDIR="$(DESTDIR)$(libdir)" install-exec; \
+		make install-exec; \
 	fi
 
 	# Remove libtool files

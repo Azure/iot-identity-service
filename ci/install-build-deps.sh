@@ -234,13 +234,19 @@ BINDGEN_VERSION='0.54.0'
 CBINDGEN_VERSION='0.15.0'
 
 case "$ARCH" in
+    'amd64')
+        export CROSS_HOST_TRIPLE=x86_64-linux-gnu
+        ;;
+
     'arm32v7')
+        export CROSS_HOST_TRIPLE=arm-linux-gnueabihf
         export PKG_CONFIG_ALLOW_CROSS=1
 
         rustup target add armv7-unknown-linux-gnueabihf
         ;;
 
     'aarch64')
+        export CROSS_HOST_TRIPLE=aarch64-linux-gnu
         export PKG_CONFIG_ALLOW_CROSS=1
 
         rustup target add aarch64-unknown-linux-gnu
@@ -255,15 +261,36 @@ if [ "${OS#mariner}" = "$OS" ]; then
 
     # Ubuntu 18.04 ships a version of patchelf affected by
     # > https://github.com/NixOS/patchelf/issues/10
-    # CentOS 7 and RHEL 8 do not have patchelf. patchelf itself is a single C++
-    # file, so we just compile it ourselves everywhere instead of futzing
-    # around with the build matrix.
+    # CentOS 7 and RHEL 8 do not have patchelf.  patchelf itself is a
+    # single C++ file, so we just compile it ourselves everywhere
+    # instead of futzing around with the build matrix.
     (
         cd third-party/patchelf;
         ./bootstrap.sh;
         ./configure;
         make -j;
         make install-exec;
+    )
+
+    # libtool is fussy about installation prefixes and necessitates a
+    # clean recompilation for the final package.  One option is to copy
+    # the system-level library installation into the final package, but
+    # this is risky.  Instead, since libtss builds relatively quickly,
+    # we install system-wide for the package build and then recompile
+    # for the package installation.
+    (
+        TMP_TSS_SRC=$(mktemp -d);
+        trap "rm -rf $TMP_TSS_SRC" EXIT;
+        git clone --depth 1 third-party/tpm2-tss "$TMP_TSS_SRC";
+        cd "$TMP_TSS_SRC";
+        ./bootstrap;
+        ./configure \
+            --disable-dependency-tracking \
+            --disable-fapi \
+            --disable-static \
+            --host="$CROSS_HOST_TRIPLE";
+        make -j;
+        make install;
     )
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
