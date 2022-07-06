@@ -94,6 +94,7 @@ default:
 			--disable-doxygen-doc \
 			--disable-fapi \
 			--disable-static \
+			--disable-weakcrypto \
 			--enable-debug=info \
 			--host=$$CROSS_HOST_TRIPLE \
 			--libdir=$(libdir)/aziot-identity-service; \
@@ -106,13 +107,13 @@ default:
 	# So instead we do it manually.
 	#
 	# See the doc header of the aziot-keys-common crate for more info.
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot/$(libdir)/aziot-identity-service/pkgconfig)" \
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)" \
 	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziot-keys \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
-	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot/$(libdir)/aziot-identity-service/pkgconfig)" \
+	PKG_CONFIG_PATH="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot$(libdir)/aziot-identity-service/pkgconfig)" \
 	PKG_CONFIG_SYSROOT_DIR="$$(readlink -f $(CARGO_OUTPUT_RELATIVE)/fakeroot)" \
 	$(CARGO) build \
 		-p aziotctl \
