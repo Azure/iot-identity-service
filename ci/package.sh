@@ -207,7 +207,7 @@ EOF
 
         # Build package
         pushd "$MarinerRPMBUILDDIR/toolkit"
-        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
+        make build-packages LOG_LEVEL=debug PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
         popd
 
         rm -rf "/src/packages/$TARGET_DIR"
