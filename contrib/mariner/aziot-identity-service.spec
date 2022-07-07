@@ -19,7 +19,6 @@ Source:  %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
 Source3: rust.tar.gz
-Patch0:  gcc-11.patch
 
 Conflicts: iotedge, libiothsm-std
 
@@ -32,7 +31,7 @@ BuildRequires: openssl-devel
 BuildRequires: pkg-config
 BuildRequires: systemd
 BuildRequires: tar
-BuildRequires: tpm2-tss
+BuildRequires: tpm2-tss-devel
 Requires(pre): shadow-utils
 
 %description
@@ -61,8 +60,6 @@ This package contains development files for the Azure IoT device runtime.
 %prep
 
 %setup -q
-
-%patch0 -p1
 
 %build
 
