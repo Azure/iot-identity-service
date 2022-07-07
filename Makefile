@@ -303,7 +303,7 @@ deb: dist
 #
 # Ref: https://rpm-packaging-guide.github.io
 RPMBUILDDIR = $(HOME)/rpmbuild
-rpm: contrib/enterprise-linux/aziot-identity-service.spec
+rpm: contrib/enterprise-linux/aziot-identity-service.spec.in
 rpm: dist
 rpm:
 	# Move dist tarball to rpmbuild sources directory
@@ -331,26 +331,20 @@ rpm:
 	esac; \
 	case $$PACKAGE_DIST in \
 		'el7') \
-			CLANG=llvm-toolset-7-clang; \
-			GCC=devtoolset-9-gcc; \
-			GCC_CPP=devtoolset-9-gcc-c++; \
-			LLVM_DEV=llvm-toolset-7-llvm-dev; \
+			DEVTOOLSET=devtoolset-9-; \
+			LLVM_TOOLSET=llvm-toolset-7-; \
 			;; \
 		'el8') \
-			CLANG=clang; \
-			GCC=gcc; \
-			GCC_CPP=gcc-c++; \
-			LLVM_DEV=llvm-dev; \
+			DEVTOOLSET=; \
+			LLVM_TOOLSET=; \
 			;; \
 		*) echo "Unknown RHEL derivative"; exit 1 ;; \
 	esac; \
-	<contrib/enterprise-linux/aziot-identity-service.spec sed \
+	<contrib/enterprise-linux/aziot-identity-service.spec.in sed \
 		-e 's/@version@/$(PACKAGE_VERSION)/g' \
 		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
-		-e "s|@clang@|$$CLANG|g" \
-		-e "s|@gcc@|$$GCC|g" \
-		-e "s|@gcc_cpp@|$$GCC_CPP|g" \
-		-e "s|@llvm_dev@|$$LLVM_DEV|g" \
+		-e "s|@devtoolset@|$$DEVTOOLSET|g" \
+		-e "s|@llvm_toolset@|$$LLVM_TOOLSET|g" \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
 		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 

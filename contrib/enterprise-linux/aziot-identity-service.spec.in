@@ -12,10 +12,10 @@ Source: aziot-identity-service-%{version}-%{release}.tar.gz
 
 Conflicts: iotedge, libiothsm-std
 
-BuildRequires: @clang@
-BuildRequires: @gcc@
-BuildRequires: @gcc-cpp@
-BuildRequires: @llvm-devel@
+BuildRequires: @devtoolset@gcc
+BuildRequires: @devtoolset@gcc-c++
+BuildRequires: @llvm_toolset@clang
+BuildRequires: @llvm_toolset@llvm-devel
 BuildRequires: make
 BuildRequires: openssl-devel
 BuildRequires: pkgconfig
