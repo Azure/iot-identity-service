@@ -186,6 +186,7 @@ case "$OS:$ARCH" in
 esac
 
 echo "Verifying that third-party/cgmanifest.json is current"
+git config --global --add safe.directory /src
 third-party/generate_cgmanifest.sh \
 | diff third-party/cgmanifest.json -
 
