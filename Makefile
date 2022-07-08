@@ -16,6 +16,8 @@ ARCH =
 
 INSTALL_PRESET = true
 
+SKIP_TSS_MINIMAL = 0
+
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
 	CARGO_VERBOSE = --quiet
@@ -88,6 +90,7 @@ default:
 	# Makefile during RPM build.  Set prefix due to config.status
 	# incorrectly assuming /usr/local.  There is probably a better
 	# way to do this...
+	set -euo pipefail; \
 	if [ -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
 		./bootstrap; \
@@ -174,8 +177,12 @@ test: aziot-key-openssl-engine-shared-test default mock-iot-server
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
+	if [ "$(SKIP_TSS_MINIMAL)" != 0 ]; then \
+		MAYBE_EXCLUDE_TSS_MINIMAL="--exclude tss-minimal"; \
+	fi; \
 	$(CARGO) test --all \
 		--exclude aziot-key-openssl-engine-shared \
+		$$MAYBE_EXCLUDE_TSS_MINIMAL \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
@@ -228,13 +235,16 @@ test:
 codecov: default
 	mkdir -p coverage
 
-	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH):$(PKG_CONFIG_SYSROOT_DIR)$(libdir)/aziot-identity-service" $(CARGO) tarpaulin --all --verbose \
+	+if [ "$(SKIP_TSS_MINIMAL)" != 0 ]; then \
+		MAYBE_EXCLUDE_TSS_MINIMAL="--exclude tss-minimal"; \
+	fi; \
+	LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH):$(PKG_CONFIG_SYSROOT_DIR)$(libdir)/aziot-identity-service" $(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--exclude openssl-build --exclude test-common \
 		--exclude mock-iot-server \
 		--exclude aziot-key-openssl-engine-shared-test \
+		$$MAYBE_EXCLUDE_TSS_MINIMAL \
 		--exclude-files third-party/* \
-		--exclude-files tpm/tss-minimal/_tests/* \
 		--no-fail-fast \
 		--target $(CARGO_TARGET) --out Lcov \
 		--output-dir ./coverage
