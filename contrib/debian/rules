@@ -8,7 +8,7 @@ export DH_OPTIONS = -v
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
-PRIVATE_LIBS := /usr/lib/aziot-identity-service
+PRIVATE_LIBS = /usr/lib/aziot-identity-service
 # see ENVIRONMENT in dpkg-buildflags(1)
 # package maintainers to append CFLAGS
 #export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
