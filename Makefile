@@ -428,7 +428,9 @@ install-common:
 	find $(DESTDIR) -name *.la -exec rm {} +
 
 	# Set RUNPATHs
-	find $(DESTDIR) -executable -and -type f -exec patchelf --set-rpath $(libdir)/aziot-identity-service {} \;
+	if command -v patchelf; then \
+		find $(DESTDIR) -executable -and -type f -exec patchelf --set-rpath $(libdir)/aziot-identity-service {} \;; \
+	fi
 
 	# Default configs and config directories
 	$(INSTALL_DATA) -D cert/aziot-certd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/certd/config.toml.default
