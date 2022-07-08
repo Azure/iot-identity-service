@@ -2,7 +2,7 @@
 
 if [ "${1:-}" = "component" ]
 then
-    URL=$(git remote get-url origin)
+    URL=$(git ls-remote --get-url origin)
     # $-variables in single-quote string are for jq variable expansion.
     # shellcheck disable=SC2016
     exec jq -n --arg repositoryUrl "${URL}" --arg commitHash "${sha1:?}" \
