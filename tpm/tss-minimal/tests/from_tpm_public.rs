@@ -1,5 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+
 #[test]
 fn main() -> tss_minimal::Result<()> {
     let _ = env_logger::builder().is_test(true).try_init();

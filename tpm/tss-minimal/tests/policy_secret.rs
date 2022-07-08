@@ -1,19 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![deny(rust_2018_idioms)]
+#![warn(clippy::all, clippy::pedantic)]
+
 #[test]
 fn main() -> tss_minimal::Result<()> {
     let _ = env_logger::builder().is_test(true).try_init();
 
     let ctx = tss_minimal::EsysContext::new(&std::ffi::CString::default())?;
     let auth_session = tss_minimal::Persistent::PASSWORD_SESSION;
-
-    // ctx.set_auth(
-    //     &tss_minimal::Hierarchy::ENDORSEMENT,
-    //     &tss_minimal::types::sys::TPM2B_AUTH {
-    //         size: 6,
-    //         buffer: tss_minimal::types::fill_tpm2b_buffer(b"foobar")
-    //     }
-    // )?;
 
     let sym = types_sys::TPMT_SYM_DEF {
         algorithm: tss_minimal::types::sys::DEF_TPM2_ALG_AES,
