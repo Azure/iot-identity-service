@@ -255,11 +255,11 @@ pub fn deserialize_map<'de, D>(de: D) -> Result<BTreeMap<String, Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let map: BTreeMap<String, Url> = BTreeMap::deserialize(de)?;
+    let map = BTreeMap::<String, Url>::deserialize(de)?;
     for url in map.values() {
         if url.scheme() == "http" {
-            println!(
-                "Warning: EST server URL {} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
+            eprintln!(
+                "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
                     To clear this warning, configure HTTPS for your EST server and update the URL.",
                 url.as_str()
             );

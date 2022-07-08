@@ -311,7 +311,7 @@ pub struct CertIssuanceOptions {
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]
     Est {
-        #[serde(default, deserialize_with = "deserialize_url")]
+        #[serde(default, deserialize_with = "deserialize_check_protocol")]
         url: Option<url::Url>,
         #[serde(flatten)]
         auth: Option<EstAuth>,
@@ -322,16 +322,16 @@ pub enum CertIssuanceMethod {
     SelfSigned,
 }
 
-fn deserialize_url<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
+fn deserialize_check_protocol<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let opt: Option<Url> = Deserialize::deserialize(de)?;
+    let opt = Option::<Url>::deserialize(de)?;
     match &opt {
         Some(url) => {
             if url.scheme() == "http" {
-                println!(
-                    "Warning: EST server URL {} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
+                eprintln!(
+                    "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
                     To clear this warning, configure HTTPS for your EST server and update the URL.",
                     url.as_str()
                 );

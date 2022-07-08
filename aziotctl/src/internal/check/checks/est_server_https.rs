@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
-#[derive(Serialize, Default)]
+#[derive(Default, Serialize)]
 pub struct EstServerHttps {}
 
 #[async_trait::async_trait]
@@ -44,10 +44,11 @@ impl EstServerHttps {
             for url in est.urls.values() {
                 if url.scheme() != "https" {
                     warn_aggregated.push(format!(
-                        "EST server URL {} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
-                        To clear this warning, configure HTTPS for your EST server and update the URL.",
-                        url.as_str()
+                        "EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.", url.as_str()
                     ));
+                    warn_aggregated.push(
+                        "To clear this warning, configure HTTPS for your EST server and update the URL.".to_owned()
+                    );
                 }
             }
         }
@@ -60,10 +61,11 @@ impl EstServerHttps {
             {
                 if url.scheme() != "https" {
                     warn_aggregated.push(format!(
-                        "EST server URL {} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.
-                        To clear this warning, configure HTTPS for your EST server and update the URL.",
-                        url.as_str()
+                        "EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.", url.as_str()
                     ));
+                    warn_aggregated.push(
+                        "To clear this warning, configure HTTPS for your EST server and update the URL.".to_owned()
+                    );
                 }
             }
         }
