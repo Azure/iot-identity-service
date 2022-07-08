@@ -34,7 +34,7 @@ pub struct Config {
 // NOTE: for sharing with super-config
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct SharedConfig {
-    #[serde(default, skip_serializing_if = "empty_cstr")]
+    #[serde(default = "default_tcti", skip_serializing_if = "is_default_tcti")]
     pub tcti: std::ffi::CString,
 
     #[serde(
@@ -51,7 +51,7 @@ pub struct SharedConfig {
 impl Default for SharedConfig {
     fn default() -> Self {
         Self {
-            tcti: std::ffi::CString::default(),
+            tcti: default_tcti(),
             auth_key_index: default_ak_index(),
             auth: TpmAuthConfig::default(),
         }
@@ -64,6 +64,14 @@ pub struct TpmAuthConfig {
     pub endorsement: std::ffi::CString,
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub owner: std::ffi::CString,
+}
+
+fn default_tcti() -> std::ffi::CString {
+    std::ffi::CString::new("device").expect("default TCTI string contains null byte")
+}
+
+fn is_default_tcti(tcti: &std::ffi::CStr) -> bool {
+    tcti == default_tcti().as_c_str()
 }
 
 fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
@@ -122,7 +130,7 @@ mod tests {
             actual,
             super::Config {
                 shared: super::SharedConfig {
-                    tcti: std::ffi::CString::default(),
+                    tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
                     auth: super::TpmAuthConfig::default(),
                 },
@@ -173,7 +181,7 @@ owner = "world"
             actual,
             super::Config {
                 shared: super::SharedConfig {
-                    tcti: std::ffi::CString::default(),
+                    tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
                     auth: super::TpmAuthConfig {
                         endorsement: std::ffi::CString::new("hello").unwrap(),
@@ -214,7 +222,7 @@ aziot_tpmd = "unix:///custom/path/tpmd.sock"
             actual,
             super::Config {
                 shared: super::SharedConfig {
-                    tcti: std::ffi::CString::default(),
+                    tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
                     auth: super::TpmAuthConfig::default(),
                 },
