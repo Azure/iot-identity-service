@@ -185,6 +185,9 @@ case "$OS:$ARCH" in
         ;;
 esac
 
+echo "Verifying that third-party/cgmanifest.json is current"
+third-party/generate_cgmanifest.sh \
+| diff third-party/cgmanifest.json -
 
 # Rust
 

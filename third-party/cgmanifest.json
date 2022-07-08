@@ -4,41 +4,37 @@
       "component": {
         "type": "git",
         "git": {
-          "repositoryUrl": "https://github.com/stefanberger/libtpms",
+          "repositoryUrl": "https://github.com/stefanberger/libtpms.git",
           "commitHash": "df1c3e98d697f3c1f09262d2ba161a7db784d6cc"
         }
-      },
-      "developmentDependency": true
+      }
     },
     {
       "component": {
         "type": "git",
         "git": {
-          "repositoryUrl": "https://github.com/NixOS/patchelf",
+          "repositoryUrl": "https://github.com/NixOS/patchelf.git",
           "commitHash": "a35054504293f9ff64539850d1ed0bfd2f5399f2"
         }
-      },
-      "developmentDependency": false
+      }
     },
     {
       "component": {
         "type": "git",
         "git": {
-          "repositoryUrl": "https://github.com/stefanberger/swtpm",
+          "repositoryUrl": "https://github.com/stefanberger/swtpm.git",
           "commitHash": "f2268eebb0d1adf89bad83fa4cf91e37b4e3fa53"
         }
-      },
-      "developmentDependency": true
+      }
     },
     {
       "component": {
         "type": "git",
         "git": {
-          "repositoryUrl": "https://github.com/tpm2-software/tpm2-tss",
+          "repositoryUrl": "https://github.com/tpm2-software/tpm2-tss.git",
           "commitHash": "c5f3aed26a0e00215a246910d8521b1c8da34783"
         }
-      },
-      "developmentDependency": false
+      }
     }
   ]
 }

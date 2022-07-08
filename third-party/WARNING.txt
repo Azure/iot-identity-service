@@ -1,4 +1,0 @@
-WARNING:
-
-Since binaries modified by patchelf are used in production, we do not
-mark patchelf as a development dependency in cgmanifest.json!
