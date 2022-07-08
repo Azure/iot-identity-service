@@ -11,12 +11,14 @@ RELEASE = 0
 # 0 => false, _ => true
 VENDOR_LIBTSS = 0
 
+# Skip integration tests for tpm/tss-minimal
+# 0 => false, _ => true
+SKIP_TSS_MINIMAL = 0
+
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
 INSTALL_PRESET = true
-
-SKIP_TSS_MINIMAL = 0
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -88,7 +90,7 @@ default:
 
 	# Set libdir again due to environment bleedover from this
 	# Makefile during RPM build.  Set prefix due to config.status
-	# incorrectly assuming /usr/local.  There is probably a better
+	# incorrect assumption of /usr/local.  There is probably a better
 	# way to do this...
 	set -euo pipefail; \
 	if [ -d third-party/tpm2-tss ]; then \
