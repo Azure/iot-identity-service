@@ -81,6 +81,7 @@ pub mod response {
 pub struct Device {
     pub assigned_hub: String,
     pub device_id: String,
+    pub payload: Option<serde_json::value::Value>,
 }
 
 impl From<response::ServiceError> for std::io::Error {
