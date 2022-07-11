@@ -218,7 +218,7 @@ pub struct Est {
     #[serde(
         default,
         skip_serializing_if = "BTreeMap::is_empty",
-        deserialize_with = "aziot_certd_config::deserialize_map"
+        deserialize_with = "aziot_certd_config::deserialize_url_map_check_https"
     )]
     pub urls: BTreeMap<String, Url>,
 }
@@ -311,7 +311,7 @@ pub struct CertIssuanceOptions {
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]
     Est {
-        #[serde(default, deserialize_with = "deserialize_check_protocol")]
+        #[serde(default, deserialize_with = "deserialize_url_check_https")]
         url: Option<url::Url>,
         #[serde(flatten)]
         auth: Option<EstAuth>,
@@ -322,7 +322,7 @@ pub enum CertIssuanceMethod {
     SelfSigned,
 }
 
-fn deserialize_check_protocol<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
+fn deserialize_url_check_https<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

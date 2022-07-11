@@ -98,7 +98,7 @@ pub struct Est {
     #[serde(
         default,
         skip_serializing_if = "BTreeMap::is_empty",
-        deserialize_with = "deserialize_map"
+        deserialize_with = "deserialize_url_map_check_https"
     )]
     pub urls: BTreeMap<String, Url>,
 }
@@ -251,7 +251,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
     }
 }
 
-pub fn deserialize_map<'de, D>(de: D) -> Result<BTreeMap<String, Url>, D::Error>
+pub fn deserialize_url_map_check_https<'de, D>(de: D) -> Result<BTreeMap<String, Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
