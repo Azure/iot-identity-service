@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::fmt::Write;
+
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 
@@ -48,7 +50,12 @@ impl CertsMatchPrivateKeys {
                         if !err_aggregated.is_empty() {
                             err_aggregated.push('\n');
                         }
-                        err_aggregated.push_str(&format!("preloaded cert with ID {:?} does not match preloaded private key with ID {:?}", id, id));
+                        write!(
+                            &mut err_aggregated,
+                            "preloaded cert with ID {:?} does not match preloaded private key with ID {:?}",
+                            id,
+                            id
+                        ).expect("std::fmt::Write for String should not fail");
                     }
                 }
             }
