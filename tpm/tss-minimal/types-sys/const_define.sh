@@ -1,9 +1,9 @@
-#! /bin/sh -ex
-HEADER=$(find "${1:?}" -name tss2_tpm2_types.h)
+#! /bin/sh -eux
+HEADER=$(find "${1}" -name tss2_tpm2_types.h)
 test -n "${HEADER}"
 (
     IFS=,
-    for KEY in ${2:?}
+    for KEY in ${2}
     do
         PREFIX=${KEY%:*}
         ALIAS=${KEY#*:}

@@ -53,7 +53,7 @@ CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECT
 PKG_CONFIG_SYSROOT_DIR = $(CARGO_OUTPUT_ABSPATH)/fakeroot
 PKG_CONFIG_PATH = $(PKG_CONFIG_SYSROOT_DIR)$(libdir)/aziot-identity-service/pkgconfig
 
-CARGO = PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) PKG_CONFIG_SYSROOT_DIR=$(PKG_CONFIG_SYSROOT_DIR) cargo
+CARGO = PKG_CONFIG_PATH="$$(readlink -e "$(PKG_CONFIG_PATH)")" PKG_CONFIG_SYSROOT_DIR="$$(readlink -e "$(PKG_CONFIG_SYSROOT_DIR)")" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL = /bin/bash

@@ -3,6 +3,8 @@
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+use std::io::Write;
+
 fn main() {
     let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
 
@@ -13,14 +15,16 @@ fn main() {
     let wrapper = out_path.join("wrapper.h");
 
     for path in &lib_cfg.include_paths {
-        if std::process::Command::new("./const_define.sh")
+        let output = std::process::Command::new("./const_define.sh")
             .arg(path)
             .arg("TPM2_ALG:TPM2_ALG_ID,TPM2_ECC:TPM2_ALG_ID,TPM2_HR:TPM2_HC,TPM2_SE,TPMA_OBJECT,TPMA_SESSION")
-            .stdout(std::fs::File::create(&wrapper).unwrap())
-            .status()
-            .unwrap()
-            .success()
-        {
+            .output()
+            .unwrap();
+        if output.status.success() {
+            std::fs::File::create(&wrapper)
+                .unwrap()
+                .write_all(&output.stdout)
+                .unwrap();
             break;
         }
     }
