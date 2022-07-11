@@ -22,7 +22,7 @@ Source3: rust.tar.gz
 
 Conflicts: iotedge, libiothsm-std
 
-BuildRequires: clang
+BuildRequires: clang-devel
 BuildRequires: cmake
 BuildRequires: gcc
 BuildRequires: llvm-devel
