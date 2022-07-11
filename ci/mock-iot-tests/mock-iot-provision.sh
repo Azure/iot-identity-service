@@ -52,7 +52,7 @@ sleep 10
 # Check provisioning info.
 result=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/provisioning?api-version=2021-12-01" \
+    "http://localhost/identities/provisioning?api-version=2022-08-01" \
     --fail \
     | jq --sort-keys .)
 expected=$(echo '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
@@ -74,7 +74,7 @@ fi
 # Get device identity.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2022-08-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
@@ -124,11 +124,11 @@ identityd_pid="$!"
 sleep 5
 
 # Provisioning info has changed, so reprovision.
-curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2021-12-01" \
+curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2022-08-01" \
     -H "content-type: application/json" --data '{"type": "aziot"}' &> /dev/null
 
 # Check provisioning info.
-result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq --sort-keys .)
+result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2022-08-01" | jq --sort-keys .)
 expected=$(echo '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
     $(cat $payload_file) '}' | jq --sort-keys .)
 
@@ -148,7 +148,7 @@ fi
 # Get device identity. Check that it changed with the reprovision.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2022-08-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \

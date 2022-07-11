@@ -5,7 +5,7 @@ openapi: 3.0.1
 info:
   title: Identity Service API
 
-  version: '2021-12-01'
+  version: '2022-08-01'
 
   description: |
     This is the specification of the HTTP API of the aziot-identityd service.
@@ -20,7 +20,7 @@ servers:
 
 
 paths:
-  /identities/identity?api-version=2021-12-01:
+  /identities/identity?api-version=2022-08-01:
     get:
       tags:
       - Identity operations
@@ -87,7 +87,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/device?api-version=2021-12-01:
+  /identities/device?api-version=2022-08-01:
     post:
       tags:
       - Identity operations
@@ -146,7 +146,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/provisioning?api-version=2021-12-01:
+  /identities/provisioning?api-version=2022-08-01:
       get:
         tags:
         - Identity operations
@@ -173,7 +173,7 @@ paths:
                         source: 'manual'
                         auth: 'string'
 
-  /identities/modules?api-version=2021-12-01&type={type}:
+  /identities/modules?api-version=2022-08-01&type={type}:
     parameters:
     - $ref: '#/components/parameters/AziotIdentityTypeParameter'
     get:
@@ -221,7 +221,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/modules?api-version=2021-12-01:
+  /identities/modules?api-version=2022-08-01:
     post:
       tags:
       - Identity operations
@@ -280,7 +280,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/modules/{id}?api-version=2021-12-01&type={type}:
+  /identities/modules/{id}?api-version=2022-08-01&type={type}:
     parameters:
       - $ref: '#/components/parameters/IdentityName'
       - $ref: '#/components/parameters/ModuleIdentityKind'
@@ -345,7 +345,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /identities/device/reprovision?api-version=2021-12-01:
+  /identities/device/reprovision?api-version=2022-08-01:
     post:
       tags:
       - Identity operations
