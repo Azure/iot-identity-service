@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -545,10 +546,12 @@ impl IdentityManager {
     > {
         let mut module_derived_name = module.module_id;
 
-        module_derived_name.push_str(&format!(
+        write!(
+            &mut module_derived_name,
             ":{}",
             module.generation_id.ok_or(Error::ModuleNotFound)?
-        ));
+        )
+        .expect("std::fmt::Write for String should not fail");
 
         let mut primary_derived_name = module_derived_name.clone();
         primary_derived_name.push_str(":primary");

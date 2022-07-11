@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::fmt::Write;
+
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
@@ -75,7 +77,8 @@ impl ReadCerts {
                     if !err_aggregated.is_empty() {
                         err_aggregated.push('\n');
                     }
-                    err_aggregated.push_str(&format!("{:?}", err));
+                    write!(&mut err_aggregated, "{:?}", err)
+                        .expect("std::fmt::Write for String should not fail");
                 }
             }
         }
