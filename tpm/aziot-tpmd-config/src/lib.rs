@@ -31,7 +31,7 @@ pub struct Config {
     pub endpoints: Endpoints,
 }
 
-// NOTE: for sharing with super-config
+// NOTE: For sharing with super-config
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct SharedConfig {
     #[serde(default = "default_tcti", skip_serializing_if = "is_default_tcti")]
@@ -78,7 +78,7 @@ fn empty_cstr(cstr: &std::ffi::CStr) -> bool {
     cstr.to_bytes().is_empty()
 }
 
-// NOTE: reference required by serde
+// NOTE: Reference required by serde
 #[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_default_ak_index(index: &u32) -> bool {
     *index == default_ak_index()
