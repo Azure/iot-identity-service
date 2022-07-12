@@ -20,6 +20,7 @@ mod cert_expiry;
 mod certs_match_private_keys;
 mod certs_preloaded;
 mod daemons_running;
+mod est_server_https;
 mod host_connect_dps_endpoint;
 mod host_connect_iothub;
 mod host_local_time;
@@ -44,6 +45,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.extend(daemons_running::daemons_running());
             v.push(Box::new(read_certs::ReadCerts::default()));
             v.push(Box::new(read_key_pairs::ReadKeyPairs::default()));
+            v.push(Box::new(est_server_https::EstServerHttps::default()));
             v.push(Box::new(
                 certs_match_private_keys::CertsMatchPrivateKeys::default(),
             ));
