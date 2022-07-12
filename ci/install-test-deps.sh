@@ -20,7 +20,7 @@ case "$OS" in
         export SKIP_TSS_MINIMAL=0
 
         apt-get install -y \
-            expect gawk iproute2 libjson-glib-dev libtasn1-6-dev python3 socat
+            expect gawk libjson-glib-dev libtasn1-6-dev net-tools python3 socat
         ;;
 
     *)

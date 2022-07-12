@@ -53,6 +53,12 @@ CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECT
 PKG_CONFIG_SYSROOT_DIR = $(CARGO_OUTPUT_ABSPATH)/fakeroot
 PKG_CONFIG_PATH = $(PKG_CONFIG_SYSROOT_DIR)$(libdir)/aziot-identity-service/pkgconfig
 
+# WARN: This will break pkg-config for other packages if their libraries lie
+# outside system paths or they disable stripping of system include and library
+# paths.  If this happens, `tss-minimal` will have to adopt its own
+# environment variables to pass to pkg-config without interfering with
+# other packages.  However, until then, we can use `PKG_CONFIG_PATH` and
+# `PKG_CONFIG_SYSROOT_DIR`.
 CARGO = PKG_CONFIG_PATH="$$(readlink -e "$(PKG_CONFIG_PATH)")" PKG_CONFIG_SYSROOT_DIR="$$(readlink -e "$(PKG_CONFIG_SYSROOT_DIR)")" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
@@ -89,7 +95,7 @@ default:
 	fi
 
 	# Set libdir again due to environment bleedover from this
-	# Makefile during RPM build.  Set prefix due to config.status
+	# Makefile during RPM build.  Set prefix due to config.status's
 	# incorrect assumption of /usr/local.  There is probably a better
 	# way to do this...
 	set -euo pipefail; \

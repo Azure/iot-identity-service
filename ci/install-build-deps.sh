@@ -188,9 +188,9 @@ esac
 echo "Verifying that third-party/cgmanifest.json is current"
 # SAFETY:
 # The build was started from a fresh image and we are the sole user. The
-# only other way the environment can acquire a rogue ".git" directory is
-# if one of the pipeline steps or dependencies was compromised, in which
-# case the attacker could have run arbitrary commands anyway.
+# only other way the environment could acquire a rogue ".git" directory
+# is if one of the pipeline steps or dependencies was compromised, in
+# which case the attacker could have run arbitrary commands anyway.
 git config --global safe.directory "*"
 third-party/generate_cgmanifest.sh \
 | diff third-party/cgmanifest.json -
