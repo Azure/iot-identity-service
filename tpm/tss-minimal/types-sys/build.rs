@@ -18,6 +18,7 @@ fn main() {
         let output = std::process::Command::new("./const_define.sh")
             .arg(path)
             .arg("TPM2_ALG:TPM2_ALG_ID,TPM2_ECC:TPM2_ALG_ID,TPM2_HR:TPM2_HC,TPM2_SE,TPMA_OBJECT,TPMA_SESSION")
+            .stderr(std::process::Stdio::inherit())
             .output()
             .unwrap();
         if output.status.success() {

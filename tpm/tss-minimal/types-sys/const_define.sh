@@ -1,4 +1,5 @@
 #! /bin/sh -eux
+
 HEADER=$(find "${1}" -name tss2_tpm2_types.h)
 test -n "${HEADER}"
 (
@@ -11,4 +12,4 @@ test -n "${HEADER}"
         | awk -v ALIAS="${ALIAS}" '{ print ALIAS" const DEF_"$2" = "$2";" }'
     done
 ) \
-| cat wrapper.h.in /dev/fd/0
+| cat wrapper.h.in -
