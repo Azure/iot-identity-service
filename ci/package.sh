@@ -198,7 +198,7 @@ EOF
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.signatures.json
-        </src/contrib/mariner/aziot-identity-service.spec sed \
+        </src/contrib/mariner/aziot-identity-service.spec.in sed \
             -e "s/@@VERSION@@/$PACKAGE_VERSION/g" \
             -e "s/@@RELEASE@@/$PACKAGE_RELEASE/g" \
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
