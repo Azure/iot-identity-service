@@ -260,7 +260,7 @@ if [ "${OS#mariner}" = "$OS" ]; then
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
-    # Ubuntu 18.04 ships a version of patchelf affected by
+    # NOTE: Ubuntu 18.04 provides a version of patchelf affected by
     # > https://github.com/NixOS/patchelf/issues/10
     # CentOS 7 and RHEL 8 do not have patchelf.  patchelf itself is a
     # single C++ file, so we just compile it ourselves everywhere
