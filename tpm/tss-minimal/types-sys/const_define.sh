@@ -1,5 +1,9 @@
 #! /bin/sh -eux
 
+# `bindgen` cannot expand macros of the form "#define CONSTANT ((TYPE)
+# VALUE)".  This script converts such macros to "const" declarations.
+# Ref: https://github.com/rust-lang/rust-bindgen/issues/316
+
 HEADER=$(find "${1}" -name tss2_tpm2_types.h)
 test -n "${HEADER}"
 (
