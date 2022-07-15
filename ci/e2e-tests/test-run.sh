@@ -331,6 +331,125 @@ EOF
         ;;
 
     'dps-symmetric-key')
+        echo 'Creating an Azure Function for use as DPS custom allocation policy...' >&2
+
+        func init DpsCustomAllocationFunctionProj --dotnet
+        pushd DpsCustomAllocationFunctionProj
+        func new --name DpsCustomAllocation --template "HTTP trigger" --authlevel "anonymous" --language C# --force
+        dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
+        dotnet add package Microsoft.Azure.Devices.Shared -v 1.27.0
+        >DpsCustomAllocation.cs cat <<-EOF
+using System.IO;
+using System.Net;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
+using Newtonsoft.Json;
+
+using Microsoft.Azure.Devices.Shared;               // For TwinCollection
+using Microsoft.Azure.Devices.Provisioning.Service; // For TwinState
+
+namespace DpsCustomAllocationFunctionProj
+{
+    public static class DpsCustomAllocation
+    {
+        [FunctionName("DpsCustomAllocation")]
+        public static async Task<IActionResult> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req,
+        ILogger log)
+        {
+            log.LogInformation("C# HTTP trigger function processed a request.");
+
+            // Get request body
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            dynamic data = JsonConvert.DeserializeObject(requestBody);
+
+            log.LogInformation("Request.Body:...");
+            log.LogInformation(requestBody);
+
+            // Get the custom payload
+            //dynamic requestPayload = JsonConvert.DeserializeObject(data?.deviceRuntimeContext?.payload?);
+            string requestPayload = data?.deviceRuntimeContext?.payload;
+
+            string message = "Uncaught error";
+            bool fail = false;
+            ResponseObj obj = new ResponseObj();
+
+            if (requestPayload == null)
+            {
+                message = "Payload is not provided for the device.";
+                log.LogInformation("Payload : NULL");
+                fail = true;
+            }
+            else
+            {
+                string[] hubs = data?.linkedHubs?.ToObject<string[]>();
+
+                // Must have hubs selected on the enrollment
+                if (hubs == null)
+                {
+                    message = "No hub group defined for the enrollment.";
+                    log.LogInformation("linkedHubs : NULL");
+                    fail = true;
+                }
+                else
+                {
+                    // Assign the first linked hub
+                    obj.iotHubHostName = hubs[0];
+
+                    // TODO: Consider setting obj.initialTwin
+
+                    // Set a response payload with a "Succes" message and copy of request payoad
+                    ResponsePayload responsePayload = new ResponsePayload();
+                    responsePayload.message = "Success";
+                    responsePayload.requestPayload = requestPayload;
+                    obj.payload = responsePayload; 
+                }
+            }
+
+            log.LogInformation("\nResponse");
+            log.LogInformation((obj.iotHubHostName != null) ? JsonConvert.SerializeObject(obj) : message);
+
+            return (fail)
+                ? new BadRequestObjectResult(message) 
+                : (ActionResult)new OkObjectResult(obj);
+        }
+    }
+
+    public class ResponseObj
+    {
+        public string iotHubHostName {get; set;}
+        public TwinState initialTwin {get; set;}
+        public ResponsePayload payload {get; set;}
+    }
+
+    public class ResponsePayload
+    {
+        public string message {get; set;}
+        public string requestPayload {get; set;}
+    }
+}
+EOF
+        az storage account create \
+            --name customallocationstorage \
+            --location $AZURE_LOCATION \
+            --resource-group $AZURE_RESOURCE_GROUP_NAME \
+            --sku Standard_LRS
+        az functionapp create \
+            --resource-group $AZURE_RESOURCE_GROUP_NAME \
+            --consumption-plan-location $AZURE_LOCATION \
+            --runtime dotnet \
+            --functions-version 3 \
+            --name DpsCustomAllocationApp \
+            --storage-account customallocationstorage
+        webhook_url=$(func azure functionapp publish DpsCustomAllocationApp --force | awk -F ': ' '/Invoke url/ { print $2 }')
+        popd
+        echo 'Created Azure Function for use as DPS custom allocation policy.' >&2
+
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
@@ -338,7 +457,8 @@ EOF
                 --dps-name "$suite_common_resource_name" \
                 --enrollment-id "$test_common_resource_name" \
                 --iot-hub-host-name "$suite_common_resource_name.azure-devices.net" \
-                --query 'attestation.symmetricKey.primaryKey' --output tsv
+                --query 'attestation.symmetricKey.primaryKey' --output tsv \
+                --webhook-url $webhook_url
         )"
         echo 'Created symmetric key enrollment group in DPS.' >&2
 
@@ -348,6 +468,12 @@ EOF
 
         echo 'Generating config files...' >&2
 
+        >payload.json cat <<-EOF
+{
+    "model_id": "ACME 2000"
+}
+EOF
+
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
 
@@ -355,6 +481,7 @@ hostname = "$test_common_resource_name"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 id_scope = "$dps_scope_id"
+payload_uri = "file:///home/aziot/payload.json"
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -490,7 +617,7 @@ nsg_id="$(
 echo 'Created NSG' >&2
 
 echo 'Querying public IP...' >&2
-self_ip="$(curl -L 'https://ipinfo.io/ip')"
+self_ip="$(wget -qO- https://ipecho.net/plain ; echo)"
 echo 'Queried public IP' >&2
 
 echo 'Creating allow-ssh rule in NSG...' >&2
@@ -709,7 +836,7 @@ if ! ssh -o StrictHostKeyChecking=no -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" 
 fi
 
 
-echo 'Installing package...' >&2
+echo 'Installing package and test tools...' >&2
 case "$OS" in
     centos:*|platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
@@ -729,6 +856,13 @@ case "$OS" in
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.deb"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
+            distributor_id=$(lsb_release -is)
+            release=$(lsb_release -rs)
+            wget "https://packages.microsoft.com/config/${distributor_id,,}/$release/packages-microsoft-prod.deb" \
+                -O packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            rm packages-microsoft-prod.deb
+
             for retry in {0..3}; do
                 if [ "$retry" != "0" ]; then
                     sleep 10
@@ -745,6 +879,7 @@ case "$OS" in
 
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4
         '
         ;;
 
@@ -753,7 +888,7 @@ case "$OS" in
         exit 1
         ;;
 esac
-echo 'Installed package' >&2
+echo 'Installed package and test tools' >&2
 
 
 echo 'Configuring package...' >&2
@@ -761,6 +896,9 @@ echo 'Configuring package...' >&2
 scp -i "$PWD/vm-ssh-key" ./config.toml ./99-testmodule.toml "aziot@$vm_public_ip:/home/aziot/"
 if [ -f device-id.key.pem ] && [ -f device-id.pem ]; then
     scp -i "$PWD/vm-ssh-key" device-id.key.pem device-id.pem "aziot@$vm_public_ip:/home/aziot/"
+fi
+if [ -f payload.json ]; then
+    scp -i "$PWD/vm-ssh-key" payload.json "aziot@$vm_public_ip:/home/aziot/"
 fi
 
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '

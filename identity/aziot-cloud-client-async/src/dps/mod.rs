@@ -94,7 +94,10 @@ impl Client {
             Some(payload_uri) => {
                 let url = url::Url::parse(&payload_uri)
                     .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-                let content = std::fs::read_to_string(url.path())?;
+                let content = std::fs::read_to_string(url.path()).map_err(|err| {
+                    log::error!("could not read content from payload uri: {}", url.path());
+                    err
+                })?;
                 Some(serde_json::from_str(content.as_str())?)
             }
             None => None,
