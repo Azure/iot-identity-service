@@ -13,15 +13,6 @@
       "component": {
         "type": "git",
         "git": {
-          "repositoryUrl": "https://github.com/NixOS/patchelf.git",
-          "commitHash": "a35054504293f9ff64539850d1ed0bfd2f5399f2"
-        }
-      }
-    },
-    {
-      "component": {
-        "type": "git",
-        "git": {
           "repositoryUrl": "https://github.com/stefanberger/swtpm.git",
           "commitHash": "f2268eebb0d1adf89bad83fa4cf91e37b4e3fa53"
         }

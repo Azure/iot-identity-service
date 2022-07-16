@@ -4,7 +4,8 @@ Requires=aziot-tpmd.socket
 After=aziot-tpmd.socket
 
 [Service]
-ExecStart=/usr/libexec/aziot-identity-service/aziot-tpmd
+Environment="LD_LIBRARY_PATH=@private-libs@"
+ExecStart=@libexecdir@/aziot-identity-service/aziot-tpmd
 KillMode=process
 Restart=on-failure
 RestartSec=5s

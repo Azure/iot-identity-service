@@ -1,9 +1,6 @@
 [submodule "third-party/libtpms"]
 	path = third-party/libtpms
 	url = https://github.com/stefanberger/libtpms.git
-[submodule "third-party/patchelf"]
-	path = third-party/patchelf
-	url = https://github.com/NixOS/patchelf.git
 [submodule "third-party/swtpm"]
 	path = third-party/swtpm
 	url = https://github.com/stefanberger/swtpm.git

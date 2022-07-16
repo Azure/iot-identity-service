@@ -4,12 +4,23 @@
 #![warn(clippy::all, clippy::pedantic)]
 
 fn main() {
+    println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-env-changed=VENDOR_PREFIX");
+    println!("cargo:rerun-if-env-changed=VENDOR_PKGCONFIG");
+
+    if let Some((fakeroot, pkgconfig)) =
+        std::env::var_os("VENDOR_PREFIX").zip(std::env::var_os("VENDOR_PKGCONFIG"))
+    {
+        if std::path::Path::new(&fakeroot).exists() {
+            std::env::set_var("PKG_CONFIG_SYSROOT_DIR", fakeroot);
+            std::env::set_var("PKG_CONFIG_PATH", pkgconfig);
+        }
+    }
+
     let lib_cfg = pkg_config::Config::new()
         .atleast_version("2.0.0") // tss2-mu introduction
         .probe("tss2-mu")
         .unwrap();
-
-    println!("cargo:rerun-if-changed=wrapper.h");
 
     for lib in lib_cfg.libs {
         println!("cargo:rustc-link-lib={}", lib);

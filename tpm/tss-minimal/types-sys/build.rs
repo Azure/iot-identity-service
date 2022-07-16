@@ -6,10 +6,21 @@
 use std::io::Write;
 
 fn main() {
-    let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
-
     println!("cargo:rerun-if-changed=wrapper.h.in");
     println!("cargo:rerun-if-changed=const_define.sh");
+    println!("cargo:rerun-if-env-changed=VENDOR_PREFIX");
+    println!("cargo:rerun-if-env-changed=VENDOR_PKGCONFIG");
+
+    if let Some((fakeroot, pkgconfig)) =
+        std::env::var_os("VENDOR_PREFIX").zip(std::env::var_os("VENDOR_PKGCONFIG"))
+    {
+        if std::path::Path::new(&fakeroot).exists() {
+            std::env::set_var("PKG_CONFIG_SYSROOT_DIR", fakeroot);
+            std::env::set_var("PKG_CONFIG_PATH", pkgconfig);
+        }
+    }
+
+    let lib_cfg = pkg_config::Config::new().probe("tss2-sys").unwrap();
 
     let out_path = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let wrapper = out_path.join("wrapper.h");

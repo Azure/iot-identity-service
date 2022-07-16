@@ -40,11 +40,11 @@ override_dh_auto_install:
 		'*') exit 1;; \
 	esac; \
 	make -j \
-		DESTDIR=$$PWD/debian/aziot-identity-service \
+		DESTDIR="$$PWD/debian/aziot-identity-service" \
 		localstatedir=/var \
 		sysconfdir=/etc \
 		unitdir=/lib/systemd/system \
-		OPENSSL_ENGINES_DIR=/usr/lib/$$arch_libdir/engines-1.1 \
+		OPENSSL_ENGINES_DIR="/usr/lib/$$arch_libdir/engines-1.1" \
 		RELEASE=1 \
 		V=1 \
 		install-deb
@@ -57,3 +57,6 @@ override_dh_auto_install:
 override_dh_auto_test:
 	# Default behavior is `make test`, which we don't need, and won't work for cross-compiled packages anyway.
 	echo 'noop'
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l /usr/lib/aziot-identity-service

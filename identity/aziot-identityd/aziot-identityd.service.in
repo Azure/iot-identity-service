@@ -4,7 +4,8 @@ Requires=aziot-identityd.socket
 After=aziot-identityd.socket
 
 [Service]
-ExecStart=/usr/libexec/aziot-identity-service/aziot-identityd
+Environment="LD_LIBRARY_PATH=@private-libs@"
+ExecStart=@libexecdir@/aziot-identity-service/aziot-identityd
 KillMode=process
 Restart=on-failure
 RestartSec=5s
