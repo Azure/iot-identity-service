@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use crate::{types, wrap_rc, Result};
+use crate::error::wrap_rc;
+use crate::{types, Result};
 
 pub trait Marshal<T> {
     fn marshal(&mut self, data: &T) -> Result<()>;
