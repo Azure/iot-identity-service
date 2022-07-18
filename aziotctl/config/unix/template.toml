@@ -223,7 +223,7 @@
 
 # # Authorization values for use of the endorsement and owner hierarchies, if
 # # necessary. By default, these are empty strings.
-# [tpm.auth]
+# [tpm.hierarchy_authorization]
 # endorsement = "hello"
 # owner = "world"
 

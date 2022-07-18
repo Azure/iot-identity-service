@@ -45,7 +45,7 @@ pub struct SharedConfig {
     pub auth_key_index: u32,
 
     #[serde(default, skip_serializing_if = "is_default_tpm_auth_config")]
-    pub auth: TpmAuthConfig,
+    pub hierarchy_authorization: TpmAuthConfig,
 }
 
 impl Default for SharedConfig {
@@ -53,7 +53,7 @@ impl Default for SharedConfig {
         Self {
             tcti: default_tcti(),
             auth_key_index: default_ak_index(),
-            auth: TpmAuthConfig::default(),
+            hierarchy_authorization: TpmAuthConfig::default(),
         }
     }
 }
@@ -132,7 +132,7 @@ mod tests {
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
-                    auth: super::TpmAuthConfig::default(),
+                    hierarchy_authorization: super::TpmAuthConfig::default(),
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
@@ -157,7 +157,7 @@ auth_key_index = 0x01_02_03
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("swtpm:port=2321").unwrap(),
                     auth_key_index: 0x01_02_03,
-                    auth: super::TpmAuthConfig::default(),
+                    hierarchy_authorization: super::TpmAuthConfig::default(),
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
@@ -171,7 +171,7 @@ auth_key_index = 0x01_02_03
     #[test]
     fn parse_config_with_hierarchy_auth_values() {
         let actual = r#"
-[auth]
+[hierarchy_authorization]
 endorsement = "hello"
 owner = "world"
 "#;
@@ -183,7 +183,7 @@ owner = "world"
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
-                    auth: super::TpmAuthConfig {
+                    hierarchy_authorization: super::TpmAuthConfig {
                         endorsement: std::ffi::CString::new("hello").unwrap(),
                         owner: std::ffi::CString::new("world").unwrap(),
                     },
@@ -224,7 +224,7 @@ aziot_tpmd = "unix:///custom/path/tpmd.sock"
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
-                    auth: super::TpmAuthConfig::default(),
+                    hierarchy_authorization: super::TpmAuthConfig::default(),
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {

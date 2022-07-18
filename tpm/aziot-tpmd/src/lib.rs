@@ -40,7 +40,7 @@ pub struct Api {
 
 impl Api {
     pub fn new(config: &Config) -> tss_minimal::Result<Self> {
-        let TpmAuthConfig { endorsement, owner } = &config.shared.auth;
+        let TpmAuthConfig { endorsement, owner } = &config.shared.hierarchy_authorization;
 
         let endorsement = endorsement.to_bytes_with_nul();
         let owner = owner.to_bytes_with_nul();
