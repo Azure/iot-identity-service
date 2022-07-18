@@ -12,7 +12,7 @@ mod util;
 pub(crate) use additional_info::AdditionalInfo;
 pub(crate) use checks::all_checks;
 
-// NOTE: this struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
+// NOTE: This struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
 #[derive(StructOpt)]
 pub struct CheckerCfg {
     /// Sets the NTP server to use when checking host local time.

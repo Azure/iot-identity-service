@@ -1,6 +1,9 @@
-[submodule "tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/utpm"]
-	path = tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/utpm
-	url = https://github.com/Azure/azure-utpm-c.git
-[submodule "tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/c-shared"]
-	path = tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/c-shared
-	url = https://github.com/Azure/azure-c-shared-utility.git
+[submodule "third-party/libtpms"]
+	path = third-party/libtpms
+	url = https://github.com/stefanberger/libtpms.git
+[submodule "third-party/swtpm"]
+	path = third-party/swtpm
+	url = https://github.com/stefanberger/swtpm.git
+[submodule "third-party/tpm2-tss"]
+	path = third-party/tpm2-tss
+	url = https://github.com/tpm2-software/tpm2-tss.git

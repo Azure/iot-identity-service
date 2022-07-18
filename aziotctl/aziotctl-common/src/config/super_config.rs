@@ -67,6 +67,9 @@ pub struct Config {
     #[serde(default)]
     pub preloaded_certs: BTreeMap<String, aziot_certd_config::PreloadedCert>,
 
+    #[serde(default)]
+    pub tpm: aziot_tpmd_config::SharedConfig,
+
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: aziot_identityd_config::Endpoints,

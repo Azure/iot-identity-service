@@ -30,6 +30,7 @@ pub fn run(
         mut preloaded_keys,
         cert_issuance,
         mut preloaded_certs,
+        tpm,
         endpoints:
             aziot_identityd_config::Endpoints {
                 aziot_certd: aziot_certd_endpoint,
@@ -507,6 +508,7 @@ pub fn run(
     };
 
     let tpmd_config = aziot_tpmd_config::Config {
+        shared: tpm,
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,
         },

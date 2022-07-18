@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
 
 cd /src
 
@@ -35,7 +35,7 @@ case "$OS" in
 
         rm -rf ~/rpmbuild
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" V=1 rpm
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 rpm
 
         rm -rf "packages/$TARGET_DIR"
         mkdir -p "packages/$TARGET_DIR"
@@ -50,7 +50,7 @@ case "$OS" in
     'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
-        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" V=1 deb
+        make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 deb
 
         case "$OS" in
             'debian:10')
@@ -198,17 +198,16 @@ EOF
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.signatures.json
-        </src/contrib/mariner/aziot-identity-service.spec sed \
+        </src/contrib/mariner/aziot-identity-service.spec.in sed \
             -e "s/@@VERSION@@/$PACKAGE_VERSION/g" \
             -e "s/@@RELEASE@@/$PACKAGE_RELEASE/g" \
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
             -e "s/@@CBINDGEN_VERSION@@/$CBINDGEN_VERSION/g" \
             >aziot-identity-service.spec
-        cp /src/contrib/mariner/gcc-11.patch .
 
         # Build package
         pushd "$MarinerRPMBUILDDIR/toolkit"
-        make build-packages PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j$(nproc)
+        make build-packages LOG_LEVEL=debug PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j "$(nproc)"
         popd
 
         rm -rf "/src/packages/$TARGET_DIR"

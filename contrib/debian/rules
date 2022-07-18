@@ -8,12 +8,12 @@ export DH_OPTIONS = -v
 # see FEATURE AREAS in dpkg-buildflags(1)
 #export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+PRIVATE_LIBS = /usr/lib/aziot-identity-service
 # see ENVIRONMENT in dpkg-buildflags(1)
 # package maintainers to append CFLAGS
 #export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 # package maintainers to append LDFLAGS
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
-
 
 %:
 	dh $@ --with systemd
@@ -40,11 +40,11 @@ override_dh_auto_install:
 		'*') exit 1;; \
 	esac; \
 	make -j \
-		DESTDIR=$$PWD/debian/aziot-identity-service \
+		DESTDIR="$$PWD/debian/aziot-identity-service" \
 		localstatedir=/var \
 		sysconfdir=/etc \
 		unitdir=/lib/systemd/system \
-		OPENSSL_ENGINES_DIR=/usr/lib/$$arch_libdir/engines-1.1 \
+		OPENSSL_ENGINES_DIR="/usr/lib/$$arch_libdir/engines-1.1" \
 		RELEASE=1 \
 		V=1 \
 		install-deb
@@ -57,3 +57,6 @@ override_dh_auto_install:
 override_dh_auto_test:
 	# Default behavior is `make test`, which we don't need, and won't work for cross-compiled packages anyway.
 	echo 'noop'
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l /usr/lib/aziot-identity-service
