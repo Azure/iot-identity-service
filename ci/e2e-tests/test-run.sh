@@ -332,8 +332,13 @@ EOF
         ;;
 
     'dps-symmetric-key')
-        echo 'Creating an Azure Function for use as DPS custom allocation policy...' >&2
+        # Uses DPS symmetric key provisioning with a custom allocation policy. The custom policy
+        # is implemented by an Azure Function App that reads the model ID in the custom payload 
+        # sent to it by DPS. If the model ID includes "foo", the Function App assigns the device to the
+        # "foo-devices" IoT hub. Otherwise, the Function App returns an error and DPS does not provision 
+        # the device.
 
+        echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
         func init DpsCustomAllocationFunctionProj --dotnet
         pushd DpsCustomAllocationFunctionProj
         func new --name DpsCustomAllocation --template "HTTP trigger" --authlevel "anonymous" --language C# --force
@@ -354,22 +359,17 @@ EOF
             --storage-account customallocationstorage
         webhook_url=$(func azure functionapp publish DpsCustomAllocationApp --force | awk -F ': ' '/Invoke url/ { print $2 }')
         popd
+        echo 'Created an Azure Function for use as a DPS custom allocation policy.' >&2
 
-        echo 'Created Azure Function for use as DPS custom allocation policy.' >&2
-
-        echo 'Creating a second IoT hub for testing custom allocation policy...'
-
-        hub2_name="${suite_common_resource_name}-foo-devices"
-
-        createHub $hub2_name
-
+        echo 'Creating a second IoT hub for testing the custom allocation policy...'
+        foo_devices_hub_name="${suite_common_resource_name}-foo-devices"
+        expected_assigned_hub_name=$foo_devices_hub_name
+        createHub $foo_devices_hub_name
         dps_resource_id=$(az iot dps show \
             --name $suite_common_resource_name \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
                 | jq '.id' -r)
-
-        createDpsLinkedHub $suite_common_resource_name $hub2_name $dps_resource_id "suite_id=$suite_id"
-
+        createDpsLinkedHub $suite_common_resource_name $foo_devices_hub_name $dps_resource_id "suite_id=$suite_id"
         echo 'Created second IoT hub.'
 
         echo 'Creating symmetric key enrollment group in DPS...' >&2
@@ -378,7 +378,7 @@ EOF
                 --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
                 --dps-name "$suite_common_resource_name" \
                 --enrollment-id "$test_common_resource_name" \
-                --iot-hubs "$suite_common_resource_name.azure-devices.net $hub2_name.azure-devices.net" \
+                --iot-hubs "$suite_common_resource_name.azure-devices.net $foo_devices_hub_name.azure-devices.net" \
                 --query 'attestation.symmetricKey.primaryKey' --output tsv \
                 --allocation-policy custom \
                 --api-version 2021-06-01 \
@@ -391,14 +391,11 @@ EOF
         derived_device_key="$(printf '%s' "$test_common_resource_name" | openssl sha256 -mac HMAC -macopt "hexkey:$keybytes" -binary | base64 -w 0)"
 
         echo 'Generating config files...' >&2
-
         >payload.json cat <<-EOF
 {
     "modelId": "foo 2022"
 }
 EOF
-        expected_assigned_hub_name=$hub2_name
-
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
 
@@ -413,6 +410,8 @@ method = "symmetric_key"
 registration_id = "$test_common_resource_name"
 symmetric_key = { value = "$derived_device_key" }
 EOF
+        echo 'Generated config files.' >&2
+
         ;;
 
     'dps-x509')
@@ -761,7 +760,7 @@ if ! ssh -o StrictHostKeyChecking=no -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" 
 fi
 
 
-echo 'Installing package and test tools...' >&2
+echo 'Installing package' >&2
 case "$OS" in
     centos:*|platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
@@ -781,13 +780,6 @@ case "$OS" in
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.deb"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
-            distributor_id=$(lsb_release -is)
-            release=$(lsb_release -rs)
-            wget "https://packages.microsoft.com/config/${distributor_id,,}/$release/packages-microsoft-prod.deb" \
-                -O packages-microsoft-prod.deb
-            sudo dpkg -i packages-microsoft-prod.deb
-            rm packages-microsoft-prod.deb
-
             for retry in {0..3}; do
                 if [ "$retry" != "0" ]; then
                     sleep 10
@@ -812,7 +804,7 @@ case "$OS" in
         exit 1
         ;;
 esac
-echo 'Installed package and test tools' >&2
+echo 'Installed package' >&2
 
 
 echo 'Configuring package...' >&2
