@@ -22,6 +22,7 @@ GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
 
 . "$GITHUB_WORKSPACE/ci/e2e-tests/az-login.sh"
 
+source "$GITHUB_WORKSPACE/ci/e2e-tests/helper-functions.sh"
 
 get_package() {
     if [ -n "${PACKAGE:-}" ]; then
@@ -372,8 +373,7 @@ namespace DpsCustomAllocationFunctionProj
             log.LogInformation(requestBody);
 
             // Get the custom payload
-            //dynamic requestPayload = JsonConvert.DeserializeObject(data?.deviceRuntimeContext?.payload?);
-            string requestPayload = data?.deviceRuntimeContext?.payload;
+            RequestPayload requestPayload = data?.deviceRuntimeContext?.payload?.ToObject<RequestPayload>();
 
             string message = "Uncaught error";
             bool fail = false;
@@ -403,7 +403,7 @@ namespace DpsCustomAllocationFunctionProj
 
                     // TODO: Consider setting obj.initialTwin
 
-                    // Set a response payload with a "Succes" message and copy of request payoad
+                    // Set a response payload with a "Success" message and copy of request payoad
                     ResponsePayload responsePayload = new ResponsePayload();
                     responsePayload.message = "Success";
                     responsePayload.requestPayload = requestPayload;
@@ -427,10 +427,15 @@ namespace DpsCustomAllocationFunctionProj
         public ResponsePayload payload {get; set;}
     }
 
+    public class RequestPayload
+    {
+        public string modleId {get; set;}
+    }
+
     public class ResponsePayload
     {
         public string message {get; set;}
-        public string requestPayload {get; set;}
+        public RequestPayload requestPayload {get; set;}
     }
 }
 EOF
@@ -450,14 +455,31 @@ EOF
         popd
         echo 'Created Azure Function for use as DPS custom allocation policy.' >&2
 
+        echo 'Creating a second IoT hub for testing custom allocation policy...'
+
+        hub2_name="${suite_common_resource_name}-foo-devices"
+
+        createHub $hub2_name
+
+        dps_resource_id=$(az iot dps show \
+            --name $suite_common_resource_name \
+            --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                | jq '.id' -r)
+
+        createDpsLinkedHub $suite_common_resource_name $hub2_name $dps_resource_id "suite_id=$suite_id"
+
+        echo 'Created second IoT hub.'
+
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
                 --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
                 --dps-name "$suite_common_resource_name" \
                 --enrollment-id "$test_common_resource_name" \
-                --iot-hub-host-name "$suite_common_resource_name.azure-devices.net" \
+                --iot-hubs "$suite_common_resource_name.azure-devices.net $hub2_name.azure-devices.net" \
                 --query 'attestation.symmetricKey.primaryKey' --output tsv \
+                --allocation-policy custom \
+                --api-version 2021-06-01 \
                 --webhook-url $webhook_url
         )"
         echo 'Created symmetric key enrollment group in DPS.' >&2
@@ -470,7 +492,7 @@ EOF
 
         >payload.json cat <<-EOF
 {
-    "model_id": "ACME 2000"
+    "modelId": "foo 2022"
 }
 EOF
 
@@ -879,7 +901,6 @@ case "$OS" in
 
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bc curl jq perl
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y /home/aziot/aziot-identity-service.deb
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4
         '
         ;;
 
