@@ -233,7 +233,7 @@ case "$test_name" in
         ;;
 esac
 
-
+expected_assigned_hub_name=$suite_common_resource_name
 case "$test_name" in
     'manual-symmetric-key')
         echo 'Creating IoT device...' >&2
@@ -339,106 +339,7 @@ EOF
         func new --name DpsCustomAllocation --template "HTTP trigger" --authlevel "anonymous" --language C# --force
         dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
         dotnet add package Microsoft.Azure.Devices.Shared -v 1.27.0
-        >DpsCustomAllocation.cs cat <<-EOF
-using System.IO;
-using System.Net;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
-
-using Microsoft.Azure.Devices.Shared;               // For TwinCollection
-using Microsoft.Azure.Devices.Provisioning.Service; // For TwinState
-
-namespace DpsCustomAllocationFunctionProj
-{
-    public static class DpsCustomAllocation
-    {
-        [FunctionName("DpsCustomAllocation")]
-        public static async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req,
-        ILogger log)
-        {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
-            // Get request body
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-
-            log.LogInformation("Request.Body:...");
-            log.LogInformation(requestBody);
-
-            // Get the custom payload
-            RequestPayload requestPayload = data?.deviceRuntimeContext?.payload?.ToObject<RequestPayload>();
-
-            string message = "Uncaught error";
-            bool fail = false;
-            ResponseObj obj = new ResponseObj();
-
-            if (requestPayload == null)
-            {
-                message = "Payload is not provided for the device.";
-                log.LogInformation("Payload : NULL");
-                fail = true;
-            }
-            else
-            {
-                string[] hubs = data?.linkedHubs?.ToObject<string[]>();
-
-                // Must have hubs selected on the enrollment
-                if (hubs == null)
-                {
-                    message = "No hub group defined for the enrollment.";
-                    log.LogInformation("linkedHubs : NULL");
-                    fail = true;
-                }
-                else
-                {
-                    // Assign the first linked hub
-                    obj.iotHubHostName = hubs[0];
-
-                    // TODO: Consider setting obj.initialTwin
-
-                    // Set a response payload with a "Success" message and copy of request payoad
-                    ResponsePayload responsePayload = new ResponsePayload();
-                    responsePayload.message = "Success";
-                    responsePayload.requestPayload = requestPayload;
-                    obj.payload = responsePayload; 
-                }
-            }
-
-            log.LogInformation("\nResponse");
-            log.LogInformation((obj.iotHubHostName != null) ? JsonConvert.SerializeObject(obj) : message);
-
-            return (fail)
-                ? new BadRequestObjectResult(message) 
-                : (ActionResult)new OkObjectResult(obj);
-        }
-    }
-
-    public class ResponseObj
-    {
-        public string iotHubHostName {get; set;}
-        public TwinState initialTwin {get; set;}
-        public ResponsePayload payload {get; set;}
-    }
-
-    public class RequestPayload
-    {
-        public string modleId {get; set;}
-    }
-
-    public class ResponsePayload
-    {
-        public string message {get; set;}
-        public RequestPayload requestPayload {get; set;}
-    }
-}
-EOF
+        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.cs" .
         az storage account create \
             --name customallocationstorage \
             --location $AZURE_LOCATION \
@@ -453,6 +354,7 @@ EOF
             --storage-account customallocationstorage
         webhook_url=$(func azure functionapp publish DpsCustomAllocationApp --force | awk -F ': ' '/Invoke url/ { print $2 }')
         popd
+
         echo 'Created Azure Function for use as DPS custom allocation policy.' >&2
 
         echo 'Creating a second IoT hub for testing custom allocation policy...'
@@ -495,6 +397,7 @@ EOF
     "modelId": "foo 2022"
 }
 EOF
+        expected_assigned_hub_name=$hub2_name
 
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
@@ -990,8 +893,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$device_identity\" jq -r '.spec.hubName')\" != '$suite_common_resource_name.azure-devices.net' ]; then
-        echo 'Expected .spec.hubName to be $suite_common_resource_name.azure-devices.net' >&2
+    if [ \"\$(<<< \"\$device_identity\" jq -r '.spec.hubName')\" != '$expected_assigned_hub_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $expected_assigned_hub_name.azure-devices.net' >&2
         exit 1
     fi
 
@@ -1009,8 +912,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.hubName')\" != '$suite_common_resource_name.azure-devices.net' ]; then
-        echo 'Expected .spec.hubName to be $suite_common_resource_name.azure-devices.net' >&2
+    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.hubName')\" != '$expected_assigned_hub_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $expected_assigned_hub_name.azure-devices.net' >&2
         exit 1
     fi
 
