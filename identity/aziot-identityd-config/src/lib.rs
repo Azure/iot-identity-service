@@ -155,7 +155,7 @@ pub enum ProvisioningType {
     },
     Dps {
         #[serde(skip_serializing_if = "Option::is_none")]
-        payload_uri: Option<String>,
+        payload: Option<Payload>,
         global_endpoint: url::Url,
         scope_id: String,
         attestation: DpsAttestationMethod,
@@ -163,6 +163,11 @@ pub enum ProvisioningType {
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
     None,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct Payload {
+    pub uri: String
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -194,6 +199,8 @@ impl Default for Endpoints {
 
 #[cfg(test)]
 mod tests {
+    use crate::Payload;
+
     use super::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType, Settings};
 
     fn load_settings(
@@ -234,19 +241,19 @@ mod tests {
         }
     }
 
-    // Checks for successful parsing of a config file containing a 'payload_uri' in the 'provisioning' table
-    fn check_payload_uri(config_filename: &str, expected_payload_uri: &Option<String>) {
+    // Checks for successful parsing of a config file containing a 'payload' in the 'provisioning' table
+    fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
         let s = load_settings(config_filename).unwrap();
 
-        let actual_payload_uri = match s.provisioning.provisioning {
+        let actual_payload = match s.provisioning.provisioning {
             ProvisioningType::Dps {
-                payload_uri: uri, ..
-            } => uri,
+                payload: p, ..
+            } => p,
             _ => panic!("wrong provisioning type specified in test config file"),
         };
 
         assert_eq!(
-            expected_payload_uri, &actual_payload_uri,
+            expected_payload, &actual_payload,
             "unexpected payload uri parsed from config file"
         );
     }
@@ -258,9 +265,9 @@ mod tests {
         // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
 
         let config_filename = "test/good_dps_config_with_simple_payload.toml";
-        let expected_payload_uri = Some("file:///tmp/simple_payload.json".to_owned());
+        let expected_payload = Some(Payload{uri: "file:///tmp/simple_payload.json".to_owned()});
 
-        check_payload_uri(config_filename, &expected_payload_uri);
+        check_payload(config_filename, &expected_payload);
     }
 
     #[test]
@@ -270,9 +277,9 @@ mod tests {
         // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
 
         let config_filename = "test/good_dps_config_with_complex_payload.toml";
-        let expected_payload_uri = Some("file:///tmp/complex_payload.json".to_owned());
+        let expected_payload = Some(Payload{uri: "file:///tmp/complex_payload.json".to_owned()});
 
-        check_payload_uri(config_filename, &expected_payload_uri);
+        check_payload(config_filename, &expected_payload);
     }
 
     #[test]

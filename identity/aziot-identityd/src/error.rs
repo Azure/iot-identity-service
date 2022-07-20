@@ -75,15 +75,18 @@ pub enum InternalError {
     BadSettings(std::io::Error),
     CreateCertificate(Box<dyn std::error::Error + Send + Sync>),
     CreateHomeDir(std::io::Error),
+    DeserializeDpsPayload(serde_json::Error),
     GetModulePath(Box<dyn std::error::Error + Send + Sync>),
     InvalidProxyUri(Box<dyn std::error::Error + Send + Sync>),
     InvalidUri(http::uri::InvalidUri),
     LoadKeyOpensslEngine(openssl2::Error),
     LoadDeviceInfo(std::io::Error),
+    LoadDpsPayload(std::io::Error),
     LoadSettings(std::io::Error),
     MasterIdentityKey(std::io::Error),
     ParseDeviceInfo(toml::de::Error),
     ParseSettings(toml::de::Error),
+    ParseUrl(url::ParseError),
     SaveDeviceInfo(std::io::Error),
     SaveModuleBackup(std::io::Error),
     SerializeDeviceInfo(toml::ser::Error),
@@ -96,6 +99,9 @@ impl std::fmt::Display for InternalError {
             InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
             InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
             InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
+            InternalError::DeserializeDpsPayload(_) => {
+                f.write_str("could not deserialize custom DPS payload")
+            }
             InternalError::GetModulePath(_) => f.write_str("could not get module backup file path"),
             InternalError::InvalidProxyUri(_) => f.write_str("invalid proxy uri"),
             InternalError::InvalidUri(_) => f.write_str("invalid resource uri"),
@@ -105,12 +111,14 @@ impl std::fmt::Display for InternalError {
             InternalError::LoadDeviceInfo(_) => {
                 f.write_str("could not load device information state")
             }
+            InternalError::LoadDpsPayload(m) => write!(f, "could not load DPS payload: {}", m),
             InternalError::LoadSettings(_) => f.write_str("could not load settings"),
             InternalError::MasterIdentityKey(_) => f.write_str("master identity key error"),
             InternalError::ParseDeviceInfo(_) => {
                 f.write_str("could not parse device information state")
             }
             InternalError::ParseSettings(_) => f.write_str("could not parse settings"),
+            InternalError::ParseUrl(m) => write!(f, "could not parse url: {}", m),
             InternalError::SaveDeviceInfo(_) => {
                 f.write_str("could not save device information state")
             }
@@ -132,15 +140,18 @@ impl std::error::Error for InternalError {
             InternalError::BadSettings(err) => Some(err),
             InternalError::CreateCertificate(err) => Some(&**err),
             InternalError::CreateHomeDir(err) => Some(err),
+            InternalError::DeserializeDpsPayload(err) => Some(err),
             InternalError::GetModulePath(err) => Some(&**err),
             InternalError::InvalidProxyUri(err) => Some(&**err),
             InternalError::InvalidUri(err) => Some(err),
             InternalError::LoadKeyOpensslEngine(err) => Some(err),
             InternalError::LoadDeviceInfo(err) => Some(err),
+            InternalError::LoadDpsPayload(err) => Some(err),
             InternalError::LoadSettings(err) => Some(err),
             InternalError::MasterIdentityKey(err) => Some(err),
             InternalError::ParseDeviceInfo(err) => Some(err),
             InternalError::ParseSettings(err) => Some(err),
+            InternalError::ParseUrl(err) => Some(err),
             InternalError::SaveDeviceInfo(err) => Some(err),
             InternalError::SaveModuleBackup(err) => Some(err),
             InternalError::SaveSettings(err) => Some(err),

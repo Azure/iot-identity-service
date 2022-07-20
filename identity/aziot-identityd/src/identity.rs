@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aziot_identityd_config as config;
+use config::Payload;
 
 use crate::create_csr;
 use crate::error::{Error, InternalError};
@@ -635,7 +636,7 @@ impl IdentityManager {
                 global_endpoint,
                 scope_id,
                 attestation,
-                payload_uri,
+                payload,
             } => {
                 if provisioning.local_gateway_hostname.is_some() {
                     return Err(Error::DpsNotSupportedInNestedMode);
@@ -706,7 +707,7 @@ impl IdentityManager {
                         &registration_id,
                         credentials,
                         provisioning.local_gateway_hostname,
-                        payload_uri,
+                        payload,
                     )
                     .await?;
 
@@ -732,7 +733,7 @@ impl IdentityManager {
         registration_id: &str,
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
-        payload_uri: Option<String>,
+        payload: Option<Payload>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
@@ -753,8 +754,23 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
+        // Read payload from specified file
+        let payload =
+            match payload {
+                Some(payload) => {
+                    let url = url::Url::parse(&payload.uri)
+                        .map_err(|err| Error::Internal(InternalError::ParseUrl(err)))?;
+                    let content = std::fs::read_to_string(url.path())
+                        .map_err(|err| Error::Internal(InternalError::LoadDeviceInfo(err)))?;
+                    Some(serde_json::from_str(content.as_str()).map_err(|err| {
+                        Error::Internal(InternalError::DeserializeDpsPayload(err))
+                    })?)
+                }
+                None => None,
+            };
+
         let response = dps_request
-            .register(scope_id, registration_id, payload_uri)
+            .register(scope_id, registration_id, payload)
             .await
             .map_err(Error::DpsClient)?;
 

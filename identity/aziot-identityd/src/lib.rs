@@ -16,7 +16,7 @@
 )]
 #![allow(dead_code)]
 
-use std::{io::ErrorKind, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
@@ -277,7 +277,7 @@ impl Api {
                 global_endpoint,
                 scope_id,
                 attestation,
-                payload_uri,
+                payload,
             } => {
                 let (auth, registration_id) = match attestation {
                     config::DpsAttestationMethod::SymmetricKey {
@@ -335,18 +335,14 @@ impl Api {
                 };
 
                 // Read payload from specified file
-                let payload = match payload_uri {
-                    Some(payload_uri) => {
-                        let url = url::Url::parse(payload_uri).map_err(|err| {
-                            Error::Internal(InternalError::BadSettings(std::io::Error::new(
-                                ErrorKind::InvalidData,
-                                err,
-                            )))
-                        })?;
+                let payload = match payload {
+                    Some(payload) => {
+                        let url = url::Url::parse(&payload.uri)
+                            .map_err(|err| Error::Internal(InternalError::ParseUrl(err)))?;
                         let content = std::fs::read_to_string(url.path())
-                            .map_err(|err| Error::Internal(InternalError::BadSettings(err)))?;
+                            .map_err(|err| Error::Internal(InternalError::LoadDeviceInfo(err)))?;
                         Some(serde_json::from_str(content.as_str()).map_err(|err| {
-                            Error::Internal(InternalError::BadSettings(err.into()))
+                            Error::Internal(InternalError::DeserializeDpsPayload(err))
                         })?)
                     }
                     None => None,

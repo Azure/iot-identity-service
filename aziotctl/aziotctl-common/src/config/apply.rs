@@ -169,7 +169,7 @@ pub fn run(
                 global_endpoint,
                 id_scope,
                 attestation,
-                payload_uri,
+                payload,
             } => {
                 if parent_hostname.is_some() {
                     return Err(anyhow!("DPS provisioning is not supported in nested mode"));
@@ -269,11 +269,16 @@ pub fn run(
                     }
                 };
 
+                let payload: Option<aziot_identityd_config::Payload> = match payload {
+                    Some(p) => Some(aziot_identityd_config::Payload { uri: p.uri }),
+                    None => None,
+                };
+
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id: id_scope,
                     attestation,
-                    payload_uri,
+                    payload,
                 }
             }
 

@@ -8,7 +8,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 "global_endpoint" = "http://globaldevices.net"
 "scope_id" = "scope"
-payload_uri = "file:///tmp/complex_payload.json"
+payload = { uri = "file:///tmp/complex_payload.json" }
 
 [provisioning.attestation]
 method = "symmetric_key"

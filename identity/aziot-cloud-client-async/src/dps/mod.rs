@@ -5,6 +5,7 @@ pub mod schema;
 use std::io::{Error, ErrorKind};
 
 use http_common::HttpRequest;
+use serde_json::Value;
 
 const API_VERSION: &str = "api-version=2021-06-01";
 
@@ -75,7 +76,7 @@ impl Client {
         &self,
         scope_id: &str,
         registration_id: &str,
-        payload_uri: Option<String>,
+        payload: Option<Value>,
     ) -> Result<schema::Device, Error> {
         let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
@@ -87,20 +88,6 @@ impl Client {
             register_uri.set_query(Some(API_VERSION));
 
             register_uri
-        };
-
-        // Read payload from specified file
-        let payload = match payload_uri {
-            Some(payload_uri) => {
-                let url = url::Url::parse(&payload_uri)
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
-                let content = std::fs::read_to_string(url.path()).map_err(|err| {
-                    log::error!("could not read content from payload uri: {}", url.path());
-                    err
-                })?;
-                Some(serde_json::from_str(content.as_str())?)
-            }
-            None => None,
         };
 
         // Perform the DPS registration.

@@ -403,7 +403,7 @@ hostname = "$test_common_resource_name"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 id_scope = "$dps_scope_id"
-payload_uri = "file:///home/aziot/payload.json"
+payload = { uri = "file:///home/aziot/payload.json" }
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -760,7 +760,7 @@ if ! ssh -o StrictHostKeyChecking=no -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" 
 fi
 
 
-echo 'Installing package' >&2
+echo 'Installing package...' >&2
 case "$OS" in
     centos:*|platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
