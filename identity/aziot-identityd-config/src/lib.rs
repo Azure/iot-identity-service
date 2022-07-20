@@ -167,7 +167,7 @@ pub enum ProvisioningType {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct Payload {
-    pub uri: String
+    pub uri: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -246,9 +246,7 @@ mod tests {
         let s = load_settings(config_filename).unwrap();
 
         let actual_payload = match s.provisioning.provisioning {
-            ProvisioningType::Dps {
-                payload: p, ..
-            } => p,
+            ProvisioningType::Dps { payload: p, .. } => p,
             _ => panic!("wrong provisioning type specified in test config file"),
         };
 
@@ -265,7 +263,9 @@ mod tests {
         // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
 
         let config_filename = "test/good_dps_config_with_simple_payload.toml";
-        let expected_payload = Some(Payload{uri: "file:///tmp/simple_payload.json".to_owned()});
+        let expected_payload = Some(Payload {
+            uri: "file:///tmp/simple_payload.json".to_owned(),
+        });
 
         check_payload(config_filename, &expected_payload);
     }
@@ -277,7 +277,9 @@ mod tests {
         // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
 
         let config_filename = "test/good_dps_config_with_complex_payload.toml";
-        let expected_payload = Some(Payload{uri: "file:///tmp/complex_payload.json".to_owned()});
+        let expected_payload = Some(Payload {
+            uri: "file:///tmp/complex_payload.json".to_owned(),
+        });
 
         check_payload(config_filename, &expected_payload);
     }
