@@ -24,7 +24,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
-payload_uri = "file://$payload_file"
+payload = { uri = "file://$payload_file" }
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -106,7 +106,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
-payload_uri = "file://$payload_file"
+payload = { uri = "file://$payload_file" }
 
 [provisioning.attestation]
 method = "x509"
