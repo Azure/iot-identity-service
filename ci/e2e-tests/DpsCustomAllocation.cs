@@ -16,6 +16,11 @@ namespace DpsCustomAllocationFunctionProj
 {
     public static class DpsCustomAllocation
     {
+        /// <summary>
+        /// Assigns an IoT hub based on the model ID in the request payload. 
+        /// Assigns the "foo-devices" IoT hub if the model ID includes "foo".
+        /// Otherwise, returns an error and does not assign an IoT hub.
+        /// </summary>
         [FunctionName("DpsCustomAllocation")]
         public static async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req,

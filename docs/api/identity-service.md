@@ -106,7 +106,8 @@ The returned `auth.keyHandle` value is meant to be used with the [Keys Service](
   "auth": "string",
   "endpoint": "string",
   "scope_id": "string",
-  "registration_id": "string"
+  "registration_id": "string",
+  "payload": object
 }
 ```
 

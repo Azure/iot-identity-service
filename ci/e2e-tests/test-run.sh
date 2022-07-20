@@ -332,45 +332,11 @@ EOF
         ;;
 
     'dps-symmetric-key')
-        # Uses DPS symmetric key provisioning with a custom allocation policy. The custom policy
-        # is implemented by an Azure Function App that reads the model ID in the custom payload 
-        # sent to it by DPS. If the model ID includes "foo", the Function App assigns the device to the
-        # "foo-devices" IoT hub. Otherwise, the Function App returns an error and DPS does not provision 
-        # the device.
 
-        echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
-        func init DpsCustomAllocationFunctionProj --dotnet
-        pushd DpsCustomAllocationFunctionProj
-        func new --name DpsCustomAllocation --template "HTTP trigger" --authlevel "anonymous" --language C# --force
-        dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
-        dotnet add package Microsoft.Azure.Devices.Shared -v 1.27.0
-        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.cs" .
-        az storage account create \
-            --name customallocationstorage \
-            --location $AZURE_LOCATION \
-            --resource-group $AZURE_RESOURCE_GROUP_NAME \
-            --sku Standard_LRS
-        az functionapp create \
-            --resource-group $AZURE_RESOURCE_GROUP_NAME \
-            --consumption-plan-location $AZURE_LOCATION \
-            --runtime dotnet \
-            --functions-version 3 \
-            --name DpsCustomAllocationApp \
-            --storage-account customallocationstorage
-        webhook_url=$(func azure functionapp publish DpsCustomAllocationApp --force | awk -F ': ' '/Invoke url/ { print $2 }')
-        popd
-        echo 'Created an Azure Function for use as a DPS custom allocation policy.' >&2
-
-        echo 'Creating a second IoT hub for testing the custom allocation policy...'
-        foo_devices_hub_name="${suite_common_resource_name}-foo-devices"
-        expected_assigned_hub_name=$foo_devices_hub_name
-        createHub $foo_devices_hub_name
-        dps_resource_id=$(az iot dps show \
-            --name $suite_common_resource_name \
-            --resource-group $AZURE_RESOURCE_GROUP_NAME \
-                | jq '.id' -r)
-        createDpsLinkedHub $suite_common_resource_name $foo_devices_hub_name $dps_resource_id "suite_id=$suite_id"
-        echo 'Created second IoT hub.'
+        echo 'Creating custom allocation policy...'
+        expected_assigned_hub_name="${suite_common_resource_name}-foo-devices"
+        createCustomAllocationPolicy "payload.json" "$expected_assigned_hub_name" webhook_url
+        echo 'Created custom allocation policy...'
 
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
@@ -378,7 +344,7 @@ EOF
                 --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
                 --dps-name "$suite_common_resource_name" \
                 --enrollment-id "$test_common_resource_name" \
-                --iot-hubs "$suite_common_resource_name.azure-devices.net $foo_devices_hub_name.azure-devices.net" \
+                --iot-hubs "$suite_common_resource_name.azure-devices.net $expected_assigned_hub_name.azure-devices.net" \
                 --query 'attestation.symmetricKey.primaryKey' --output tsv \
                 --allocation-policy custom \
                 --api-version 2021-06-01 \
@@ -391,11 +357,6 @@ EOF
         derived_device_key="$(printf '%s' "$test_common_resource_name" | openssl sha256 -mac HMAC -macopt "hexkey:$keybytes" -binary | base64 -w 0)"
 
         echo 'Generating config files...' >&2
-        >payload.json cat <<-EOF
-{
-    "modelId": "foo 2022"
-}
-EOF
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
 

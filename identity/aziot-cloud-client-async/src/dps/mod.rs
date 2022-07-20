@@ -248,7 +248,7 @@ impl Client {
                         self.tpm_client.import_auth_key(auth_key).await?;
                         log::info!("Imported DPS authentication key into TPM.");
                     }
-                    log::info!("assigned hub: {}", device.assigned_hub);
+                    log::info!("Assigned to IoT hub: {}", device.assigned_hub);
                     return Ok(device);
                 }
 
