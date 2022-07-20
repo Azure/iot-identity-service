@@ -91,11 +91,11 @@ pub enum ProvisioningType {
     },
 
     Dps {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        payload: Option<Payload>,
         global_endpoint: Url,
         id_scope: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<Payload>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.

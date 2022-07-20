@@ -154,11 +154,11 @@ pub enum ProvisioningType {
         authentication: ManualAuthMethod,
     },
     Dps {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        payload: Option<Payload>,
         global_endpoint: url::Url,
         scope_id: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<Payload>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
