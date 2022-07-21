@@ -114,15 +114,21 @@ function setupCustomAllocationPolicy {
             --tags "suite_id=$suite_id"
 
         # Publishing the app sometimes fails, so retry up to 3 times
+        set +e
         for retry in {0..3}; do
             if [ "$retry" != "0" ]; then
                 sleep 10
             fi
+            echo "Publishing the function app. Attempt $retry..."
             func azure functionapp publish "$dps_allocation_functionapp_name" --force
             if [ "$?" == "0" ]; then
                 break
             fi
+            if [ "$retry" == "3" ]; then
+                exit 1
+            fi
         done
+        set -e
         
         popd
         echo 'Created an Azure Function for use as a DPS custom allocation policy.' >&2
@@ -149,6 +155,7 @@ function installTestTools {
                 -O packages-microsoft-prod.deb
             sudo dpkg -i packages-microsoft-prod.deb
             rm packages-microsoft-prod.deb
+            set +e
             for retry in {0..3}; do
                 if [ "$retry" != "0" ]; then
                     sleep 10
@@ -158,8 +165,9 @@ function installTestTools {
                     break
                 fi
             done
+            set -e
 
-            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4    
+            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4
             ;;
         *)
             echo "Install of test tools unsupported on OS: $os" >&2
