@@ -333,11 +333,15 @@ EOF
 
     'dps-symmetric-key')
 
-        echo 'Creating custom allocation policy...'
-        expected_assigned_hub_name="${suite_common_resource_name}-foo-devices"
-        createCustomAllocationPolicy "payload.json" "$expected_assigned_hub_name" webhook_url
-        echo 'Created custom allocation policy...'
-
+        expected_assigned_hub_name="$foo_devices_iot_hub"
+        webhook_url="$(
+            az functionapp function show \
+                --function-name $dps_allocation_function_name \
+                --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                --query "invokeUrlTemplate" --output tsv \
+                --name $dps_allocation_functionapp_name
+        )"
+        
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
@@ -357,6 +361,11 @@ EOF
         derived_device_key="$(printf '%s' "$test_common_resource_name" | openssl sha256 -mac HMAC -macopt "hexkey:$keybytes" -binary | base64 -w 0)"
 
         echo 'Generating config files...' >&2
+        >payload.json cat <<-EOF
+{
+    "modelId": "foo 2022"
+}
+EOF
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
 

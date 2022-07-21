@@ -36,3 +36,11 @@ dps_resource_id="$(
 createDpsLinkedHub $suite_common_resource_name $suite_common_resource_name $dps_resource_id "suite_id=$suite_id"
 
 echo 'Created DPS' >&2
+
+installTestTools
+
+echo 'Setting up custom allocation policy...'
+
+setupCustomAllocationPolicy
+
+echo 'Done setting up custom allocation policy'

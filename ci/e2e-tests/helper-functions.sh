@@ -76,57 +76,95 @@ function createDpsLinkedHub {
         --api-version 2020-03-01
 }
 
-# Creates a DPS custom allocation policy. This includes creating a device payload
-# file using the specified file name, and creating an additional IoT hub instance.
-# The logic in the custom allocation policy is implemented such that it assigns devices
-# to the new IoT hub when their payload matches the content in the generated payload file.
-#
-# Parameters:
-#   $1 payload_filename - The name to use for the generated device payload file
-#   $2 iot_hub_name - Name of the IoT hub to which the allocation policy should assign the device
-#   $3 webhook_url - The URL of the generated function app will be returned via this variable
-function createCustomAllocationPolicy {
-        local payload_filename=$1
-        local iot_hub_name=$2
-        local __webhook_url=$3
+# Sets up a DPS custom allocation policy. The logic in the custom allocation policy
+# assigns devices to a 'foo-devices' IoT hub if they have a payload containing
+# a 'modelId' field with 'foo' in it. 
+function setupCustomAllocationPolicy {
         echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
+        
+        # Initialize function app project and function
         func init DpsCustomAllocationFunctionProj --dotnet
         pushd DpsCustomAllocationFunctionProj
-        func new --name DpsCustomAllocation --template "HTTP trigger" --authlevel "anonymous" --language C# --force
+        func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --language C# --force
+        
+        # Copy source code into functino app project
+        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.cs" .
+
+        # Add build deps
         dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
         dotnet add package Microsoft.Azure.Devices.Shared -v 1.27.0
-        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.cs" .
+
+        # Create storeage account needed by function app
         az storage account create \
             --name customallocationstorage \
             --location $AZURE_LOCATION \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
-            --sku Standard_LRS
+            --sku Standard_LRS \
+            --tags "suite_id=$suite_id"
+
+        # Create function app
         az functionapp create \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
             --consumption-plan-location $AZURE_LOCATION \
             --runtime dotnet \
             --functions-version 3 \
-            --name DpsCustomAllocationApp \
-            --storage-account customallocationstorage
-        eval $__webhook_url=$(func azure functionapp publish DpsCustomAllocationApp --force | awk -F ': ' '/Invoke url/ { print $2 }')
+            --name "$dps_allocation_functionapp_name" \
+            --disable-app-insights \
+            --storage-account customallocationstorage \
+            --tags "suite_id=$suite_id"
+
+        # Publishing the app sometimes fails, so retry up to 3 times
+        for retry in {0..3}; do
+            if [ "$retry" != "0" ]; then
+                sleep 10
+            fi
+            func azure functionapp publish "$dps_allocation_functionapp_name" --force
+            if [ "$?" == "0" ]; then
+                break
+            fi
+        done
+        
         popd
         echo 'Created an Azure Function for use as a DPS custom allocation policy.' >&2
 
         echo 'Creating a second IoT hub for testing the custom allocation policy...'
-        createHub $2
+        createHub "$foo_devices_iot_hub"
         dps_resource_id=$(az iot dps show \
             --name $suite_common_resource_name \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
                 | jq '.id' -r)
-        createDpsLinkedHub $suite_common_resource_name $2 $dps_resource_id "suite_id=$suite_id"
+        createDpsLinkedHub $suite_common_resource_name "$foo_devices_iot_hub" $dps_resource_id "suite_id=$suite_id"
         echo 'Created second IoT hub.'
-
-        echo 'Generating payload file...' >&2
-        >"$1" cat <<-EOF
-{
-    "modelId": "foo 2022"
 }
-EOF
-        echo 'Generated payload file.' >&2
 
+# Install tools needed to run the tests
+function installTestTools {
+    echo 'Installing test tools...' >&2
+    distributor_id=$(lsb_release -is)
+    os=${distributor_id,,}
+    case "$os" in
+        debian|ubuntu)
+            release=$(lsb_release -rs)
+            wget "https://packages.microsoft.com/config/$os/$release/packages-microsoft-prod.deb" \
+                -O packages-microsoft-prod.deb
+            sudo dpkg -i packages-microsoft-prod.deb
+            rm packages-microsoft-prod.deb
+            for retry in {0..3}; do
+                if [ "$retry" != "0" ]; then
+                    sleep 10
+                fi
+                sudo apt-get update -y
+                if [ "$?" == "0" ]; then
+                    break
+                fi
+            done
+
+            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4    
+            ;;
+        *)
+            echo "Install of test tools unsupported on OS: $os" >&2
+            exit 1
+            ;;
+    esac
+    echo 'Installed test tools' >&2    
 }
