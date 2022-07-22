@@ -461,7 +461,7 @@ install-common:
 		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
 		$(INSTALL_DATA) -D "$$i/aziot-$${i}d/aziot-$${i}d.socket" "$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
 		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \
-			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBS)|' \
+			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBRARIES)|' \
 			-e 's|@libexecdir@|$(libexecdir)|' \
 			>"$$OUTPUT_SERVICE"; \
 		chmod 0644 "$$OUTPUT_SERVICE"; \
