@@ -70,7 +70,7 @@ impl Api {
                 Ok(handle) => handle,
                 Err(e) => {
                     log::error!(
-                        "could not read endorsement key from {}: {}",
+                        "could not read endorsement key from {:#x}: {}",
                         tss_minimal::handle::ENDORSEMENT_KEY,
                         e
                     );
@@ -83,7 +83,7 @@ impl Api {
                     )?;
                     context
                         .evict(
-                            Persistent::ENDORSEMENT_HIERARCHY,
+                            Persistent::OWNER_HIERARCHY,
                             &handle,
                             &Persistent::PASSWORD_SESSION,
                             tss_minimal::handle::ENDORSEMENT_KEY,
@@ -96,7 +96,7 @@ impl Api {
                 Ok(handle) => handle,
                 Err(e) => {
                     log::error!(
-                        "could not read storage root key from {}: {}",
+                        "could not read storage root key from {:#x}: {}",
                         tss_minimal::handle::STORAGE_ROOT_KEY,
                         e
                     );
