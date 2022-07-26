@@ -343,19 +343,16 @@ CBINDGEN_VERSION='0.15.0'
 
 case "$ARCH" in
     'amd64')
-        export CROSS_HOST_TRIPLE=x86_64-linux-gnu
         ;;
 
     'arm32v7')
-        export CROSS_HOST_TRIPLE=arm-linux-gnueabihf
-        export PKG_CONFIG_armv7_unknown_linux_gnueabihf="$CROSS_HOST_TRIPLE-pkg-config"
+        export PKG_CONFIG_armv7_unknown_linux_gnueabihf="arm-linux-gnueabihf-pkg-config"
 
         rustup target add armv7-unknown-linux-gnueabihf
         ;;
 
     'aarch64')
-        export CROSS_HOST_TRIPLE=aarch64-linux-gnu
-        export PKG_CONFIG_aarch64_unknown_linux_gnu="$CROSS_HOST_TRIPLE-pkg-config"
+        export PKG_CONFIG_aarch64_unknown_linux_gnu="aarch64-linux-gnu-pkg-config"
 
         rustup target add aarch64-unknown-linux-gnu
         ;;
