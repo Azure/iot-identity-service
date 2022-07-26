@@ -233,6 +233,7 @@ case "$test_name" in
         ;;
 esac
 
+
 expected_assigned_hub_name=$suite_common_resource_name
 case "$test_name" in
     'manual-symmetric-key')
