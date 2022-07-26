@@ -334,19 +334,12 @@ impl Api {
                     }
                 };
 
-                // Read payload from specified file
-                let payload = match payload {
-                    Some(payload) => {
-                        let url = url::Url::parse(&payload.uri)
-                            .map_err(|err| Error::Internal(InternalError::ParseUrl(err)))?;
-                        let content = std::fs::read_to_string(url.path())
-                            .map_err(|err| Error::Internal(InternalError::LoadDeviceInfo(err)))?;
-                        Some(serde_json::from_str(content.as_str()).map_err(|err| {
-                            Error::Internal(InternalError::DeserializeDpsPayload(err))
-                        })?)
-                    }
-                    None => None,
-                };
+                // Read payload from file
+                let payload: Option<serde_json::Value> = payload
+                    .as_ref()
+                    .map(aziot_identityd_config::Payload::serde_json_value)
+                    .transpose()
+                    .map_err(|err| Error::InvalidParameter("invalid payload", err.into()))?;
 
                 Ok(
                     aziot_identity_common_http::get_provisioning_info::Response::Dps {

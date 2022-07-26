@@ -269,6 +269,7 @@ dependencies = [
  "http-common",
  "libc",
  "serde",
+ "serde_json",
  "toml",
  "url",
 ]

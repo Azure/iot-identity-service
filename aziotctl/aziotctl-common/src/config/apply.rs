@@ -269,10 +269,7 @@ pub fn run(
                     }
                 };
 
-                let payload: Option<aziot_identityd_config::Payload> = match payload {
-                    Some(p) => Some(aziot_identityd_config::Payload { uri: p.uri }),
-                    None => None,
-                };
+                let payload = payload.map(|p| aziot_identityd_config::Payload { uri: p.uri });
 
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,

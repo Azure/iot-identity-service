@@ -332,7 +332,6 @@ EOF
         ;;
 
     'dps-symmetric-key')
-
         expected_assigned_hub_name="$foo_devices_iot_hub"
         webhook_url="$(
             az functionapp function show \
@@ -381,7 +380,6 @@ registration_id = "$test_common_resource_name"
 symmetric_key = { value = "$derived_device_key" }
 EOF
         echo 'Generated config files.' >&2
-
         ;;
 
     'dps-x509')

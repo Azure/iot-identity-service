@@ -4,6 +4,8 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
 
+use std::io::ErrorKind;
+
 mod check;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -168,6 +170,27 @@ pub enum ProvisioningType {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct Payload {
     pub uri: String,
+}
+
+impl Payload {
+    /// Reads the payload from the file specified by the uri, returning the `serde_json::Value` representation
+    pub fn serde_json_value(&self) -> Result<serde_json::Value, std::io::Error> {
+        let url = url::Url::parse(self.uri.as_ref())
+            .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))?;
+        if url.scheme() != "file" {
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "payload uri is not a file",
+            ));
+        }
+        let content = std::fs::read_to_string(url.to_file_path().map_err(|_| {
+            std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
+        })?)
+        .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;
+
+        serde_json::from_str::<serde_json::Value>(content.as_str())
+            .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

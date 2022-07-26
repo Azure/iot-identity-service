@@ -7,7 +7,7 @@ cd /src
 . ./ci/mock-iot-tests/mock-iot-setup.sh
 
 # Create an example custom DPS payload file
-payload_file="/etc/aziot/identityd/payload.json"
+payload_file='/etc/aziot/identityd/payload.json'
 cp /src/identity/aziot-identityd-config/test/complex_payload.json $payload_file
 
 # Start mock-iot-server and wait for it to come up.
