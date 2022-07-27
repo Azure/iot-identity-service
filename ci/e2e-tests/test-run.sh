@@ -373,7 +373,7 @@ hostname = "$test_common_resource_name"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 id_scope = "$dps_scope_id"
-payload = { uri = "file:///home/aziot/payload.json" }
+payload = { uri = "file:///etc/aziot/payload.json" }
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -792,6 +792,9 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo mv /home/aziot/config.toml /etc/aziot/
     sudo chown root:root /etc/aziot/config.toml
     sudo chmod 0600 /etc/aziot/config.toml
+    sudo mv /home/aziot/payload.json /etc/aziot/
+    sudo chown aziotid:aziotid /etc/aziot/payload.json
+    sudo chmod 0600 /etc/aziot/payload.json    
 
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
