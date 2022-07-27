@@ -6,7 +6,7 @@ pub mod request {
     pub struct DeviceRegistration {
         pub registration_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub payload: Option<serde_json::value::Value>,
+        pub payload: Option<serde_json::Value>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -14,6 +14,8 @@ pub mod request {
     pub struct TpmRegistration {
         pub registration_id: String,
         pub tpm: Option<super::TpmAttestation>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub payload: Option<serde_json::Value>,
     }
 }
 
@@ -81,7 +83,7 @@ pub mod response {
 pub struct Device {
     pub assigned_hub: String,
     pub device_id: String,
-    pub payload: Option<serde_json::value::Value>,
+    pub payload: Option<serde_json::Value>,
 }
 
 impl From<response::ServiceError> for std::io::Error {

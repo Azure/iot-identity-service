@@ -134,7 +134,7 @@ pub mod get_provisioning_info {
             endpoint: String,
             scope_id: String,
             registration_id: String,
-            payload: Option<serde_json::value::Value>,
+            payload: Option<serde_json::Value>,
         },
         Manual {
             auth: String,

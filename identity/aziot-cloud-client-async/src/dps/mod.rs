@@ -116,6 +116,7 @@ impl Client {
         connector: crate::CloudConnector,
         uri: &str,
         registration_id: &str,
+        payload: Option<Value>,
     ) -> Result<(), Error> {
         let request_body = {
             let tpm_keys = self.tpm_client.get_tpm_keys().await?;
@@ -123,6 +124,7 @@ impl Client {
             schema::request::TpmRegistration {
                 registration_id: registration_id.to_string(),
                 tpm: Some(tpm_keys.into()),
+                payload,
             }
         };
 
@@ -166,8 +168,13 @@ impl Client {
         // from DPS. After decrypting and importing the nonce, the remaining registration
         // steps are the same as registration with SAS key.
         if let aziot_identity_common::Credentials::Tpm = &self.auth {
-            self.get_tpm_nonce(connector.clone(), register_uri, registration_id)
-                .await?;
+            self.get_tpm_nonce(
+                connector.clone(),
+                register_uri,
+                registration_id,
+                register_body.payload.clone(),
+            )
+            .await?;
         }
 
         // Determine the Authorization header to include.
