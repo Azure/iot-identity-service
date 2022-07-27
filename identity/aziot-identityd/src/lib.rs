@@ -30,6 +30,7 @@ mod http;
 pub mod identity;
 mod renewal;
 
+use config::Payload;
 use config_common::watcher::UpdateConfig;
 pub use error::{Error, InternalError};
 
@@ -334,12 +335,7 @@ impl Api {
                     }
                 };
 
-                // Read payload from file
-                let payload: Option<serde_json::Value> = payload
-                    .as_ref()
-                    .map(aziot_identityd_config::Payload::serde_json_value)
-                    .transpose()
-                    .map_err(|err| Error::InvalidParameter("invalid payload", err.into()))?;
+                let payload: Option<serde_json::Value> = load_dps_request_payload(payload)?;
 
                 Ok(
                     aziot_identity_common_http::get_provisioning_info::Response::Dps {
@@ -900,6 +896,18 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
         chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 
     Ok(expiration)
+}
+
+/// Loads the payload from a `Payload` config object, returning it as a `serde_json::Value`
+pub (crate) fn load_dps_request_payload(payload: &Option<Payload>) -> Result<Option<serde_json::Value>, Error> {
+    payload
+        .as_ref()
+        .map(aziot_identityd_config::Payload::serde_json_value)
+        .transpose()
+        .map_err(|err| {
+            log::error!("Error loading DPS payload: {:?}", payload);
+            Error::InvalidParameter("provisioning.payload", err.into())
+        })
 }
 
 #[cfg(test)]

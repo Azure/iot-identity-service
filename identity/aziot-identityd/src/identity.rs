@@ -7,7 +7,7 @@ use std::sync::Arc;
 use aziot_identityd_config as config;
 use config::Payload;
 
-use crate::create_csr;
+use crate::{create_csr, load_dps_request_payload};
 use crate::error::{Error, InternalError};
 
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
@@ -754,12 +754,7 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
-        // Read payload from file
-        let payload: Option<serde_json::Value> = payload
-            .as_ref()
-            .map(aziot_identityd_config::Payload::serde_json_value)
-            .transpose()
-            .map_err(|err| Error::InvalidParameter("invalid payload", err.into()))?;
+        let payload: Option<serde_json::Value> = load_dps_request_payload(&payload)?;
 
         let response = dps_request
             .register(scope_id, registration_id, payload)
