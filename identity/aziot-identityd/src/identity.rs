@@ -7,8 +7,8 @@ use std::sync::Arc;
 use aziot_identityd_config as config;
 use config::Payload;
 
-use crate::{create_csr, load_dps_request_payload};
 use crate::error::{Error, InternalError};
+use crate::{create_csr, load_dps_request_payload};
 
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');

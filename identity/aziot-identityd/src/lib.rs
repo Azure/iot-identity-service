@@ -899,7 +899,9 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 }
 
 /// Loads the payload from a `Payload` config object, returning it as a `serde_json::Value`
-pub (crate) fn load_dps_request_payload(payload: &Option<Payload>) -> Result<Option<serde_json::Value>, Error> {
+pub(crate) fn load_dps_request_payload(
+    payload: &Option<Payload>,
+) -> Result<Option<serde_json::Value>, Error> {
     payload
         .as_ref()
         .map(aziot_identityd_config::Payload::serde_json_value)
