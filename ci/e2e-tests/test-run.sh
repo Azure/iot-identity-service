@@ -792,9 +792,11 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo mv /home/aziot/config.toml /etc/aziot/
     sudo chown root:root /etc/aziot/config.toml
     sudo chmod 0600 /etc/aziot/config.toml
-    sudo mv /home/aziot/payload.json /etc/aziot/
-    sudo chown aziotid:aziotid /etc/aziot/payload.json
-    sudo chmod 0600 /etc/aziot/payload.json    
+    if [ -f /home/aziot/payload.json ]; then
+        sudo mv /home/aziot/payload.json /etc/aziot/
+        sudo chown aziotid:aziotid /etc/aziot/payload.json
+        sudo chmod 0600 /etc/aziot/payload.json
+    fi
 
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
