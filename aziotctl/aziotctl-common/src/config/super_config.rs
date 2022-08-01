@@ -103,7 +103,7 @@ pub enum ProvisioningType {
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Payload {
-    pub uri: String,
+    pub uri: Url,
 }
 
 #[allow(clippy::large_enum_variant)]

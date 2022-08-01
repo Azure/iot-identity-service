@@ -2,7 +2,11 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::large_enum_variant
+)]
 
 use std::io::ErrorKind;
 
@@ -169,7 +173,7 @@ pub enum ProvisioningType {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct Payload {
-    pub uri: String,
+    pub uri: url::Url,
 }
 
 impl Payload {
@@ -287,7 +291,7 @@ mod tests {
 
         let config_filename = "test/good_dps_config_with_simple_payload.toml";
         let expected_payload = Some(Payload {
-            uri: "file:///tmp/simple_payload.json".to_owned(),
+            uri: url::Url::parse("file:///tmp/simple_payload.json").unwrap(),
         });
 
         check_payload(config_filename, &expected_payload);
@@ -295,13 +299,14 @@ mod tests {
 
     #[test]
     fn dps_provisioning_with_complex_payload_succeeds() {
-        std::fs::copy("test/complex_payload.json", "/tmp/complex_payload.json").unwrap();
+        std::fs::copy("test/complex_payload.json", "/tmp/complex_payload.json")
+            .expect("invalid uri");
 
         // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
 
         let config_filename = "test/good_dps_config_with_complex_payload.toml";
         let expected_payload = Some(Payload {
-            uri: "file:///tmp/complex_payload.json".to_owned(),
+            uri: url::Url::parse("file:///tmp/complex_payload.json").expect("invalid uri"),
         });
 
         check_payload(config_filename, &expected_payload);
