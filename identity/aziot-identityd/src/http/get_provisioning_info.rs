@@ -8,7 +8,7 @@ pub(super) struct Route {
 impl http_common::server::Route for Route {
     type ApiVersion = aziot_identity_common_http::ApiVersion;
     fn api_version() -> &'static dyn http_common::DynRangeBounds<Self::ApiVersion> {
-        &((aziot_identity_common_http::ApiVersion::V2022_08_01)..)
+        &((aziot_identity_common_http::ApiVersion::V2021_12_01)..)
     }
 
     type Service = super::Service;
