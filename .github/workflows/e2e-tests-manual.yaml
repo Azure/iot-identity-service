@@ -26,7 +26,7 @@ jobs:
 
     - name: 'Run'
       run: |
-        timeout 10m ./ci/e2e-tests/suite-setup.sh
+        timeout 45m ./ci/e2e-tests/suite-setup.sh
       env:
         BRANCH: "${{ github.event.inputs.branch }}"
 

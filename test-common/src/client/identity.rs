@@ -173,5 +173,6 @@ fn provisioning_info() -> ProvisioningInfo {
         endpoint: "localhost".to_string(),
         scope_id: "scope".to_string(),
         registration_id: "registrationId".to_string(),
+        payload: Some(serde_json::json!({"model_id": "model 1"})),
     }
 }

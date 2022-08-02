@@ -269,6 +269,7 @@ dependencies = [
  "http-common",
  "libc",
  "serde",
+ "serde_json",
  "toml",
  "url",
 ]
@@ -2352,6 +2353,7 @@ dependencies = [
  "http-common",
  "hyper",
  "openssl",
+ "serde_json",
  "tokio",
  "tokio-openssl",
 ]
