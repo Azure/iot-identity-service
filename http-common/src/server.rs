@@ -179,37 +179,36 @@ macro_rules! make_service {
 
                                         http::Method::PUT => {
                                             let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                            let body = match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
-                                                Some("application/json") | None => {
-                                                    let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                        Ok(Ok(body)) => body,
-                                                        Ok(Err(err)) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::BAD_REQUEST,
-                                                            message: http_common::server::error_to_message(&err).into(),
-                                                        }).to_http_response()),
-                                                        Err(timeout_err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                            message: http_common::server::error_to_message(&timeout_err).into(),
-                                                        }).to_http_response()),
-                                                    };
+                                            let body = if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                                let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
+                                                    Ok(Ok(body)) => body,
+                                                    Ok(Err(err)) => return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::BAD_REQUEST,
+                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    }).to_http_response()),
+                                                    Err(timeout_err) => return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::REQUEST_TIMEOUT,
+                                                        message: http_common::server::error_to_message(&timeout_err).into(),
+                                                    }).to_http_response()),
+                                                };
 
-                                                    let body: <$route as http_common::server::Route>::PutBody = match serde_json::from_slice(&body) {
-                                                        Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                            message: http_common::server::error_to_message(&err).into(),
-                                                        }).to_http_response()),
-                                                    };
+                                                let body: <$route as http_common::server::Route>::PutBody = match serde_json::from_slice(&body) {
+                                                    Ok(body) => body,
+                                                    Err(err) => return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    }).to_http_response()),
+                                                };
 
-                                                    body
-                                                },
-                                                _ => {
-                                                    return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                                                        message: "request body must be application/json".into(),
-                                                    }).to_http_response());
-                                                },
+                                                body
+                                            }
+                                            else {
+                                                return Ok((http_common::server::Error {
+                                                    status_code: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                                                    message: "request body must be application/json".into(),
+                                                }).to_http_response());
                                             };
+
 
                                             match <$route as http_common::server::Route>::put(route, body).await {
                                                 Ok(result) => result,
