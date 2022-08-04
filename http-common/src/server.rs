@@ -113,7 +113,7 @@ macro_rules! make_service {
                                             } else {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
 
-                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json").then_some("application/json")) {
+                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
                                                     Some("application/json") | None => {
                                                         let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
                                                             Ok(body) => body,
@@ -159,7 +159,7 @@ macro_rules! make_service {
                                                 None
                                             } else {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json").then_some("application/json")) {
+                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
                                                     Some("application/json") | None => {
 
                                                         let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
@@ -184,7 +184,7 @@ macro_rules! make_service {
 
                                         http::Method::PUT => {
                                             let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                            let body = match content_type.as_deref().and_then(|ct| ct.starts_with("application/json").then_some("application/json")) {
+                                            let body = match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
                                                 Some("application/json") | None => {
                                                     let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
                                                         Ok(Ok(body)) => body,
