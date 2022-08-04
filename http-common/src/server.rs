@@ -111,22 +111,19 @@ macro_rules! make_service {
                                             let body = if body.len() == 0 {
                                                 None
                                             } else {
-                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-
-                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
-                                                    Some("application/json") | None => {
-                                                        let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
-                                                            Ok(body) => body,
-                                                            Err(err) => return Ok((http_common::server::Error {
-                                                                status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                                message: http_common::server::error_to_message(&err).into(),
-                                                            }).to_http_response()),
-                                                        };
-
-                                                        Some(body)
-                                                    },
-                                                    _ => None,
-                                                }
+                                            let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                            if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                                let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
+                                                    Ok(body) => body,
+                                                    Err(err) => return Ok((http_common::server::Error {
+                                                        status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    }).to_http_response()),
+                                                };
+                                                Some(body)
+                                            } else {
+                                                None
+                                            }
                                             };
 
                                             match <$route as http_common::server::Route>::delete(route, body).await {
@@ -159,20 +156,18 @@ macro_rules! make_service {
                                                 None
                                             } else {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                                match content_type.as_deref().and_then(|ct| ct.starts_with("application/json;").then_some("application/json")) {
-                                                    Some("application/json") | None => {
+                                                if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                                    let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
+                                                        Ok(body) => body,
+                                                        Err(err) => return Ok((http_common::server::Error {
+                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                            message: http_common::server::error_to_message(&err).into(),
+                                                        }).to_http_response()),
+                                                    };
 
-                                                        let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
-                                                            Ok(body) => body,
-                                                            Err(err) => return Ok((http_common::server::Error {
-                                                                status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                                message: http_common::server::error_to_message(&err).into(),
-                                                            }).to_http_response()),
-                                                        };
-
-                                                        Some(body)
-                                                    },
-                                                    _ => None,
+                                                    Some(body)
+                                                } else {
+                                                    None
                                                 }
                                             };
 
