@@ -10,6 +10,7 @@ futures-core = "0.3"
 futures-util = "0.3"
 hyper = { version = "0.14", features = ["server"] }
 openssl = "0.10"
+serde_json = "1"
 tokio = { version = "1", features = ["net"] }
 tokio-openssl = "0.6"
 

@@ -22,6 +22,7 @@ GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
 
 . "$GITHUB_WORKSPACE/ci/e2e-tests/az-login.sh"
 
+source "$GITHUB_WORKSPACE/ci/e2e-tests/helper-functions.sh"
 
 get_package() {
     if [ -n "${PACKAGE:-}" ]; then
@@ -233,6 +234,7 @@ case "$test_name" in
 esac
 
 
+expected_assigned_hub_name=$suite_common_resource_name
 case "$test_name" in
     'manual-symmetric-key')
         echo 'Creating IoT device...' >&2
@@ -331,14 +333,26 @@ EOF
         ;;
 
     'dps-symmetric-key')
+        expected_assigned_hub_name="$foo_devices_iot_hub"
+        webhook_url="$(
+            az functionapp function show \
+                --function-name $dps_allocation_function_name \
+                --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                --query "invokeUrlTemplate" --output tsv \
+                --name $dps_allocation_functionapp_name
+        )"
+        
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
                 --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
                 --dps-name "$suite_common_resource_name" \
                 --enrollment-id "$test_common_resource_name" \
-                --iot-hub-host-name "$suite_common_resource_name.azure-devices.net" \
-                --query 'attestation.symmetricKey.primaryKey' --output tsv
+                --iot-hubs "$suite_common_resource_name.azure-devices.net $expected_assigned_hub_name.azure-devices.net" \
+                --query 'attestation.symmetricKey.primaryKey' --output tsv \
+                --allocation-policy custom \
+                --api-version 2021-06-01 \
+                --webhook-url $webhook_url
         )"
         echo 'Created symmetric key enrollment group in DPS.' >&2
 
@@ -347,7 +361,11 @@ EOF
         derived_device_key="$(printf '%s' "$test_common_resource_name" | openssl sha256 -mac HMAC -macopt "hexkey:$keybytes" -binary | base64 -w 0)"
 
         echo 'Generating config files...' >&2
-
+        >payload.json cat <<-EOF
+{
+    "modelId": "foo 2022"
+}
+EOF
         >config.toml cat <<-EOF
 hostname = "$test_common_resource_name"
 
@@ -355,12 +373,14 @@ hostname = "$test_common_resource_name"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 id_scope = "$dps_scope_id"
+payload = { uri = "file:///etc/aziot/payload.json" }
 
 [provisioning.attestation]
 method = "symmetric_key"
 registration_id = "$test_common_resource_name"
 symmetric_key = { value = "$derived_device_key" }
 EOF
+        echo 'Generated config files.' >&2
         ;;
 
     'dps-x509')
@@ -490,7 +510,7 @@ nsg_id="$(
 echo 'Created NSG' >&2
 
 echo 'Querying public IP...' >&2
-self_ip="$(curl -L 'https://ipinfo.io/ip')"
+self_ip="$(wget -qO- https://ipecho.net/plain ; echo)"
 echo 'Queried public IP' >&2
 
 echo 'Creating allow-ssh rule in NSG...' >&2
@@ -762,6 +782,9 @@ scp -i "$PWD/vm-ssh-key" ./config.toml ./99-testmodule.toml "aziot@$vm_public_ip
 if [ -f device-id.key.pem ] && [ -f device-id.pem ]; then
     scp -i "$PWD/vm-ssh-key" device-id.key.pem device-id.pem "aziot@$vm_public_ip:/home/aziot/"
 fi
+if [ -f payload.json ]; then
+    scp -i "$PWD/vm-ssh-key" payload.json "aziot@$vm_public_ip:/home/aziot/"
+fi
 
 ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     set -euxo pipefail
@@ -769,6 +792,11 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
     sudo mv /home/aziot/config.toml /etc/aziot/
     sudo chown root:root /etc/aziot/config.toml
     sudo chmod 0600 /etc/aziot/config.toml
+    if [ -f /home/aziot/payload.json ]; then
+        sudo mv /home/aziot/payload.json /etc/aziot/
+        sudo chown aziotid:aziotid /etc/aziot/payload.json
+        sudo chmod 0600 /etc/aziot/payload.json
+    fi
 
     sudo usermod -aG aziotcs aziot
     sudo usermod -aG aziotks aziot
@@ -831,8 +859,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$device_identity\" jq -r '.spec.hubName')\" != '$suite_common_resource_name.azure-devices.net' ]; then
-        echo 'Expected .spec.hubName to be $suite_common_resource_name.azure-devices.net' >&2
+    if [ \"\$(<<< \"\$device_identity\" jq -r '.spec.hubName')\" != '$expected_assigned_hub_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $expected_assigned_hub_name.azure-devices.net' >&2
         exit 1
     fi
 
@@ -850,8 +878,8 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.hubName')\" != '$suite_common_resource_name.azure-devices.net' ]; then
-        echo 'Expected .spec.hubName to be $suite_common_resource_name.azure-devices.net' >&2
+    if [ \"\$(<<< \"\$module_identity\" jq -r '.spec.hubName')\" != '$expected_assigned_hub_name.azure-devices.net' ]; then
+        echo 'Expected .spec.hubName to be $expected_assigned_hub_name.azure-devices.net' >&2
         exit 1
     fi
 

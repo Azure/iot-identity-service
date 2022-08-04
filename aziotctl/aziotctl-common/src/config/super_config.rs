@@ -94,10 +94,16 @@ pub enum ProvisioningType {
         global_endpoint: Url,
         id_scope: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<Payload>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
     None,
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Payload {
+    pub uri: Url,
 }
 
 #[allow(clippy::large_enum_variant)]

@@ -8,7 +8,6 @@ pub mod handle;
 pub mod marshal;
 pub mod types;
 
-#[macro_use]
 mod error;
 mod private {
     pub trait Sealed {}
@@ -24,6 +23,8 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 
 use esys_sys::ESYS_TR_NONE;
+
+use crate::error::wrap_rc;
 
 #[derive(Debug)]
 pub struct EsysContext(*mut esys_sys::ESYS_CONTEXT);

@@ -1,0 +1,16 @@
+###############################################################################
+# Identity Service configuration
+###############################################################################
+hostname = "iotedge"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+source = "dps"
+"global_endpoint" = "http://globaldevices.net"
+"scope_id" = "scope"
+payload = { uri = "file:///tmp/complex_payload.json" }
+
+[provisioning.attestation]
+method = "symmetric_key"
+registration_id = "regid"
+symmetric_key = "dps"
