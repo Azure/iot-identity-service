@@ -367,7 +367,7 @@ if [ "${OS#mariner}" = "$OS" ]; then
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
-        cargo install cargo-tarpaulin --version '^0.18'
+        cargo install cargo-tarpaulin --version '^0.20' --locked
     fi
 fi
 
