@@ -112,7 +112,7 @@ macro_rules! make_service {
                                                 None
                                             } else {
                                             let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                            if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                            if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
                                                 let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
                                                     Ok(body) => body,
                                                     Err(err) => return Ok((http_common::server::Error {
@@ -156,7 +156,7 @@ macro_rules! make_service {
                                                 None
                                             } else {
                                                 let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                                if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                                if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
                                                     let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
                                                         Ok(body) => body,
                                                         Err(err) => return Ok((http_common::server::Error {
