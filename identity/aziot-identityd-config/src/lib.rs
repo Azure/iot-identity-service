@@ -2,7 +2,13 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc, clippy::must_use_candidate)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::large_enum_variant
+)]
+
+use std::io::ErrorKind;
 
 mod check;
 
@@ -157,10 +163,38 @@ pub enum ProvisioningType {
         global_endpoint: url::Url,
         scope_id: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<Payload>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
     None,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct Payload {
+    pub uri: url::Url,
+}
+
+impl Payload {
+    /// Reads the payload from the file specified by the uri, returning the `serde_json::Value` representation
+    pub fn serde_json_value(&self) -> Result<serde_json::Value, std::io::Error> {
+        let url = url::Url::parse(self.uri.as_ref())
+            .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))?;
+        if url.scheme() != "file" {
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "payload uri is not a file",
+            ));
+        }
+        let content = std::fs::read_to_string(url.to_file_path().map_err(|_| {
+            std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
+        })?)
+        .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;
+
+        serde_json::from_str::<serde_json::Value>(content.as_str())
+            .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -192,6 +226,8 @@ impl Default for Endpoints {
 
 #[cfg(test)]
 mod tests {
+    use crate::Payload;
+
     use super::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType, Settings};
 
     fn load_settings(
@@ -230,6 +266,50 @@ mod tests {
         ) {
             panic!("incorrect provisioning type selected");
         }
+    }
+
+    // Checks for successful parsing of a config file containing a 'payload' in the 'provisioning' table
+    fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
+        let s = load_settings(config_filename).unwrap();
+
+        let actual_payload = match s.provisioning.provisioning {
+            ProvisioningType::Dps { payload: p, .. } => p,
+            _ => panic!("wrong provisioning type specified in test config file"),
+        };
+
+        assert_eq!(
+            expected_payload, &actual_payload,
+            "unexpected payload uri parsed from config file"
+        );
+    }
+
+    #[test]
+    fn dps_provisioning_with_simple_payload_succeeds() {
+        std::fs::copy("test/simple_payload.json", "/tmp/simple_payload.json").unwrap();
+
+        // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
+
+        let config_filename = "test/good_dps_config_with_simple_payload.toml";
+        let expected_payload = Some(Payload {
+            uri: url::Url::parse("file:///tmp/simple_payload.json").unwrap(),
+        });
+
+        check_payload(config_filename, &expected_payload);
+    }
+
+    #[test]
+    fn dps_provisioning_with_complex_payload_succeeds() {
+        std::fs::copy("test/complex_payload.json", "/tmp/complex_payload.json")
+            .expect("invalid uri");
+
+        // TODO: Append payload uri to config file here, instead of hardcoding the value in the config file
+
+        let config_filename = "test/good_dps_config_with_complex_payload.toml";
+        let expected_payload = Some(Payload {
+            uri: url::Url::parse("file:///tmp/complex_payload.json").expect("invalid uri"),
+        });
+
+        check_payload(config_filename, &expected_payload);
     }
 
     #[test]

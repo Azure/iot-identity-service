@@ -271,7 +271,9 @@ case "$OS:$ARCH" in
                 BranchTag='1.0-stable'
                 ;;
             'mariner:2')
-                BranchTag='2.0-stable'
+                # BranchTag='2.0-stable'
+                # WARN: 2.0-stable is broken - https://github.com/microsoft/CBL-Mariner/issues/3483
+                BranchTag='2.0.20220713-2.0'
                 ;;
         esac
 
@@ -343,19 +345,16 @@ CBINDGEN_VERSION='0.15.0'
 
 case "$ARCH" in
     'amd64')
-        export CROSS_HOST_TRIPLE=x86_64-linux-gnu
         ;;
 
     'arm32v7')
-        export CROSS_HOST_TRIPLE=arm-linux-gnueabihf
-        export PKG_CONFIG_armv7_unknown_linux_gnueabihf="$CROSS_HOST_TRIPLE-pkg-config"
+        export PKG_CONFIG_armv7_unknown_linux_gnueabihf="arm-linux-gnueabihf-pkg-config"
 
         rustup target add armv7-unknown-linux-gnueabihf
         ;;
 
     'aarch64')
-        export CROSS_HOST_TRIPLE=aarch64-linux-gnu
-        export PKG_CONFIG_aarch64_unknown_linux_gnu="$CROSS_HOST_TRIPLE-pkg-config"
+        export PKG_CONFIG_aarch64_unknown_linux_gnu="aarch64-linux-gnu-pkg-config"
 
         rustup target add aarch64-unknown-linux-gnu
         ;;
@@ -368,7 +367,7 @@ if [ "${OS#mariner}" = "$OS" ]; then
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
-        cargo install cargo-tarpaulin --version '^0.18'
+        cargo install cargo-tarpaulin --version '^0.20' --locked
     fi
 fi
 

@@ -7,6 +7,7 @@
 pub enum ApiVersion {
     V2020_09_01,
     V2021_12_01,
+    V2022_08_01,
 }
 
 impl std::fmt::Display for ApiVersion {
@@ -14,6 +15,7 @@ impl std::fmt::Display for ApiVersion {
         f.write_str(match self {
             ApiVersion::V2020_09_01 => "2020-09-01",
             ApiVersion::V2021_12_01 => "2021-12-01",
+            ApiVersion::V2022_08_01 => "2022-08-01",
         })
     }
 }
@@ -25,6 +27,7 @@ impl std::str::FromStr for ApiVersion {
         match s {
             "2020-09-01" => Ok(ApiVersion::V2020_09_01),
             "2021-12-01" => Ok(ApiVersion::V2021_12_01),
+            "2022-08-01" => Ok(ApiVersion::V2022_08_01),
             _ => Err(()),
         }
     }
@@ -131,6 +134,7 @@ pub mod get_provisioning_info {
             endpoint: String,
             scope_id: String,
             registration_id: String,
+            payload: Option<serde_json::Value>,
         },
         Manual {
             auth: String,

@@ -5,6 +5,7 @@ pub mod schema;
 use std::io::{Error, ErrorKind};
 
 use http_common::HttpRequest;
+use serde_json::Value;
 
 const API_VERSION: &str = "api-version=2021-06-01";
 
@@ -75,6 +76,7 @@ impl Client {
         &self,
         scope_id: &str,
         registration_id: &str,
+        payload: Option<Value>,
     ) -> Result<schema::Device, Error> {
         let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
@@ -91,6 +93,7 @@ impl Client {
         // Perform the DPS registration.
         let register_body = schema::request::DeviceRegistration {
             registration_id: registration_id.to_string(),
+            payload,
         };
 
         let device = self
@@ -113,6 +116,7 @@ impl Client {
         connector: crate::CloudConnector,
         uri: &str,
         registration_id: &str,
+        payload: Option<Value>,
     ) -> Result<(), Error> {
         let request_body = {
             let tpm_keys = self.tpm_client.get_tpm_keys().await?;
@@ -120,6 +124,7 @@ impl Client {
             schema::request::TpmRegistration {
                 registration_id: registration_id.to_string(),
                 tpm: Some(tpm_keys.into()),
+                payload,
             }
         };
 
@@ -163,8 +168,13 @@ impl Client {
         // from DPS. After decrypting and importing the nonce, the remaining registration
         // steps are the same as registration with SAS key.
         if let aziot_identity_common::Credentials::Tpm = &self.auth {
-            self.get_tpm_nonce(connector.clone(), register_uri, registration_id)
-                .await?;
+            self.get_tpm_nonce(
+                connector.clone(),
+                register_uri,
+                registration_id,
+                register_body.payload.clone(),
+            )
+            .await?;
         }
 
         // Determine the Authorization header to include.
@@ -245,7 +255,7 @@ impl Client {
                         self.tpm_client.import_auth_key(auth_key).await?;
                         log::info!("Imported DPS authentication key into TPM.");
                     }
-
+                    log::info!("Assigned to IoT hub: {}", device.assigned_hub);
                     return Ok(device);
                 }
 

@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aziot_identityd_config as config;
+use config::Payload;
 
-use crate::create_csr;
 use crate::error::{Error, InternalError};
+use crate::{create_csr, load_dps_request_payload};
 
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
@@ -635,6 +636,7 @@ impl IdentityManager {
                 global_endpoint,
                 scope_id,
                 attestation,
+                payload,
             } => {
                 if provisioning.local_gateway_hostname.is_some() {
                     return Err(Error::DpsNotSupportedInNestedMode);
@@ -705,6 +707,7 @@ impl IdentityManager {
                         &registration_id,
                         credentials,
                         provisioning.local_gateway_hostname,
+                        payload,
                     )
                     .await?;
 
@@ -730,6 +733,7 @@ impl IdentityManager {
         registration_id: &str,
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
+        payload: Option<Payload>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
@@ -750,8 +754,10 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
+        let payload: Option<serde_json::Value> = load_dps_request_payload(&payload)?;
+
         let response = dps_request
-            .register(scope_id, registration_id)
+            .register(scope_id, registration_id, payload)
             .await
             .map_err(Error::DpsClient)?;
 
