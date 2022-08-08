@@ -179,7 +179,7 @@ macro_rules! make_service {
 
                                         http::Method::PUT => {
                                             let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
-                                            let body = if content_type.as_deref().map_or(true, |content_type| content_type == "application/json" || content_type.starts_with("application/json;")) {
+                                            let body = if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
                                                 let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
                                                     Ok(Ok(body)) => body,
                                                     Ok(Err(err)) => return Ok((http_common::server::Error {
