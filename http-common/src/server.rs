@@ -209,7 +209,6 @@ macro_rules! make_service {
                                                 }).to_http_response());
                                             };
 
-
                                             match <$route as http_common::server::Route>::put(route, body).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
