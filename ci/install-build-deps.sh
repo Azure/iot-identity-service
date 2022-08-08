@@ -145,7 +145,9 @@ case "$OS:$ARCH" in
                 BranchTag='1.0-stable'
                 ;;
             'mariner:2')
-                BranchTag='2.0-stable'
+                # BranchTag='2.0-stable'
+                # WARN: 2.0-stable is broken - https://github.com/microsoft/CBL-Mariner/issues/3483
+                BranchTag='2.0.20220713-2.0'
                 ;;
         esac
 
@@ -217,7 +219,7 @@ if [ "$OS" != 'mariner' ]; then
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
     if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
-        cargo install cargo-tarpaulin --version '^0.18'
+        cargo install cargo-tarpaulin --version '^0.20' --locked
     fi
 fi
 
