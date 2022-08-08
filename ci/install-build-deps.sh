@@ -280,7 +280,9 @@ case "$OS:$ARCH" in
         MarinerToolkitDir='/tmp/CBL-Mariner'
         if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
             rm -rf "$MarinerToolkitDir"
-            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
+            mkdir -p "$MarinerToolkitDir"
+            curl --proto https --tlsv1.2 --location "https://github.com/microsoft/CBL-Mariner/archive/${BranchTag}.tar.gz" \
+                | tar --verbose --extract --gunzip --strip-components=1 --directory="$MarinerToolkitDir" --file=-
             pushd "$MarinerToolkitDir/toolkit/" || exit
             make REBUILD_TOOLS=y package-toolkit
             popd || exit
