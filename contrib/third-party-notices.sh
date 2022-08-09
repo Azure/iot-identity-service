@@ -221,7 +221,7 @@ cargo metadata --format-version 1 |
             curl -Lo "$crate_directory/LICENSE" 'https://github.com/hannobraun/inotify/raw/52c18c527fe227b329f8428d73a1c732f2d56ce5/LICENSE'
         fi
 
-        if [ "$name:$version" == 'notify:4.0.15' ]; then
+        if [ "$name:$version" == 'notify:4.0.17' ]; then
             # TODO: Crate doesn't ship with LICENSE file but it's CC0-1.0. Fixed by upstream in
             # https://github.com/notify-rs/notify/commit/e0982ffc760bc0e34544d2a7c9d10cdba65183d9
             # but that requires notify v5.0, so remove this when that happens.
