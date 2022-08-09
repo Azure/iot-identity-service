@@ -3,6 +3,7 @@
 use std::sync::atomic;
 
 use futures_util::future;
+use nix::sys::socket::{AddressFamily, SockaddrLike, SockaddrStorage};
 
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
 
@@ -632,21 +633,18 @@ impl std::error::Error for ConnectorError {
 /// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
 /// so this function returns an Err for release builds using a TCP socket.
 fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
-    let sock_addr = nix::sys::socket::getsockname(fd)
+    let sock_addr = nix::sys::socket::getsockname::<SockaddrStorage>(fd)
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-    match sock_addr {
-        nix::sys::socket::SockAddr::Unix(_) => Ok(true),
+    match sock_addr.family() {
+        Some(AddressFamily::Unix) => Ok(true),
 
         // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
-        nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => Ok(false),
+        Some(AddressFamily::Inet | AddressFamily::Inet6) if cfg!(debug_assertions) => Ok(false),
 
-        sock_addr => Err(std::io::Error::new(
+        family => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!(
-                "systemd socket has unsupported address family {:?}",
-                sock_addr.family()
-            ),
+            format!("systemd socket has unsupported address family {:?}", family),
         )),
     }
 }
