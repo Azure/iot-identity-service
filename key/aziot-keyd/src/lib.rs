@@ -496,7 +496,7 @@ impl Api {
 
         // Authorize user based on stored principals config.
         if let Some(keys) = self.principals.get(&user) {
-            return keys.iter().any(|key| key.is_match(id));
+            return keys.iter().any(|key| key.matches(id));
         }
 
         false

@@ -26,7 +26,7 @@ fn register(
     let mut context = context.lock().unwrap();
 
     // Unique value to use for both operation ID and device ID.
-    let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
+    let uuid = uuid::Uuid::new_v4().hyphenated().to_string();
 
     let tpm = if body["tpm"] == serde_json::value::Value::Null {
         None

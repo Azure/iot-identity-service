@@ -221,7 +221,7 @@ impl Api {
 
         // Authorize user based on stored principals config.
         if let Some(certs) = self.principals.get(&user) {
-            return certs.iter().any(|cert| cert.is_match(id));
+            return certs.iter().any(|cert| cert.matches(id));
         }
 
         false
