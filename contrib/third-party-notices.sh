@@ -125,6 +125,7 @@ cargo metadata --format-version 1 |
                     error("crate \($name) has null license")
                 elif (
                     ($license == "MIT") or
+                    ($license == "(MIT OR Apache-2.0) AND Unicode-DFS-2016") or
                     ($license | startswith("MIT/")) or
                     ($license | startswith("MIT /")) or
                     ($license | startswith("MIT OR")) or
