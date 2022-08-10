@@ -39,8 +39,6 @@ pub enum Incoming {
     },
     Unix {
         listener: tokio::net::UnixListener,
-
-        #[cfg(not(feature = "no-socket-throttle"))]
         user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<atomic::AtomicUsize>>,
     },
 }
@@ -61,7 +59,6 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
-        #[cfg(not(feature = "no-socket-throttle"))]
         const MAX_REQUESTS_PER_USER: usize = 10;
 
         // Keep track of the number of running tasks.
@@ -103,8 +100,6 @@ impl Incoming {
 
             Incoming::Unix {
                 listener,
-
-                #[cfg(not(feature = "no-socket-throttle"))]
                 user_state,
             } => loop {
                 let accept = listener.accept();
@@ -117,8 +112,6 @@ impl Incoming {
                         let unix_stream = unix_stream?.0;
 
                         let ucred = unix_stream.peer_cred()?;
-
-                        #[cfg(not(feature = "no-socket-throttle"))]
                         let servers_available = user_state
                             .entry(ucred.uid())
                             .or_insert_with(|| {
@@ -131,42 +124,28 @@ impl Incoming {
                         tasks.fetch_add(1, atomic::Ordering::AcqRel);
                         let server_tasks = tasks.clone();
                         tokio::spawn(async move {
-                            #[cfg(not(feature = "no-socket-throttle"))]
-                            {
-                                let available = servers_available
-                                    .fetch_update(
-                                        atomic::Ordering::AcqRel,
-                                        atomic::Ordering::Acquire,
-                                        |current| current.checked_sub(1),
-                                    )
-                                    .is_ok();
+                            let available = servers_available
+                                .fetch_update(
+                                    atomic::Ordering::AcqRel,
+                                    atomic::Ordering::Acquire,
+                                    |current| current.checked_sub(1),
+                                )
+                                .is_ok();
 
-                                if available {
-                                    if let Err(http_err) = hyper::server::conn::Http::new()
-                                        .serve_connection(unix_stream, server)
-                                        .await
-                                    {
-                                        log::info!(
-                                            "Error while serving HTTP connection: {}",
-                                            http_err
-                                        );
-                                    }
-
-                                    servers_available.fetch_add(1, atomic::Ordering::AcqRel);
-                                } else {
-                                    log::info!(
-                                        "Max simultaneous connections reached for user {}",
-                                        ucred.uid()
-                                    );
+                            if available {
+                                if let Err(http_err) = hyper::server::conn::Http::new()
+                                    .serve_connection(unix_stream, server)
+                                    .await
+                                {
+                                    log::info!("Error while serving HTTP connection: {}", http_err);
                                 }
-                            }
 
-                            #[cfg(feature = "no-socket-throttle")]
-                            if let Err(http_err) = hyper::server::conn::Http::new()
-                                .serve_connection(unix_stream, server)
-                                .await
-                            {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
+                                servers_available.fetch_add(1, atomic::Ordering::AcqRel);
+                            } else {
+                                log::info!(
+                                    "Max simultaneous connections reached for user {}",
+                                    ucred.uid()
+                                );
                             }
 
                             server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
@@ -321,8 +300,6 @@ impl Connector {
 
                 Ok(Incoming::Unix {
                     listener,
-
-                    #[cfg(not(feature = "no-socket-throttle"))]
                     user_state: Default::default(),
                 })
             }
@@ -722,8 +699,6 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
         let listener = tokio::net::UnixListener::from_std(listener)?;
         Ok(Incoming::Unix {
             listener,
-
-            #[cfg(not(feature = "no-socket-throttle"))]
             user_state: Default::default(),
         })
     } else {
