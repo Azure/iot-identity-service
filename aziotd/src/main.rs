@@ -206,7 +206,7 @@ where
     log::info!("Starting server...");
 
     let mut incoming = connector
-        .incoming(SOCKET_DEFAULT_PERMISSION, None)
+        .incoming(SOCKET_DEFAULT_PERMISSION, 10, None)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
