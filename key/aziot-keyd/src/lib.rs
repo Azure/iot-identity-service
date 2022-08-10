@@ -28,7 +28,7 @@ pub async fn main(
     config: Config,
     config_path: std::path::PathBuf,
     config_directory_path: std::path::PathBuf,
-) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+) -> Result<(http_common::Incoming, http::Service), Box<dyn std::error::Error>> {
     let Config {
         aziot_keys,
         preloaded_keys,
@@ -89,7 +89,11 @@ pub async fn main(
 
     let service = http::Service { api };
 
-    Ok((connector, service))
+    let incoming = connector
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .await?;
+
+    Ok((incoming, service))
 }
 
 struct Api {

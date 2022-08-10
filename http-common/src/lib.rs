@@ -19,7 +19,8 @@ pub use dynrange::DynRangeBounds;
 
 mod connector;
 pub use connector::AsyncStream;
-pub use connector::{Connector, ConnectorError, Stream};
+pub use connector::SOCKET_DEFAULT_PERMISSION;
+pub use connector::{Connector, ConnectorError, Incoming, Stream};
 
 mod proxy;
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};

@@ -17,8 +17,6 @@ mod error;
 
 use error::{Error, ErrorKind};
 
-const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
-
 #[tokio::main]
 async fn main() {
     logger::try_init()
@@ -173,7 +171,7 @@ async fn run<TConfig, TFuture, TServer>(
 where
     TConfig: serde::de::DeserializeOwned,
     TFuture: std::future::Future<
-        Output = Result<(http_common::Connector, TServer), Box<dyn std::error::Error>>,
+        Output = Result<(http_common::Incoming, TServer), Box<dyn std::error::Error>>,
     >,
     TServer: hyper::service::Service<
             hyper::Request<hyper::Body>,
@@ -199,16 +197,11 @@ where
     let config: TConfig = config_common::read_config(&config_path, Some(&config_directory_path))
         .map_err(|err| ErrorKind::ReadConfig(Box::new(err)))?;
 
-    let (connector, server) = main(config, config_path, config_directory_path)
+    let (mut incoming, server) = main(config, config_path, config_directory_path)
         .await
         .map_err(ErrorKind::Service)?;
 
     log::info!("Starting server...");
-
-    let mut incoming = connector
-        .incoming(SOCKET_DEFAULT_PERMISSION, 10, None)
-        .await
-        .map_err(|err| ErrorKind::Service(Box::new(err)))?;
 
     // Channel to gracefully shut down the server. It's currently not used.
     let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();

@@ -22,13 +22,19 @@ pub async fn main(
     config: Config,
     _: std::path::PathBuf,
     _: std::path::PathBuf,
-) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+) -> Result<(http_common::Incoming, http::Service), Box<dyn std::error::Error>> {
     let api = Api::new(&config).map_err(|e| Error::Internal(InternalError::InitTpm(e)))?;
     let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
 
     let service = http::Service { api };
 
-    Ok((config.endpoints.aziot_tpmd, service))
+    let incoming = config
+        .endpoints
+        .aziot_tpmd
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .await?;
+
+    Ok((incoming, service))
 }
 
 pub struct Api {

@@ -39,7 +39,7 @@ use aziot_certd_config::{
     EstAuthBasic, PreloadedCert, Principal,
 };
 use config_common::watcher::UpdateConfig;
-use http_common::Connector;
+use http_common::Incoming;
 
 use error::{Error, InternalError};
 
@@ -50,7 +50,7 @@ pub async fn main(
     config: Config,
     config_path: PathBuf,
     config_directory_path: PathBuf,
-) -> Result<(Connector, http::Service), Box<dyn StdError>> {
+) -> Result<(Incoming, http::Service), Box<dyn StdError>> {
     let Config {
         homedir_path,
         cert_issuance,
@@ -107,7 +107,11 @@ pub async fn main(
 
     let service = http::Service { api };
 
-    Ok((connector, service))
+    let incoming = connector
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .await?;
+
+    Ok((incoming, service))
 }
 
 struct Api {

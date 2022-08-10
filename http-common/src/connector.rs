@@ -4,6 +4,8 @@ use std::sync::atomic;
 
 use futures_util::future;
 
+pub const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
+
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
 
 #[derive(Clone, Debug, PartialEq)]
