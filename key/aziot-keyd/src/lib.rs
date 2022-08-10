@@ -30,6 +30,7 @@ pub async fn main(
     config_directory_path: std::path::PathBuf,
 ) -> Result<(http_common::Incoming, http::Service), Box<dyn std::error::Error>> {
     let Config {
+        max_requests,
         aziot_keys,
         preloaded_keys,
         endpoints: Endpoints {
@@ -90,7 +91,7 @@ pub async fn main(
     let service = http::Service { api };
 
     let incoming = connector
-        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, max_requests, None)
         .await?;
 
     Ok((incoming, service))
@@ -518,6 +519,7 @@ impl UpdateConfig for Api {
 
         // Only allow runtime updates to principals.
         let Config {
+            max_requests: _,
             aziot_keys: _,
             preloaded_keys: _,
             endpoints: _,

@@ -6,6 +6,13 @@
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
+    /// Maximum number of simultaneous requests per user that keyd will service.
+    #[serde(
+        default = "http_common::Incoming::default_max_requests",
+        skip_serializing_if = "http_common::Incoming::is_default_max_requests"
+    )]
+    pub max_requests: usize,
+
     /// Parameters passed down to libaziot-keys. The allowed names and values are determined by the libaziot-keys implementation.
     #[serde(default)]
     pub aziot_keys: std::collections::BTreeMap<String, String>,

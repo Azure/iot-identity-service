@@ -51,6 +51,12 @@ pub struct Config {
     )]
     pub cloud_retries: u32,
 
+    #[serde(
+        default = "http_common::Incoming::default_max_requests",
+        skip_serializing_if = "http_common::Incoming::is_default_max_requests"
+    )]
+    pub max_requests: usize,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,

@@ -168,6 +168,14 @@ impl Incoming {
 
         Ok(())
     }
+
+    pub fn default_max_requests() -> usize {
+        10
+    }
+
+    pub fn is_default_max_requests(max_requests: &usize) -> bool {
+        *max_requests == Incoming::default_max_requests()
+    }
 }
 
 impl Connector {

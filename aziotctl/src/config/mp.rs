@@ -73,6 +73,8 @@ To reconfigure IoT Identity Service, run:
 
         cloud_retries: aziot_identityd_config::Settings::default_cloud_retries(),
 
+        max_requests: http_common::Incoming::default_max_requests(),
+
         aziot_keys: Default::default(),
 
         preloaded_keys: Default::default(),
