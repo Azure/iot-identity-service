@@ -915,7 +915,7 @@ impl IdentityManager {
 
     async fn save_dps_identity_cert(&self, identity_cert: &[u8]) -> Result<(), Error> {
         self.cert_client
-            .import_cert(aziot_identity_common::DPS_IDENTITY_CERT, &identity_cert)
+            .import_cert(aziot_identity_common::DPS_IDENTITY_CERT, identity_cert)
             .await
             .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
