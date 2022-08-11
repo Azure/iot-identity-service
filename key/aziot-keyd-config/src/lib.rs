@@ -70,6 +70,8 @@ mod tests {
     #[test]
     fn parse_config() {
         let actual = r#"
+max_requests = 50
+
 [aziot_keys]
 homedir_path = "/var/lib/aziot/keyd"
 pkcs11_lib_path = "/usr/lib64/pkcs11/libsofthsm2.so"
@@ -88,6 +90,7 @@ keys = ["test"]
         assert_eq!(
             actual,
             super::Config {
+                max_requests: 50,
                 aziot_keys: [
                     ("homedir_path", "/var/lib/aziot/keyd"),
                     ("pkcs11_lib_path", "/usr/lib64/pkcs11/libsofthsm2.so"),
@@ -134,6 +137,8 @@ aziot_keyd = "unix:///run/aziot/keyd.sock"
         assert_eq!(
             actual,
             super::Config {
+                max_requests: http_common::Incoming::default_max_requests(),
+
                 aziot_keys: Default::default(),
 
                 preloaded_keys: Default::default(),
