@@ -58,12 +58,12 @@ fn register(
     let client_cert_csr = if body["clientCertificateCsr"] == serde_json::value::Value::Null {
         None
     } else {
-        match serde_json::to_string(&body["clientCertificateCsr"]) {
-            Ok(client_cert_csr) => Some(client_cert_csr),
-            Err(_) => {
+        match &body["clientCertificateCsr"] {
+            serde_json::Value::String(client_cert_csr) => Some(client_cert_csr),
+            _ => {
                 return Response::Error {
                     status: http::StatusCode::BAD_REQUEST,
-                    message: "bad client certificate csr".to_string(),
+                    message: "incorrect data type for client certificate csr".to_string(),
                 }
             }
         }
