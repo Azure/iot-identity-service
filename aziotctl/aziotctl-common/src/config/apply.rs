@@ -519,6 +519,7 @@ pub fn run(
     };
 
     let tpmd_config = aziot_tpmd_config::Config {
+        max_requests: aziot_max_requests.tpmd,
         shared: tpm,
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,

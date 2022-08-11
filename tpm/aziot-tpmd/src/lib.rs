@@ -31,7 +31,11 @@ pub async fn main(
     let incoming = config
         .endpoints
         .aziot_tpmd
-        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .incoming(
+            http_common::SOCKET_DEFAULT_PERMISSION,
+            config.max_requests,
+            None,
+        )
         .await?;
 
     Ok((incoming, service))

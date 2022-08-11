@@ -20,6 +20,13 @@ const fn valid_persistent_index(index: u32) -> bool {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Config {
+    /// Maximum number of simultaneous requests per user that tpmd will service.
+    #[serde(
+        default = "http_common::Incoming::default_max_requests",
+        skip_serializing_if = "http_common::Incoming::is_default_max_requests"
+    )]
+    pub max_requests: usize,
+
     #[serde(flatten)]
     pub shared: SharedConfig,
 
@@ -129,6 +136,7 @@ mod tests {
         assert_eq!(
             actual,
             super::Config {
+                max_requests: http_common::Incoming::default_max_requests(),
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
@@ -146,6 +154,7 @@ mod tests {
     #[test]
     fn parse_config_with_tcti_and_auth_key_index() {
         let actual = r#"
+max_requests = 50
 tcti = "swtpm:port=2321"
 auth_key_index = 0x01_02_03
 "#;
@@ -154,6 +163,7 @@ auth_key_index = 0x01_02_03
         assert_eq!(
             actual,
             super::Config {
+                max_requests: 50,
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("swtpm:port=2321").unwrap(),
                     auth_key_index: 0x01_02_03,
@@ -180,6 +190,7 @@ owner = "world"
         assert_eq!(
             actual,
             super::Config {
+                max_requests: http_common::Incoming::default_max_requests(),
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
@@ -221,6 +232,7 @@ aziot_tpmd = "unix:///custom/path/tpmd.sock"
         assert_eq!(
             actual,
             super::Config {
+                max_requests: http_common::Incoming::default_max_requests(),
                 shared: super::SharedConfig {
                     tcti: std::ffi::CString::new("device").unwrap(),
                     auth_key_index: super::default_ak_index(),
