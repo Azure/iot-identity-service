@@ -827,10 +827,11 @@ impl IdentityManager {
         }
 
         let credentials = if let Some(identity_cert) = response.identity_cert {
-            let identity_cert = openssl::x509::X509::from_pem(identity_cert.as_bytes())
+            let identity_cert_stack = openssl::x509::X509::stack_from_pem(identity_cert.as_bytes())
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
 
-            self.save_dps_identity_cert(&identity_cert).await?;
+            self.save_dps_identity_cert(identity_cert.as_bytes())
+                .await?;
 
             let key_handle = self
                 .key_client
@@ -845,7 +846,7 @@ impl IdentityManager {
             aziot_identity_common::Credentials::X509 {
                 identity_cert: (
                     aziot_identity_common::DPS_IDENTITY_CERT.to_string(),
-                    identity_cert,
+                    identity_cert_stack,
                 ),
                 identity_pk: (
                     aziot_identity_common::DPS_IDENTITY_CERT_KEY.to_string(),
@@ -912,14 +913,7 @@ impl IdentityManager {
         Ok(())
     }
 
-    async fn save_dps_identity_cert(
-        &self,
-        identity_cert: &openssl::x509::X509,
-    ) -> Result<(), Error> {
-        let identity_cert = identity_cert
-            .to_pem()
-            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-
+    async fn save_dps_identity_cert(&self, identity_cert: &[u8]) -> Result<(), Error> {
         self.cert_client
             .import_cert(aziot_identity_common::DPS_IDENTITY_CERT, &identity_cert)
             .await
@@ -980,12 +974,15 @@ impl IdentityManager {
 
                     let credentials = match (cert, key) {
                         (Ok(cert), Ok(key_handle)) => {
-                            let cert = openssl::x509::X509::from_pem(&cert).map_err(|_| {
-                                Error::Internal(InternalError::LoadDeviceInfo(std::io::Error::new(
-                                    std::io::ErrorKind::Other,
-                                    "invalid DPS-issued identity cert",
-                                )))
-                            })?;
+                            let cert =
+                                openssl::x509::X509::stack_from_pem(&cert).map_err(|_| {
+                                    Error::Internal(InternalError::LoadDeviceInfo(
+                                        std::io::Error::new(
+                                            std::io::ErrorKind::Other,
+                                            "invalid DPS-issued identity cert",
+                                        ),
+                                    ))
+                                })?;
                             let (private_key, _) = crate::get_keys(key_handle, &self.key_engine)
                                 .await
                                 .map_err(|err| {
