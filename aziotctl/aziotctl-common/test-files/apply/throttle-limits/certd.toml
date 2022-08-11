@@ -1,0 +1,6 @@
+homedir_path = "/var/lib/aziot/certd"
+max_requests = 30
+
+[cert_issuance]
+
+[preloaded_certs]
