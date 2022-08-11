@@ -4,20 +4,6 @@ use aziot_cloud_client_async::dps::register;
 
 use crate::server::Response;
 
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RegistrationRequest {
-    pub registration_id: String,
-
-    pub tpm: Option<register::schema::TpmAttestation>,
-
-    #[serde(
-        rename = "clientCertificateCsr",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub client_cert_csr: Option<String>,
-}
-
 #[allow(clippy::too_many_lines)]
 fn register(
     registration_id: &str,
@@ -47,7 +33,7 @@ fn register(
     let tpm = if body["tpm"] == serde_json::value::Value::Null {
         None
     } else {
-        Some(aziot_cloud_client_async::DpsResponse::TpmAuthKey {
+        Some(register::schema::response::TpmAuthKey {
             authentication_key: "mock-dps-tpm-key".to_string(),
         })
     };
@@ -63,7 +49,21 @@ fn register(
             Err(_) => {
                 return Response::Error {
                     status: http::StatusCode::INTERNAL_SERVER_ERROR,
-                    message: "error creating webhook response payload".to_owned(),
+                    message: "error creating webhook response payload".to_string(),
+                }
+            }
+        }
+    };
+
+    let client_cert_csr = if body["clientCertificateCsr"] == serde_json::value::Value::Null {
+        None
+    } else {
+        match serde_json::to_string(&body["clientCertificateCsr"]) {
+            Ok(client_cert_csr) => Some(client_cert_csr),
+            Err(_) => {
+                return Response::Error {
+                    status: http::StatusCode::BAD_REQUEST,
+                    message: "bad client certificate csr".to_string(),
                 }
             }
         }
@@ -87,7 +87,7 @@ fn register(
         payload,
     };
 
-    let registration = match (body.client_cert_csr, context.enable_identity_certs) {
+    let registration = match (client_cert_csr, context.enable_identity_certs) {
         // Issue an identity certificate from the provided CSR.
         (Some(csr), true) => {
             let client_cert_csr = match base64::decode(csr) {
