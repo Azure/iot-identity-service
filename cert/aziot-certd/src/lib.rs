@@ -53,6 +53,7 @@ pub async fn main(
 ) -> Result<(Incoming, http::Service), Box<dyn StdError>> {
     let Config {
         homedir_path,
+        max_requests,
         cert_issuance,
         preloaded_certs,
         endpoints:
@@ -108,7 +109,7 @@ pub async fn main(
     let service = http::Service { api };
 
     let incoming = connector
-        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, max_requests, None)
         .await?;
 
     Ok((incoming, service))
@@ -306,13 +307,14 @@ impl UpdateConfig for Api {
     async fn update_config(&mut self, new_config: Self::Config) -> Result<(), Self::Error> {
         log::info!("Detected change in config files. Updating config.");
 
-        // Don't allow changes to homedir path or endpoints while daemon is running.
+        // Don't allow changes to homedir path, endpoints, or throttle limit while daemon is running.
         // Only update other fields.
         let Config {
             cert_issuance,
             preloaded_certs,
             principal,
             homedir_path: _,
+            max_requests: _,
             endpoints: _,
         } = new_config;
 

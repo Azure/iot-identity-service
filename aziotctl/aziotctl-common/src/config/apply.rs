@@ -473,6 +473,8 @@ pub fn run(
         aziot_certd_config::Config {
             homedir_path: super::AZIOT_CERTD_HOMEDIR_PATH.into(),
 
+            max_requests: aziot_max_requests.certd,
+
             cert_issuance: aziot_certd_config::CertIssuance {
                 est,
                 local_ca,
