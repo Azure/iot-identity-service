@@ -10,7 +10,7 @@ hex = "0.4"
 libc = "0.2"
 openssl = "0.10"
 serde = { version = "1", features = ["derive"] }
-serde_with = "1"
+serde_with = "2"
 url = { version = "2", features = ["serde"] }
 
 cert-renewal = { path = "../cert-renewal" }
