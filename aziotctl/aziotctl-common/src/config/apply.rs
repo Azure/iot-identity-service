@@ -26,7 +26,7 @@ pub fn run(
         localid,
         cloud_timeout_sec,
         cloud_retries,
-        max_requests,
+        aziot_max_requests,
         mut aziot_keys,
         mut preloaded_keys,
         cert_issuance,
@@ -497,7 +497,7 @@ pub fn run(
         }
 
         aziot_keyd_config::Config {
-            max_requests,
+            max_requests: aziot_max_requests.keyd,
 
             aziot_keys,
 
