@@ -298,6 +298,8 @@ pub fn run(
 
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 
+        max_requests: aziot_max_requests.identityd,
+
         cloud_timeout_sec,
 
         cloud_retries,

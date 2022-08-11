@@ -65,6 +65,7 @@ pub async fn main(
 
     let homedir_path = &settings.homedir;
     let connector = settings.endpoints.aziot_identityd.clone();
+    let max_requests = settings.max_requests;
 
     if !homedir_path.exists() {
         if let Err(err) = std::fs::create_dir_all(&homedir_path) {
@@ -150,7 +151,7 @@ pub async fn main(
     let service = http::Service { api };
 
     let incoming = connector
-        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, 10, None)
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, max_requests, None)
         .await?;
 
     Ok((incoming, service))
