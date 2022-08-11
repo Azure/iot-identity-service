@@ -216,6 +216,7 @@ mod tests {
         let identity_options = Settings {
             hostname: hostname.to_owned(),
             homedir: PathBuf::new(),
+            max_requests: 10,
             cloud_retries: 1,
             cloud_timeout_sec: 1,
             provisioning: device_provisioning,
