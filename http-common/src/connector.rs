@@ -3,6 +3,7 @@
 use std::sync::atomic;
 
 use futures_util::future;
+use nix::sys::socket::{AddressFamily, SockaddrLike, SockaddrStorage};
 
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
 
@@ -39,6 +40,8 @@ pub enum Incoming {
     },
     Unix {
         listener: tokio::net::UnixListener,
+
+        #[cfg(not(feature = "no-socket-throttle"))]
         user_state: std::collections::BTreeMap<libc::uid_t, std::sync::Arc<atomic::AtomicUsize>>,
     },
 }
@@ -59,6 +62,7 @@ impl Incoming {
             + 'static,
         <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
     {
+        #[cfg(not(feature = "no-socket-throttle"))]
         const MAX_REQUESTS_PER_USER: usize = 10;
 
         // Keep track of the number of running tasks.
@@ -100,6 +104,8 @@ impl Incoming {
 
             Incoming::Unix {
                 listener,
+
+                #[cfg(not(feature = "no-socket-throttle"))]
                 user_state,
             } => loop {
                 let accept = listener.accept();
@@ -112,6 +118,8 @@ impl Incoming {
                         let unix_stream = unix_stream?.0;
 
                         let ucred = unix_stream.peer_cred()?;
+
+                        #[cfg(not(feature = "no-socket-throttle"))]
                         let servers_available = user_state
                             .entry(ucred.uid())
                             .or_insert_with(|| {
@@ -124,28 +132,42 @@ impl Incoming {
                         tasks.fetch_add(1, atomic::Ordering::AcqRel);
                         let server_tasks = tasks.clone();
                         tokio::spawn(async move {
-                            let available = servers_available
-                                .fetch_update(
-                                    atomic::Ordering::AcqRel,
-                                    atomic::Ordering::Acquire,
-                                    |current| current.checked_sub(1),
-                                )
-                                .is_ok();
+                            #[cfg(not(feature = "no-socket-throttle"))]
+                            {
+                                let available = servers_available
+                                    .fetch_update(
+                                        atomic::Ordering::AcqRel,
+                                        atomic::Ordering::Acquire,
+                                        |current| current.checked_sub(1),
+                                    )
+                                    .is_ok();
 
-                            if available {
-                                if let Err(http_err) = hyper::server::conn::Http::new()
-                                    .serve_connection(unix_stream, server)
-                                    .await
-                                {
-                                    log::info!("Error while serving HTTP connection: {}", http_err);
+                                if available {
+                                    if let Err(http_err) = hyper::server::conn::Http::new()
+                                        .serve_connection(unix_stream, server)
+                                        .await
+                                    {
+                                        log::info!(
+                                            "Error while serving HTTP connection: {}",
+                                            http_err
+                                        );
+                                    }
+
+                                    servers_available.fetch_add(1, atomic::Ordering::AcqRel);
+                                } else {
+                                    log::info!(
+                                        "Max simultaneous connections reached for user {}",
+                                        ucred.uid()
+                                    );
                                 }
+                            }
 
-                                servers_available.fetch_add(1, atomic::Ordering::AcqRel);
-                            } else {
-                                log::info!(
-                                    "Max simultaneous connections reached for user {}",
-                                    ucred.uid()
-                                );
+                            #[cfg(feature = "no-socket-throttle")]
+                            if let Err(http_err) = hyper::server::conn::Http::new()
+                                .serve_connection(unix_stream, server)
+                                .await
+                            {
+                                log::info!("Error while serving HTTP connection: {}", http_err);
                             }
 
                             server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
@@ -300,6 +322,8 @@ impl Connector {
 
                 Ok(Incoming::Unix {
                     listener,
+
+                    #[cfg(not(feature = "no-socket-throttle"))]
                     user_state: Default::default(),
                 })
             }
@@ -589,7 +613,7 @@ impl hyper::client::connect::Connection for AsyncStream {
 #[derive(Debug)]
 pub struct ConnectorError {
     uri: url::Url,
-    inner: Box<dyn std::error::Error>,
+    inner: Box<dyn std::error::Error + Send + Sync + 'static>,
 }
 
 impl std::fmt::Display for ConnectorError {
@@ -609,21 +633,18 @@ impl std::error::Error for ConnectorError {
 /// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
 /// so this function returns an Err for release builds using a TCP socket.
 fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
-    let sock_addr = nix::sys::socket::getsockname(fd)
+    let sock_addr = nix::sys::socket::getsockname::<SockaddrStorage>(fd)
         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
 
-    match sock_addr {
-        nix::sys::socket::SockAddr::Unix(_) => Ok(true),
+    match sock_addr.family() {
+        Some(AddressFamily::Unix) => Ok(true),
 
         // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
-        nix::sys::socket::SockAddr::Inet(_) if cfg!(debug_assertions) => Ok(false),
+        Some(AddressFamily::Inet | AddressFamily::Inet6) if cfg!(debug_assertions) => Ok(false),
 
-        sock_addr => Err(std::io::Error::new(
+        family => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!(
-                "systemd socket has unsupported address family {:?}",
-                sock_addr.family()
-            ),
+            format!("systemd socket has unsupported address family {:?}", family),
         )),
     }
 }
@@ -699,6 +720,8 @@ fn fd_to_listener(fd: std::os::unix::io::RawFd) -> std::io::Result<Incoming> {
         let listener = tokio::net::UnixListener::from_std(listener)?;
         Ok(Incoming::Unix {
             listener,
+
+            #[cfg(not(feature = "no-socket-throttle"))]
             user_state: Default::default(),
         })
     } else {

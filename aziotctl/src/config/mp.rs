@@ -83,6 +83,8 @@ To reconfigure IoT Identity Service, run:
 
         preloaded_certs: Default::default(),
 
+        tpm: Default::default(),
+
         endpoints: Default::default(),
     };
     let config = toml::to_vec(&config).context("could not serialize system config")?;

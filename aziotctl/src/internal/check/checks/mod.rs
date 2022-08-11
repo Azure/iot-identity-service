@@ -20,6 +20,7 @@ mod cert_expiry;
 mod certs_match_private_keys;
 mod certs_preloaded;
 mod daemons_running;
+mod est_server_https;
 mod host_connect_dps_endpoint;
 mod host_connect_iothub;
 mod host_local_time;
@@ -30,7 +31,7 @@ mod up_to_date_configs;
 mod well_formed_configs;
 
 pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
-    // DEVNOTE: keep ordering consistent. Later tests may depend on earlier tests.
+    // DEVNOTE: Keep ordering consistent. Later tests may depend on earlier tests.
     vec![
         ("Configuration checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
@@ -44,6 +45,7 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
             v.extend(daemons_running::daemons_running());
             v.push(Box::new(read_certs::ReadCerts::default()));
             v.push(Box::new(read_key_pairs::ReadKeyPairs::default()));
+            v.push(Box::new(est_server_https::EstServerHttps::default()));
             v.push(Box::new(
                 certs_match_private_keys::CertsMatchPrivateKeys::default(),
             ));

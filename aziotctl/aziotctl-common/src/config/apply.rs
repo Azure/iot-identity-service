@@ -31,6 +31,7 @@ pub fn run(
         mut preloaded_keys,
         cert_issuance,
         mut preloaded_certs,
+        tpm,
         endpoints:
             aziot_identityd_config::Endpoints {
                 aziot_certd: aziot_certd_endpoint,
@@ -178,6 +179,7 @@ pub fn run(
                 global_endpoint,
                 id_scope,
                 attestation,
+                payload,
             } => {
                 if parent_hostname.is_some() {
                     return Err(anyhow!("DPS provisioning is not supported in nested mode"));
@@ -277,10 +279,13 @@ pub fn run(
                     }
                 };
 
+                let payload = payload.map(|p| aziot_identityd_config::Payload { uri: p.uri });
+
                 aziot_identityd_config::ProvisioningType::Dps {
                     global_endpoint,
                     scope_id: id_scope,
                     attestation,
+                    payload,
                 }
             }
 
@@ -519,6 +524,7 @@ pub fn run(
     };
 
     let tpmd_config = aziot_tpmd_config::Config {
+        shared: tpm,
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,
         },

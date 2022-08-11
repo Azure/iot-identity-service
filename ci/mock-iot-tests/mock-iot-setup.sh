@@ -22,8 +22,9 @@ echo "Added mock IoT root certificate to system root store."
 #
 # For a local build, this would be target/x86_64-unknown-linux-gnu/debug.
 # For CI, this would be target/debug.
-cd "$(find target -type f -name mock-iot-server | head -n 1 | xargs dirname)"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
+cd "$(find target -type f -name mock-iot-server -exec dirname {} \; -quit)"
+PRIVATE_LIBS="$(find fakeroot -name aziot-identity-service -exec readlink -f {} \; -quit)"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${PRIVATE_LIBS:-}:$PWD"
 
 chmod +x ./aziotd
 chmod +x ./mock-iot-server

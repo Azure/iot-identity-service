@@ -1,0 +1,15 @@
+{
+    "model_id": "ACME 2000",
+    "cpuinfo": [
+        {
+            "cache size": "8192 KB",
+            "cpu MHz": 2112.007,
+            "processor": 0
+        },
+        {
+            "cache size": "8192 KB",
+            "cpu MHz": 2112.007,
+            "processor": 1
+        }
+    ]
+}

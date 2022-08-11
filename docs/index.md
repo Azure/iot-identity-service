@@ -22,7 +22,6 @@ The package is made up of these services:
 
     This service brokers access to a device's TPM, and allows callers to retrieve the TPM's endorsement and storage root keys, activate a new identity key, and sign data using a stored identity key. The TPM service is the only service with permissions to access the TPM, and exposes an API which ensures the integrity of the keys stored in the TPM.
 
-
 # Relationship with IoT Edge
 
 For IoT Edge devices, module identity provisioning and cryptographic services used to be provided by the IoT Edge runtime. Now the IoT Edge runtime defers to these three services to provide those features. In other words, the Identity Service is also responsible for provisioning module identities for IoT Edge modules, and the Keys Service and Certificates Service handle keys and certificates that the modules use via the IoT Edge Workload API. The above-mentioned services are automatically installed as a dependency when installing the IoT Edge package.

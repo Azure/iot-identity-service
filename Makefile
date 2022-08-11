@@ -1,5 +1,3 @@
-CARGO = cargo
-
 # Installed via `cargo install`. See /ci/install-build-deps.sh for exact command and versions.
 BINDGEN = bindgen
 CBINDGEN = cbindgen
@@ -10,11 +8,17 @@ V = 0
 # 0 => false, _ => true
 RELEASE = 0
 
+# 0 => false, _ => true
+VENDOR_LIBTSS = 0
+
+# Skip integration tests for tpm/tss-minimal
+# 0 => false, _ => true
+SKIP_TSS_MINIMAL = 0
+
 # '' => amd64, 'arm32v7' => arm32v7, 'aarch64' => aarch64
 ARCH =
 
 INSTALL_PRESET = true
-
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -36,22 +40,29 @@ endif
 
 ifeq ($(ARCH), arm32v7)
 	CARGO_TARGET = armv7-unknown-linux-gnueabihf
+    CROSS_HOST_TRIPLE = arm-linux-gnueabihf
 	DPKG_ARCH_FLAGS = --host-arch armhf
 else ifeq ($(ARCH), aarch64)
 	CARGO_TARGET = aarch64-unknown-linux-gnu
+    CROSS_HOST_TRIPLE = aarch64-linux-gnu
 	DPKG_ARCH_FLAGS = --host-arch arm64 --host-type aarch64-linux-gnu --target-type aarch64-linux-gnu
 else
 	CARGO_TARGET = x86_64-unknown-linux-gnu
+    CROSS_HOST_TRIPLE = x86_64-linux-gnu
 	DPKG_ARCH_FLAGS =
 endif
 
-# Some of the targets use bash-isms like `set -o pipefail`
-SHELL := /bin/bash
+CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY))
+VENDOR_PREFIX = $(CARGO_OUTPUT_ABSPATH)/fakeroot
+VENDOR_PKGCONFIG = $(VENDOR_PREFIX)$(AZIOT_PRIVATE_LIBRARIES)/pkgconfig
 
+CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" cargo
+
+# Some of the targets use bash-isms like `set -o pipefail`
+SHELL = /bin/bash
 
 .PHONY: aziot-key-openssl-engine-shared-test clean default mock-iot-server test test-release
 .PHONY: deb dist install-common install-deb install-rpm rpm
-
 
 default:
 	# Re-generate aziot-keys.h if necessary
@@ -80,6 +91,28 @@ default:
 		mv key/aziot-keyd/src/keys.generated.rs.tmp key/aziot-keyd/src/keys.generated.rs; \
 	fi
 
+	# Set libdir again due to environment bleedover from this
+	# Makefile during RPM build.  Set prefix due to config.status's
+	# incorrect assumption of /usr/local.  There is probably a better
+	# way to do this...
+	set -euo pipefail; \
+	if [ -d third-party/tpm2-tss ]; then \
+		cd third-party/tpm2-tss; \
+		./bootstrap; \
+		./configure \
+			--disable-dependency-tracking \
+			--disable-doxygen-doc \
+			--disable-fapi \
+			--disable-static \
+			--disable-weakcrypto \
+			--enable-debug=info \
+			--host=$(CROSS_HOST_TRIPLE) \
+			--libdir=$(AZIOT_PRIVATE_LIBRARIES) \
+			--prefix=$(prefix); \
+		$(MAKE) libdir=$(AZIOT_PRIVATE_LIBRARIES) prefix=$(prefix) -j; \
+		$(MAKE) DESTDIR=$(VENDOR_PREFIX) libdir=$(AZIOT_PRIVATE_LIBRARIES) prefix=$(prefix) install; \
+	fi
+
 	# aziot-keys must be built before aziot-keyd is, because aziot-keyd needs to link to it.
 	# But we can't do this with Cargo dependencies because of a cargo issue that causes spurious rebuilds.
 	# So instead we do it manually.
@@ -94,7 +127,6 @@ default:
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
-
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
@@ -139,7 +171,6 @@ target/openapi-schema-validated:
 
 	touch target/openapi-schema-validated
 
-
 test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
 test-release: test
 	$(CARGO) fmt --all -- --check
@@ -147,19 +178,22 @@ test-release: test
 	[ -z "$$(git status --porcelain 'key/aziot-keys/aziot-keys.h')" ] || \
 		(echo 'There are uncommitted modifications to aziot-keys.h' >&2; exit 1)
 
-
 test: aziot-key-openssl-engine-shared-test default mock-iot-server
 test: target/openapi-schema-validated
 test:
 	set -o pipefail; \
+	if [ "$(SKIP_TSS_MINIMAL)" != 0 ]; then \
+		MAYBE_EXCLUDE_TSS_MINIMAL="--exclude tss-minimal"; \
+	fi; \
 	$(CARGO) test --all \
 		--exclude aziot-key-openssl-engine-shared \
+		$$MAYBE_EXCLUDE_TSS_MINIMAL \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
 
 	find . -name '*.rs' | \
 		grep -v '^\./target/' | \
-		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
+		grep -v '^\./third-party/' | \
 		grep -v '\.generated\.rs$$' | \
 		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
 		while read -r f; do \
@@ -183,7 +217,7 @@ test:
 
 	find . -name 'Makefile' -or -name '*.c' -or -name '*.md' -or -name '*.rs' -or -name '*.toml' -or -name '*.txt' | \
 		grep -v '^\./target/' | \
-		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
+		grep -v '^\./third-party/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if [[ -s "$$f" && "$$(tail -c 1 "$$f" | wc -l)" -eq '0' ]]; then \
@@ -194,7 +228,7 @@ test:
 
 	find . -name '*.c' -or -name '*.rs' | \
 		grep -v '^\./target/' | \
-		grep -v '^\./tpm/aziot-tpm-sys/azure-iot-hsm-c/' | \
+		grep -v '^\./third-party/' | \
 		grep -v '\.generated\.rs$$' | \
 		while read -r f; do \
 			if ! (head -n1 "$$f" | grep -q 'Copyright (c) Microsoft. All rights reserved.'); then \
@@ -203,21 +237,22 @@ test:
 			fi; \
 		done
 
-
 codecov: default
 	mkdir -p coverage
 
-	+LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$$PWD/target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)" $(CARGO) tarpaulin --all --verbose \
+	+if [ "$(SKIP_TSS_MINIMAL)" != 0 ]; then \
+		MAYBE_EXCLUDE_TSS_MINIMAL="--exclude tss-minimal"; \
+	fi; \
+	LD_LIBRARY_PATH="$$LD_LIBRARY_PATH:$(CARGO_OUTPUT_ABSPATH):$(VENDOR_PREFIX)$(AZIOT_PRIVATE_LIBRARIES)" $(CARGO) tarpaulin --all --verbose \
 		--exclude aziot-key-openssl-engine-shared \
 		--exclude openssl-build --exclude test-common \
 		--exclude mock-iot-server \
 		--exclude aziot-key-openssl-engine-shared-test \
-		--exclude-files tpm/aziot-tpm-sys/azure-iot-hsm-c/deps/* \
-		--exclude-files tpm/aziot-tpm-sys/tests/* \
+		$$MAYBE_EXCLUDE_TSS_MINIMAL \
+		--exclude-files third-party/* \
 		--no-fail-fast \
 		--target $(CARGO_TARGET) --out Lcov \
 		--output-dir ./coverage
-
 
 # Packaging
 #
@@ -241,6 +276,15 @@ dist:
 		/tmp/aziot-identity-service-$(PACKAGE_VERSION)
 	cp ./Cargo.toml ./Cargo.lock ./CODE_OF_CONDUCT.md ./CONTRIBUTING.md ./LICENSE ./Makefile ./README.md ./rust-toolchain.toml ./SECURITY.md /tmp/aziot-identity-service-$(PACKAGE_VERSION)
 
+	# Copy third-party libraries
+	if [ $(VENDOR_LIBTSS) != 0 ]; then \
+		mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)/third-party; \
+		cp -R third-party/tpm2-tss /tmp/aziot-identity-service-$(PACKAGE_VERSION)/third-party; \
+	fi
+
+	# Remove spurious .git directories
+	find /tmp/aziot-identity-service-$(PACKAGE_VERSION) -name .git -exec $(RM) -r {} +
+
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
 	mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo
@@ -251,7 +295,6 @@ dist:
 	ARCH=$(ARCH) contrib/third-party-notices.sh >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/THIRD-PARTY-NOTICES
 
 	# Create dist tarball
-	mkdir -p $(RPMBUILDDIR)/SOURCES
 	cd /tmp && tar -cvzf /tmp/aziot-identity-service-$(PACKAGE_VERSION).tar.gz aziot-identity-service-$(PACKAGE_VERSION)
 
 # deb
@@ -274,7 +317,7 @@ deb: dist
 #
 # Ref: https://rpm-packaging-guide.github.io
 RPMBUILDDIR = $(HOME)/rpmbuild
-rpm: contrib/enterprise-linux/aziot-identity-service.spec
+rpm: contrib/enterprise-linux/aziot-identity-service.spec.in
 rpm: dist
 rpm:
 	# Move dist tarball to rpmbuild sources directory
@@ -294,15 +337,28 @@ rpm:
 	# the output of `openssl version` and `openssl version -e` ourselves. This wouldn't be right
 	# if we were cross-compiling, but we don't support cross-compiling for either of those two OSes,
 	# so it's fine.
-	which openssl # Assert that openssl exists
+	command -v openssl # Assert that openssl exists
 	case "$$(openssl version)" in \
 		'OpenSSL 1.0.'*) OPENSSL_ENGINE_FILENAME='%\{_libdir\}/openssl/engines/libaziot_keys.so' ;; \
 		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
 		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
 	esac; \
-	<contrib/enterprise-linux/aziot-identity-service.spec sed \
+	case "$$PACKAGE_DIST" in \
+		'el7') \
+			DEVTOOLSET=devtoolset-9-; \
+			LLVM_TOOLSET=llvm-toolset-7-; \
+			;; \
+		'el8') \
+			DEVTOOLSET=; \
+			LLVM_TOOLSET=; \
+			;; \
+		*) echo "Unknown RHEL derivative"; exit 1 ;; \
+	esac; \
+	<contrib/enterprise-linux/aziot-identity-service.spec.in sed \
 		-e 's/@version@/$(PACKAGE_VERSION)/g' \
 		-e 's/@release@/$(PACKAGE_RELEASE)/g' \
+		-e "s|@devtoolset@|$$DEVTOOLSET|g" \
+		-e "s|@llvm_toolset@|$$LLVM_TOOLSET|g" \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
 		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
@@ -324,7 +380,7 @@ includedir = $(prefix)/include
 libdir = $(exec_prefix)/lib
 libexecdir = $(exec_prefix)/libexec
 
-# Note:
+# NOTE:
 #
 # This looks surprising, because it would imply the defaults are /usr/var and /usr/etc rather than /var and /etc.
 # This is unfortunately by GNU's design, and the caller is expected to override localstatedir and sysconfdir when invoking the makefile.
@@ -335,10 +391,16 @@ sysconfdir = $(prefix)/etc
 unitdir = $(libdir)/systemd/system
 presetdir = $(libdir)/systemd/system-preset
 
-# Note: This default is almost certainly wrong for most distros and architectures, so it ought to be overridden by the caller of `make`.
+# NOTE: This default is almost certainly wrong for most distros and
+# architectures, so it ought to be overridden by the caller of `make`.
 #
-# The correct value is the one output by `openssl version -e`, but we can't invoke that ourselves since we could be cross-compiling.
+# The correct value is the one output by `openssl version -e`, but we
+# can't invoke that ourselves since we could be cross-compiling.
 OPENSSL_ENGINES_DIR = $(libdir)/engines-1.1
+
+# NOTE: This is the default destination for vendored libraries.
+# Services are invoked with LD_LIBRARY_PATH set to this directory.
+AZIOT_PRIVATE_LIBRARIES = $(libdir)/aziot-identity-service
 
 # Ref: https://www.gnu.org/software/make/manual/html_node/Command-Variables.html
 INSTALL = install
@@ -351,16 +413,27 @@ install-common:
 	# Ref: https://www.gnu.org/software/make/manual/html_node/DESTDIR.html
 
 	# Binaries
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziotd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-certd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-identityd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-keyd
 	ln -s $(libexecdir)/aziot-identity-service/aziotd $(DESTDIR)$(libexecdir)/aziot-identity-service/aziot-tpmd
 
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/aziotctl $(DESTDIR)$(bindir)/aziotctl
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/aziotctl $(DESTDIR)$(bindir)/aziotctl
 
 	# libaziot-keys
-	$(INSTALL_PROGRAM) -D target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
+	$(INSTALL_PROGRAM) -D $(CARGO_OUTPUT_ABSPATH)/libaziot_keys.so $(DESTDIR)$(libdir)/libaziot_keys.so
+
+	# tpm2-tss
+	# See comment above regarding environment bleedover on RPM
+	# builds.
+	if [ -d third-party/tpm2-tss ]; then \
+		cd third-party/tpm2-tss; \
+		$(MAKE) libdir=$(AZIOT_PRIVATE_LIBRARIES) install-exec; \
+	fi
+
+	# Remove libtool files
+	find $(DESTDIR) -name "*.la" -exec $(RM) {} +
 
 	# Default configs and config directories
 	$(INSTALL_DATA) -D cert/aziot-certd/config/unix/default.toml $(DESTDIR)$(sysconfdir)/aziot/certd/config.toml.default
@@ -384,22 +457,23 @@ install-common:
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/tpmd
 
 	# Systemd services and sockets
-	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.service $(DESTDIR)$(unitdir)/aziot-certd.service
-	$(INSTALL_DATA) -D cert/aziot-certd/aziot-certd.socket $(DESTDIR)$(unitdir)/aziot-certd.socket
-
-	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.service $(DESTDIR)$(unitdir)/aziot-identityd.service
-	$(INSTALL_DATA) -D identity/aziot-identityd/aziot-identityd.socket $(DESTDIR)$(unitdir)/aziot-identityd.socket
-
-	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.service $(DESTDIR)$(unitdir)/aziot-keyd.service
-	$(INSTALL_DATA) -D key/aziot-keyd/aziot-keyd.socket $(DESTDIR)$(unitdir)/aziot-keyd.socket
-
-	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.service $(DESTDIR)$(unitdir)/aziot-tpmd.service
-	$(INSTALL_DATA) -D tpm/aziot-tpmd/aziot-tpmd.socket $(DESTDIR)$(unitdir)/aziot-tpmd.socket
+	# NOTE: We do not use "install -D ... -t ..." since it is broken on
+	# RHEL 7 derivatives and will not be fixed.
+	# Ref: https://bugzilla.redhat.com/show_bug.cgi?format=multiple&id=1758488
+	for i in cert identity key tpm; do \
+		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
+		$(INSTALL_DATA) -D "$$i/aziot-$${i}d/aziot-$${i}d.socket" "$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
+		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \
+			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBRARIES)|' \
+			-e 's|@libexecdir@|$(libexecdir)|' \
+			>"$$OUTPUT_SERVICE"; \
+		chmod 0644 "$$OUTPUT_SERVICE"; \
+	done
 
 install-deb: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
-		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
+		$(CARGO_OUTPUT_ABSPATH)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINES_DIR)/aziot_keys.so
 
 	# README.md and LICENSE
@@ -413,7 +487,7 @@ install-deb: install-common
 install-rpm: install-common
 	# libaziot-key-openssl-engine-shared
 	$(INSTALL_PROGRAM) -D \
-		target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECTORY)/libaziot_key_openssl_engine_shared.so \
+		$(CARGO_OUTPUT_ABSPATH)/libaziot_key_openssl_engine_shared.so \
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
 	if [ $(INSTALL_PRESET) == "true" ]; then \

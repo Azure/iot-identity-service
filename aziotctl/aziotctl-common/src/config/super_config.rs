@@ -73,6 +73,9 @@ pub struct Config {
     #[serde(default)]
     pub preloaded_certs: BTreeMap<String, aziot_certd_config::PreloadedCert>,
 
+    #[serde(default)]
+    pub tpm: aziot_tpmd_config::SharedConfig,
+
     #[serde(default, skip_serializing)]
     #[cfg_attr(not(debug_assertions), serde(skip_deserializing))]
     pub endpoints: aziot_identityd_config::Endpoints,
@@ -97,10 +100,16 @@ pub enum ProvisioningType {
         global_endpoint: Url,
         id_scope: String,
         attestation: DpsAttestationMethod,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payload: Option<Payload>,
     },
 
     /// Disables provisioning with IoT Hub for devices that use local identities only.
     None,
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Payload {
+    pub uri: Url,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -221,7 +230,11 @@ pub struct Est {
     pub identity_auto_renew: cert_renewal::AutoRenewConfig,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<EstAuth>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "aziot_certd_config::deserialize_url_map_check_https"
+    )]
     pub urls: BTreeMap<String, Url>,
 }
 
@@ -313,6 +326,7 @@ pub struct CertIssuanceOptions {
 pub enum CertIssuanceMethod {
     #[serde(rename = "est")]
     Est {
+        #[serde(default, deserialize_with = "deserialize_url_check_https")]
         url: Option<url::Url>,
         #[serde(flatten)]
         auth: Option<EstAuth>,
@@ -321,6 +335,26 @@ pub enum CertIssuanceMethod {
     LocalCa,
 
     SelfSigned,
+}
+
+fn deserialize_url_check_https<'de, D>(de: D) -> Result<Option<url::Url>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<Url>::deserialize(de)?;
+    match &opt {
+        Some(url) => {
+            if url.scheme() == "http" {
+                eprintln!(
+                    "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks. \
+                    To clear this warning, configure HTTPS for your EST server and update the URL.",
+                    url.as_str()
+                );
+            }
+        }
+        None => (),
+    }
+    Ok(opt)
 }
 
 mod base64 {

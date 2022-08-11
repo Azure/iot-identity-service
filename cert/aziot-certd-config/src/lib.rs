@@ -95,7 +95,11 @@ pub struct Est {
     /// Map of certificate IDs to EST endpoint URLs.
     ///
     /// The special key "default" is used as a fallback for certs whose ID is not explicitly listed in this map.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "deserialize_url_map_check_https"
+    )]
     pub urls: BTreeMap<String, Url>,
 }
 
@@ -245,6 +249,23 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
 
         Ok(builder.build())
     }
+}
+
+pub fn deserialize_url_map_check_https<'de, D>(de: D) -> Result<BTreeMap<String, Url>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let map = BTreeMap::<String, Url>::deserialize(de)?;
+    for url in map.values() {
+        if url.scheme() == "http" {
+            eprintln!(
+                "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks. \
+                    To clear this warning, configure HTTPS for your EST server and update the URL.",
+                url.as_str()
+            );
+        }
+    }
+    Ok(map)
 }
 
 pub fn deserialize_expiry_days<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>

@@ -40,12 +40,13 @@ set -euxo pipefail
 #
 # For a local build, this would be target/x86_64-unknown-linux-gnu/debug.
 # For CI, this would be target/debug
-cd "$(find target -type f -name aziot-key-openssl-engine-shared-test | head -n 1 | xargs dirname)"
+cd "$(find target -type f -name aziot-key-openssl-engine-shared-test -exec dirname {} \; -quit)"
+PRIVATE_LIBS="$(find fakeroot -name aziot-identity-service -exec readlink -f {} \; -quit)"
 
 
 # Set constants and LD_LIBRARY_PATH (to be able to load libaziot_keys.so from the same directory)
 
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${PRIVATE_LIBS:-}:$PWD"
 
 
 OS="$(. /etc/os-release; echo "$ID:$VERSION_ID")"
@@ -206,13 +207,9 @@ sleep 1
 
 # Connect with `curl` and print the response.
 case "$OS" in
-    'centos:7'|'debian:9')
+    'centos:7')
         # CentOS 7's curl doesn't support openssl engines.
-        #
-        # Debian 9 has openssl 1.1, so that is what the openssl engine compiles against.
-        # But its curl links to openssl 1.0.2, so it can't use the engine.
-        #
-        # For these distros, skip the curl check.
+        # So, skip the curl check.
         ;;
 
     *)

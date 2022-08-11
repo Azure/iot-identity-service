@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aziot_identityd_config as config;
+use config::Payload;
 
-use crate::create_csr;
 use crate::error::{Error, InternalError};
+use crate::{create_csr, load_dps_request_payload};
 
 const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
     &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
@@ -599,10 +601,12 @@ impl IdentityManager {
     > {
         let mut module_derived_name = module.module_id;
 
-        module_derived_name.push_str(&format!(
+        write!(
+            &mut module_derived_name,
             ":{}",
             module.generation_id.ok_or(Error::ModuleNotFound)?
-        ));
+        )
+        .expect("std::fmt::Write for String should not fail");
 
         let mut primary_derived_name = module_derived_name.clone();
         primary_derived_name.push_str(":primary");
@@ -695,6 +699,7 @@ impl IdentityManager {
                 global_endpoint,
                 scope_id,
                 attestation,
+                payload,
             } => {
                 if provisioning.local_gateway_hostname.is_some() {
                     return Err(Error::DpsNotSupportedInNestedMode);
@@ -765,6 +770,7 @@ impl IdentityManager {
                         &registration_id,
                         credentials,
                         provisioning.local_gateway_hostname,
+                        payload,
                     )
                     .await?;
 
@@ -789,6 +795,7 @@ impl IdentityManager {
         registration_id: &str,
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
+        payload: Option<Payload>,
     ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
         let backup_device = self
             .get_backup_provisioning_info(credentials.clone())
@@ -812,8 +819,10 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
+        let payload: Option<serde_json::Value> = load_dps_request_payload(&payload)?;
+
         let response = dps_request
-            .register(scope_id, registration_id)
+            .register(scope_id, registration_id, payload)
             .await
             .map_err(Error::DpsClient)?;
 

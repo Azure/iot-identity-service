@@ -24,17 +24,17 @@ impl std::error::Error for Error {
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub enum InternalError {
-    ReadConfig(Box<dyn std::error::Error + Send + Sync>),
-    InitTpm(aziot_tpm::Error),
-    GetTpmKeys(aziot_tpm::Error),
-    SignWithAuthKey(aziot_tpm::Error),
-    ImportAuthKey(aziot_tpm::Error),
+    // ReadConfig(Box<dyn std::error::Error + Send + Sync>),
+    InitTpm(tss_minimal::Error),
+    GetTpmKeys(tss_minimal::Error),
+    SignWithAuthKey(tss_minimal::Error),
+    ImportAuthKey(tss_minimal::Error),
 }
 
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalError::ReadConfig(_) => f.write_str("could not read config"),
+            // InternalError::ReadConfig(_) => f.write_str("could not read config"),
             InternalError::InitTpm(_) => f.write_str("could not initialize TPM"),
             InternalError::ImportAuthKey(_) => f.write_str("could not import auth key"),
             InternalError::GetTpmKeys(_) => f.write_str("could not get TPM keys"),
@@ -47,7 +47,7 @@ impl std::fmt::Display for InternalError {
 impl std::error::Error for InternalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            InternalError::ReadConfig(err) => Some(&**err),
+            // InternalError::ReadConfig(err) => Some(&**err),
             InternalError::InitTpm(err) => Some(err),
             InternalError::ImportAuthKey(err) => Some(err),
             InternalError::GetTpmKeys(err) => Some(err),

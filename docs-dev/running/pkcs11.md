@@ -2,7 +2,7 @@
 
 Follow the user steps at <https://azure.github.io/iot-identity-service/pkcs11/>
 
-If you want to use tpm2-pkcs11 with the TPM simulator, see [`ibmswtpm2`](ibmswtpm2.md)
+If you want to use tpm2-pkcs11 with the TPM simulator, see [`swtpm`](swtpm.md)
 
 To verify your HSM and its PKCS#11 library with aziot-keyd, see [Testing the openssl engine.](aziot-keyd.md#testing-the-openssl-engine)
 

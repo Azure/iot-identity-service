@@ -17,7 +17,7 @@ aziot-cert-client-async = { path = "../aziot-cert-client-async" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 
 [dev-dependencies]
-serial_test = "0.6"
+serial_test = "0.8"
 toml = "0.5"
 
 test-common = { path = "../../test-common" }

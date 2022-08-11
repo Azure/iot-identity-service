@@ -38,7 +38,7 @@ case "$OS" in
         esac
         ;;
 
-    'debian:9'|'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
         # openssl 1.1.0 for Debian 9, 1.1.1 for the others
 
         apt-get update -y

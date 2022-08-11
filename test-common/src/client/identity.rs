@@ -176,5 +176,6 @@ fn provisioning_info() -> ProvisioningInfo {
         cert_policy: Some(aziot_identity_common::CertPolicy {
             cert_type: aziot_identity_common::CertType::Server,
         }),
+        payload: Some(serde_json::json!({"model_id": "model 1"})),
     }
 }

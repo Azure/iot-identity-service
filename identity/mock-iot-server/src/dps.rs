@@ -25,12 +25,12 @@ fn register(
     context: &mut crate::server::Context,
 ) -> Response {
     let body = if let Some(body) = body {
-        let body: RegistrationRequest = match serde_json::from_str(body) {
+        let body: serde_json::value::Value = match serde_json::from_str(body) {
             Ok(body) => body,
             Err(_) => return Response::bad_request("failed to parse register body"),
         };
 
-        if body.registration_id != registration_id {
+        if body["registrationId"] != registration_id {
             return Response::bad_request("registration IDs in URI and request mismatch");
         }
 
@@ -42,14 +42,31 @@ fn register(
     let mut context = context.lock().unwrap();
 
     // Unique value to use for both operation ID and device ID.
-    let uuid = uuid::Uuid::new_v4().to_hyphenated().to_string();
+    let uuid = uuid::Uuid::new_v4().hyphenated().to_string();
 
-    let tpm = if body.tpm.is_some() {
-        Some(register::schema::response::TpmAuthKey {
+    let tpm = if body["tpm"] == serde_json::value::Value::Null {
+        None
+    } else {
+        Some(aziot_cloud_client_async::DpsResponse::TpmAuthKey {
             authentication_key: "mock-dps-tpm-key".to_string(),
         })
-    } else {
+    };
+
+    let payload = if body["payload"] == serde_json::value::Value::Null {
         None
+    } else {
+        match serde_json::to_value(WebhookResponsePayload {
+            msg: "custom allocation payload received".to_string(),
+            request_payload: body["payload"].clone(),
+        }) {
+            Ok(payload) => Some(payload),
+            Err(_) => {
+                return Response::Error {
+                    status: http::StatusCode::INTERNAL_SERVER_ERROR,
+                    message: "error creating webhook response payload".to_owned(),
+                }
+            }
+        }
     };
 
     let cert_policy = if context.enable_server_certs {
@@ -67,6 +84,7 @@ fn register(
         trust_bundle: context.trust_bundle.clone(),
         identity_cert: None,
         cert_policy,
+        payload,
     };
 
     let registration = match (body.client_cert_csr, context.enable_identity_certs) {
@@ -134,6 +152,12 @@ fn operation_status(operation_id: &str, context: &mut crate::server::Context) ->
     }
 
     Response::json(hyper::StatusCode::OK, operation)
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct WebhookResponsePayload {
+    msg: String,
+    request_payload: serde_json::value::Value,
 }
 
 pub(crate) fn process_request(

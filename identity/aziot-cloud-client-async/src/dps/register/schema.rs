@@ -11,13 +11,20 @@ pub mod request {
             skip_serializing_if = "Option::is_none"
         )]
         pub client_cert_csr: Option<String>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub payload: Option<serde_json::Value>,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct TpmRegistration {
         pub registration_id: String,
+
         pub tpm: super::TpmAttestation,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub payload: Option<serde_json::Value>,
     }
 }
 
@@ -86,6 +93,8 @@ pub struct Device {
         skip_serializing_if = "Option::is_none"
     )]
     pub cert_policy: Option<aziot_identity_common::CertPolicy>,
+
+    pub payload: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

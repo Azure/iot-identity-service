@@ -5,6 +5,7 @@ pub mod schema;
 use std::io::{Error, ErrorKind};
 
 use http_common::HttpRequest;
+use serde_json::Value;
 
 pub struct Register {
     endpoint: url::Url,
@@ -81,6 +82,7 @@ impl Register {
         self,
         scope_id: &str,
         registration_id: &str,
+        payload: Option<Value>,
     ) -> Result<schema::Device, Error> {
         let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
@@ -100,6 +102,7 @@ impl Register {
         let register_body = schema::request::DeviceRegistration {
             registration_id: registration_id.to_string(),
             client_cert_csr: Some(client_cert_csr),
+            payload: payload.clone(),
         };
 
         let response = self
@@ -133,6 +136,7 @@ impl Register {
                     let register_body = schema::request::DeviceRegistration {
                         registration_id: registration_id.to_string(),
                         client_cert_csr: None,
+                        payload,
                     };
 
                     self.register_once(
@@ -159,6 +163,7 @@ impl Register {
         connector: crate::CloudConnector,
         uri: &str,
         registration_id: &str,
+        payload: Option<Value>,
     ) -> Result<(), Error> {
         let request_body = {
             let tpm_keys = self.tpm_client.get_tpm_keys().await?;
@@ -166,6 +171,7 @@ impl Register {
             schema::request::TpmRegistration {
                 registration_id: registration_id.to_string(),
                 tpm: tpm_keys.into(),
+                payload,
             }
         };
 
@@ -206,8 +212,13 @@ impl Register {
         // from DPS. After decrypting and importing the nonce, the remaining registration
         // steps are the same as registration with SAS key.
         if let aziot_identity_common::Credentials::Tpm = &self.auth {
-            self.get_tpm_nonce(connector.clone(), register_uri, registration_id)
-                .await?;
+            self.get_tpm_nonce(
+                connector.clone(),
+                register_uri,
+                registration_id,
+                register_body.payload.clone(),
+            )
+            .await?;
         }
 
         // Determine the Authorization header to include.

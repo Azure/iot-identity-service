@@ -6,6 +6,10 @@ cd /src
 . ./ci/install-runtime-deps.sh
 . ./ci/mock-iot-tests/mock-iot-setup.sh
 
+# Create an example custom DPS payload file
+payload_file='/etc/aziot/identityd/payload.json'
+cp /src/identity/aziot-identityd-config/test/complex_payload.json $payload_file
+
 # Start mock-iot-server and wait for it to come up.
 ./mock-iot-server --port 8443 --server-cert-chain "$SERVER_CERT_CHAIN" --server-key "$SERVER_KEY" &
 server_pid="$!"
@@ -20,6 +24,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
+payload = { uri = "file://$payload_file" }
 
 [provisioning.attestation]
 method = "symmetric_key"
@@ -47,10 +52,11 @@ sleep 20
 # Check provisioning info.
 result=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/provisioning?api-version=2021-12-01" \
+    "http://localhost/identities/provisioning?api-version=2022-08-01" \
     --fail \
-    | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
+    | jq --sort-keys .)
+expected=$(echo '{"source":"dps","auth":"symmetric_key","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
+    $(cat $payload_file) '}' | jq --sort-keys .)
 
 if [ "$result" != "$expected" ]; then
     echo ""
@@ -68,7 +74,7 @@ fi
 # Get device identity.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2022-08-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \
@@ -100,6 +106,7 @@ homedir = "/var/lib/aziot/identityd"
 source = "dps"
 global_endpoint = "https://localhost:8443/"
 scope_id = "scope123"
+payload = { uri = "file://$payload_file" }
 
 [provisioning.attestation]
 method = "x509"
@@ -117,12 +124,13 @@ identityd_pid="$!"
 sleep 5
 
 # Provisioning info has changed, so reprovision.
-curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2021-12-01" \
+curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/device/reprovision?api-version=2022-08-01" \
     -H "content-type: application/json" --data '{"type": "aziot"}' &> /dev/null
 
 # Check provisioning info.
-result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2021-12-01" | jq .)
-expected=$(jq . <<< '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision"}')
+result=$(curl -s --unix-socket /run/aziot/identityd.sock "http://localhost/identities/provisioning?api-version=2022-08-01" | jq --sort-keys .)
+expected=$(echo '{"source":"dps","auth":"x509","endpoint":"https://localhost:8443/","scope_id":"scope123","registration_id":"mock-iot-provision","payload":'\
+    $(cat $payload_file) '}' | jq --sort-keys .)
 
 if [ "$result" != "$expected" ]; then
     echo ""
@@ -140,7 +148,7 @@ fi
 # Get device identity. Check that it changed with the reprovision.
 device_id_response=$(curl -s \
     --unix-socket /run/aziot/identityd.sock \
-    "http://localhost/identities/device?api-version=2021-12-01" \
+    "http://localhost/identities/device?api-version=2022-08-01" \
     --data '{"type": "aziot"}' \
     -H "content-type: application/json" \
     --fail \

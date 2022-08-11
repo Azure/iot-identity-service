@@ -1,0 +1,12 @@
+[package]
+name = "types-sys"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+bindgen = { version = "0.60", features = ["runtime"], default-features = false }
+# NOTE: Version >= 0.3.20 necessary for cross-builds.
+# Ref: https://github.com/rust-lang/pkg-config-rs/blob/master/CHANGELOG.md#0320---2021-09-25
+pkg-config = "0.3.20"
