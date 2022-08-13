@@ -18,6 +18,13 @@ pub struct Settings {
 
     pub homedir: std::path::PathBuf,
 
+    /// Maximum number of simultaneous requests per user that identityd will service.
+    #[serde(
+        default = "http_common::Incoming::default_max_requests",
+        skip_serializing_if = "http_common::Incoming::is_default_max_requests"
+    )]
+    pub max_requests: usize,
+
     #[serde(
         default = "Settings::default_cloud_timeout",
         deserialize_with = "deserialize_cloud_timeout",

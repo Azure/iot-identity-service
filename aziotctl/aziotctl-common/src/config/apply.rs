@@ -26,6 +26,7 @@ pub fn run(
         localid,
         cloud_timeout_sec,
         cloud_retries,
+        aziot_max_requests,
         mut aziot_keys,
         mut preloaded_keys,
         cert_issuance,
@@ -297,6 +298,8 @@ pub fn run(
 
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
 
+        max_requests: aziot_max_requests.identityd,
+
         cloud_timeout_sec,
 
         cloud_retries,
@@ -472,6 +475,8 @@ pub fn run(
         aziot_certd_config::Config {
             homedir_path: super::AZIOT_CERTD_HOMEDIR_PATH.into(),
 
+            max_requests: aziot_max_requests.certd,
+
             cert_issuance: aziot_certd_config::CertIssuance {
                 est,
                 local_ca,
@@ -496,6 +501,8 @@ pub fn run(
         }
 
         aziot_keyd_config::Config {
+            max_requests: aziot_max_requests.keyd,
+
             aziot_keys,
 
             preloaded_keys: preloaded_keys
@@ -512,6 +519,7 @@ pub fn run(
     };
 
     let tpmd_config = aziot_tpmd_config::Config {
+        max_requests: aziot_max_requests.tpmd,
         shared: tpm,
         endpoints: aziot_tpmd_config::Endpoints {
             aziot_tpmd: aziot_tpmd_endpoint,

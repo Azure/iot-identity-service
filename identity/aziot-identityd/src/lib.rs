@@ -60,11 +60,12 @@ pub async fn main(
     settings: config::Settings,
     config_path: std::path::PathBuf,
     config_directory_path: std::path::PathBuf,
-) -> Result<(http_common::Connector, http::Service), Box<dyn std::error::Error>> {
+) -> Result<(http_common::Incoming, http::Service), Box<dyn std::error::Error>> {
     let settings = settings.check().map_err(InternalError::BadSettings)?;
 
     let homedir_path = &settings.homedir;
     let connector = settings.endpoints.aziot_identityd.clone();
+    let max_requests = settings.max_requests;
 
     if !homedir_path.exists() {
         if let Err(err) = std::fs::create_dir_all(&homedir_path) {
@@ -149,7 +150,11 @@ pub async fn main(
 
     let service = http::Service { api };
 
-    Ok((connector, service))
+    let incoming = connector
+        .incoming(http_common::SOCKET_DEFAULT_PERMISSION, max_requests, None)
+        .await?;
+
+    Ok((incoming, service))
 }
 
 pub struct Api {

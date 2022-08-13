@@ -28,6 +28,13 @@ pub struct Config {
     /// Path of home directory.
     pub homedir_path: PathBuf,
 
+    /// Maximum number of simultaneous requests per user that certd will service.
+    #[serde(
+        default = "http_common::Incoming::default_max_requests",
+        skip_serializing_if = "http_common::Incoming::is_default_max_requests"
+    )]
+    pub max_requests: usize,
+
     /// Configuration of how new certificates should be issued.
     #[serde(default)]
     pub cert_issuance: CertIssuance,
@@ -358,6 +365,7 @@ mod tests {
     fn parse_config() {
         let actual = r#"
 homedir_path = "/var/lib/aziot/certd"
+max_requests = 50
 
 [cert_issuance]
 device-ca = { method = "est", common_name = "custom-name" }
@@ -411,6 +419,8 @@ certs = ["test"]
             actual,
             Config {
                 homedir_path: "/var/lib/aziot/certd".into(),
+
+                max_requests: 50,
 
                 cert_issuance: CertIssuance {
                     est: Some(Est {
@@ -576,6 +586,8 @@ aziot_certd = "unix:///run/aziot/certd.sock"
             Config {
                 homedir_path: "/var/lib/aziot/certd".into(),
 
+                max_requests: http_common::Incoming::default_max_requests(),
+
                 cert_issuance: Default::default(),
 
                 preloaded_certs: Default::default(),
@@ -599,6 +611,7 @@ aziot_certd = "unix:///run/aziot/certd.sock"
     fn serialize_config() {
         let configuration = Config {
             homedir_path: "/var/lib/aziot/certd".into(),
+            max_requests: 50,
 
             cert_issuance: CertIssuance {
                 est: Some(Est {

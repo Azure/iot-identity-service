@@ -51,6 +51,9 @@ pub struct Config {
     )]
     pub cloud_retries: u32,
 
+    #[serde(default, skip_serializing_if = "AziotMaxRequests::is_default")]
+    pub aziot_max_requests: AziotMaxRequests,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,
@@ -349,6 +352,31 @@ where
         None => (),
     }
     Ok(opt)
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AziotMaxRequests {
+    pub keyd: usize,
+    pub certd: usize,
+    pub tpmd: usize,
+    pub identityd: usize,
+}
+
+impl Default for AziotMaxRequests {
+    fn default() -> AziotMaxRequests {
+        AziotMaxRequests {
+            keyd: http_common::Incoming::default_max_requests(),
+            certd: http_common::Incoming::default_max_requests(),
+            tpmd: http_common::Incoming::default_max_requests(),
+            identityd: http_common::Incoming::default_max_requests(),
+        }
+    }
+}
+
+impl AziotMaxRequests {
+    pub fn is_default(&self) -> bool {
+        self == &AziotMaxRequests::default()
+    }
 }
 
 mod base64 {
