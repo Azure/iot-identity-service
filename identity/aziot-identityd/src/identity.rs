@@ -856,7 +856,7 @@ impl IdentityManager {
 
                 let key_handle = self
                     .key_client
-                    .create_key_pair_if_not_exists(identity_pk, Some("rsa-2048:*"))
+                    .create_key_pair_if_not_exists(identity_pk, Some("ec-p256:rsa-2048:*"))
                     .await
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 

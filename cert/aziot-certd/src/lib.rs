@@ -521,7 +521,7 @@ async fn create_cert_inner<'a>(
                                 .key_client
                                 .create_key_pair_if_not_exists(
                                     &x509.identity.pk,
-                                    Some("ec-p256:rsa-4096:*"),
+                                    Some("ec-p256:rsa-2048:*"),
                                 )
                                 .await?;
                             let cstr = CString::new(handle.0)?;

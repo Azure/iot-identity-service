@@ -193,7 +193,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
 
             let key_handle = self
                 .key_client
-                .create_key_pair_if_not_exists(&key_id, Some("ec-p256:rsa-4096:*"))
+                .create_key_pair_if_not_exists(&key_id, Some("ec-p256:rsa-2048:*"))
                 .await
                 .map_err(|_| cert_renewal::Error::retryable_error("failed to generate temp key"))?;
 
