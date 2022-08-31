@@ -128,13 +128,9 @@ impl Api {
                         .expect("existing storage root key was evicted, but could not be read!")
                 }
             };
-        let auth_key_index = tss_minimal::handle::PERSISTENT_OBJECT_BASE + config.shared.auth_key_index;
-        let auth_key = context
-            .from_tpm_public(
-                auth_key_index,
-                None,
-            )
-            .ok();
+        let auth_key_index =
+            tss_minimal::handle::PERSISTENT_OBJECT_BASE + config.shared.auth_key_index;
+        let auth_key = context.from_tpm_public(auth_key_index, None).ok();
 
         Ok(Self {
             context,
