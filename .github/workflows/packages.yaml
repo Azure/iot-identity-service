@@ -42,9 +42,9 @@ jobs:
         - container_os: 'ubuntu:18.04'
           arch: 'amd64'
           os: 'mariner:1'
-        # - container_os: 'ubuntu:18.04'
-        #   arch: 'amd64'
-        #   os: 'mariner:2'
+        - container_os: 'ubuntu:18.04'
+          arch: 'amd64'
+          os: 'mariner:2'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -64,7 +64,6 @@ jobs:
       env:
         ARCH: "${{ matrix.arch }}"
         OS: "${{ matrix.os }}"
-        # PACKAGE_VERSION should end with '~dev' on the main branch.
         PACKAGE_VERSION: '1.4.0'
         # PACKAGE_RELEASE should always be '1'.
         PACKAGE_RELEASE: '1'
