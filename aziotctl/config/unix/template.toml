@@ -227,8 +227,8 @@
 # # The TPM index at which to persist the DPS authentication key. The index is
 # # taken as an offset from the base address for persistent objects
 # # (0x81000000), and must lie in the range 0x00_00_00--0x7F_FF_FF. The default
-# # value is 0x00_10_00.
-# auth_key_index = "0x00_10_00"
+# # value is 0x00_01_00.
+# auth_key_index = "0x00_01_00"
 
 # # Authorization values for use of the endorsement and owner hierarchies, if
 # # necessary. By default, these are empty strings.
