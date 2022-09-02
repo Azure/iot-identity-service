@@ -10,7 +10,7 @@ const _: () = assert!(valid_persistent_index(default_ak_index()));
 const AUTH_KEY_BOUND_MESSAGE: &str = "integer in range 0x00_00_00..=0x7F_FF_FF";
 
 const fn default_ak_index() -> u32 {
-    0x00_10_00
+    0x00_01_00
 }
 
 /// TPM2 Specification Part 3: 28.5.1.c.1
