@@ -46,6 +46,7 @@ pub struct Api {
     endorsement_key: Persistent,
     storage_root_key: Persistent,
     auth_key: Option<Persistent>,
+    auth_key_index: u32,
 }
 
 impl Api {
@@ -127,18 +128,16 @@ impl Api {
                         .expect("existing storage root key was evicted, but could not be read!")
                 }
             };
-        let auth_key = context
-            .from_tpm_public(
-                tss_minimal::handle::PERSISTENT_OBJECT_BASE + config.shared.auth_key_index,
-                None,
-            )
-            .ok();
+        let auth_key_index =
+            tss_minimal::handle::PERSISTENT_OBJECT_BASE + config.shared.auth_key_index;
+        let auth_key = context.from_tpm_public(auth_key_index, None).ok();
 
         Ok(Self {
             context,
             endorsement_key,
             storage_root_key,
             auth_key,
+            auth_key_index,
         })
     }
 
@@ -184,7 +183,7 @@ impl Api {
             if let Err(e) = res {
                 // NOTE: It is likely that another process interacting with the
                 // TPM evicted the key.
-                log::warn!("could not evict previous auth key: {e}");
+                log::warn!("could not evict previous auth key: {}", e);
             }
         }
 
@@ -256,7 +255,7 @@ impl Api {
                 Persistent::OWNER_HIERARCHY,
                 &auth_key_handle,
                 &Persistent::PASSWORD_SESSION,
-                0x8100_1000,
+                self.auth_key_index,
             )?
             .expect("Esys_EvictControl with a transient handle returns a persistent handle");
 
