@@ -45,12 +45,11 @@ impl CertsPreloaded {
 
         let mut visited: BTreeMap<_, _> = Default::default();
 
-        let aziotcs_user = 
-            if std::env::var("SNAP").is_ok() {
-                 crate::internal::common::get_system_user("snap_aziotcs")?
-            } else {
-                 crate::internal::common::get_system_user("aziotcs")? 
-            };
+        let aziotcs_user = if std::env::var("SNAP").is_ok() {
+            crate::internal::common::get_system_user("snap_aziotcs")?
+        } else {
+            crate::internal::common::get_system_user("aziotcs")?
+        };
 
         for id in preloaded_certs.keys() {
             match walk_preloaded_certs(id, preloaded_certs, &aziotcs_user, &mut visited).await? {
