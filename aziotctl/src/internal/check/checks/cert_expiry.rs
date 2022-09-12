@@ -47,7 +47,12 @@ impl IdentityCert {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::{DpsAttestationMethod, ManualAuthMethod, ProvisioningType};
 
-        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+        let aziotcs_user = 
+            if std::env::var("SNAP").is_ok() {
+                 crate::internal::common::get_system_user("snap_aziotcs")?
+            } else {
+                 crate::internal::common::get_system_user("aziotcs")? 
+            };
 
         let provisioning = &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning
@@ -123,7 +128,12 @@ impl EstIdentityBootstrapCerts {
     ) -> Result<CheckResult> {
         let certd_config = unwrap_or_skip!(&cache.cfg.certd);
 
-        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+        let aziotcs_user = 
+            if std::env::var("SNAP").is_ok() {
+                 crate::internal::common::get_system_user("snap_aziotcs")?
+            } else {
+                 crate::internal::common::get_system_user("aziotcs")? 
+            };
 
         let certs = certd_config
             .cert_issuance
@@ -226,7 +236,12 @@ impl LocalCaCert {
             None => return Ok(CheckResult::Ignored),
         };
 
-        let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
+        let aziotcs_user = 
+            if std::env::var("SNAP").is_ok() {
+                 crate::internal::common::get_system_user("snap_aziotcs")?
+            } else {
+                 crate::internal::common::get_system_user("aziotcs")? 
+            };
 
         let (res, cert_info) =
             validate_cert(certd_config, cert_id, "Local CA", &aziotcs_user).await?;
