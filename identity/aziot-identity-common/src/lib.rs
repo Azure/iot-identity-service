@@ -194,14 +194,14 @@ impl From<Credentials> for AuthenticationInfo {
 }
 
 pub mod hub {
-    #[derive(Clone, Copy, Debug, serde::Deserialize, PartialEq, serde::Serialize)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub enum AuthType {
         None,
         Sas,
         X509,
     }
-    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct X509Thumbprint {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -210,7 +210,7 @@ pub mod hub {
         pub secondary_thumbprint: Option<String>,
     }
 
-    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct SymmetricKey {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -219,7 +219,7 @@ pub mod hub {
         pub secondary_key: Option<http_common::ByteString>,
     }
 
-    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct AuthMechanism {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -232,7 +232,7 @@ pub mod hub {
         pub type_: Option<AuthType>,
     }
 
-    #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
     pub struct Module {
         pub module_id: String,

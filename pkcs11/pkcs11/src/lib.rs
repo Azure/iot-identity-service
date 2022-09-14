@@ -33,14 +33,14 @@ pub use session::{
     GetKeyError, ImportKeyError, Key, KeyPair, KeyUsage, LoginError, PublicKey, Session,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Uri {
     pub slot_identifier: UriSlotIdentifier,
     pub object_label: Option<String>,
     pub pin: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum UriSlotIdentifier {
     Label(String),
     SlotId(pkcs11_sys::CK_SLOT_ID),
@@ -54,7 +54,7 @@ impl std::fmt::Display for Uri {
             UriSlotIdentifier::Label(token_label) => {
                 write!(f, "token=")?;
                 let value = percent_encoding::utf8_percent_encode(
-                    &*token_label,
+                    &**token_label,
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
@@ -78,7 +78,7 @@ impl std::fmt::Display for Uri {
         if let Some(object_label) = &self.object_label {
             write!(f, ";object=")?;
             let value = percent_encoding::utf8_percent_encode(
-                &*object_label,
+                &**object_label,
                 percent_encoding::NON_ALPHANUMERIC,
             );
             for s in value {
@@ -89,7 +89,7 @@ impl std::fmt::Display for Uri {
         if let Some(pin) = &self.pin {
             write!(f, "?pin-value=")?;
             let value =
-                percent_encoding::utf8_percent_encode(&*pin, percent_encoding::NON_ALPHANUMERIC);
+                percent_encoding::utf8_percent_encode(&**pin, percent_encoding::NON_ALPHANUMERIC);
             for s in value {
                 write!(f, "{}", s)?;
             }

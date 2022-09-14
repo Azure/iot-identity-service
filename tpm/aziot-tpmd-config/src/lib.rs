@@ -18,7 +18,7 @@ const fn valid_persistent_index(index: u32) -> bool {
     index <= 0x7F_FF_FF
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Config {
     /// Maximum number of simultaneous requests per user that tpmd will service.
     #[serde(
@@ -39,7 +39,7 @@ pub struct Config {
 }
 
 // NOTE: For sharing with super-config
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SharedConfig {
     #[serde(default = "default_tcti", skip_serializing_if = "is_default_tcti")]
     pub tcti: std::ffi::CString,
@@ -65,7 +65,7 @@ impl Default for SharedConfig {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TpmAuthConfig {
     #[serde(default, skip_serializing_if = "empty_cstr")]
     pub endorsement: std::ffi::CString,
@@ -110,7 +110,7 @@ where
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Endpoints {
     /// The endpoint that the tpmd service binds to.
     pub aziot_tpmd: http_common::Connector,
