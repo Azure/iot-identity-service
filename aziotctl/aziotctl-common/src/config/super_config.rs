@@ -354,7 +354,7 @@ where
     Ok(opt)
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AziotMaxRequests {
     pub keyd: usize,
     pub certd: usize,

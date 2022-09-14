@@ -178,7 +178,7 @@ pub enum ProvisioningType {
     None,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Payload {
     pub uri: url::Url,
 }
