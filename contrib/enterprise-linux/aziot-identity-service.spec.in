@@ -84,36 +84,36 @@ make -j \
 # For each of CS, IS, KS: create group, create user, create home directory (in case user already exists from a previous install
 # but the user deleted the directory manually)
 
-if ! %{_bindir}/getent group aziotks >/dev/null; then
-    %{_sbindir}/groupadd -r aziotks
+if ! %{_bindir}/getent group @user_aziotks@ >/dev/null; then
+    %{_sbindir}/groupadd -r @user_aziotks@
 fi
-if ! %{_bindir}/getent passwd aziotks >/dev/null; then
-    %{_sbindir}/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
-fi
-
-if ! %{_bindir}/getent group aziottpm >/dev/null; then
-    %{_sbindir}/groupadd -r aziottpm
-fi
-if ! %{_bindir}/getent passwd aziottpm >/dev/null; then
-    %{_sbindir}/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
+if ! %{_bindir}/getent passwd @user_aziotks@ >/dev/null; then
+    %{_sbindir}/useradd -r -g @user_aziotks@ -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd @user_aziotks@
 fi
 
-if ! %{_bindir}/getent group aziotcs >/dev/null; then
-    %{_sbindir}/groupadd -r aziotcs
+if ! %{_bindir}/getent group @user_aziottpm@ >/dev/null; then
+    %{_sbindir}/groupadd -r @user_aziottpm@
 fi
-if ! %{_bindir}/getent passwd aziotcs >/dev/null; then
-    %{_sbindir}/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
-    %{_sbindir}/usermod -aG aziotks aziotcs
+if ! %{_bindir}/getent passwd @user_aziottpm@ >/dev/null; then
+    %{_sbindir}/useradd -r -g @user_aziottpm@ -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd @user_aziottpm@
 fi
 
-if ! %{_bindir}/getent group aziotid >/dev/null; then
-    %{_sbindir}/groupadd -r aziotid
+if ! %{_bindir}/getent group @user_aziotcs@ >/dev/null; then
+    %{_sbindir}/groupadd -r @user_aziotcs@
 fi
-if ! %{_bindir}/getent passwd aziotid >/dev/null; then
-    %{_sbindir}/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
-    %{_sbindir}/usermod -aG aziotcs aziotid
-    %{_sbindir}/usermod -aG aziotks aziotid
-    %{_sbindir}/usermod -aG aziottpm aziotid
+if ! %{_bindir}/getent passwd @user_aziotcs@ >/dev/null; then
+    %{_sbindir}/useradd -r -g @user_aziotcs@ -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd @user_aziotcs@
+    %{_sbindir}/usermod -aG @user_aziotks@ @user_aziotcs@
+fi
+
+if ! %{_bindir}/getent group @user_aziotid@ >/dev/null; then
+    %{_sbindir}/groupadd -r @user_aziotid@
+fi
+if ! %{_bindir}/getent passwd @user_aziotid@ >/dev/null; then
+    %{_sbindir}/useradd -r -g @user_aziotid@ -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd @user_aziotid@
+    %{_sbindir}/usermod -aG @user_aziotcs@ @user_aziotid@
+    %{_sbindir}/usermod -aG @user_aziotks@ @user_aziotid@
+    %{_sbindir}/usermod -aG @user_aziottpm@ @user_aziotid@
 fi
 
 
@@ -158,25 +158,25 @@ fi
 %{_libdir}/%{name}/*.so*
 
 # Default configs and config directories
-%attr(400, aziotcs, aziotcs) %{_sysconfdir}/aziot/certd/config.toml.default
-%attr(700, aziotcs, aziotcs) %dir %{_sysconfdir}/aziot/certd/config.d
+%attr(400, @user_aziotcs@, @user_aziotcs@) %{_sysconfdir}/aziot/certd/config.toml.default
+%attr(700, @user_aziotcs@, @user_aziotcs@) %dir %{_sysconfdir}/aziot/certd/config.d
 
-%attr(400, aziotid, aziotid) %{_sysconfdir}/aziot/identityd/config.toml.default
-%attr(700, aziotid, aziotid) %dir %{_sysconfdir}/aziot/identityd/config.d
+%attr(400, @user_aziotid@, @user_aziotid@) %{_sysconfdir}/aziot/identityd/config.toml.default
+%attr(700, @user_aziotid@, @user_aziotid@) %dir %{_sysconfdir}/aziot/identityd/config.d
 
-%attr(400, aziotks, aziotks) %{_sysconfdir}/aziot/keyd/config.toml.default
-%attr(700, aziotks, aziotks) %dir %{_sysconfdir}/aziot/keyd/config.d
+%attr(400, @user_aziotks@, @user_aziotks@) %{_sysconfdir}/aziot/keyd/config.toml.default
+%attr(700, @user_aziotks@, @user_aziotks@) %dir %{_sysconfdir}/aziot/keyd/config.d
 
-%attr(400, aziottpm, aziottpm) %{_sysconfdir}/aziot/tpmd/config.toml.default
-%attr(700, aziottpm, aziottpm) %dir %{_sysconfdir}/aziot/tpmd/config.d
+%attr(400, @user_aziottpm@, @user_aziottpm@) %{_sysconfdir}/aziot/tpmd/config.toml.default
+%attr(700, @user_aziottpm@, @user_aziottpm@) %dir %{_sysconfdir}/aziot/tpmd/config.d
 
 %attr(600, root, root) %{_sysconfdir}/aziot/config.toml.template
 
 # Home directories
-%attr(-, aziotcs, aziotcs) %dir /var/lib/aziot/certd
-%attr(-, aziotid, aziotid) %dir /var/lib/aziot/identityd
-%attr(-, aziotks, aziotks) %dir /var/lib/aziot/keyd
-%attr(-, aziottpm, aziottpm) %dir /var/lib/aziot/tpmd
+%attr(-, @user_aziotcs@, @user_aziotcs@) %dir /var/lib/aziot/certd
+%attr(-, @user_aziotid@, @user_aziotid@) %dir /var/lib/aziot/identityd
+%attr(-, @user_aziotks@, @user_aziotks@) %dir /var/lib/aziot/keyd
+%attr(-, @user_aziottpm@, @user_aziottpm@) %dir /var/lib/aziot/tpmd
 
 # Systemd services and sockets
 %{_unitdir}/aziot-certd.service

@@ -1,0 +1,5 @@
+[env]
+USER_AZIOTID = "aziotid"
+USER_AZIOTKS = "aziotks"
+USER_AZIOTCS = "aziotcs"
+USER_AZIOTTPM = "aziottpm"

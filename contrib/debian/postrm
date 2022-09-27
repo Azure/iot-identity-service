@@ -23,10 +23,10 @@ case "$1" in
 		systemctl daemon-reload
 
 		# Kill all processes running under aziot-identity-service users.
-		killall -SIGKILL -u aziotid || true
-		killall -SIGKILL -u aziotcs || true
-		killall -SIGKILL -u aziotks || true
-		killall -SIGKILL -u aziottpm || true
+		[ "@user_aziotid@" != "root" ] && killall -SIGKILL -u @user_aziotid@ || true
+		[ "@user_aziotcs@" != "root" ] && killall -SIGKILL -u @user_aziotcs@ || true
+		[ "@user_aziotks@" != "root" ] && killall -SIGKILL -u @user_aziotks@ || true
+		[ "@user_aziottpm@" != "root" ] && killall -SIGKILL -u @user_aziottpm@ || true
 
 		# Delete directories used by aziot-identity-service.
 		rm -rf /etc/aziot
@@ -34,10 +34,10 @@ case "$1" in
 		rm -rf /var/lib/aziot
 
 		# Delete aziot-identity-service users.
-		/usr/sbin/userdel aziotid
-		/usr/sbin/userdel aziotcs
-		/usr/sbin/userdel aziotks
-		/usr/sbin/userdel aziottpm
+		[ "@user_aziotid@" != "root" ] && /usr/sbin/userdel @user_aziotid@
+		[ "@user_aziotcs@" != "root" ] && /usr/sbin/userdel @user_aziotcs@
+		[ "@user_aziotks@" != "root" ] && /usr/sbin/userdel @user_aziotks@
+		[ "@user_aziottpm@" != "root" ] && /usr/sbin/userdel @user_aziottpm@
 		;;
 	remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
 		;;

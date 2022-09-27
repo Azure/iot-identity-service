@@ -9,7 +9,7 @@ ExecStart=@libexecdir@/aziot-identity-service/aziot-certd
 KillMode=process
 Restart=on-failure
 RestartSec=5s
-User=aziotcs
+User=@user_aziotcs@
 
 [Install]
 WantedBy=multi-user.target

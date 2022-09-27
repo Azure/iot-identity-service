@@ -6,8 +6,8 @@ PartOf=aziot-certd.service
 ListenStream=/run/aziot/certd.sock
 SocketMode=0660
 DirectoryMode=0755
-SocketUser=aziotcs
-SocketGroup=aziotcs
+SocketUser=@user_aziotcs@
+SocketGroup=@user_aziotcs@
 
 [Install]
 WantedBy=sockets.target
