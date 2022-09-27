@@ -6,8 +6,8 @@ PartOf=aziot-keyd.service
 ListenStream=/run/aziot/keyd.sock
 SocketMode=0660
 DirectoryMode=0755
-SocketUser=aziotks
-SocketGroup=aziotks
+SocketUser=@user_aziotks@
+SocketGroup=@user_aziotks@
 
 [Install]
 WantedBy=sockets.target
