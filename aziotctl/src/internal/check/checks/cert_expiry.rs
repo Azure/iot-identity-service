@@ -123,15 +123,7 @@ impl EstIdentityBootstrapCerts {
     ) -> Result<CheckResult> {
         let certd_config = unwrap_or_skip!(&cache.cfg.certd);
 
-<<<<<<< HEAD
         let aziotcs_user = crate::internal::common::get_system_user(env!("USER_AZIOTCS"))?;
-=======
-        let aziotcs_user = if std::env::var("SNAP").is_ok() {
-            crate::internal::common::get_system_user("snap_aziotcs")?
-        } else {
-            crate::internal::common::get_system_user("aziotcs")?
-        };
->>>>>>> a2cf2c31ac1295a725f85e4a34196efa1cccf520
 
         let certs = certd_config
             .cert_issuance
@@ -234,15 +226,7 @@ impl LocalCaCert {
             None => return Ok(CheckResult::Ignored),
         };
 
-<<<<<<< HEAD
         let aziotcs_user = crate::internal::common::get_system_user(env!("USER_AZIOTCS"))?;
-=======
-        let aziotcs_user = if std::env::var("SNAP").is_ok() {
-            crate::internal::common::get_system_user("snap_aziotcs")?
-        } else {
-            crate::internal::common::get_system_user("aziotcs")?
-        };
->>>>>>> a2cf2c31ac1295a725f85e4a34196efa1cccf520
 
         let (res, cert_info) =
             validate_cert(certd_config, cert_id, "Local CA", &aziotcs_user).await?;
