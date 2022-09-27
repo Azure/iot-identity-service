@@ -39,22 +39,10 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
     // Otherwise, tell the user to re-run as root.
     // When run in a snap expect the four users to be prefixed with `snap_`.
 
-    let (aziotks_user, aziotcs_user, aziotid_user, aziottpm_user) = if std::env::var("SNAP").is_ok()
-    {
-        (
-            crate::internal::common::get_system_user("snap_aziotks")?,
-            crate::internal::common::get_system_user("snap_aziotcs")?,
-            crate::internal::common::get_system_user("snap_aziotid")?,
-            crate::internal::common::get_system_user("snap_aziottpm")?,
-        )
-    } else {
-        (
-            crate::internal::common::get_system_user("aziotks")?,
-            crate::internal::common::get_system_user("aziotcs")?,
-            crate::internal::common::get_system_user("aziotid")?,
-            crate::internal::common::get_system_user("aziottpm")?,
-        )
-    };
+    let aziotks_user = crate::internal::common::get_system_user(env!("USER_AZIOTKS"))?;
+    let aziotcs_user = crate::internal::common::get_system_user(env!("USER_AZIOTCS"))?;
+    let aziotid_user = crate::internal::common::get_system_user(env!("USER_AZIOTID"))?;
+    let aziottpm_user = crate::internal::common::get_system_user(env!("USER_AZIOTTPM"))?;
 
     let common_config::apply::RunOutput {
         keyd_config,

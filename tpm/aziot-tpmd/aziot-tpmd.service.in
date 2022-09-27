@@ -9,7 +9,7 @@ ExecStart=@libexecdir@/aziot-identity-service/aziot-tpmd
 KillMode=process
 Restart=on-failure
 RestartSec=5s
-User=aziottpm
+User=@user_aziottpm@
 
 [Install]
 WantedBy=multi-user.target

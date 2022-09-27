@@ -2,6 +2,12 @@
 BINDGEN = bindgen
 CBINDGEN = cbindgen
 
+# Default users under which the services will run. Override by specifying on the CLI for make.
+USER_AZIOTID ?= aziotid
+USER_AZIOTCS ?= aziotcs
+USER_AZIOTKS ?= aziotks
+USER_AZIOTTPM ?= aziottpm
+
 # 0 => false, _ => true
 V = 0
 
@@ -56,7 +62,11 @@ CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECT
 VENDOR_PREFIX = $(CARGO_OUTPUT_ABSPATH)/fakeroot
 VENDOR_PKGCONFIG = $(VENDOR_PREFIX)$(AZIOT_PRIVATE_LIBRARIES)/pkgconfig
 
-CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" cargo
+CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" \
+		USER_AZIOTID="$(USER_AZIOTID)" \
+		USER_AZIOTCS="$(USER_AZIOTCS)" \
+		USER_AZIOTKS="$(USER_AZIOTKS)" \
+		USER_AZIOTTPM="$(USER_AZIOTTPM)" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL = /bin/bash
@@ -309,6 +319,9 @@ deb: dist
 	# Copy package files
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postinst
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/preinst
 
 	# Build package
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
@@ -360,6 +373,10 @@ rpm:
 		-e "s|@devtoolset@|$$DEVTOOLSET|g" \
 		-e "s|@llvm_toolset@|$$LLVM_TOOLSET|g" \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
+		-e "s/@user_aziotid@/$(USER_AZIOTID)/g" \
+		-e "s/@user_aziotks@/$(USER_AZIOTKS)/g" \
+		-e "s/@user_aziotcs@/$(USER_AZIOTCS)/g" \
+		-e "s/@user_aziottpm@/$(USER_AZIOTTPM)/g" \
 		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
 	# Copy preset file to be included in the package
@@ -466,6 +483,10 @@ install-common:
 		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \
 			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBRARIES)|' \
 			-e 's|@libexecdir@|$(libexecdir)|' \
+			-e 's|@user_aziotid@|$(USER_AZIOTID)|' \
+			-e 's|@user_aziotks@|$(USER_AZIOTKS)|' \
+			-e 's|@user_aziotcs@|$(USER_AZIOTCS)|' \
+			-e 's|@user_aziottpm@|$(USER_AZIOTTPM)|' \
 			>"$$OUTPUT_SERVICE"; \
 		chmod 0644 "$$OUTPUT_SERVICE"; \
 	done

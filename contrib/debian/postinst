@@ -20,10 +20,10 @@ set -e
 
 case "$1" in
 	configure)
-		chown aziotcs:aziotcs /etc/aziot/certd/config.toml.default
-		chown aziotid:aziotid /etc/aziot/identityd/config.toml.default
-		chown aziotks:aziotks /etc/aziot/keyd/config.toml.default
-		chown aziottpm:aziottpm /etc/aziot/tpmd/config.toml.default
+		chown @user_aziotcs@:@user_aziotcs@ /etc/aziot/certd/config.toml.default
+		chown @user_aziotid@:@user_aziotid@ /etc/aziot/identityd/config.toml.default
+		chown @user_aziotks@:@user_aziotks@ /etc/aziot/keyd/config.toml.default
+		chown @user_aziottpm@:@user_aziottpm@ /etc/aziot/tpmd/config.toml.default
 		chown root:root /etc/aziot/config.toml.template
 		for f in \
 			/etc/aziot/certd/config.toml.default \
@@ -36,16 +36,16 @@ case "$1" in
 		chmod 0600 /etc/aziot/config.toml.template
 
 		if [ -d /var/lib/aziot/certd ]; then
-			chown aziotcs:aziotcs /var/lib/aziot/certd
+			chown @user_aziotcs@:@user_aziotcs@ /var/lib/aziot/certd
 		fi
 		if [ -d /var/lib/aziot/identityd ]; then
-			chown aziotid:aziotid /var/lib/aziot/identityd
+			chown @user_aziotid@:@user_aziotid@ /var/lib/aziot/identityd
 		fi
 		if [ -d /var/lib/aziot/keyd ]; then
-			chown aziotks:aziotks /var/lib/aziot/keyd
+			chown @user_aziotks@:@user_aziotks@ /var/lib/aziot/keyd
 		fi
 		if [ -d /var/lib/aziot/tpmd ]; then
-			chown aziottpm:aziottpm /var/lib/aziot/tpmd
+			chown @user_aziottpm@:@user_aziottpm@ /var/lib/aziot/tpmd
 		fi
 
 		for d in \

@@ -63,11 +63,7 @@ impl ReadKeyPairs {
         let mut warn_aggregated = vec![];
 
         // Check every preloaded key at a file:// URI is readable by the aziotks user and report errors when they aren't.
-        let aziotks_user = if std::env::var("SNAP").is_ok() {
-            crate::internal::common::get_system_user("snap_aziotks")?
-        } else {
-            crate::internal::common::get_system_user("aziotks")?
-        };
+        let aziotks_user = crate::internal::common::get_system_user(env!("USER_AZIOTKS"))?;
 
         for (id, path) in preloaded_keys {
             if let Ok(aziot_keys_common::PreloadedKeyLocation::Filesystem { path }) = path.parse() {
