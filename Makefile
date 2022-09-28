@@ -474,12 +474,20 @@ install-common:
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/tpmd
 
 	# Systemd services and sockets
+	$(INSTALL) -d $(DESTDIR)$(unitdir)
 	# NOTE: We do not use "install -D ... -t ..." since it is broken on
 	# RHEL 7 derivatives and will not be fixed.
 	# Ref: https://bugzilla.redhat.com/show_bug.cgi?format=multiple&id=1758488
 	for i in cert identity key tpm; do \
+		OUTPUT_SOCKET="$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
+		<"$$i/aziot-$${i}d/aziot-$${i}d.socket.in" sed \
+			-e 's|@user_aziotid@|$(USER_AZIOTID)|' \
+			-e 's|@user_aziotks@|$(USER_AZIOTKS)|' \
+			-e 's|@user_aziotcs@|$(USER_AZIOTCS)|' \
+			-e 's|@user_aziottpm@|$(USER_AZIOTTPM)|' \
+			>"$$OUTPUT_SOCKET"; \
+		chmod 0644 "$$OUTPUT_SOCKET"; \
 		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
-		$(INSTALL_DATA) -D "$$i/aziot-$${i}d/aziot-$${i}d.socket" "$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
 		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \
 			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBRARIES)|' \
 			-e 's|@libexecdir@|$(libexecdir)|' \
