@@ -273,7 +273,7 @@ case "$OS:$ARCH" in
             'mariner:2')
                 # BranchTag='2.0-stable'
                 # WARN: 2.0-stable is broken - https://github.com/microsoft/CBL-Mariner/issues/3483
-                BranchTag='2.0.20220824-2.0'
+                BranchTag='2.0.20220921-2.0'
                 ;;
         esac
 
