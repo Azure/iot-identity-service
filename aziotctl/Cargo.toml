@@ -1,6 +1,6 @@
 [package]
 name = "aziotctl"
-version = "1.4.0"
+version = "1.4.1"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
 
