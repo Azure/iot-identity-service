@@ -20,6 +20,7 @@ lazy_static = "1"
 libc = "0.2"
 log = "0.4"
 openssl = "0.10"
+openssl-sys = "0.9"
 percent-encoding = "2"
 regex = "1"
 serde = "1"
@@ -47,5 +48,7 @@ config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
+[build-dependencies]
+openssl-build = { path = "../../openssl-build/" }
 
 [dev-dependencies]

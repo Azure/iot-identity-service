@@ -18,8 +18,14 @@ int aziot_key_openssl_engine_shared_bind(ENGINE* e, const char* id);
  *
  * Unfortunately this trick means this crate cannot be compiled for tests since the linker will see duplicate symbols, so every invocation of
  * `cargo test --all` or `cargo clippy --tests --all` has to also exclude this crate with `--exclude`.
+ *
+ * For openssl 3.0 the `__asm__(".symver")` approach causes `ld` to complain about duplicate symbols.
  */
 IMPLEMENT_DYNAMIC_BIND_FN(aziot_key_openssl_engine_shared_bind);
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 __asm__(".symver bind_engine,bind_engine@@");
+#endif
 IMPLEMENT_DYNAMIC_CHECK_FN();
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
 __asm__(".symver v_check,v_check@@");
+#endif

@@ -11,10 +11,6 @@ The Azure IoT Identity Service can be installed on your device by installing the
 </thead>
 <tbody>
 <tr>
-<td>Debian 9, Raspberry Pi OS 9</td>
-<td>amd64, arm32v7, aarch64</td>
-</tr>
-<tr>
 <td>Debian 10, Raspberry Pi OS 10</td>
 <td>amd64, arm32v7, aarch64</td>
 </tr>
@@ -44,7 +40,7 @@ The Azure IoT Identity Service can be installed on your device by installing the
 Packages for some of these distros are available on packages.microsoft.com. 
 
 ## Install from packages.microsoft.com
-**Applies to:** Ubuntu 18.04, Raspberry Pi OS Stretch
+**Applies to:** Ubuntu 18.04, 20.04, Raspberry Pi OS Bullseye
 
 ```bash
 sudo apt install aziot-identity-service
@@ -52,35 +48,47 @@ sudo apt install aziot-identity-service
 
 You may need to first add the `packages.microsoft.com` to your repo sources.
 
-1. Install the Microsoft GPG public key
+1. On Ubuntu 18.04
 
     ```bash
-    curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
-    sudo cp ./microsoft.gpg /etc/apt/trusted.gpg.d/
+    wget https://packages.microsoft.com/config/ubuntu/18.04/multiarch/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    sudo dpkg -i packages-microsoft-prod.deb
+    rm packages-microsoft-prod.deb
     ```
 
-2. On Ubuntu 18.04
+
+2. On Ubuntu 20.04
 
     ```bash
-    curl https://packages.microsoft.com/config/ubuntu/18.04/multiarch/prod.list > ./microsoft-prod.list
-    sudo cp ./microsoft-prod.list /etc/apt/sources.list.d/
+    wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    sudo dpkg -i packages-microsoft-prod.deb
+    rm packages-microsoft-prod.deb
     ```
 
-3. On Raspberry Pi OS Stretch
+3. On Raspberry Pi OS Bullseye
 
     ```bash
-    curl https://packages.microsoft.com/config/debian/stretch/multiarch/prod.list > ./microsoft-prod.list
-    sudo cp ./microsoft-prod.list /etc/apt/sources.list.d/
+    wget https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    sudo dpkg -i packages-microsoft-prod.deb
+    rm packages-microsoft-prod.deb
+    ```
+
+4. On RedHat Enterprise Linux 8
+
+    ```bash
+    wget https://packages.microsoft.com/config/rhel/8/packages-microsoft-prod.rpm -O packages-microsoft-prod.rpm
+    sudo yum localinstall packages-microsoft-prod.rpm
+    rm packages-microsoft-prod.rpm
     ```
 
 ## Install for an alternative distro / architecture
 
-Download and install the `aziot-identity-service` pre-built package for your respective distro / architecture from [the IoT Edge release collateral for v1.2 or later](https://github.com/Azure/azure-iotedge/releases/tag/1.2.0).
+Download and install the `aziot-identity-service` pre-built package for your respective distro / architecture from [the IoT Edge release collateral for v1.4 or later](https://github.com/Azure/azure-iotedge/releases/tag/1.4.0).
 
 Using Ubuntu 20.04 amd64 as an example:
 
 ```bash
-wget https://github.com/Azure/azure-iotedge/releases/download/1.2.0/aziot-identity-service_1.2.0-1_ubuntu20.04_amd64.deb -o aziot-identity-service.deb
+wget https://github.com/Azure/azure-iotedge/releases/download/1.4.0/aziot-identity-service_1.4.0-1_ubuntu20.04_amd64.deb -o aziot-identity-service.deb
 
 sudo apt install ./aziot-identity-service.deb
 ```

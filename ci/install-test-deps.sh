@@ -16,7 +16,7 @@ case "$OS" in
         yum install -y expect json-glib-devel libtasn1-devel net-tools python3 socat
         ;;
 
-    # NOTE: ubuntu:20.04 uses libtss2-dev provided through the package
+    # NOTE: ubuntu:20.04+ uses libtss2-dev provided through the package
     # repositories, but the available version does not provide a TCTI
     # module for swtpm.  So, we skip testing tss-minimal on
     # ubuntu:20.04.

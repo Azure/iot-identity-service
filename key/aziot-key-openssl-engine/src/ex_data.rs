@@ -96,15 +96,15 @@ where
     Ok(())
 }
 
-pub(crate) unsafe fn dup<T, U>(from_d: *mut std::ffi::c_void, idx: std::os::raw::c_int)
+pub(crate) unsafe fn dup<T, U>(from_d: *mut *mut std::ffi::c_void, idx: std::os::raw::c_int)
 where
     T: HasExData<U>,
 {
     let ex_index = <T as HasExData<U>>::index().as_raw();
     assert_eq!(idx, ex_index);
 
-    // Although `dup_func`'s signature types `from_d` as `void*`, it is in fact a `void**` - it points to the pointer returned by
-    // calling `CRYPTO_get_ex_data` on the `from` object. After `dup_func` returns, openssl takes whatever `from_d` is pointing to,
+    // `from_d` oints to the pointer returned by calling `CRYPTO_get_ex_data` on the `from` object.
+    // After `dup_func` returns, openssl takes whatever `from_d` is pointing to,
     // and sets it as the ex data of the `to` object using `CRYPTO_set_ex_data`.
     //
     // Ref: https://www.openssl.org/docs/man1.1.1/man3/CRYPTO_get_ex_new_index.html (search for `dup_func`)

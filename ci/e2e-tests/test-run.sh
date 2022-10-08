@@ -109,6 +109,10 @@ get_package() {
             artifact_name='ubuntu-20.04'
             ;;
 
+        'ubuntu:22.04')
+            artifact_name='ubuntu-22.04'
+            ;;
+
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
@@ -198,6 +202,11 @@ get_package() {
 
         'ubuntu:20.04')
             unzip -j package.zip 'ubuntu2004/amd64/aziot-identity-service_*_amd64.deb' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'ubuntu:22.04')
+            unzip -j package.zip 'ubuntu2204/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
@@ -594,10 +603,17 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Canonical' --offer '0001-com-ubuntu-server-focal' --sku '20' \
         #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-server-focal'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202204190'
+        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202209130'
         ;;
 
-    *)
+    'ubuntu:22.04')
+        # az vm image list --all \
+        #     --publisher 'Canonical' --offer '0001-com-ubuntu-minimal-jammy' --sku 'minimal-22' \
+        #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-minimal-jammy'].{ sku: sku, version: version, urn: urn }" --output table
+        vm_image='Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:22.04.202209210'
+        ;;
+
+     *)
         echo "Unsupported OS $OS" >&2
         exit 1
         ;;
