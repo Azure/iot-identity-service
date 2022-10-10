@@ -36,7 +36,6 @@ unsafe extern "C" fn aziot_key_dupf_rsa_ex_data(
     1
 }
 
-
 #[no_mangle]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_freef_rsa_ex_data(

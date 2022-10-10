@@ -103,7 +103,7 @@ where
     let ex_index = <T as HasExData<U>>::index().as_raw();
     assert_eq!(idx, ex_index);
 
-    // `from_d` oints to the pointer returned by calling `CRYPTO_get_ex_data` on the `from` object.
+    // `from_d` points to the pointer returned by calling `CRYPTO_get_ex_data` on the `from` object.
     // After `dup_func` returns, openssl takes whatever `from_d` is pointing to,
     // and sets it as the ex data of the `to` object using `CRYPTO_set_ex_data`.
     //

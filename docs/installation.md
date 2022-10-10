@@ -56,7 +56,6 @@ You may need to first add the `packages.microsoft.com` to your repo sources.
     rm packages-microsoft-prod.deb
     ```
 
-
 2. On Ubuntu 20.04
 
     ```bash
