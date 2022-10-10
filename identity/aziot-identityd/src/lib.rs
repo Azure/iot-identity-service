@@ -508,6 +508,9 @@ impl Api {
         })
     }
 
+    // NOTE: clippy::unused_async is allowed since the the function will
+    // likely require async in the (now unlikely) event we implement it.
+    #[allow(clippy::unused_async)]
     pub async fn get_trust_bundle(
         &self,
         auth_id: auth::AuthId,

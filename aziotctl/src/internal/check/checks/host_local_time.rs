@@ -21,13 +21,12 @@ impl Checker for HostLocalTime {
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         self.execute_inner(shared, cache)
-            .await
             .unwrap_or_else(CheckResult::Failed)
     }
 }
 
 impl HostLocalTime {
-    async fn execute_inner(
+    fn execute_inner(
         &mut self,
         shared: &CheckerShared,
         _cache: &mut CheckerCache,
