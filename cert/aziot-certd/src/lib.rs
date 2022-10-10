@@ -759,7 +759,7 @@ pub(crate) fn get_cert_inner(
                     result.extend_from_slice(&bytes);
                 }
             }
-            Ok((!result.is_empty()).then(|| result))
+            Ok((!result.is_empty()).then_some(result))
         }
     }
 }
