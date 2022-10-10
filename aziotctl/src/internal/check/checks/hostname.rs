@@ -24,13 +24,12 @@ impl Checker for Hostname {
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
         self.execute_inner(shared, cache)
-            .await
             .unwrap_or_else(CheckResult::Failed)
     }
 }
 
 impl Hostname {
-    async fn execute_inner(
+    fn execute_inner(
         &mut self,
         _shared: &CheckerShared,
         cache: &mut CheckerCache,
