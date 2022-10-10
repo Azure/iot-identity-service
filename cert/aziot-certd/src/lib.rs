@@ -64,10 +64,11 @@ pub async fn main(
         principal,
     } = config;
 
-    #[cfg(ossl330)] {
+    #[cfg(ossl330)]
+    {
         let ossl_providers = openssl::provider::Provider::load(None, "default");
         if ossl_providers.is_err() {
-            panic!("Failed to load openssl's Default provider");
+            log::error!("Failed to load openssl's Default provider");
         }
     }
 
