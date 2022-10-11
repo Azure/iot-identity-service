@@ -33,7 +33,7 @@ typedef unsigned int AZIOT_KEYS_VERSION;
 /**
  * The base struct of all of function lists.
  */
-typedef struct AZIOT_KEYS_FUNCTION_LIST {
+typedef struct {
     /**
      * The version of the API represented in this function list.
      *
@@ -52,7 +52,7 @@ typedef unsigned int AZIOT_KEYS_SIGN_MECHANISM;
 /**
  * Used with `sign` / `verify` with the [`AZIOT_KEYS_SIGN_MECHANISM_DERIVED`] mechanism.
  */
-typedef struct AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
+typedef struct {
     /**
      * The data used to derive the new key.
      */
@@ -76,7 +76,7 @@ typedef struct AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
 /**
  * Used with `encrypt` / `decrypt` with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD`] mechanism.
  */
-typedef struct AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
+typedef struct {
     /**
      * The IV.
      */
@@ -105,7 +105,7 @@ typedef unsigned int AZIOT_KEYS_ENCRYPT_MECHANISM;
 /**
  * Used with `encrypt` / `decrypt` with the [`AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED`] mechanism.
  */
-typedef struct AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
+typedef struct {
     /**
      * The data used to derive the new key.
      */
@@ -145,11 +145,11 @@ typedef unsigned int AZIOT_KEYS_KEY_USAGE;
 /**
  * The specific implementation of [`AZIOT_KEYS_FUNCTION_LIST`] for API version 2.0.0.0
  */
-typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+typedef struct {
     /**
      * The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_0_0_0`].
      */
-    struct AZIOT_KEYS_FUNCTION_LIST base;
+    AZIOT_KEYS_FUNCTION_LIST base;
     /**
      * Set a parameter on this library.
      *
@@ -462,11 +462,11 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
 /**
  * The specific implementation of [`AZIOT_KEYS_FUNCTION_LIST`] for API version 2.1.0.0
  */
-typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
+typedef struct {
     /**
      * The value of `base.version` must be [`AZIOT_KEYS_VERSION_2_1_0_0`].
      */
-    struct AZIOT_KEYS_FUNCTION_LIST base;
+    AZIOT_KEYS_FUNCTION_LIST base;
     /**
      * Set a parameter on this library.
      *
@@ -986,7 +986,7 @@ typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
  *   - `pfunction_list` is `NULL`.
  */
 AZIOT_KEYS_RC aziot_keys_get_function_list(AZIOT_KEYS_VERSION version,
-                                           const struct AZIOT_KEYS_FUNCTION_LIST **pfunction_list);
+                                           const AZIOT_KEYS_FUNCTION_LIST **pfunction_list);
 
 
 
