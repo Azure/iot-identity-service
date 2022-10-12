@@ -20,11 +20,7 @@ use crate::internal::check::{
 pub struct Options {
     /// Space-separated list of check IDs. The checks listed here will not be run.
     /// See 'aziotctl check-list' for details of all checks.
-    #[arg(
-        long,
-        value_name = "DONT_RUN",
-        value_delimiter = ' ',
-    )]
+    #[arg(long, value_name = "DONT_RUN", value_delimiter = ' ')]
     dont_run: Vec<String>,
 
     /// Output format. One of "text" or "json". Note that JSON output contains

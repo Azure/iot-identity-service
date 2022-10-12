@@ -35,7 +35,10 @@ pub struct LogLevelOptions {
     // NOTE: Possible value references:
     // - https://github.com/rust-lang/log/blob/d6707108c6959ac7b60cdb60a005795ece6d82d6/src/lib.rs#L411
     // - https://github.com/rust-lang/log/blob/d6707108c6959ac7b60cdb60a005795ece6d82d6/src/lib.rs#L473-L487
-    #[arg(value_parser, help = "[possible values: off, error, warn, info, debug, trace]")]
+    #[arg(
+        value_parser,
+        help = "[possible values: off, error, warn, info, debug, trace]"
+    )]
     log_level: log::Level,
 }
 
