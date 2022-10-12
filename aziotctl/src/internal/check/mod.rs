@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
-use structopt::StructOpt;
 
 mod additional_info;
 mod checks;
@@ -13,28 +12,28 @@ pub(crate) use additional_info::AdditionalInfo;
 pub(crate) use checks::all_checks;
 
 // NOTE: This struct gets `structopt(flatten)`ed as part of the `aziotctl check` subcommand.
-#[derive(StructOpt)]
+#[derive(clap::Args)]
 pub struct CheckerCfg {
     /// Sets the NTP server to use when checking host local time.
-    #[structopt(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
+    #[arg(long, value_name = "NTP_SERVER", default_value = "pool.ntp.org:123")]
     pub ntp_server: String,
 
-    // (Manually populated to match top-level CheckOptions value)
-    #[structopt(skip)]
+    /// Increases verbosity of output.
+    #[arg(short, long)]
     pub verbose: bool,
 
     /// Sets the hostname of the Azure IoT Hub that this device would connect to.
     /// If using manual provisioning, this does not need to be specified.
-    #[structopt(long, value_name = "IOTHUB_HOSTNAME")]
+    #[arg(long, value_name = "IOTHUB_HOSTNAME")]
     pub iothub_hostname: Option<String>,
 
     /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
-    #[structopt(long, value_name = "PROXY_URI")]
+    #[arg(long, value_name = "PROXY_URI")]
     pub proxy_uri: Option<hyper::Uri>,
 
     /// If set, the check compares the installed package version to this string.
     /// Otherwise, the version is fetched from <http://aka.ms/latest-aziot-identity-service>
-    #[structopt(long, value_name = "VERSION")]
+    #[arg(long, value_name = "VERSION")]
     pub expected_aziot_version: Option<String>,
 }
 
@@ -72,7 +71,7 @@ pub enum CheckResult {
     Fatal(anyhow::Error),
 }
 
-#[derive(Debug, Copy, Clone, Serialize)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub struct CheckerMeta {
     /// Unique human-readable identifier for the check.
     pub id: &'static str,

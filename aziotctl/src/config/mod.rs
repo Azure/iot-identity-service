@@ -3,7 +3,7 @@
 mod apply;
 mod mp;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Subcommand)]
 pub(crate) enum Options {
     /// Apply the configuration to the Azure IoT Identity Service and related services.
     Apply(apply::Options),

@@ -2,11 +2,9 @@
 
 use std::collections::BTreeMap;
 use std::io::prelude::*;
-use std::str::FromStr;
 
 use anyhow::Result;
 use colored::Colorize;
-use structopt::StructOpt;
 
 use aziotctl_common::{
     CheckOutputSerializable, CheckOutputSerializableStreaming, CheckResultSerializable,
@@ -17,62 +15,42 @@ use crate::internal::check::{
     AdditionalInfo, CheckResult, CheckerCache, CheckerCfg, CheckerShared,
 };
 
-#[derive(StructOpt)]
-#[structopt(about = "Check for common config and deployment issues")]
+#[derive(clap::Args)]
+#[command(about = "Check for common config and deployment issues")]
 pub struct Options {
     /// Space-separated list of check IDs. The checks listed here will not be run.
     /// See 'aziotctl check-list' for details of all checks.
-    #[structopt(
+    #[arg(
         long,
         value_name = "DONT_RUN",
-        value_delimiter = " ",
-        use_delimiter = true
+        value_delimiter = ' ',
     )]
     dont_run: Vec<String>,
 
     /// Output format. One of "text" or "json". Note that JSON output contains
     /// some additional information like OS name, OS version, disk space, etc.
-    #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
+    #[arg(short, long, value_enum, value_name = "FORMAT", default_value_t = OutputFormat::Text)]
     output: OutputFormat,
-
-    /// Increases verbosity of output.
-    #[structopt(short, long)]
-    verbose: bool,
 
     /// Treats warnings as errors. Thus 'aziotctl check' will exit with non-zero
     /// code if it encounters warnings.
-    #[structopt(long)]
+    #[arg(long)]
     warnings_as_errors: bool,
 
-    #[structopt(flatten)]
+    #[command(flatten)]
     checker_cfg: CheckerCfg,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, clap::ValueEnum)]
+#[value(rename_all = "kebab-case")]
 pub enum OutputFormat {
     Text,
     Json,
     JsonStream,
 }
 
-impl FromStr for OutputFormat {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, &'static str> {
-        Ok(match s {
-            "text" => OutputFormat::Text,
-            "json" => OutputFormat::Json,
-            "json-stream" => OutputFormat::JsonStream,
-            _ => return Err("invalid output format"),
-        })
-    }
-}
-
-pub async fn check(mut cfg: Options) -> Result<()> {
-    // manually pass verbosity down to the checker-specific configuration
-    cfg.checker_cfg.verbose = cfg.verbose;
-    let cfg = cfg; // freeze cfg
-
+pub async fn check(cfg: Options) -> Result<()> {
+    let verbose = cfg.checker_cfg.verbose;
     let checker_shared = CheckerShared::new(cfg.checker_cfg);
 
     let mut checks: BTreeMap<String, CheckOutputSerializable> = Default::default();
@@ -162,7 +140,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
                     num_warnings += 1;
                     outputln!(yellow, "\u{203c} {} - Warning", check_name);
                     outputlns!(yellow, "    ", "    ", warning.to_string().lines());
-                    if cfg.verbose {
+                    if verbose {
                         for cause in warning.chain().skip(1) {
                             outputlns!(
                                 yellow,
@@ -180,7 +158,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
                 CheckResult::Ignored => CheckResultSerializable::Ignored,
                 CheckResult::Skipped => {
                     num_skipped += 1;
-                    if cfg.verbose {
+                    if verbose {
                         outputln!(yellow, "\u{203c} {} - Warning", check_name);
                         outputln!(yellow, "    skipping because of previous failures");
                     }
@@ -191,7 +169,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
                     num_fatal += 1;
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
-                    if cfg.verbose {
+                    if verbose {
                         for cause in err.chain().skip(1) {
                             outputlns!(
                                 red,
@@ -210,7 +188,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
                     num_errors += 1;
                     outputln!(red, "\u{00d7} {} - Error", check_name);
                     outputlns!(red, "    ", "    ", err.to_string().lines());
-                    if cfg.verbose {
+                    if verbose {
                         for cause in err.chain().skip(1) {
                             outputlns!(
                                 red,
@@ -261,7 +239,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
 
     if num_warnings > 0 {
         output!(yellow, "{} check(s) raised warnings.", num_warnings);
-        if cfg.verbose {
+        if verbose {
             outputln!();
         } else {
             outputln!(yellow, " Re-run with --verbose for more details.");
@@ -270,7 +248,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
 
     if num_fatal + num_errors > 0 {
         output!(red, "{} check(s) raised errors.", num_fatal + num_errors);
-        if cfg.verbose {
+        if verbose {
             outputln!();
         } else {
             outputln!(red, " Re-run with --verbose for more details.");
@@ -283,7 +261,7 @@ pub async fn check(mut cfg: Options) -> Result<()> {
             "{} check(s) were skipped due to errors from other checks.",
             num_skipped,
         );
-        if cfg.verbose {
+        if verbose {
             outputln!();
         } else {
             outputln!(yellow, " Re-run with --verbose for more details.");
