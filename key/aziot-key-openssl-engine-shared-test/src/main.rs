@@ -9,11 +9,13 @@
     clippy::use_self
 )]
 
+use clap::Parser;
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     openssl::init();
 
-    let command = structopt::StructOpt::from_args();
+    let command = Command::parse();
 
     match command {
         Command::GenerateCaCert {
@@ -331,96 +333,96 @@ where
     }
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(Parser)]
 enum Command {
     /// Generate a CA cert.
     GenerateCaCert {
         /// A key handle to the key pair that will be used for the CA cert.
-        #[structopt(long)]
+        #[arg(long)]
         key_handle: String,
 
         /// The path where the CA cert PEM file will be stored.
-        #[structopt(long)]
+        #[arg(long)]
         out_file: std::path::PathBuf,
 
         /// The subject CN of the new cert.
-        #[structopt(long)]
+        #[arg(long)]
         subject: String,
     },
 
     /// Generate a client auth cert.
     GenerateClientCert {
         /// The path of the CA cert PEM file.
-        #[structopt(long)]
+        #[arg(long)]
         ca_cert: std::path::PathBuf,
 
         /// A key handle to the key pair of the CA.
-        #[structopt(long)]
+        #[arg(long)]
         ca_key_handle: String,
 
         /// A key handle to the key pair that will be used for the client cert.
-        #[structopt(long)]
+        #[arg(long)]
         key_handle: String,
 
         /// The path where the client cert PEM file will be stored.
-        #[structopt(long)]
+        #[arg(long)]
         out_file: std::path::PathBuf,
 
         /// The subject CN of the new cert.
-        #[structopt(long)]
+        #[arg(long)]
         subject: String,
     },
 
     /// Generate a server auth cert.
     GenerateServerCert {
         /// The path of the CA cert PEM file.
-        #[structopt(long)]
+        #[arg(long)]
         ca_cert: std::path::PathBuf,
 
         /// A key handle to the key pair of the CA.
-        #[structopt(long)]
+        #[arg(long)]
         ca_key_handle: String,
 
         /// A key handle to the key pair that will be used for the server cert.
-        #[structopt(long)]
+        #[arg(long)]
         key_handle: String,
 
         /// The path where the server cert PEM file will be stored.
-        #[structopt(long)]
+        #[arg(long)]
         out_file: std::path::PathBuf,
 
         /// The subject CN of the new cert.
-        #[structopt(long)]
+        #[arg(long)]
         subject: String,
     },
 
     /// Start a web client that uses the specified private key and cert file for TLS.
     WebClient {
         /// Path of the client cert file.
-        #[structopt(long)]
+        #[arg(long)]
         cert: std::path::PathBuf,
 
         /// A key handle to the client cert's key pair.
-        #[structopt(long)]
+        #[arg(long)]
         key_handle: String,
 
         /// The port to listen on.
-        #[structopt(long, default_value = "8443")]
+        #[arg(long, default_value_t = 8443)]
         port: u16,
     },
 
     /// Start a web server that uses the specified private key and cert file for TLS.
     WebServer {
         /// Path of the server cert file.
-        #[structopt(long)]
+        #[arg(long)]
         cert: std::path::PathBuf,
 
         /// A key handle to the server cert's key pair.
-        #[structopt(long)]
+        #[arg(long)]
         key_handle: String,
 
         /// The port to listen on.
-        #[structopt(long, default_value = "8443")]
+        #[arg(long, default_value_t = 8443)]
         port: u16,
     },
 }
