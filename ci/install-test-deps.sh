@@ -46,7 +46,7 @@ case "$OS" in
         ;;
 esac
 
-if [ "$SKIP_TSS_MINIMAL" = 0 && "$USE_SWTPM_PKG" = 0 ]; then
+if [ "$SKIP_TSS_MINIMAL" = 0 ] && [ "$USE_SWTPM_PKG" = 0 ]; then
     (
         cd third-party/libtpms || exit 1;
         ./autogen.sh \
