@@ -311,9 +311,13 @@ deb: dist
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
 
 	# Build package
+	# Note: This builds the `default` target before the normal Debian packaging (instead
+	# of as part of it) to workaround linker errors on Ubuntu 22.04 when building
+	# aziot-key-openssl-engine-shared. The extra flags to dpkg-buildpackage are to
+	# circumvent the default clean and to ignore build artifacts that will already exist.
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && \
 		make RELEASE=1 V=1 ARCH=$(ARCH) && \
-		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc
+		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc -tc -F --tar-ignore=vendor --tar-ignore=target --diff-ignore=\.generated\.rs --source-option=--format=1.0 --source-option=-sn
 
 # rpm
 #
