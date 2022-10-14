@@ -313,7 +313,7 @@ deb: dist
 	# Build package
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && \
 		make RELEASE=1 V=1 ARCH=$(ARCH) && \
-		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
+		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc
 
 # rpm
 #
