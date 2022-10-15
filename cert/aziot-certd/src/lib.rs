@@ -64,14 +64,6 @@ pub async fn main(
         principal,
     } = config;
 
-    #[cfg(ossl330)]
-    {
-        let ossl_providers = openssl::provider::Provider::load(None, "default");
-        if ossl_providers.is_err() {
-            log::error!("Failed to load openssl's Default provider");
-        }
-    }
-
     let renewal_engine = cert_renewal::engine::new();
 
     let est_config = est::EstConfig::new(&cert_issuance, &homedir_path, &preloaded_certs)?;
