@@ -317,7 +317,7 @@ deb: dist
 	# circumvent the default clean and to ignore build artifacts that will already exist.
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && \
 		make RELEASE=1 V=1 ARCH=$(ARCH) && \
-		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc -tc -F -I=vendor -I=target --source-option=--extend-diff-ignore="target|vendor|keys\.generated\.rs"
+		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc -tc -F -I=vendor -I=target --source-option=--extend-diff-ignore="target|vendor|third-party|keys\.generated\.rs"
 
 # rpm
 #
