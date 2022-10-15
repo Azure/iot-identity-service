@@ -79,7 +79,7 @@ pub async fn main(
     {
         match openssl::provider::Provider::try_load(None, "default", true) {
             Ok(_provider) => log::info!("Loaded openssl'd Default provider"),
-            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why)
+            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why),
         }
     }
 
