@@ -12,7 +12,7 @@ base64 = "0.21"
 foreign-types-shared = "0.1"
 log = "0.4"
 openssl = "0.10"
-openssl-errors = "0.1"
+openssl-errors = "0.2"
 openssl-sys = "0.9"
 
 aziot-key-client = { path = "../aziot-key-client" }

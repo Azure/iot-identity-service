@@ -27,9 +27,7 @@ PRIVATE_LIBS = /usr/lib/aziot-identity-service
 
 override_dh_auto_build:
 	# Default behavior is `make -j1`, which is not quite right for us.
-	make -j \
-		RELEASE=1 \
-		V=1
+	echo Skipping... Build should have happened already.
 
 override_dh_auto_install:
 	# Default behavior is `make -j1 install DESTDIR=$$PWD/debian/aziot-identity-service`, which is not quite right for us.
@@ -39,12 +37,16 @@ override_dh_auto_install:
 		'aarch64') arch_libdir='aarch64-linux-gnu';; \
 		'*') exit 1;; \
 	esac; \
+	case "$$(openssl version)" in \
+	    'OpenSSL 3.0.'*) engines_dir="/usr/lib/$$arch_libdir/engines-3";; \
+		'*') engines_dir="/usr/lib/$$arch_libdir/engines-1.1"; exit1;; \
+	esac; \
 	make -j \
 		DESTDIR="$$PWD/debian/aziot-identity-service" \
 		localstatedir=/var \
 		sysconfdir=/etc \
 		unitdir=/lib/systemd/system \
-		OPENSSL_ENGINES_DIR="/usr/lib/$$arch_libdir/engines-1.1" \
+		OPENSSL_ENGINES_DIR="$$engines_dir" \
 		RELEASE=1 \
 		V=1 \
 		install-deb

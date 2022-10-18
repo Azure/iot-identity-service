@@ -311,7 +311,13 @@ deb: dist
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
 
 	# Build package
-	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
+	# Note: This builds the `default` target before the normal Debian packaging (instead
+	# of as part of it) to workaround linker errors on Ubuntu 22.04 when building
+	# aziot-key-openssl-engine-shared. The extra flags to dpkg-buildpackage are to
+	# circumvent the default clean and to ignore build artifacts that will already exist.
+	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && \
+		make RELEASE=1 V=1 ARCH=$(ARCH) && \
+		dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS) -nc -tc -F -I=vendor -I=target --source-option=--extend-diff-ignore="target|vendor|third-party|keys\.generated\.rs"
 
 # rpm
 #
@@ -396,6 +402,7 @@ presetdir = $(libdir)/systemd/system-preset
 #
 # The correct value is the one output by `openssl version -e`, but we
 # can't invoke that ourselves since we could be cross-compiling.
+# On an openssl 3.0 box this will be replaced with $(libdir)/engines-3
 OPENSSL_ENGINES_DIR = $(libdir)/engines-1.1
 
 # NOTE: This is the default destination for vendored libraries.

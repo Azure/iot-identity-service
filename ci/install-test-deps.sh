@@ -12,6 +12,7 @@
 case "$OS" in
     'centos:7')
         export SKIP_TSS_MINIMAL=0
+        export USE_SWTPM_PKG=0
 
         yum install -y expect json-glib-devel libtasn1-devel net-tools python3 socat
         ;;
@@ -22,17 +23,30 @@ case "$OS" in
     # ubuntu:20.04.
     'debian:'*|'ubuntu:18.04')
         export SKIP_TSS_MINIMAL=0
+        export USE_SWTPM_PKG=0
 
         apt-get install -y \
             expect gawk libjson-glib-dev libtasn1-6-dev net-tools python3 socat
         ;;
 
+    # On 22.04 we use the provided swtpm + libtpms0 packages instead of building them ourselves.
+    # The libtss2-dev package includes a TCTI module for swtpm.
+    'ubuntu:22.04')
+        export SKIP_TSS_MINIMAL=0
+        export USE_SWTPM_PKG=1
+
+        apt-get install -y \
+            expect gawk libjson-glib-dev libtasn1-6-dev net-tools python3 socat \
+            swtpm libtss2-dev
+        ;;
+
     *)
         export SKIP_TSS_MINIMAL=1
+        export USE_SWTPM_PKG=0
         ;;
 esac
 
-if [ "$SKIP_TSS_MINIMAL" = 0 ]; then
+if [ "$SKIP_TSS_MINIMAL" = 0 ] && [ "$USE_SWTPM_PKG" = 0 ]; then
     (
         cd third-party/libtpms || exit 1;
         ./autogen.sh \
