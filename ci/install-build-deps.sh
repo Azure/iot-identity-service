@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'debian:11:amd64'|'ubuntu:20.04:amd64')
+    'debian:11:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -161,7 +161,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:arm32v7')
+    'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -218,7 +218,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:aarch64')
+    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

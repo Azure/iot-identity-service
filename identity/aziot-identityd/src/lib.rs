@@ -75,6 +75,14 @@ pub async fn main(
         }
     }
 
+    #[cfg(ossl300)]
+    {
+        match openssl::provider::Provider::try_load(None, "default", true) {
+            Ok(_provider) => log::info!("Loaded openssl'd Default provider"),
+            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why),
+        }
+    }
+
     let mut api = Api::new(settings)?;
 
     let auto_renew_config = if let config::ProvisioningType::Dps {

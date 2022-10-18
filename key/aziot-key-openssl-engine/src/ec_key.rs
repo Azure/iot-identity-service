@@ -6,6 +6,22 @@ impl crate::ex_data::HasExData<crate::ex_data::KeyExData> for openssl_sys::EC_KE
     }
 }
 
+#[cfg(ossl300)]
+#[no_mangle]
+#[allow(clippy::similar_names)]
+unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
+    _to: *mut openssl_sys::CRYPTO_EX_DATA,
+    _from: *const openssl_sys::CRYPTO_EX_DATA,
+    from_d: *mut *mut std::ffi::c_void,
+    idx: std::os::raw::c_int,
+    _argl: std::os::raw::c_long,
+    _argp: *mut std::ffi::c_void,
+) -> std::os::raw::c_int {
+    crate::ex_data::dup::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(from_d, idx);
+    1
+}
+
+#[cfg(not(ossl300))]
 #[no_mangle]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
