@@ -7,23 +7,23 @@ mod dps;
 mod hub;
 mod server;
 
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Options {
-    #[structopt(long, value_name = "PORT")]
+    #[arg(long)]
     port: u16,
 
-    #[structopt(long, value_name = "SERVER_CERT_CHAIN")]
+    #[arg(long)]
     server_cert_chain: std::path::PathBuf,
 
-    #[structopt(long, value_name = "SERVER_KEY")]
+    #[arg(long)]
     server_key: std::path::PathBuf,
 }
 
 #[tokio::main]
 async fn main() {
-    let options = Options::from_args();
+    let options = Options::parse();
 
     println!(
         "Using server certificate chain {}",

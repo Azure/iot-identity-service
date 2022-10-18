@@ -1,34 +1,27 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use anyhow::{Context, Result};
-use structopt::StructOpt;
 
 use aziotctl_common::CheckListOutput;
 
-#[derive(StructOpt, Copy, Clone)]
-#[structopt(about = "List the checks that are run for 'aziotctl check'")]
+#[derive(Clone, Copy, clap::Args)]
+#[command(about = "List the checks that are run for 'aziotctl check'")]
 pub struct Options {
     /// Output format. One of "text" or "json".
-    #[structopt(short, long, value_name = "FORMAT", default_value = "text")]
+    #[arg(
+        short,
+        long,
+        value_enum,
+        value_name = "FORMAT",
+        default_value_t = OutputFormat::Text
+    )]
     output: OutputFormat,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, clap::ValueEnum)]
 pub enum OutputFormat {
     Text,
     Json,
-}
-
-impl std::str::FromStr for OutputFormat {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, &'static str> {
-        Ok(match s {
-            "text" => OutputFormat::Text,
-            "json" => OutputFormat::Json,
-            _ => return Err("invalid output format"),
-        })
-    }
 }
 
 pub fn check_list(cfg: Options) -> Result<()> {
