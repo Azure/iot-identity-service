@@ -12,11 +12,11 @@ use anyhow::Context;
 
 use aziotctl_common::config as common_config;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub(crate) struct Options {
     /// The path of the config file.
-    #[structopt(
-        short = "-c",
+    #[arg(
+        short = 'c',
         long,
         value_name = "CONFIG",
         default_value = "/etc/aziot/config.toml"
