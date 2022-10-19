@@ -19,6 +19,7 @@ jobs:
         - 'redhat/ubi8:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
+        - 'ubuntu:22.04'
         arch:
         - 'amd64'
         - 'arm32v7'
@@ -39,12 +40,12 @@ jobs:
           arch: 'aarch64'
         # Include this for mariner package builds. Mariner cannot be built on its own OS so we need an Ubuntu container.
         include:
-        - container_os: 'ubuntu:18.04'
+        - container_os: 'ubuntu:20.04'
           arch: 'amd64'
           os: 'mariner:1'
-        # - container_os: 'ubuntu:18.04'
-        #   arch: 'amd64'
-        #   os: 'mariner:2'
+        - container_os: 'ubuntu:20.04'
+          arch: 'amd64'
+          os: 'mariner:2'
 
     steps:
     - uses: 'actions/checkout@v1'
@@ -78,7 +79,7 @@ jobs:
           os_package="$OS"
         fi
         os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
-        echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
+        echo "artifact-name=packages_${os_package}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:

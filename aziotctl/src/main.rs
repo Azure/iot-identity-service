@@ -15,7 +15,7 @@
 )]
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 mod internal;
 
@@ -26,8 +26,7 @@ mod config;
 mod system;
 
 async fn try_main() -> Result<()> {
-    let options = StructOpt::from_args();
-    match options {
+    match Options::parse() {
         Options::Check(cfg) => check::check(cfg).await?,
         Options::CheckList(cfg) => check_list::check_list(cfg)?,
         Options::Config(cfg) => config::run(cfg)?,
@@ -44,9 +43,10 @@ async fn main() {
     }
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum Options {
     /// Work with the configuration of the Azure IoT Identity Service and related services.
+    #[command(subcommand)]
     Config(config::Options),
 
     /// Check for common config and deployment issues.
@@ -56,5 +56,6 @@ enum Options {
     CheckList(check_list::Options),
 
     /// Use system helper commands
+    #[command(subcommand)]
     System(system::Options),
 }

@@ -18,18 +18,12 @@ impl Checker for EstServerHttps {
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        self.inner_execute(shared, cache)
-            .await
-            .unwrap_or_else(CheckResult::Failed)
+        Self::inner_execute(shared, cache).unwrap_or_else(CheckResult::Failed)
     }
 }
 
 impl EstServerHttps {
-    async fn inner_execute(
-        &mut self,
-        _shared: &CheckerShared,
-        cache: &mut CheckerCache,
-    ) -> Result<CheckResult> {
+    fn inner_execute(_shared: &CheckerShared, cache: &mut CheckerCache) -> Result<CheckResult> {
         let aziot_certd_config::Config { cert_issuance, .. } = unwrap_or_skip!(&cache.cfg.certd);
 
         if !cache.daemons_running.certd {

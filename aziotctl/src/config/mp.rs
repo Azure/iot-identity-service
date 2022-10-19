@@ -8,15 +8,15 @@ use anyhow::{anyhow, Context};
 
 use aziotctl_common::config as common_config;
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub(crate) struct Options {
     /// The connection string
-    #[structopt(short = "c", long, value_name = "CONNECTION_STRING")]
+    #[arg(short = 'c', long, value_name = "CONNECTION_STRING")]
     connection_string: String,
 
     /// The path of the system configuration file to write to
-    #[structopt(
-        short = "o",
+    #[arg(
+        short = 'o',
         long,
         value_name = "FILE",
         default_value = "/etc/aziot/config.toml"
@@ -24,7 +24,7 @@ pub(crate) struct Options {
     out_config_file: std::path::PathBuf,
 
     /// Overwrite the new configuration file if it already exists
-    #[structopt(short = "f", long)]
+    #[arg(short = 'f', long)]
     force: bool,
 }
 

@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-openssl-errors = "0.1"
+openssl-errors = "0.2"
 openssl-sys = "0.9"
 url = "2"
 

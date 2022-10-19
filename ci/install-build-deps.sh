@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'debian:11:amd64'|'ubuntu:20.04:amd64')
+    'debian:11:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -161,7 +161,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:arm32v7')
+    'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -218,7 +218,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:aarch64')
+    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -258,7 +258,7 @@ case "$OS:$ARCH" in
         apt-get install -y \
             cmake curl gcc g++ git jq make pkg-config \
             libclang1 libssl-dev llvm-dev \
-            cpio genisoimage golang-1.17-go qemu-utils pigz python-pip python3-distutils rpm tar wget
+            cpio genisoimage golang-1.17-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
 
         rm -f /usr/bin/go
         ln -vs /usr/lib/go-1.17/bin/go /usr/bin/go
@@ -271,9 +271,7 @@ case "$OS:$ARCH" in
                 BranchTag='1.0-stable'
                 ;;
             'mariner:2')
-                # BranchTag='2.0-stable'
-                # WARN: 2.0-stable is broken - https://github.com/microsoft/CBL-Mariner/issues/3483
-                BranchTag='2.0.20220713-2.0'
+                BranchTag='2.0-stable'
                 ;;
         esac
 

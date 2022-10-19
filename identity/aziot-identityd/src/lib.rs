@@ -75,6 +75,14 @@ pub async fn main(
         }
     }
 
+    #[cfg(ossl300)]
+    {
+        match openssl::provider::Provider::try_load(None, "default", true) {
+            Ok(_provider) => log::info!("Loaded openssl'd Default provider"),
+            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why),
+        }
+    }
+
     let mut api = Api::new(settings)?;
 
     let auto_renew_config = if let config::ProvisioningType::Dps {
@@ -508,6 +516,9 @@ impl Api {
         })
     }
 
+    // NOTE: clippy::unused_async is allowed since the the function will
+    // likely require async in the (now unlikely) event we implement it.
+    #[allow(clippy::unused_async)]
     pub async fn get_trust_bundle(
         &self,
         auth_id: auth::AuthId,

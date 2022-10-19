@@ -119,6 +119,22 @@ impl crate::ex_data::HasExData<Engine> for openssl_sys::ENGINE {
     }
 }
 
+#[cfg(ossl300)]
+#[no_mangle]
+#[allow(clippy::similar_names)]
+unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
+    _to: *mut openssl_sys::CRYPTO_EX_DATA,
+    _from: *const openssl_sys::CRYPTO_EX_DATA,
+    from_d: *mut *mut std::ffi::c_void,
+    idx: std::os::raw::c_int,
+    _argl: std::os::raw::c_long,
+    _argp: *mut std::ffi::c_void,
+) -> std::os::raw::c_int {
+    crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
+    1
+}
+
+#[cfg(not(ossl300))]
 #[no_mangle]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_engine_ex_data(

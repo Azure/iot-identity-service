@@ -21,18 +21,12 @@ impl Checker for CertsMatchPrivateKeys {
     }
 
     async fn execute(&mut self, shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        self.inner_execute(shared, cache)
-            .await
-            .unwrap_or_else(CheckResult::Failed)
+        Self::inner_execute(shared, cache).unwrap_or_else(CheckResult::Failed)
     }
 }
 
 impl CertsMatchPrivateKeys {
-    async fn inner_execute(
-        &mut self,
-        _shared: &CheckerShared,
-        cache: &mut CheckerCache,
-    ) -> Result<CheckResult> {
+    fn inner_execute(_shared: &CheckerShared, cache: &mut CheckerCache) -> Result<CheckResult> {
         if !cache.daemons_running.certd || !cache.daemons_running.keyd {
             return Ok(CheckResult::Skipped);
         }

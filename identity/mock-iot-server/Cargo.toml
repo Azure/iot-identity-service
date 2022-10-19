@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
 http = "0.2"
 hyper = { version = "0.14", features = ["http1", "server"] }
 lazy_static = "1.4"
@@ -14,7 +15,6 @@ percent-encoding = "2"
 regex = "1"
 serde = "1"
 serde_json = "1"
-structopt = "0.3"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
 tokio-openssl = "0.6"
 uuid = { version = "1", features = ["v4"] }

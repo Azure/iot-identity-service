@@ -7,8 +7,13 @@ cd /src
 . ./ci/install-test-deps.sh
 
 if [ "$SKIP_TSS_MINIMAL" = 0 ]; then
+    libpath=/usr/local/lib
+    if [ "$USE_SWTPM_PKG" = 1 ]; then
+        libpath=
+    fi
+
     TPM_STATE="$(mktemp -d)"
-    LD_LIBRARY_PATH=/usr/local/lib swtpm socket \
+    LD_LIBRARY_PATH=$libpath swtpm socket \
         --tpm2 \
         --tpmstate dir="$TPM_STATE" \
         --port 2321 \
