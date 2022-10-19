@@ -603,14 +603,14 @@ case "$OS" in
         # az vm image list --all \
         #     --publisher 'Canonical' --offer '0001-com-ubuntu-server-focal' --sku '20' \
         #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-server-focal'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202209130'
+        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:20.04.202210180'
         ;;
 
     'ubuntu:22.04')
         # az vm image list --all \
         #     --publisher 'Canonical' --offer '0001-com-ubuntu-minimal-jammy' --sku 'minimal-22' \
         #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-minimal-jammy'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:22.04.202209210'
+        vm_image='Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:22.04.202210180'
         ;;
 
      *)
