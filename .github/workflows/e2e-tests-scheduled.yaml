@@ -69,13 +69,16 @@ jobs:
         # - 'platform:el8'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
-        # The scheduled E2E test in the release/1.x branch fails until the changes are merged. Disabling for now.
-        #- 'ubuntu:22.04'
+        - 'ubuntu:22.04'
         test_name:
         - 'manual-symmetric-key'
         - 'manual-x509'
         - 'dps-symmetric-key'
         - 'dps-x509'
+        exclude:
+          # The scheduled E2E test in the release/1.x branch would fail until the changes are merged. Excluding for now.
+          - os: 'ubuntu:22.04'
+            branch: 'release/1.4'
 
       max-parallel: 10
 
