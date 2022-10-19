@@ -79,7 +79,7 @@ jobs:
           os_package="$OS"
         fi
         os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
-        echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
+        echo "artifact-name=packages_${os_package}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
     - name: 'Upload'
       uses: 'actions/upload-artifact@v1'
       with:
