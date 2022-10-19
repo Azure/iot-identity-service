@@ -39,7 +39,8 @@ override_dh_auto_install:
 	esac; \
 	case "$$(openssl version)" in \
 	    'OpenSSL 3.0.'*) engines_dir="/usr/lib/$$arch_libdir/engines-3";; \
-		'*') engines_dir="/usr/lib/$$arch_libdir/engines-1.1"; exit1;; \
+	    'OpenSSL 1.1.'*) engines_dir="/usr/lib/$$arch_libdir/engines-1.1";; \
+		'*') exit 1;; \
 	esac; \
 	make -j \
 		DESTDIR="$$PWD/debian/aziot-identity-service" \
