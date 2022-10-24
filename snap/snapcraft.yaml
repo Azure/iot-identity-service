@@ -1,0 +1,150 @@
+name: azure-iot-identity
+base: core20 # the base snap is the execution environment for this snap
+version: '1.4-001' # just for humans, typically '1.2+git' or '1.3.2'
+summary: Single-line elevator pitch for your amazing snap # 79 char long summary
+description: |
+  This is my-snap's description. You have a paragraph or two to tell the
+  most important story about your snap. Keep it under 100 words though,
+  we live in tweetspace and your description wants to look good in the snap
+  store.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+
+parts:
+  rust-toolchain:
+    plugin: nil
+    build-packages:
+      - curl
+    build-environment:
+      - BINDGEN_VERSION: '0.54.0'
+      - CBINDGEN_VERSION: '0.15.0'
+      - PATH: "$PATH:$HOME/.cargo/bin"
+    override-build: |
+      mkdir -p $HOME/.cargo/bin
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path --profile minimal -y
+      cargo install bindgen --version "=$BINDGEN_VERSION"
+      cargo install cbindgen --version "=$CBINDGEN_VERSION"
+  iot-identity-services:
+    build-environment:
+      - PATH: "$PATH:$HOME/.cargo/bin"
+      - ARCH: "$SNAPCRAFT_TARGET_ARCH"
+    after: [ rust-toolchain ]
+    plugin: nil
+    source: ./
+    build-packages:
+      - acl
+      - autoconf
+      - autoconf-archive
+      - automake
+      - build-essential
+      - clang
+      - cmake
+      - curl
+      - git
+      - jq
+      - libclang1
+      - libltdl-dev
+      - libssl-dev
+      - libtool
+      - libtss2-dev
+      - llvm-dev
+      - pkg-config
+      - to arm64:
+        - ca-certificates
+        - libcurl4-openssl-dev
+    stage-packages:
+      - libtss2-esys0
+    override-build: |
+      contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
+      make install-deb DESTDIR=$SNAPCRAFT_PART_INSTALL RELEASE=1 USER_AZIOTID=root USER_AZIOTCS=root USER_AZIOTKS=root USER_AZIOTTPM=root
+    organize:
+      usr/: .
+    stage:
+      - -include
+      # - -lib/systemd
+    override-prime: |
+      snapcraftctl prime
+      ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-certd
+      ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-identityd
+      ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-keyd
+      ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-tpmd
+  command-chain:
+    plugin: dump
+    source: ./contrib
+    stage: [ snap/command-chain ]
+
+apps:
+  aziotctl:
+    command: bin/aziotctl
+    plugs:
+      - network
+      - sockets
+  certd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-certd
+    daemon: simple
+    plugs:
+      - network-bind
+      - sockets
+    # sockets:
+    #   unix:
+    #     listen-stream: $SNAP_COMMON/sockets/certd.sock
+    #     socket-mode: 0660
+  identityd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-identityd
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - sockets
+    # sockets:
+    #   unix:
+    #     listen-stream: $SNAP_COMMON/sockets/identityd.sock
+    #     socket-mode: 0660
+  keyd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-keyd
+    daemon: simple
+    plugs:
+      - network-bind
+      - sockets
+    # sockets:
+    #   unix:
+    #     listen-stream: $SNAP_COMMON/sockets/keyd.sock
+    #     socket-mode: 0660
+  tpmd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-tpmd
+    daemon: simple
+    plugs:
+      - network-bind
+      - sockets
+      - tpm
+    # sockets:
+    #   unix:
+    #     listen-stream: $SNAP_COMMON/sockets/tpmd.sock
+    #     socket-mode: 0660
+
+environment:
+  LD_LIBRARY_PATH: $SNAP/lib/aziot-identity-service
+
+plugs:
+  sockets:
+    interface: system-files
+    write: [ /run/aziot ]
+# slots:
+#   sockets:
+#     interface: content
+#     content: aziot-sockets
+#     source:
+#       write:  [ $SNAP_COMMON/sockets ]
+
+layout:
+  /var/lib/aziot:
+    symlink: $SNAP_COMMON/var/lib/aziot
+  /var/secrets/aziot:
+    symlink: $SNAP_COMMON/var/secrets/aziot
+  /etc/aziot:
+    symlink: $SNAP_DATA/etc/aziot

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+cp -r $SNAP/etc $SNAP_DATA/etc
+cp -r $SNAP/var $SNAP_COMMON/var
+mkdir -p $SNAP_COMMON/var/secrets/aziot
+
+mkdir -p $SNAP_COMMON/libaziot_keys_homedir
+mkdir -p $SNAP_COMMON/sockets
