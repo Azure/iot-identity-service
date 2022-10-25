@@ -233,9 +233,9 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
 
         // TODO(rustup): feature(round_char_boundary)
         // Ref: https://doc.rust-lang.org/std/string/struct.String.html#method.floor_char_boundary
-        fn truncate_cn_length(cn: &str) -> usize {
+        fn truncate_cn_length(cn: &str) -> &str {
             if CN_MAX_LENGTH >= cn.len() {
-                cn.len()
+                cn
             } else {
                 let lower_bound = CN_MAX_LENGTH.saturating_sub(3);
                 // NOTE: RangeInclusive<usize> does not implement
@@ -245,7 +245,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
                     .filter(|&i| cn.is_char_boundary(i))
                     .last();
                 // SAFETY: we know that the character boundary will be within four bytes
-                unsafe { lower_bound + new_index.unwrap_unchecked() }
+                &cn[..unsafe { lower_bound + new_index.unwrap_unchecked() }]
             }
         }
 
@@ -253,12 +253,12 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
 
         match subject {
             CertSubject::CommonName(cn) => {
-                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn[..truncate_cn_length(cn)])?;
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, truncate_cn_length(cn))?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
                     if name.eq_ignore_ascii_case("cn") {
-                        builder.append_entry_by_text(name, &value[..truncate_cn_length(value)])?;
+                        builder.append_entry_by_text(name, truncate_cn_length(value))?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
