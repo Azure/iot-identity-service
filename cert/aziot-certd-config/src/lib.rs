@@ -386,12 +386,13 @@ mod tests {
     fn common_name_truncation_does_not_panic() {
         let long_name_unicode_boundary =
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaá";
-        let expected_truncation =
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let expected_truncation = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
         let expected_x509 = {
             let mut builder = openssl::x509::X509Name::builder().unwrap();
-            builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, expected_truncation).unwrap();
+            builder
+                .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, expected_truncation)
+                .unwrap();
             builder.build()
         };
         let common_name = CertSubject::CommonName(long_name_unicode_boundary.to_owned());
