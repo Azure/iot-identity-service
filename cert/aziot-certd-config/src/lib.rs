@@ -258,6 +258,14 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
+                    // NOTE: Size limits exist for other X509Name fields as
+                    // well [RFC5280].  We only truncate the Common Name since
+                    // we have only encountered customer issues with Common Name
+                    // length so far [1, 2].
+                    //
+                    // Ref[RFC5280]: https://www.rfc-editor.org/rfc/rfc5280
+                    // Ref[1]: https://github.com/Azure/iotedge/issues/6288
+                    // Ref[2]: https://github.com/Azure/iot-identity-service/pull/411#discussion_r871640144
                     if name.eq_ignore_ascii_case("cn") {
                         builder.append_entry_by_text(name, truncate_cn_length(value))?;
                     } else {
