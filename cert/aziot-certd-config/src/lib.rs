@@ -253,7 +253,8 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
 
         match subject {
             CertSubject::CommonName(cn) => {
-                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, truncate_cn_length(cn))?;
+                builder
+                    .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, truncate_cn_length(cn))?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
