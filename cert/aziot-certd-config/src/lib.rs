@@ -238,6 +238,9 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
                 cn.len()
             } else {
                 let lower_bound = CN_MAX_LENGTH.saturating_sub(3);
+                // NOTE: RangeInclusive<usize> does not implement
+                // ExactSizeIterator (!?), so we cannot use rposition as is done
+                // in floor_char_boundary.
                 let new_index = (lower_bound..=CN_MAX_LENGTH)
                     .filter(|&i| cn.is_char_boundary(i))
                     .last();
