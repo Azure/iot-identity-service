@@ -375,6 +375,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn common_name_truncation_does_not_panic() {
+        let long_name_unicode_boundary =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaá";
+        let expected_truncation =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        let expected_x509 = {
+            let mut builder = openssl::x509::X509Name::builder().unwrap();
+            builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, expected_truncation).unwrap();
+            builder.build()
+        };
+        let common_name = CertSubject::CommonName(long_name_unicode_boundary.to_owned());
+
+        assert_eq!(
+            // WARN: X509NameRef::try_cmp can spuriously return Ordering::Less
+            // if the underlying call to X509_NAME_cmp fails.
+            // Ref: https://docs.rs/openssl/0.10.42/openssl/x509/struct.X509Name.html#method.try_cmp
+            openssl::x509::X509Name::try_from(&common_name)
+                .unwrap()
+                .try_cmp(&expected_x509)
+                .unwrap(),
+            std::cmp::Ordering::Equal
+        );
+    }
+
+    #[test]
     fn parse_config() {
         let actual = r#"
 homedir_path = "/var/lib/aziot/certd"
