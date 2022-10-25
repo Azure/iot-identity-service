@@ -245,7 +245,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
                     .filter(|&i| cn.is_char_boundary(i))
                     .last();
                 // SAFETY: we know that the character boundary will be within four bytes
-                &cn[..unsafe { lower_bound + new_index.unwrap_unchecked() }]
+                &cn[..unsafe { new_index.unwrap_unchecked() }]
             }
         }
 
