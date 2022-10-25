@@ -26,5 +26,5 @@ echo "suite_common_resource_name: $suite_common_resource_name" >&2
 
 # Variables related to the DPS custom allocation policy
 dps_allocation_function_name='DpsCustomAllocation'
-dps_allocation_functionapp_name="AllocApp${GITHUB_RUN_ID}r${GITHUB_RUN_NUMBER}"
+dps_allocation_functionapp_name="alloc-app-${suite_common_resource_name}"
 foo_devices_iot_hub="${suite_common_resource_name}-foo-devices"
