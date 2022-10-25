@@ -231,22 +231,31 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
         // X.509 requires CNs to be shorter than 64 characters.
         const CN_MAX_LENGTH: usize = 64;
 
+        // TODO(rustup): feature(round_char_boundary)
+        // Ref: https://doc.rust-lang.org/std/string/struct.String.html#method.floor_char_boundary
+        fn truncate_cn_length(cn: &str) -> usize {
+            if CN_MAX_LENGTH >= cn.len() {
+                cn.len()
+            } else {
+                let lower_bound = CN_MAX_LENGTH.saturating_sub(3);
+                let new_index = (lower_bound..=CN_MAX_LENGTH)
+                    .filter(|&i| cn.is_char_boundary(i))
+                    .last();
+                // SAFETY: we know that the character boundary will be within four bytes
+                unsafe { lower_bound + new_index.unwrap_unchecked() }
+            }
+        }
+
         let mut builder = openssl::x509::X509Name::builder()?;
 
         match subject {
             CertSubject::CommonName(cn) => {
-                let mut cn = cn.to_string();
-                cn.truncate(CN_MAX_LENGTH);
-
-                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn[..truncate_cn_length(cn)])?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
-                    if name.to_lowercase() == "cn" {
-                        let mut cn = value.to_string();
-                        cn.truncate(CN_MAX_LENGTH);
-
-                        builder.append_entry_by_text(name, &cn)?;
+                    if name.eq_ignore_ascii_case("cn") {
+                        builder.append_entry_by_text(name, &value[..truncate_cn_length(value)])?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
