@@ -611,10 +611,19 @@ impl IdentityManager {
                         identity_cert,
                         identity_pk,
                     } => {
+                        let device_id = device_id.clone();
                         self.get_identity_credentials(
                             &identity_pk,
                             &identity_cert,
-                            csr_subject.as_ref(),
+                            Some(&match csr_subject {
+                                Some(config::CsrSubject::Subject { rest, .. }) => {
+                                    config::CsrSubject::Subject {
+                                        cn: device_id,
+                                        rest,
+                                    }
+                                }
+                                _ => config::CsrSubject::CommonName(device_id),
+                            }),
                         )
                         .await?
                     }
@@ -625,7 +634,7 @@ impl IdentityManager {
                         .clone()
                         .unwrap_or_else(|| iothub_hostname.clone()),
                     iothub_hostname,
-                    device_id: device_id.common_name().to_owned(),
+                    device_id,
                     credentials,
                 };
                 self.set_device(&device);

@@ -112,7 +112,7 @@ pub fn run(
                     }
 
                     super_config::ManualAuthMethod::X509 { identity } => {
-                        match identity {
+                        let csr_subject = match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
                                 let auth =
                                     if let super_config::CertIssuanceMethod::Est { url: _, auth } =
@@ -131,11 +131,33 @@ pub fn run(
 
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
-                                cert_issuance_certs.insert(
-                                    super::DEVICE_ID_ID.to_owned(),
-                                    into_cert_options(identity_cert, auth),
+                                let issuance_options = into_cert_options(identity_cert, auth);
+                                let csr_subject = issuance_options.subject.as_ref().map(
+                                    |subject| match subject {
+                                        aziot_certd_config::CertSubject::CommonName(_) => {
+                                            aziot_identityd_config::CsrSubject::CommonName(
+                                                device_id.clone(),
+                                            )
+                                        }
+                                        aziot_certd_config::CertSubject::Subject(entries) => {
+                                            aziot_identityd_config::CsrSubject::Subject {
+                                                cn: device_id.clone(),
+                                                rest: entries
+                                                    .into_iter()
+                                                    .filter_map(|(k, v)| {
+                                                        (!k.eq_ignore_ascii_case("cn")).then(|| {
+                                                            (k.to_lowercase(), v.to_owned())
+                                                        })
+                                                    })
+                                                    .collect(),
+                                            }
+                                        }
+                                    },
                                 );
+                                cert_issuance_certs
+                                    .insert(super::DEVICE_ID_ID.to_owned(), issuance_options);
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
+                                csr_subject
                             }
 
                             super_config::X509Identity::Preloaded {
@@ -149,10 +171,13 @@ pub fn run(
                                     super::DEVICE_ID_ID.to_owned(),
                                     aziot_certd_config::PreloadedCert::Uri(identity_cert),
                                 );
+
+                                None
                             }
-                        }
+                        };
 
                         aziot_identityd_config::ManualAuthMethod::X509 {
+                            csr_subject,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
                         }
@@ -195,7 +220,7 @@ pub fn run(
                         registration_id,
                         identity,
                     } => {
-                        let auto_renew = match identity {
+                        let (registration_id, auto_renew) = match identity {
                             super_config::X509Identity::Issued { identity_cert } => {
                                 let auto_renew = identity_cert.auto_renew.clone();
 
@@ -232,13 +257,37 @@ pub fn run(
                                     }
                                 }
 
-                                cert_issuance_certs.insert(
-                                    super::DEVICE_ID_ID.to_owned(),
-                                    into_cert_options(identity_cert, auth),
-                                );
+                                let issuance_options = into_cert_options(identity_cert, auth);
+                                let csr_subject = registration_id
+                                    .and_then(|id| {
+                                        issuance_options
+                                            .subject
+                                            .as_ref()
+                                            .map(|subject| (id, subject))
+                                    })
+                                    .map(|(id, subject)| match subject {
+                                        aziot_certd_config::CertSubject::CommonName(_) => {
+                                            aziot_identityd_config::CsrSubject::CommonName(id)
+                                        }
+                                        aziot_certd_config::CertSubject::Subject(entries) => {
+                                            aziot_identityd_config::CsrSubject::Subject {
+                                                cn: id,
+                                                rest: entries
+                                                    .into_iter()
+                                                    .filter_map(|(k, v)| {
+                                                        (!k.eq_ignore_ascii_case("cn")).then(|| {
+                                                            (k.to_lowercase(), v.to_owned())
+                                                        })
+                                                    })
+                                                    .collect(),
+                                            }
+                                        }
+                                    });
+                                cert_issuance_certs
+                                    .insert(super::DEVICE_ID_ID.to_owned(), issuance_options);
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());
 
-                                auto_renew
+                                (csr_subject, auto_renew)
                             }
 
                             super_config::X509Identity::Preloaded {
@@ -253,7 +302,11 @@ pub fn run(
                                     aziot_certd_config::PreloadedCert::Uri(identity_cert),
                                 );
 
-                                None
+                                (
+                                    registration_id
+                                        .map(aziot_identityd_config::CsrSubject::CommonName),
+                                    None,
+                                )
                             }
                         };
 

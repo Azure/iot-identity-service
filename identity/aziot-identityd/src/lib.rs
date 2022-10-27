@@ -310,19 +310,18 @@ impl Api {
                         } else {
                             // Get the registration ID from the identity certificate if it was not provided
                             // in the config.
-                            let identity_cert =
-                                self.cert_client.get_cert(identity_cert).await.map_err(
-                                    |err| {
-                                        Error::Internal(InternalError::CreateCertificate(
-                                            err.into(),
-                                        ))
-                                    },
-                                )?;
+                            let identity_cert = self
+                                .cert_client
+                                .get_cert(identity_cert)
+                                .await
+                                .map_err(|err| {
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
 
                             let identity_cert = openssl::x509::X509::from_pem(&identity_cert)
                                 .map_err(|err| {
-                                Error::Internal(InternalError::CreateCertificate(err.into()))
-                            })?;
+                                    Error::Internal(InternalError::CreateCertificate(err.into()))
+                                })?;
 
                             let cert_subject = identity_cert
                                 .subject_name()
@@ -679,15 +678,13 @@ impl Api {
                 "{}.{}.{}",
                 module_id, self.settings.hostname, localid.domain
             );
-            let subject = openssl::x509::X509Name::try_from(&config::CsrSubject::CommonName(subject))
+            let subject =
+                openssl::x509::X509Name::try_from(&config::CsrSubject::CommonName(subject))
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
+            let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
-            let csr = create_csr(
-                &subject,
-                &public_key,
-                &private_key,
-                Some(attributes),
-            )
-            .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
                 .cert_client
                 .create_cert(module_id, &csr, None)

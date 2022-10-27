@@ -69,15 +69,15 @@ impl IdentityCertRenewal {
                     crate::Error::Internal(crate::InternalError::CreateCertificate(err.into()))
                 })?;
 
-            let subject = openssl::x509::X509Name::try_from(registration_id)
-                .map_err(|err| crate::Error::Internal(crate::InternalError::CreateCertificate(err.into())))?;
-            let csr = crate::create_csr(&subject, &public_key, &private_key, None).map_err(
-                |_| {
+            let subject = openssl::x509::X509Name::try_from(registration_id).map_err(|err| {
+                crate::Error::Internal(crate::InternalError::CreateCertificate(err.into()))
+            })?;
+            let csr =
+                crate::create_csr(&subject, &public_key, &private_key, None).map_err(|_| {
                     crate::Error::Internal(crate::InternalError::CreateCertificate(
                         "failed to generate csr".into(),
                     ))
-                },
-            )?;
+                })?;
 
             cert_client
                 .create_cert(cert_id, &csr, None)

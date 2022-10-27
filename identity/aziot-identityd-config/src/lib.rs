@@ -229,7 +229,7 @@ pub struct Provisioning {
 pub enum ProvisioningType {
     Manual {
         iothub_hostname: String,
-        device_id: CsrSubject,
+        device_id: String,
         authentication: ManualAuthMethod,
     },
     Dps {
