@@ -607,9 +607,9 @@ impl IdentityManager {
                         aziot_identity_common::Credentials::SharedPrivateKey(device_id_pk)
                     }
                     config::ManualAuthMethod::X509 {
-                        csr_subject,
                         identity_cert,
                         identity_pk,
+                        csr_subject,
                     } => {
                         let device_id = device_id.clone();
                         self.get_identity_credentials(

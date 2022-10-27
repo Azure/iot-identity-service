@@ -176,9 +176,9 @@ pub fn run(
                         };
 
                         aziot_identityd_config::ManualAuthMethod::X509 {
-                            csr_subject,
                             identity_cert: super::DEVICE_ID_ID.to_owned(),
                             identity_pk: super::DEVICE_ID_ID.to_owned(),
+                            csr_subject,
                         }
                     }
                 };

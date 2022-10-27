@@ -123,9 +123,9 @@ pub enum ManualAuthMethod {
     #[serde(rename = "sas")]
     SharedPrivateKey { device_id_pk: String },
     X509 {
-        csr_subject: Option<CsrSubject>,
         identity_cert: String,
         identity_pk: String,
+        csr_subject: Option<CsrSubject>,
     },
 }
 
