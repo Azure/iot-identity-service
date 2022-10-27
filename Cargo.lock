@@ -261,6 +261,7 @@ dependencies = [
  "cert-renewal",
  "http-common",
  "libc",
+ "openssl",
  "serde",
  "serde_json",
  "toml",
