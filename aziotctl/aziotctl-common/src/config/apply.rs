@@ -132,27 +132,21 @@ pub fn run(
                                 aziotid_keys.keys.push(super::DEVICE_ID_ID.to_owned());
 
                                 let issuance_options = into_cert_options(identity_cert, auth);
-                                let csr_subject = issuance_options.subject.as_ref().map(
-                                    |subject| match subject {
-                                        aziot_certd_config::CertSubject::CommonName(_) => {
-                                            aziot_identityd_config::CsrSubject::CommonName(
-                                                device_id.clone(),
-                                            )
-                                        }
-                                        aziot_certd_config::CertSubject::Subject(entries) => {
-                                            aziot_identityd_config::CsrSubject::Subject {
-                                                cn: device_id.clone(),
-                                                rest: entries
-                                                    .iter()
-                                                    .filter_map(|(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn"))
-                                                            .then(|| (k.to_uppercase(), v.clone()))
-                                                    })
-                                                    .collect(),
-                                            }
-                                        }
-                                    },
-                                );
+                                let csr_subject = match &issuance_options.subject {
+                                    Some(aziot_certd_config::CertSubject::Subject(entries)) => {
+                                        Some(aziot_identityd_config::CsrSubject::Subject {
+                                            cn: device_id.clone(),
+                                            rest: entries
+                                                .iter()
+                                                .filter_map(|(k, v)| {
+                                                    (!k.eq_ignore_ascii_case("cn"))
+                                                        .then(|| (k.to_uppercase(), v.clone()))
+                                                })
+                                                .collect(),
+                                        })
+                                    }
+                                    _ => None,
+                                };
                                 cert_issuance_certs
                                     .insert(super::DEVICE_ID_ID.to_owned(), issuance_options);
                                 aziotid_certs.certs.push(super::DEVICE_ID_ID.to_owned());

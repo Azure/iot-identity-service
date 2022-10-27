@@ -10,3 +10,8 @@ device_id = "my-device"
 method = "x509"
 identity_cert = "device-id"
 identity_pk = "device-id"
+
+[provisioning.authentication.csr_subject]
+cn = "my-device"
+L = "AQ"
+ST = "Antarctica"

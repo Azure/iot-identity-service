@@ -125,6 +125,7 @@ pub enum ManualAuthMethod {
     X509 {
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
         csr_subject: Option<CsrSubject>,
     },
 }
@@ -202,9 +203,10 @@ pub enum DpsAttestationMethod {
         symmetric_key: String,
     },
     X509 {
-        registration_id: Option<CsrSubject>,
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        registration_id: Option<CsrSubject>,
         #[serde(skip_serializing_if = "Option::is_none")]
         identity_auto_renew: Option<cert_renewal::AutoRenewConfig>,
     },
