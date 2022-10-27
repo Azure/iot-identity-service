@@ -144,8 +144,7 @@ pub enum CsrSubject {
 impl CsrSubject {
     pub fn common_name(&self) -> &str {
         match self {
-            Self::CommonName(cn) => cn,
-            Self::Subject { cn, .. } => cn,
+            Self::CommonName(cn) | Self::Subject { cn, .. } => cn,
         }
     }
 }
@@ -160,7 +159,7 @@ where
         .collect::<BTreeMap<_, _>>();
     Ok((
         res.remove("cn")
-            .ok_or(<D::Error as serde::de::Error>::missing_field("cn"))?,
+            .ok_or_else(|| <D::Error as serde::de::Error>::missing_field("cn"))?,
         res,
     ))
 }

@@ -187,7 +187,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
 
         // Generate a CSR and issue the new cert under a temporary cert ID. The temporary ID
         // does not need to be persisted, so delete it after the cert is succesfully created.
-        let csr = crate::create_csr(&subject, &public_key, &private_key, None)
+        let csr = crate::create_csr(subject, &public_key, &private_key, None)
             .map_err(|_| cert_renewal::Error::retryable_error("failed to create csr"))?;
 
         let new_cert = self

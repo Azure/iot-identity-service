@@ -143,11 +143,10 @@ pub fn run(
                                             aziot_identityd_config::CsrSubject::Subject {
                                                 cn: device_id.clone(),
                                                 rest: entries
-                                                    .into_iter()
+                                                    .iter()
                                                     .filter_map(|(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn")).then(|| {
-                                                            (k.to_lowercase(), v.to_owned())
-                                                        })
+                                                        (!k.eq_ignore_ascii_case("cn"))
+                                                            .then(|| (k.to_lowercase(), v.clone()))
                                                     })
                                                     .collect(),
                                             }
@@ -273,11 +272,10 @@ pub fn run(
                                             aziot_identityd_config::CsrSubject::Subject {
                                                 cn: id,
                                                 rest: entries
-                                                    .into_iter()
+                                                    .iter()
                                                     .filter_map(|(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn")).then(|| {
-                                                            (k.to_lowercase(), v.to_owned())
-                                                        })
+                                                        (!k.eq_ignore_ascii_case("cn"))
+                                                            .then(|| (k.to_lowercase(), v.clone()))
                                                     })
                                                     .collect(),
                                             }
