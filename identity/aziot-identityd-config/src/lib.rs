@@ -155,11 +155,11 @@ where
 {
     let mut res = BTreeMap::<String, String>::deserialize(de)?
         .into_iter()
-        .map(|(k, v)| (k.to_lowercase(), v))
+        .map(|(k, v)| (k.to_uppercase(), v))
         .collect::<BTreeMap<_, _>>();
     Ok((
-        res.remove("cn")
-            .ok_or_else(|| <D::Error as serde::de::Error>::missing_field("cn"))?,
+        res.remove("CN")
+            .ok_or_else(|| <D::Error as serde::de::Error>::missing_field("CN"))?,
         res,
     ))
 }
