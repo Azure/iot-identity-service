@@ -12,6 +12,6 @@ identity_cert = "device-id"
 identity_pk = "device-id"
 
 [provisioning.authentication.csr_subject]
-cn = "my-device"
+CN = "my-device"
 L = "AQ"
 ST = "Antarctica"

@@ -12,6 +12,6 @@ identity_cert = "device-id"
 identity_pk = "device-id"
 
 [provisioning.attestation.registration_id]
-cn = "my-device"
-l = "AQ"
-st = "Antarctica"
+CN = "my-device"
+L = "AQ"
+ST = "Antarctica"

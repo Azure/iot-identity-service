@@ -269,7 +269,7 @@ pub fn run(
                                                     .iter()
                                                     .filter_map(|(k, v)| {
                                                         (!k.eq_ignore_ascii_case("cn"))
-                                                            .then(|| (k.to_lowercase(), v.clone()))
+                                                            .then(|| (k.to_uppercase(), v.clone()))
                                                     })
                                                     .collect(),
                                             }

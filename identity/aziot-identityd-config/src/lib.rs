@@ -136,6 +136,7 @@ pub enum CsrSubject {
     CommonName(String),
     #[serde(deserialize_with = "subject_from_key_value")]
     Subject {
+        #[serde(rename(serialize = "CN"))]
         cn: String,
         #[serde(flatten, skip_serializing_if = "BTreeMap::is_empty")]
         rest: BTreeMap<String, String>,
