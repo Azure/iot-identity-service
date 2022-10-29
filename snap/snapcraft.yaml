@@ -78,6 +78,8 @@ apps:
   aziotctl:
     command: bin/aziotctl
     plugs:
+      - log-observe
+      - system-observe
       - network
       - sockets
   certd:
