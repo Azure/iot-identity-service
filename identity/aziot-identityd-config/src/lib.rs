@@ -216,16 +216,18 @@ impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
             aziot_certd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/certd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/certd.sock"))
+                    .into(),
             },
             aziot_identityd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/identityd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/identityd.sock"))
+                    .into(),
             },
             aziot_keyd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/keyd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock")).into(),
             },
             aziot_tpmd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/tpmd.sock")).into(),
             },
         }
     }

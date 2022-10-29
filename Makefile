@@ -8,6 +8,9 @@ USER_AZIOTCS ?= aziotcs
 USER_AZIOTKS ?= aziotks
 USER_AZIOTTPM ?= aziottpm
 
+# Default socket directory. Override by specifying on the CLI for make.
+SOCKET_DIR ?= /run/aziot
+
 # 0 => false, _ => true
 V = 0
 
@@ -75,7 +78,8 @@ CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" 
 		USER_AZIOTID="$(USER_AZIOTID)" \
 		USER_AZIOTCS="$(USER_AZIOTCS)" \
 		USER_AZIOTKS="$(USER_AZIOTKS)" \
-		USER_AZIOTTPM="$(USER_AZIOTTPM)" cargo
+		USER_AZIOTTPM="$(USER_AZIOTTPM)" \
+		SOCKET_DIR="$(SOCKET_DIR)" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL = /bin/bash
@@ -329,7 +333,7 @@ deb: dist
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
 	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postinst
-	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' 's|@socket_dir@|$(SOCKET_DIR)|g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
 	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/preinst
 
 	# Build package
@@ -501,6 +505,7 @@ install-common:
 			-e 's|@user_aziotks@|$(USER_AZIOTKS)|' \
 			-e 's|@user_aziotcs@|$(USER_AZIOTCS)|' \
 			-e 's|@user_aziottpm@|$(USER_AZIOTTPM)|' \
+			-e 's|@socket_dir@|$(SOCKET_DIR)|' \
 			>"$$OUTPUT_SOCKET"; \
 		chmod 0644 "$$OUTPUT_SOCKET"; \
 		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
