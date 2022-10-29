@@ -2,6 +2,9 @@
 BINDGEN = bindgen
 CBINDGEN = cbindgen
 
+# Default socket directory. Override by specifying on the CLI for make.
+SOCKET_DIR ?= /run/aziot
+
 # 0 => false, _ => true
 V = 0
 
@@ -56,7 +59,8 @@ CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECT
 VENDOR_PREFIX = $(CARGO_OUTPUT_ABSPATH)/fakeroot
 VENDOR_PKGCONFIG = $(VENDOR_PREFIX)$(AZIOT_PRIVATE_LIBRARIES)/pkgconfig
 
-CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" cargo
+CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" \
+		SOCKET_DIR="$(SOCKET_DIR)" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL = /bin/bash
@@ -309,6 +313,7 @@ deb: dist
 	# Copy package files
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
+	sed -i -e 's|@socket_dir@|$(SOCKET_DIR)|g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
 
 	# Build package
 	# Note: This builds the `default` target before the normal Debian packaging (instead
@@ -468,6 +473,11 @@ install-common:
 	# RHEL 7 derivatives and will not be fixed.
 	# Ref: https://bugzilla.redhat.com/show_bug.cgi?format=multiple&id=1758488
 	for i in cert identity key tpm; do \
+		OUTPUT_SOCKET="$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
+		<"$$i/aziot-$${i}d/aziot-$${i}d.socket.in" sed \
+			-e 's|@socket_dir@|$(SOCKET_DIR)|' \
+			>"$$OUTPUT_SOCKET"; \
+		chmod 0644 "$$OUTPUT_SOCKET"; \
 		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
 		$(INSTALL_DATA) -D "$$i/aziot-$${i}d/aziot-$${i}d.socket" "$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
 		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \

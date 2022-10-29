@@ -30,7 +30,7 @@ case "$1" in
 
 		# Delete directories used by aziot-identity-service.
 		rm -rf /etc/aziot
-		rm -rf /run/aziot
+		rm -rf @socket_dir@
 		rm -rf /var/lib/aziot
 
 		# Delete aziot-identity-service users.
