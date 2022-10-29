@@ -53,7 +53,7 @@ pub struct ReprovisionOptions {
     #[arg(
         value_name = "Identity Service URI",
         long,
-        default_value = "unix:///run/aziot/identityd.sock"
+        default_value = concat!("unix://", env!("SOCKET_DIR"), "/identityd.sock")
     )]
     uri: url::Url,
 }
@@ -72,7 +72,7 @@ pub async fn system(options: Options) -> Result<()> {
         #[cfg(not(debug_assertions))]
         Options::Reprovision(_) => {
             reprovision(
-                &url::Url::parse("unix:///run/aziot/identityd.sock")
+                &url::Url::parse(concat!("unix://", env!("SOCKET_DIR"), "/identityd.sock"))
                     .expect("hard-coded URI should parse"),
             )
             .await

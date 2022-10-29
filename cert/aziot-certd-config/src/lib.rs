@@ -354,10 +354,10 @@ impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
             aziot_certd: Connector::Unix {
-                socket_path: Path::new("/run/aziot/certd.sock").into(),
+                socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/certd.sock")).into(),
             },
             aziot_keyd: Connector::Unix {
-                socket_path: Path::new("/run/aziot/keyd.sock").into(),
+                socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock")).into(),
             },
         }
     }
@@ -598,10 +598,10 @@ certs = ["test"]
 
                 endpoints: Endpoints {
                     aziot_certd: Connector::Unix {
-                        socket_path: Path::new("/run/aziot/certd.sock").into()
+                        socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/certd.sock")).into()
                     },
                     aziot_keyd: Connector::Unix {
-                        socket_path: Path::new("/run/aziot/keyd.sock").into()
+                        socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock")).into()
                     },
                 },
 
@@ -783,10 +783,10 @@ aziot_certd = "unix:///run/aziot/certd.sock"
 
             endpoints: Endpoints {
                 aziot_certd: Connector::Unix {
-                    socket_path: Path::new("/run/aziot/certd.sock").into(),
+                    socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/certd.sock")).into(),
                 },
                 aziot_keyd: Connector::Unix {
-                    socket_path: Path::new("/run/aziot/keyd.sock").into(),
+                    socket_path: Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock")).into(),
                 },
             },
 
