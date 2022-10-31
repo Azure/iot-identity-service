@@ -94,10 +94,9 @@ setupCustomAllocationPolicy() {
         dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
         dotnet add package Microsoft.Azure.Devices.Shared -v 1.27.0
 
-        # Create storeage account needed by function app
-        sa_name="sa${GITHUB_RUN_ID}r${GITHUB_RUN_NUMBER}"
+        # Create storage account needed by function app
         az storage account create \
-            --name $sa_name \
+            --name "$dps_allocation_storage_account" \
             --location $AZURE_LOCATION \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
             --sku Standard_LRS \
@@ -111,7 +110,7 @@ setupCustomAllocationPolicy() {
             --functions-version 3 \
             --name "$dps_allocation_functionapp_name" \
             --disable-app-insights \
-            --storage-account $sa_name \
+            --storage-account "$dps_allocation_storage_account" \
             --tags "suite_id=$suite_id"
 
         # Publishing the app sometimes fails, so retry up to 3 times
