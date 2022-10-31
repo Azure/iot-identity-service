@@ -609,11 +609,21 @@ impl IdentityManager {
                     config::ManualAuthMethod::X509 {
                         identity_cert,
                         identity_pk,
+                        csr_subject,
                     } => {
+                        let device_id = device_id.clone();
                         self.get_identity_credentials(
                             &identity_pk,
                             &identity_cert,
-                            Some(&device_id),
+                            Some(&match csr_subject {
+                                Some(config::CsrSubject::Subject { rest, .. }) => {
+                                    config::CsrSubject::Subject {
+                                        cn: device_id,
+                                        rest,
+                                    }
+                                }
+                                _ => config::CsrSubject::CommonName(device_id),
+                            }),
                         )
                         .await?
                     }
@@ -672,7 +682,7 @@ impl IdentityManager {
                         // Determine the registration ID. Prefer the registration ID specified in config, but
                         // use cert subject if that is not available.
                         let registration_id = if let Some(registration_id) = registration_id {
-                            registration_id
+                            registration_id.common_name().to_owned()
                         } else if let aziot_identity_common::Credentials::X509 {
                             identity_cert,
                             ..
@@ -812,7 +822,7 @@ impl IdentityManager {
         &self,
         identity_pk: &str,
         identity_cert: &str,
-        subject: Option<&String>,
+        subject: Option<&config::CsrSubject>,
     ) -> Result<aziot_identity_common::Credentials, Error> {
         let (cert, private_key) = if let Some(engine) = &self.identity_cert_renewal {
             let (cert_chain, private_key) =
@@ -864,7 +874,9 @@ impl IdentityManager {
                     .await
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
-                let csr = create_csr(subject, &public_key, &private_key, None)
+                let subject = openssl::x509::X509Name::try_from(subject)
+                    .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
+                let csr = create_csr(&subject, &public_key, &private_key, None)
                     .map_err(|err| Error::Internal(InternalError::CreateCertificate(err.into())))?;
 
                 let cert = self
