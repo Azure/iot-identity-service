@@ -18,7 +18,7 @@ impl IdentityCertRenewal {
         rotate_key: bool,
         cert_id: &str,
         key_id: &str,
-        registration_id: Option<&str>,
+        registration_id: Option<&aziot_identityd_config::CsrSubject>,
         api: Arc<futures_util::lock::Mutex<crate::Api>>,
     ) -> Result<Self, crate::Error> {
         let (cert_client, key_client, key_engine) = {
@@ -69,13 +69,15 @@ impl IdentityCertRenewal {
                     crate::Error::Internal(crate::InternalError::CreateCertificate(err.into()))
                 })?;
 
-            let csr = crate::create_csr(registration_id, &public_key, &private_key, None).map_err(
-                |_| {
+            let subject = openssl::x509::X509Name::try_from(registration_id).map_err(|err| {
+                crate::Error::Internal(crate::InternalError::CreateCertificate(err.into()))
+            })?;
+            let csr =
+                crate::create_csr(&subject, &public_key, &private_key, None).map_err(|_| {
                     crate::Error::Internal(crate::InternalError::CreateCertificate(
                         "failed to generate csr".into(),
                     ))
-                },
-            )?;
+                })?;
 
             cert_client
                 .create_cert(cert_id, &csr, None)
@@ -181,22 +183,11 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             .map_err(cert_renewal::Error::retryable_error)?;
 
         // Determine the subject of the old cert. This will be the subject of the new cert.
-        let subject = if let Some(subject) = old_cert_chain[0]
-            .subject_name()
-            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
-            .next()
-        {
-            String::from_utf8(subject.data().as_slice().into())
-                .map_err(|_| cert_renewal::Error::fatal_error("bad cert subject"))?
-        } else {
-            return Err(cert_renewal::Error::fatal_error(
-                "cannot determine subject for csr",
-            ));
-        };
+        let subject = old_cert_chain[0].subject_name();
 
         // Generate a CSR and issue the new cert under a temporary cert ID. The temporary ID
         // does not need to be persisted, so delete it after the cert is succesfully created.
-        let csr = crate::create_csr(&subject, &public_key, &private_key, None)
+        let csr = crate::create_csr(subject, &public_key, &private_key, None)
             .map_err(|_| cert_renewal::Error::retryable_error("failed to create csr"))?;
 
         let new_cert = self
