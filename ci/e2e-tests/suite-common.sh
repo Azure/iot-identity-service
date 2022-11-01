@@ -28,3 +28,4 @@ echo "suite_common_resource_name: $suite_common_resource_name" >&2
 dps_allocation_function_name='DpsCustomAllocation'
 dps_allocation_functionapp_name="alloc-app-${suite_common_resource_name}"
 foo_devices_iot_hub="${suite_common_resource_name}-foo-devices"
+dps_allocation_storage_account="$(printf '%s' "$suite_id" | tr '[:upper:]' '[:lower:]' | tr -d -C 'a-z0-9')"
