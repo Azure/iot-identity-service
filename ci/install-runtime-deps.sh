@@ -6,13 +6,15 @@
 OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
 
 case "$OS" in
-    'centos:7'|'platform:el8')
+    'centos:7'|'platform:el8'|'platform:el9')
         # openssl 1.0
 
         if [ "$OS" = 'platform:el8' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
             # If using RHEL 8 UBI images without a subscription then they only have access to a
             # subset of packages. Workaround to enable EPEL.
             yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+        elif [ "$OS" = 'platform:el9' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
+            yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
         else
             yum install -y epel-release
         fi
