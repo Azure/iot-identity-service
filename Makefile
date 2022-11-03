@@ -26,6 +26,15 @@ ARCH =
 
 INSTALL_PRESET = true
 
+# Enable special features based on a specific package format
+# '' => none, 'snap' => snap package
+PACKAGE_FORMAT ?=
+CARGO_FEATURES =
+
+ifeq ($(PACKAGE_FORMAT), snap)
+	CARGO_FEATURES += --features snapctl
+endif
+
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
 	CARGO_VERBOSE = --quiet
@@ -130,13 +139,13 @@ default:
 	# See the doc header of the aziot-keys-common crate for more info.
 	$(CARGO) build \
 		-p aziot-keys \
-		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+		$(CARGO_PROFILE) $(CARGO_FEATURES) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 	$(CARGO) build \
 		-p aziotctl \
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
-		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+		$(CARGO_PROFILE) $(CARGO_FEATURES) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
