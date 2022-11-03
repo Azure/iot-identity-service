@@ -337,7 +337,7 @@ rpm:
 	# which we can get from openssl 1.1 with `openssl version -e` but not from openssl 1.0.
 	# Also, the filename for 1.0 should have a `lib` prefix.
 	#
-	# CentOS 7 has 1.0 and RedHat 8 has 1.1, so we need to support both here.
+	# CentOS 7 has 1.0 and RedHat 8 has 1.1, so we need to support both here. RedHat 9 has 3.0.
 	#
 	# Since there is no RPM macro for those two things, we have to infer them from
 	# the output of `openssl version` and `openssl version -e` ourselves. This wouldn't be right
@@ -346,7 +346,7 @@ rpm:
 	command -v openssl # Assert that openssl exists
 	case "$$(openssl version)" in \
 		'OpenSSL 1.0.'*) OPENSSL_ENGINE_FILENAME='%\{_libdir\}/openssl/engines/libaziot_keys.so' ;; \
-		'OpenSSL 1.1.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
+		'OpenSSL 1.1.'* | 'OpenSSL 3.0.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
 		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
 	esac; \
 	case "$$PACKAGE_DIST" in \
@@ -354,7 +354,7 @@ rpm:
 			DEVTOOLSET=devtoolset-9-; \
 			LLVM_TOOLSET=llvm-toolset-7-; \
 			;; \
-		'el8') \
+		'el8'|'el9') \
 			DEVTOOLSET=; \
 			LLVM_TOOLSET=; \
 			;; \
