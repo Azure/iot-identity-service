@@ -21,6 +21,7 @@ jobs:
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -79,6 +80,7 @@ jobs:
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -142,6 +144,7 @@ jobs:
         - 'centos:7'
         - 'debian:10-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         arch:
         - 'amd64'

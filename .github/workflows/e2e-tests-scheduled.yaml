@@ -67,6 +67,7 @@ jobs:
         - 'debian:11'
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
         # - 'platform:el8'
+        - 'platform:el9'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -78,6 +79,8 @@ jobs:
         exclude:
           # The scheduled E2E test in the release/1.x branch would fail until the changes are merged. Excluding for now.
           - os: 'ubuntu:22.04'
+            branch: 'release/1.4'
+          - os: 'platform:el9'
             branch: 'release/1.4'
 
       max-parallel: 10
