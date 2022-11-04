@@ -15,7 +15,8 @@ case "$OS" in
             yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
             yum install -y curl jq openssl ca-certificates
         elif [ "$OS" = 'platform:el9' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
-            yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+            yum config-manager --add-repo http://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
+            rpm --import http://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-9
 
             # curl is already installed on el9
             yum install -y jq openssl ca-certificates
