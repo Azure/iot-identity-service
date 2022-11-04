@@ -9,17 +9,20 @@ case "$OS" in
     'centos:7'|'platform:el8'|'platform:el9')
         # openssl 1.0
 
+        # If using RHEL 8/9 UBI images without a subscription then they only have access to a
+        # subset of packages. Workaround to enable EPEL.
         if [ "$OS" = 'platform:el8' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
-            # If using RHEL 8 UBI images without a subscription then they only have access to a
-            # subset of packages. Workaround to enable EPEL.
             yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+            yum install -y curl jq openssl ca-certificates
         elif [ "$OS" = 'platform:el9' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
             yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+
+            # curl is already installed on el9
+            yum install -y jq openssl ca-certificates
         else
             yum install -y epel-release
+            yum install -y curl jq openssl ca-certificates
         fi
-
-        yum install -y curl jq openssl ca-certificates
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
