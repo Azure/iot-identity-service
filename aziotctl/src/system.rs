@@ -3,7 +3,7 @@
 use std::ffi::{OsStr, OsString};
 
 use anyhow::{anyhow, Result};
-use clap::builder::TypedValueParser;
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 
 use aziotctl_common::system::{
     get_status, get_system_logs, restart, set_log_level, stop, SERVICE_DEFINITIONS,
@@ -40,7 +40,7 @@ pub struct LogLevelOptions {
     // `log::Level`:
     // https://github.com/rust-lang/log/blob/d6707108c6959ac7b60cdb60a005795ece6d82d6/src/lib.rs#L481
     #[arg(
-        value_parser = clap::builder::PossibleValuesParser::new(["error", "warn", "info", "debug", "trace"])
+        value_parser = PossibleValuesParser::new(["error", "warn", "info", "debug", "trace"])
             .try_map(|s| s.parse::<log::Level>()),
     )]
     log_level: log::Level,
