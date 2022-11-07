@@ -228,25 +228,20 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
     fn try_from(
         subject: &CertSubject,
     ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
-        // X.509 requires CNs to be shorter than 64 characters.
+        // NOTE: X.509 requires CNs to be at most 64 characters.
+        //
+        // Ref: https://www.rfc-editor.org/rfc/rfc5280 PAGE 124
         const CN_MAX_LENGTH: usize = 64;
 
-        // TODO(rustup): feature(round_char_boundary)
-        // Ref: https://doc.rust-lang.org/std/string/struct.String.html#method.floor_char_boundary
-        fn truncate_cn_length(cn: &str) -> &str {
-            if CN_MAX_LENGTH >= cn.len() {
-                cn
-            } else {
-                let lower_bound = CN_MAX_LENGTH.saturating_sub(3);
-                // NOTE: RangeInclusive<usize> does not implement
-                // ExactSizeIterator (!?), so we cannot use rposition as is done
-                // in floor_char_boundary.
-                let new_index = (lower_bound..=CN_MAX_LENGTH)
-                    .filter(|&i| cn.is_char_boundary(i))
-                    .last();
-                // SAFETY: we know that the character boundary will be within four bytes
-                &cn[..unsafe { new_index.unwrap_unchecked() }]
-            }
+        #[inline]
+        fn truncate_cn_length(cn: &str) -> String {
+            // NOTE: An option that would allow returning a string reference is
+            // ```
+            // let mut it = cn.chars();
+            // let _ = it.by_ref().take(CN_MAX_LENGTH).last();
+            // &cn[..usize::try_from(unsafe { it.as_str().as_ptr().offset(cn.as_str().as_ptr()) }).unwrap()]
+            // ```
+            cn.chars().take(CN_MAX_LENGTH).collect()
         }
 
         let mut builder = openssl::x509::X509Name::builder()?;
@@ -254,7 +249,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
         match subject {
             CertSubject::CommonName(cn) => {
                 builder
-                    .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, truncate_cn_length(cn))?;
+                    .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &truncate_cn_length(cn))?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
@@ -267,7 +262,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
                     // Ref[1]: https://github.com/Azure/iotedge/issues/6288
                     // Ref[2]: https://github.com/Azure/iot-identity-service/pull/411#discussion_r871640144
                     if name.eq_ignore_ascii_case("cn") {
-                        builder.append_entry_by_text(name, truncate_cn_length(value))?;
+                        builder.append_entry_by_text(name, &truncate_cn_length(value))?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
