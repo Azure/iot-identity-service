@@ -70,10 +70,9 @@ impl std::fmt::Display for Time {
         if self == &Time::forever() {
             write!(f, "the end of time")
         } else {
-            let date_time = chrono::NaiveDateTime::from_timestamp(self.0, 0);
-            let date_time = chrono::DateTime::<chrono::Utc>::from_utc(date_time, chrono::Utc);
-
-            write!(f, "{}", date_time.to_rfc3339())
+            let date_time = datetime::OffsetDateTime::from_unix_timestamp(self.0).map_err(|_| std::fmt::Error)?;
+            let date_time = date_time.format(&datetime::format_description::well_known::Rfc3339).map_err(|_| std::fmt::Error)?;
+            write!(f, "{}", date_time)
         }
     }
 }
@@ -160,13 +159,13 @@ mod tests {
 
     #[test]
     fn time_display() {
-        assert_eq!("1970-01-01T00:00:00+00:00", Time::from(0).to_string());
+        assert_eq!("1970-01-01T00:00:00Z", Time::from(0).to_string());
         assert_eq!(
-            "1938-04-24T22:13:20+00:00",
+            "1938-04-24T22:13:20Z",
             Time::from(-1_000_000_000).to_string()
         );
         assert_eq!(
-            "2001-09-09T01:46:40+00:00",
+            "2001-09-09T01:46:40Z",
             Time::from(1_000_000_000).to_string()
         );
         assert_eq!("the end of time", Time::forever().to_string());

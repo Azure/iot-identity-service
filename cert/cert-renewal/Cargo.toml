@@ -1,12 +1,12 @@
 [package]
 name = "cert-renewal"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-chrono = "0.4"
+datetime = { package = "time", version = "0.3", features = ["formatting"] }
 futures-util = "0.3"
 log = "0.4"
 openssl = "0.10"
