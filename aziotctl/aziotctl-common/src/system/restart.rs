@@ -4,10 +4,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use super::{print_command_error, ServiceDefinition};
-
-#[cfg(not(feature = "snapctl"))]
-use super::stop;
+use super::{print_command_error, stop, ServiceDefinition};
 
 #[cfg(not(feature = "snapctl"))]
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
@@ -43,6 +40,15 @@ fn start(name: &str) -> Result<()> {
 
 #[cfg(feature = "snapctl")]
 pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
+    // stop all services
+    stop(services)?;
+
+    // start all services
+    start(services)
+}
+
+#[cfg(feature = "snapctl")]
+pub fn start(services: &[&ServiceDefinition]) -> Result<()> {
     let snap_instance_name = match std::env::var("SNAP_INSTANCE_NAME") {
         Ok(snap_instance_name) => snap_instance_name,
         Err(_) => {
@@ -50,20 +56,20 @@ pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
         }
     };
 
-    print!("Restarting {} services...", snap_instance_name);
+    print!("Starting {} services...", snap_instance_name);
 
     let service_names = services
         .iter()
         .map(|s| format!("{}.{}", snap_instance_name, s.service));
 
     let result = Command::new("snapctl")
-        .arg("restart")
+        .arg("start")
         .args(service_names)
         .output()
-        .context("Failed to call snapctl restart")?;
+        .context("Failed to call snapctl start")?;
 
     if result.status.success() {
-        println!("Restarted!");
+        println!("Started!");
     } else {
         print_command_error(&result);
     }
