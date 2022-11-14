@@ -318,7 +318,7 @@ mod tests {
         let SntpTimeQueryResult {
             local_clock_offset,
             round_trip_delay,
-        } = query(&("pool.ntp.org", 123))?;
+        } = query(("pool.ntp.org", 123))?;
 
         println!("local clock offset: {}", local_clock_offset);
         println!("round-trip delay: {}", round_trip_delay);
