@@ -11,17 +11,12 @@ toml_new_section() {
 }
 
 {
-	echo "# Dynamically generated configuration, do not edit!"
-
 	toml_kvp "hostname" "$(cat /etc/hostname)"
+
+	snapctl get raw-config
 
 	toml_new_section "aziot_keys"
 	toml_kvp "homedir_path" "$SNAP_COMMON/libaziot_keys_homedir"
-
-	toml_new_section "provisioning"
-	toml_kvp "source" "$(snapctl get provisioning.source)"
-	# TODO: don't print this if not set
-	toml_kvp "connection_string" "$(snapctl get provisioning.connection-string)"
 
 } > $SNAP_DATA/etc/aziot/config.toml
 
