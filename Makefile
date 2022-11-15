@@ -26,12 +26,12 @@ ARCH =
 
 INSTALL_PRESET = true
 
-# Enable special features based on a specific package format
-# '' => none, 'snap' => snap package
-PACKAGE_FORMAT ?=
+# Enable special features for specific runtime platforms
+# '' => none, 'snapd' => snapd features
+PLATFORM_FEATURES ?=
 CARGO_FEATURES =
 
-ifeq ($(PACKAGE_FORMAT), snap)
+ifeq ($(PLATFORM_FEATURES), snapd)
 	CARGO_FEATURES += --features snapctl
 endif
 
