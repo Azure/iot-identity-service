@@ -228,25 +228,41 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
     fn try_from(
         subject: &CertSubject,
     ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
-        // X.509 requires CNs to be shorter than 64 characters.
+        // NOTE: X.509 requires CNs to be at most 64 characters.
+        //
+        // Ref: https://www.rfc-editor.org/rfc/rfc5280 PAGE 124
         const CN_MAX_LENGTH: usize = 64;
+
+        #[inline]
+        fn truncate_cn_length(cn: &str) -> String {
+            // NOTE: An option that would allow returning a string reference is
+            // ```
+            // let mut it = cn.chars();
+            // let _ = it.by_ref().take(CN_MAX_LENGTH).last();
+            // &cn[..usize::try_from(unsafe { it.as_str().as_ptr().offset(cn.as_str().as_ptr()) }).unwrap()]
+            // ```
+            cn.chars().take(CN_MAX_LENGTH).collect()
+        }
 
         let mut builder = openssl::x509::X509Name::builder()?;
 
         match subject {
             CertSubject::CommonName(cn) => {
-                let mut cn = cn.to_string();
-                cn.truncate(CN_MAX_LENGTH);
-
-                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+                builder
+                    .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &truncate_cn_length(cn))?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
-                    if name.to_lowercase() == "cn" {
-                        let mut cn = value.to_string();
-                        cn.truncate(CN_MAX_LENGTH);
-
-                        builder.append_entry_by_text(name, &cn)?;
+                    // NOTE: Size limits exist for other X509Name fields as
+                    // well [RFC5280].  We only truncate the Common Name since
+                    // we have only encountered customer issues with Common Name
+                    // length so far [1, 2].
+                    //
+                    // Ref[RFC5280]: https://www.rfc-editor.org/rfc/rfc5280
+                    // Ref[1]: https://github.com/Azure/iotedge/issues/6288
+                    // Ref[2]: https://github.com/Azure/iot-identity-service/pull/411#discussion_r871640144
+                    if name.eq_ignore_ascii_case("cn") {
+                        builder.append_entry_by_text(name, &truncate_cn_length(value))?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
@@ -360,6 +376,34 @@ pub struct Principal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn common_name_truncation_does_not_panic() {
+        let long_name_unicode_boundary =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaáa";
+        let expected_truncation =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaá";
+
+        let expected_x509 = {
+            let mut builder = openssl::x509::X509Name::builder().unwrap();
+            builder
+                .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, expected_truncation)
+                .unwrap();
+            builder.build()
+        };
+        let common_name = CertSubject::CommonName(long_name_unicode_boundary.to_owned());
+
+        assert_eq!(
+            // WARN: X509NameRef::try_cmp can spuriously return Ordering::Less
+            // if the underlying call to X509_NAME_cmp fails.
+            // Ref: https://docs.rs/openssl/0.10.42/openssl/x509/struct.X509Name.html#method.try_cmp
+            openssl::x509::X509Name::try_from(&common_name)
+                .unwrap()
+                .try_cmp(&expected_x509)
+                .unwrap(),
+            std::cmp::Ordering::Equal
+        );
+    }
 
     #[test]
     fn parse_config() {
