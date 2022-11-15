@@ -380,8 +380,9 @@ mod tests {
     #[test]
     fn common_name_truncation_does_not_panic() {
         let long_name_unicode_boundary =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaáa";
+        let expected_truncation =
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaá";
-        let expected_truncation = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
         let expected_x509 = {
             let mut builder = openssl::x509::X509Name::builder().unwrap();
