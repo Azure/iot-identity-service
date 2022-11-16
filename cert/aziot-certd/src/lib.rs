@@ -176,7 +176,7 @@ impl Api {
             .transpose()?;
 
         let x509 = create_cert_inner(
-            &mut *this,
+            &mut this,
             &id,
             (&req, &pubkey),
             issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),

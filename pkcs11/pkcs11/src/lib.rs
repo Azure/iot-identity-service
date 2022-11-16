@@ -54,7 +54,7 @@ impl std::fmt::Display for Uri {
             UriSlotIdentifier::Label(token_label) => {
                 write!(f, "token=")?;
                 let value = percent_encoding::utf8_percent_encode(
-                    &**token_label,
+                    token_label,
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
@@ -78,7 +78,7 @@ impl std::fmt::Display for Uri {
         if let Some(object_label) = &self.object_label {
             write!(f, ";object=")?;
             let value = percent_encoding::utf8_percent_encode(
-                &**object_label,
+                object_label,
                 percent_encoding::NON_ALPHANUMERIC,
             );
             for s in value {
@@ -89,7 +89,7 @@ impl std::fmt::Display for Uri {
         if let Some(pin) = &self.pin {
             write!(f, "?pin-value=")?;
             let value =
-                percent_encoding::utf8_percent_encode(&**pin, percent_encoding::NON_ALPHANUMERIC);
+                percent_encoding::utf8_percent_encode(pin, percent_encoding::NON_ALPHANUMERIC);
             for s in value {
                 write!(f, "{}", s)?;
             }
@@ -128,7 +128,7 @@ impl std::str::FromStr for Uri {
 
             let key = percent_encoding::percent_decode(key.as_bytes());
             let key: std::borrow::Cow<'a, _> = key.into();
-            let typed_key = match key_discriminant(&*key) {
+            let typed_key = match key_discriminant(&key) {
                 Some(typed_key) => typed_key,
                 None => return Ok(None),
             };
