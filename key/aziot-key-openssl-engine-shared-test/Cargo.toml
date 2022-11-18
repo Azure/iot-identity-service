@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 backtrace = "0.3"
 clap = { version = "4", features = ["derive"] }
+futures-util = "0.3"
 http = "0.2"
 hyper = { version = "0.14", features = ["client", "http1"] }
 hyper-openssl = "0.9"
