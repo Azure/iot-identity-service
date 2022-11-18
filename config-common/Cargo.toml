@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 async-trait = { version = "0.1", optional = true }
-futures-util = { version = "0.3", optional = true }
 log = { version = "0.4", optional = true }
 notify = { version = "4", optional = true }
 serde = "1"
@@ -16,4 +15,4 @@ toml = "0.5"
 
 
 [features]
-watcher = ["async-trait", "futures-util", "log", "notify", "tokio"]
+watcher = ["async-trait", "log", "notify", "tokio"]

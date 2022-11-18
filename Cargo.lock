@@ -162,7 +162,6 @@ dependencies = [
  "aziot-tpm-common",
  "base64",
  "chrono",
- "futures-util",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -348,7 +347,6 @@ version = "0.1.0"
 dependencies = [
  "backtrace",
  "clap",
- "futures-util",
  "http",
  "hyper",
  "hyper-openssl",
@@ -777,7 +775,6 @@ name = "config-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "futures-util",
  "log",
  "notify",
  "serde",
@@ -2292,7 +2289,6 @@ dependencies = [
  "aziot-key-client",
  "aziot-key-common",
  "futures-core",
- "futures-util",
  "http-common",
  "hyper",
  "openssl",
