@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use futures_util::lock::Mutex;
+use tokio::sync::Mutex;
 
 type ArcMutex<T> = std::sync::Arc<Mutex<T>>;
 
@@ -164,7 +164,7 @@ where
         reschedule_tx,
     };
 
-    let engine = std::sync::Arc::new(futures_util::lock::Mutex::new(engine));
+    let engine = std::sync::Arc::new(tokio::sync::Mutex::new(engine));
     let renewal_engine = engine.clone();
 
     tokio::spawn(async move {

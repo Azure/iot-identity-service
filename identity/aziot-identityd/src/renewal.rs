@@ -7,10 +7,10 @@ pub(crate) struct IdentityCertRenewal {
     rotate_key: bool,
     temp_cert: String,
 
-    api: Arc<futures_util::lock::Mutex<crate::Api>>,
+    api: Arc<tokio::sync::Mutex<crate::Api>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     key_client: Arc<aziot_key_client_async::Client>,
-    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
 }
 
 impl IdentityCertRenewal {
@@ -18,8 +18,13 @@ impl IdentityCertRenewal {
         rotate_key: bool,
         cert_id: &str,
         key_id: &str,
+<<<<<<< HEAD
         registration_id: Option<&str>,
         api: Arc<futures_util::lock::Mutex<crate::Api>>,
+=======
+        registration_id: Option<&aziot_identityd_config::CsrSubject>,
+        api: Arc<tokio::sync::Mutex<crate::Api>>,
+>>>>>>> 5ff39f3 (Change futures_util Mutex to tokio Mutex (#485))
     ) -> Result<Self, crate::Error> {
         let (cert_client, key_client, key_engine) = {
             let api = api.lock().await;

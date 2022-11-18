@@ -22,18 +22,14 @@ pub struct IdentityManager {
     req_timeout: std::time::Duration,
     req_retries: u32,
     key_client: Arc<aziot_key_client_async::Client>,
-    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
 
     pub(crate) iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
     pub(crate) identity_cert_renewal: Option<
-        Arc<
-            futures_util::lock::Mutex<
-                cert_renewal::RenewalEngine<crate::renewal::IdentityCertRenewal>,
-            >,
-        >,
+        Arc<tokio::sync::Mutex<cert_renewal::RenewalEngine<crate::renewal::IdentityCertRenewal>>>,
     >,
 }
 
@@ -41,7 +37,7 @@ impl IdentityManager {
     pub fn new(
         settings: &aziot_identityd_config::Settings,
         key_client: Arc<aziot_key_client_async::Client>,
-        key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+        key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
         iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
