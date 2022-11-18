@@ -37,7 +37,7 @@ pub(crate) fn run(options: Options) -> anyhow::Result<()> {
     // So when running as root, get the four users appropriately.
     // Otherwise, if this is a debug build, fall back to using the current user.
     // Otherwise, tell the user to re-run as root.
-    // When run in a snap expect the four users to be prefixed with `snap_`.
+    // When run in a snap expect the four users to run as root.
 
     let aziotks_user = crate::internal::common::get_system_user(env!("USER_AZIOTKS"))?;
     let aziotcs_user = crate::internal::common::get_system_user(env!("USER_AZIOTCS"))?;
