@@ -59,7 +59,7 @@ pub(crate) struct TestInterface {
 }
 
 #[cfg(test)]
-type ArcMutex<T> = std::sync::Arc<futures_util::lock::Mutex<T>>;
+type ArcMutex<T> = std::sync::Arc<tokio::sync::Mutex<T>>;
 
 #[cfg(test)]
 pub(crate) mod test_interface {
@@ -72,7 +72,7 @@ pub(crate) mod test_interface {
             renew_err: None,
         };
 
-        let interface = futures_util::lock::Mutex::new(interface);
+        let interface = tokio::sync::Mutex::new(interface);
 
         std::sync::Arc::new(interface)
     }

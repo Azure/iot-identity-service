@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 pub(super) struct Route {
-    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
     user: aziot_identityd_config::Credentials,
 }
 

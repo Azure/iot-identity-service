@@ -26,13 +26,13 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use async_trait::async_trait;
-use futures_util::lock::Mutex;
 use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, PKeyRef, Private, Public};
 use openssl::stack::Stack;
 use openssl::x509::{extension, X509Name, X509NameRef, X509Req, X509ReqRef, X509};
 use openssl2::FunctionalEngine;
+use tokio::sync::Mutex;
 
 use aziot_certd_config::{
     CertIssuance, CertIssuanceMethod, CertificateWithPrivateKey, Config, Endpoints, EstAuth,

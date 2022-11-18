@@ -24,7 +24,7 @@ pub async fn main(
     _: std::path::PathBuf,
 ) -> Result<(http_common::Incoming, http::Service), Box<dyn std::error::Error>> {
     let api = Api::new(&config).map_err(|e| Error::Internal(InternalError::InitTpm(e)))?;
-    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+    let api = std::sync::Arc::new(tokio::sync::Mutex::new(api));
 
     let service = http::Service { api };
 
