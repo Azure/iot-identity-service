@@ -2289,6 +2289,7 @@ dependencies = [
  "aziot-key-client",
  "aziot-key-common",
  "futures-core",
+ "futures-util",
  "http-common",
  "hyper",
  "openssl",
