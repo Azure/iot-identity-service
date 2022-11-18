@@ -12,7 +12,7 @@ mod sign;
 
 #[derive(Clone)]
 pub struct Service {
-    pub(crate) api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    pub(crate) api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
 }
 
 http_common::make_service! {

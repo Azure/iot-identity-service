@@ -7,7 +7,7 @@ lazy_static::lazy_static! {
 }
 
 pub(super) struct Route {
-    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
     cert_id: String,
     user: libc::uid_t,
 }
