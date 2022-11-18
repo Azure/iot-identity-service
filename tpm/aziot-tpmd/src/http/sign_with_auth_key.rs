@@ -5,7 +5,7 @@ use http_common::server::RouteResponse;
 use crate::error::{Error, InternalError};
 
 pub(super) struct Route {
-    api: std::sync::Arc<futures_util::lock::Mutex<crate::Api>>,
+    api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
 }
 
 #[async_trait::async_trait]

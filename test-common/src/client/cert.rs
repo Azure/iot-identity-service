@@ -6,8 +6,7 @@ pub struct CertClient {
     //
     // The test client may need to mutate this map of certs, so the workaround is to place it in
     // a RefCell and use replace_with.
-    pub certs:
-        futures_util::lock::Mutex<std::cell::RefCell<std::collections::BTreeMap<String, Vec<u8>>>>,
+    pub certs: tokio::sync::Mutex<std::cell::RefCell<std::collections::BTreeMap<String, Vec<u8>>>>,
 
     pub issuer: openssl::x509::X509,
     pub issuer_key: openssl::pkey::PKey<openssl::pkey::Private>,

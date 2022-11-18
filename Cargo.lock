@@ -162,7 +162,6 @@ dependencies = [
  "aziot-tpm-common",
  "base64",
  "chrono",
- "futures-util",
  "http-common",
  "hyper",
  "hyper-openssl",
@@ -777,7 +776,6 @@ name = "config-common"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "futures-util",
  "log",
  "notify",
  "serde",
@@ -2352,6 +2350,7 @@ dependencies = [
  "mio 0.8.4",
  "num_cpus",
  "once_cell",
+ "parking_lot",
  "pin-project-lite",
  "socket2",
  "tokio-macros",

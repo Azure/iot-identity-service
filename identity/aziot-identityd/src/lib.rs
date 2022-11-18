@@ -110,7 +110,7 @@ pub async fn main(
         None
     };
 
-    let api = Arc::new(futures_util::lock::Mutex::new(api));
+    let api = Arc::new(tokio::sync::Mutex::new(api));
 
     // Configure the device identity certificate to auto-renew if enabled.
     if let Some((engine, registration_id, identity_cert, identity_pk, auto_renew)) =
@@ -176,7 +176,7 @@ pub struct Api {
     >,
 
     key_client: Arc<aziot_key_client_async::Client>,
-    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
@@ -204,7 +204,7 @@ impl Api {
             let key_client = Arc::new(key_client);
             let key_engine = aziot_key_openssl_engine::load(key_client)
                 .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
-            let key_engine = Arc::new(futures_util::lock::Mutex::new(key_engine));
+            let key_engine = Arc::new(tokio::sync::Mutex::new(key_engine));
             key_engine
         };
 
@@ -764,7 +764,7 @@ impl UpdateConfig for Api {
 
 pub(crate) async fn get_keys(
     key_handle: aziot_key_common::KeyHandle,
-    key_engine: &futures_util::lock::Mutex<openssl2::FunctionalEngine>,
+    key_engine: &tokio::sync::Mutex<openssl2::FunctionalEngine>,
 ) -> Result<
     (
         openssl::pkey::PKey<openssl::pkey::Private>,
