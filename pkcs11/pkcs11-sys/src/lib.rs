@@ -143,6 +143,23 @@ pub struct CK_INITIALIZE_FLAGS(CK_ULONG);
 pub const CKF_LIBRARY_CANT_CREATE_OS_THREADS: CK_INITIALIZE_FLAGS =
     CK_INITIALIZE_FLAGS(0x0000_0001);
 
+pub const CKF_OS_LOCKING_OK: CK_INITIALIZE_FLAGS =
+    CK_INITIALIZE_FLAGS(0x0000_0002);
+
+impl std::ops::BitOr<Self> for CK_INITIALIZE_FLAGS {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        CK_INITIALIZE_FLAGS(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for CK_INITIALIZE_FLAGS {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct CK_OPEN_SESSION_FLAGS(CK_ULONG);
