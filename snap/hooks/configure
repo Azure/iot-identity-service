@@ -18,6 +18,6 @@ toml_new_section() {
 	toml_new_section "aziot_keys"
 	toml_kvp "homedir_path" "$SNAP_COMMON/libaziot_keys_homedir"
 
-} > $SNAP_DATA/etc/aziot/config.toml
+} > /etc/aziot/config.toml
 
 $SNAP/bin/aziotctl config apply
