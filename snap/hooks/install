@@ -1,8 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-cp -r $SNAP/etc $SNAP_DATA/etc
-cp -r $SNAP/var $SNAP_COMMON/var
-mkdir -p $SNAP_COMMON/var/secrets/aziot
-
+mkdir -p $SNAP_DATA/shared/{secrets,sockets}/aziot
+mkdir -p $SNAP_DATA/shared/config/aziot/{keyd,certd,identityd,tpmd}/config.d
+mkdir -p $SNAP_DATA/var/lib/{aziot/{keyd,certd,identityd,tpmd},tpm}
 mkdir -p $SNAP_COMMON/libaziot_keys_homedir
-mkdir -p $SNAP_COMMON/sockets

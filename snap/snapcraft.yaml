@@ -1,6 +1,6 @@
 name: azure-iot-identity
 base: core20 # the base snap is the execution environment for this snap
-version: '1.4-002' # just for humans, typically '1.2+git' or '1.3.2'
+version: '1.4-004' # just for humans, typically '1.2+git' or '1.3.2'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
   The Identity Service provisions a device's identity and any modules it runs. The device identity can be based
@@ -63,12 +63,14 @@ parts:
         USER_AZIOTCS=root \
         USER_AZIOTKS=root \
         USER_AZIOTTPM=root \
+        SOCKET_DIR=/var/sockets/aziot \
         DESTDIR=$SNAPCRAFT_PART_INSTALL
     organize:
       usr/: .
     stage:
       - -include
       # - -lib/systemd
+      - -var
     override-prime: |
       snapcraftctl prime
       ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-certd
@@ -87,18 +89,16 @@ apps:
       - log-observe
       - system-observe
       - network
-      - sockets
   certd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-certd
     daemon: simple
     plugs:
       - network-bind
-      - sockets
-    # sockets:
-    #   unix:
-    #     listen-stream: $SNAP_COMMON/sockets/certd.sock
-    #     socket-mode: 0660
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/certd.sock
+        socket-mode: 0660
   identityd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-identityd
@@ -106,53 +106,53 @@ apps:
     plugs:
       - network
       - network-bind
-      - sockets
-    # sockets:
-    #   unix:
-    #     listen-stream: $SNAP_COMMON/sockets/identityd.sock
-    #     socket-mode: 0660
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/identityd.sock
+        socket-mode: 0660
   keyd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-keyd
     daemon: simple
     plugs:
       - network-bind
-      - sockets
-    # sockets:
-    #   unix:
-    #     listen-stream: $SNAP_COMMON/sockets/keyd.sock
-    #     socket-mode: 0660
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/keyd.sock
+        socket-mode: 0660
   tpmd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-tpmd
     daemon: simple
     plugs:
       - network-bind
-      - sockets
       - tpm
-    # sockets:
-    #   unix:
-    #     listen-stream: $SNAP_COMMON/sockets/tpmd.sock
-    #     socket-mode: 0660
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/tpmd.sock
+        socket-mode: 0660
 
 environment:
   LD_LIBRARY_PATH: $SNAP/lib/aziot-identity-service
 
-plugs:
-  sockets:
-    interface: system-files
-    write: [ /run/aziot ]
-# slots:
-#   sockets:
-#     interface: content
-#     content: aziot-sockets
-#     source:
-#       write:  [ $SNAP_COMMON/sockets ]
+slots:
+  aziotctl-executables:
+    interface: content
+    content: aziotctl-executables
+    source:
+      read: [ $SNAP/bin ]
+  identity-service:
+    interface: content
+    content: aziot-identity-service
+    source:
+      write: [ $SNAP_DATA/shared ]
 
 layout:
   /var/lib/aziot:
-    symlink: $SNAP_COMMON/var/lib/aziot
+    symlink: $SNAP_DATA/var/lib/aziot
   /var/secrets/aziot:
-    symlink: $SNAP_COMMON/var/secrets/aziot
+    symlink: $SNAP_DATA/shared/secrets/aziot
+  /var/sockets/aziot:
+    symlink: $SNAP_DATA/shared/sockets/aziot
   /etc/aziot:
-    symlink: $SNAP_DATA/etc/aziot
+    symlink: $SNAP_DATA/shared/config/aziot
