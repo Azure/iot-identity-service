@@ -3,7 +3,9 @@ name = "aziot-keys"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
-
+homepage = "https://github.com/azure/iot-identity-service"
+description = "aziot-keys"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib"]

@@ -3,7 +3,9 @@ name = "aziotd"
 version = "1.4.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
-
+homepage = "https://github.com/azure/iot-identity-service"
+description = "The aziotd is the binary for IoT identity service"
+license = "MIT"
 
 [dependencies]
 backtrace = "0.3"

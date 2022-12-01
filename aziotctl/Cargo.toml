@@ -3,7 +3,9 @@ name = "aziotctl"
 version = "1.4.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
-
+homepage = "https://github.com/azure/iot-identity-service"
+description = "aziotctl tool is used for IoT identity service"
+license = "MIT"
 
 [dependencies]
 anyhow = "1.0.34"
