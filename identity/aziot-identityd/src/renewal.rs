@@ -18,13 +18,8 @@ impl IdentityCertRenewal {
         rotate_key: bool,
         cert_id: &str,
         key_id: &str,
-<<<<<<< HEAD
-        registration_id: Option<&str>,
-        api: Arc<futures_util::lock::Mutex<crate::Api>>,
-=======
         registration_id: Option<&aziot_identityd_config::CsrSubject>,
         api: Arc<tokio::sync::Mutex<crate::Api>>,
->>>>>>> 5ff39f3 (Change futures_util Mutex to tokio Mutex (#485))
     ) -> Result<Self, crate::Error> {
         let (cert_client, key_client, key_engine) = {
             let api = api.lock().await;
