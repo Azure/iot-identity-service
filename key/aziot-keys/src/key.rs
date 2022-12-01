@@ -507,7 +507,7 @@ pub(crate) unsafe fn decrypt(
                 }
             };
 
-            let mut plaintext = vec![0_u8; ciphertext.len() - 16];
+            let mut plaintext = vec![0_u8; ciphertext.len()];
             let plaintext_len = key
                 .decrypt(iv, aad, ciphertext, &mut plaintext)
                 .map_err(crate::implementation::err_external)?;
