@@ -333,7 +333,7 @@ deb: dist
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
 	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postinst
-	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' 's|@socket_dir@|$(SOCKET_DIR)|g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g s|@socket_dir@|$(SOCKET_DIR)|g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
 	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/preinst
 
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
