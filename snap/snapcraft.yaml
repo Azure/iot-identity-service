@@ -1,6 +1,6 @@
 name: azure-iot-identity
 base: core20 # the base snap is the execution environment for this snap
-version: '1.4-004' # just for humans, typically '1.2+git' or '1.3.2'
+version: '1.4-005' # just for humans, typically '1.2+git' or '1.3.2'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
   The Identity Service provisions a device's identity and any modules it runs. The device identity can be based
@@ -98,7 +98,7 @@ apps:
     sockets:
       unix:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/certd.sock
-        socket-mode: 0660
+        socket-mode: 0666
   identityd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-identityd
@@ -109,7 +109,7 @@ apps:
     sockets:
       unix:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/identityd.sock
-        socket-mode: 0660
+        socket-mode: 0666
   keyd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-keyd
@@ -119,7 +119,7 @@ apps:
     sockets:
       unix:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/keyd.sock
-        socket-mode: 0660
+        socket-mode: 0666
   tpmd:
     command-chain: [ snap/command-chain/launch-wrapper.sh ]
     command: libexec/aziot-tpmd
@@ -130,7 +130,7 @@ apps:
     sockets:
       unix:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/tpmd.sock
-        socket-mode: 0660
+        socket-mode: 0666
 
 environment:
   LD_LIBRARY_PATH: $SNAP/lib/aziot-identity-service
