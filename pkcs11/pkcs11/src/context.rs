@@ -197,7 +197,8 @@ impl Context {
                 DestroyMutex: destroy_mutex,
                 LockMutex: lock_mutex,
                 UnlockMutex: unlock_mutex,
-                flags: pkcs11_sys::CKF_LIBRARY_CANT_CREATE_OS_THREADS | pkcs11_sys::CKF_OS_LOCKING_OK,
+                flags: pkcs11_sys::CKF_LIBRARY_CANT_CREATE_OS_THREADS
+                    | pkcs11_sys::CKF_OS_LOCKING_OK,
                 pReserved: std::ptr::null_mut(),
             };
             let result = C_Initialize(&initialize_args);
