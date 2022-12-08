@@ -19,7 +19,7 @@ jobs:
   suite-setup:
     if: "github.repository == 'Azure/iot-identity-service'"
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -52,7 +52,7 @@ jobs:
     if: "github.repository == 'Azure/iot-identity-service'"
     needs: 'suite-setup'
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -124,7 +124,7 @@ jobs:
     if: "${{ github.repository == 'Azure/iot-identity-service' && success() }}"
     needs: 'test-run'
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -157,7 +157,7 @@ jobs:
     needs: 'test-run'
     if: "${{ failure() }}"
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false

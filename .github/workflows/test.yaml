@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   basic:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -54,7 +54,7 @@ jobs:
         esac
         echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v2'
+      uses: 'actions/upload-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: |
@@ -68,7 +68,7 @@ jobs:
 
 
   aziot-key-openssl-engine-shared:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -113,7 +113,7 @@ jobs:
         echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Download'
       id: 'download-artifact'
-      uses: 'actions/download-artifact@v2'
+      uses: 'actions/download-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'target/debug'
@@ -132,7 +132,7 @@ jobs:
         PKCS11_BACKEND: "${{ matrix.pkcs11_backend }}"
 
   mock-iot-tests:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -167,7 +167,7 @@ jobs:
         echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Download'
       id: 'download-artifact'
-      uses: 'actions/download-artifact@v2'
+      uses: 'actions/download-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'target/debug'
@@ -194,7 +194,7 @@ jobs:
         SERVER_KEY: '/src/mock_iot_server_certs/server_cert_key.pem'
 
   openapi:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
     - uses: 'actions/checkout@v3'
@@ -203,7 +203,7 @@ jobs:
         make target/openapi-schema-validated
 
   codecoverage:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
     - uses: 'actions/checkout@v3'
