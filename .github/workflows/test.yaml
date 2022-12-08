@@ -28,7 +28,7 @@ jobs:
         - 'amd64'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
     - name: 'Run'
@@ -95,7 +95,7 @@ jobs:
     needs: 'basic'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
     - name: 'Generate artifact properties'
@@ -151,7 +151,7 @@ jobs:
     needs: 'basic'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
@@ -197,7 +197,7 @@ jobs:
     runs-on: 'ubuntu-18.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
     - name: 'Test OpenAPI specs'
       run: |
         make target/openapi-schema-validated
@@ -206,7 +206,7 @@ jobs:
     runs-on: 'ubuntu-18.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
 

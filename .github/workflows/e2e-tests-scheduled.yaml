@@ -32,7 +32,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ matrix.branch }}"
 
@@ -83,7 +83,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ matrix.branch }}"
 
@@ -137,7 +137,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ matrix.branch }}"
 
@@ -170,7 +170,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ matrix.branch }}"
 

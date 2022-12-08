@@ -20,7 +20,7 @@ jobs:
     runs-on: 'ubuntu-18.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -63,7 +63,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -107,7 +107,7 @@ jobs:
     runs-on: 'ubuntu-18.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -130,7 +130,7 @@ jobs:
     runs-on: 'ubuntu-18.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
