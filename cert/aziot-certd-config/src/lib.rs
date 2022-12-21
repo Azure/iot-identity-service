@@ -23,7 +23,7 @@ use url::Url;
 
 use http_common::Connector;
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Config {
     /// Path of home directory.
     pub homedir_path: PathBuf,
@@ -62,7 +62,7 @@ pub struct Config {
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CertIssuance {
     /// Configuration of parameters for issuing certs via EST.
     pub est: Option<Est>,
@@ -76,7 +76,7 @@ pub struct CertIssuance {
 }
 
 /// Configuration of parameters for issuing certs via EST.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Est {
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -125,7 +125,7 @@ pub fn is_default_est_renew(auto_renew: &cert_renewal::RenewalPolicy) -> bool {
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(try_from = "EstAuthInner")]
 pub struct EstAuth {
     /// Authentication parameters when using basic HTTP authentication.
@@ -162,14 +162,14 @@ impl TryFrom<EstAuthInner> for EstAuth {
 }
 
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EstAuthX509 {
     /// Cert ID and private key ID for the identity cert.
     ///
@@ -200,7 +200,7 @@ pub struct CertificateWithPrivateKey {
 }
 
 /// Details for issuing a single cert.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CertIssuanceOptions {
     /// The method used to issue a certificate.
     #[serde(flatten)]
@@ -215,7 +215,7 @@ pub struct CertIssuanceOptions {
     pub subject: Option<CertSubject>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CertSubject {
     CommonName(String),
@@ -292,7 +292,7 @@ where
 
 /// The method used to issue a certificate.
 #[allow(clippy::large_enum_variant)]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
@@ -310,7 +310,7 @@ pub enum CertIssuanceMethod {
 }
 
 /// The location of a preloaded cert.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum PreloadedCert {
     /// A URI for the location.
@@ -325,7 +325,7 @@ pub enum PreloadedCert {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Endpoints {
     /// The endpoint that the certd service binds to.
     pub aziot_certd: Connector,
@@ -348,7 +348,7 @@ impl Default for Endpoints {
 }
 
 /// Map of a Unix UID to certificate IDs with write access.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,

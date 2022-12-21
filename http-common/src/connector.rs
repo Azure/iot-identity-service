@@ -9,7 +9,7 @@ pub const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
 
 const SD_LISTEN_FDS_START: std::os::unix::io::RawFd = 3;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Connector {
     Tcp {
         host: std::sync::Arc<str>,

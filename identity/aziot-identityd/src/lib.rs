@@ -112,7 +112,7 @@ pub async fn main(
             auto_renew.rotate_key,
             &identity_cert,
             &identity_pk,
-            registration_id.as_deref(),
+            registration_id.as_ref(),
             api.clone(),
         )
         .await?;
@@ -298,7 +298,7 @@ impl Api {
                         ..
                     } => {
                         let registration_id = if let Some(registration_id) = registration_id {
-                            registration_id.to_string()
+                            registration_id.common_name().to_owned()
                         } else {
                             // Get the registration ID from the identity certificate if it was not provided
                             // in the config.
@@ -667,6 +667,11 @@ impl Api {
                 "{}.{}.{}",
                 module_id, self.settings.hostname, localid.domain
             );
+            let subject =
+                openssl::x509::X509Name::try_from(&config::CsrSubject::CommonName(subject))
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
             let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
@@ -773,7 +778,7 @@ pub(crate) async fn get_keys(
 }
 
 pub(crate) fn create_csr(
-    subject: &str,
+    subject: &openssl::x509::X509NameRef,
     public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
     private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
     attributes: Option<aziot_identity_common::LocalIdAttr>,
@@ -818,16 +823,11 @@ pub(crate) fn create_csr(
         csr.add_extensions(&extensions)?;
     }
 
-    let mut subject_name = openssl::x509::X509Name::builder()?;
-    subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
-    let subject_name = subject_name.build();
-    csr.set_subject_name(&subject_name)?;
+    csr.set_subject_name(subject)?;
     csr.set_pubkey(public_key)?;
     csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
 
-    let csr = csr.build();
-    let csr = csr.to_pem()?;
-    Ok(csr)
+    csr.build().to_pem()
 }
 
 pub struct SettingsAuthenticator {
