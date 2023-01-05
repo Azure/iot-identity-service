@@ -107,7 +107,7 @@ setupCustomAllocationPolicy() {
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
             --consumption-plan-location $AZURE_LOCATION \
             --runtime dotnet \
-            --functions-version 3 \
+            --functions-version 4 \
             --name "$dps_allocation_functionapp_name" \
             --disable-app-insights \
             --storage-account "$dps_allocation_storage_account" \
