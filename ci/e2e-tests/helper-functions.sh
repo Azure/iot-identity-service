@@ -165,7 +165,7 @@ installTestTools() {
             done
             set -e
 
-            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools-4
+            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools
             ;;
         *)
             echo "Install of test tools unsupported on OS: $os" >&2
