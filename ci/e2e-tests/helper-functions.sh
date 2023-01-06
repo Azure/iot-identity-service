@@ -164,8 +164,8 @@ installTestTools() {
                 fi
             done
             set -e
-            sudo apt-get remove -y dotnet-sdk-7.0
-            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools
+            sudo apt-get remove -y dotnet-sdk-7.0 dotnet-runtime-7.0
+            sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 dotnet-runtime-6.0 azure-functions-core-tools
             ;;
         *)
             echo "Install of test tools unsupported on OS: $os" >&2
