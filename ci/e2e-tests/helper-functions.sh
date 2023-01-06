@@ -164,7 +164,7 @@ installTestTools() {
                 fi
             done
             set -e
-
+            sudo apt-get remove -y dotnet-sdk-7.0
             sudo apt-get install -y apt-transport-https dotnet-sdk-6.0 azure-functions-core-tools
             ;;
         *)
