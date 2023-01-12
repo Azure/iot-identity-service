@@ -8,11 +8,14 @@
     clippy::large_enum_variant
 )]
 
+use std::collections::BTreeMap;
 use std::io::ErrorKind;
+
+use serde::{Deserialize, Serialize};
 
 mod check;
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Settings {
     pub hostname: String,
 
@@ -74,9 +77,9 @@ impl Settings {
 
 pub fn deserialize_cloud_timeout<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
-    D: serde::de::Deserializer<'de>,
+    D: serde::Deserializer<'de>,
 {
-    let result: u64 = serde::Deserialize::deserialize(deserializer)?;
+    let result: u64 = Deserialize::deserialize(deserializer)?;
 
     if result == 0 {
         return Err(serde::de::Error::custom(
@@ -87,7 +90,7 @@ where
     Ok(result)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Principal {
     pub uid: Credentials,
@@ -101,21 +104,19 @@ pub struct Principal {
     pub localid: Option<aziot_identity_common::LocalIdOpts>,
 }
 
-#[derive(
-    Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, serde::Deserialize, serde::Serialize,
-)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Deserialize, Serialize)]
 pub struct Uid(pub libc::uid_t);
 
 pub type Credentials = Uid;
 
 /// Global options for all local identities.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LocalId {
     /// Identifier for a group of local identity certificates, suffixed to the common name.
     pub domain: String,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
 pub enum ManualAuthMethod {
@@ -124,12 +125,78 @@ pub enum ManualAuthMethod {
     X509 {
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        csr_subject: Option<CsrSubject>,
     },
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "method")]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum CsrSubject {
+    CommonName(String),
+    #[serde(deserialize_with = "subject_from_key_value")]
+    Subject {
+        #[serde(rename(serialize = "CN"))]
+        cn: String,
+        #[serde(flatten, skip_serializing_if = "BTreeMap::is_empty")]
+        rest: BTreeMap<String, String>,
+    },
+}
+
+impl CsrSubject {
+    pub fn common_name(&self) -> &str {
+        match self {
+            Self::CommonName(cn) | Self::Subject { cn, .. } => cn,
+        }
+    }
+}
+
+fn subject_from_key_value<'de, D>(de: D) -> Result<(String, BTreeMap<String, String>), D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let mut res = BTreeMap::<String, String>::deserialize(de)?
+        .into_iter()
+        .map(|(k, v)| (k.to_uppercase(), v))
+        .collect::<BTreeMap<_, _>>();
+    Ok((
+        res.remove("CN")
+            .ok_or_else(|| <D::Error as serde::de::Error>::missing_field("CN"))?,
+        res,
+    ))
+}
+
+impl TryFrom<&CsrSubject> for openssl::x509::X509Name {
+    type Error = openssl::error::ErrorStack;
+
+    fn try_from(subject: &CsrSubject) -> Result<Self, Self::Error> {
+        // X.509 requires CNs to be shorter than 64 characters.
+        const CN_MAX_LENGTH: usize = 64;
+
+        let mut builder = openssl::x509::X509Name::builder()?;
+
+        match subject {
+            CsrSubject::CommonName(cn) => {
+                let mut cn = cn.to_string();
+                cn.truncate(CN_MAX_LENGTH);
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+            }
+            CsrSubject::Subject { cn, rest } => {
+                let mut cn = cn.to_string();
+                cn.truncate(CN_MAX_LENGTH);
+                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+                for (name, value) in rest {
+                    builder.append_entry_by_text(name, value)?;
+                }
+            }
+        }
+
+        Ok(builder.build())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase", tag = "method")]
 pub enum DpsAttestationMethod {
     #[serde(rename = "symmetric_key")]
     SymmetricKey {
@@ -137,9 +204,10 @@ pub enum DpsAttestationMethod {
         symmetric_key: String,
     },
     X509 {
-        registration_id: Option<String>,
         identity_cert: String,
         identity_pk: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        registration_id: Option<CsrSubject>,
         #[serde(skip_serializing_if = "Option::is_none")]
         identity_auto_renew: Option<cert_renewal::AutoRenewConfig>,
     },
@@ -148,7 +216,7 @@ pub enum DpsAttestationMethod {
     },
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub struct Provisioning {
     pub local_gateway_hostname: Option<String>,
@@ -157,7 +225,7 @@ pub struct Provisioning {
     pub provisioning: ProvisioningType,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
 pub enum ProvisioningType {
@@ -173,12 +241,11 @@ pub enum ProvisioningType {
         #[serde(skip_serializing_if = "Option::is_none")]
         payload: Option<Payload>,
     },
-
     /// Disables provisioning with IoT Hub for devices that use local identities only.
     None,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Payload {
     pub uri: url::Url,
 }
@@ -204,7 +271,7 @@ impl Payload {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Endpoints {
     pub aziot_certd: http_common::Connector,
     pub aziot_identityd: http_common::Connector,
