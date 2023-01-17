@@ -896,7 +896,11 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
         .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
-    let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);
+    let expiration = chrono::NaiveDateTime::from_timestamp_opt(diff, 0).ok_or_else(|| {
+        Error::Internal(InternalError::CreateCertificate(
+            "failed to convert timestamp".into(),
+        ))
+    })?;
     let expiration =
         chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 
