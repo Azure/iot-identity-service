@@ -70,7 +70,8 @@ impl std::fmt::Display for Time {
         if self == &Time::forever() {
             write!(f, "the end of time")
         } else {
-            let date_time = chrono::NaiveDateTime::from_timestamp(self.0, 0);
+            let date_time =
+                chrono::NaiveDateTime::from_timestamp_opt(self.0, 0).ok_or(std::fmt::Error)?;
             let date_time = chrono::DateTime::<chrono::Utc>::from_utc(date_time, chrono::Utc);
 
             write!(f, "{}", date_time.to_rfc3339())

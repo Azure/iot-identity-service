@@ -219,7 +219,11 @@ fn parse_server_response(
 
 fn sntp_epoch() -> chrono::DateTime<chrono::Utc> {
     chrono::DateTime::<chrono::Utc>::from_utc(
-        chrono::NaiveDate::from_ymd(1900, 1, 1).and_time(chrono::NaiveTime::from_hms(0, 0, 0)),
+        chrono::NaiveDate::from_ymd_opt(1900, 1, 1)
+            .expect("hardcoded date should parse")
+            .and_time(
+                chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("hardcoded date should parse"),
+            ),
         chrono::Utc,
     )
 }
