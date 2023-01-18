@@ -133,15 +133,11 @@ pub fn check_readable(mut path: &Path, user: &User, fix: bool) -> anyhow::Result
                 }
             } else {
                 return Err(anyhow::anyhow!(
-                    "{} is not readable by user {} (uid {}, gid {}), try sudo chown {}:{} {} && sudo chmod 700 {}",
+                    "{} is not readable by user {} (uid {}, gid {}), see https://aka.ms/iotedge/cert-permissions",
                     path.display(),
                     user.name,
                     user.uid,
-                    user.gid,
-                    user.name,
-                    user.name,
-                    path.display(),
-                    path.display()
+                    user.gid
                 ));
             }
         }
