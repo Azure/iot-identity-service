@@ -133,7 +133,7 @@ pub fn check_readable(mut path: &Path, user: &User, fix: bool) -> anyhow::Result
                 }
             } else {
                 return Err(anyhow::anyhow!(
-                    "{} is not readable by user {} (uid {}, gid {})",
+                    "{} is not readable by user {} (uid {}, gid {}), see https://aka.ms/iotedge/cert-permissions",
                     path.display(),
                     user.name,
                     user.uid,
