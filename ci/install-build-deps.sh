@@ -16,7 +16,7 @@ case "$OS:$ARCH" in
 
         yum install -y centos-release-scl epel-release
         yum install -y \
-            autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
+            autoconf autoconf-archive automake curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
             git jq libcurl-devel libtool llvm-toolset-7-clang llvm-toolset-7-llvm-devel \
             make openssl openssl-devel pkgconfig
 
