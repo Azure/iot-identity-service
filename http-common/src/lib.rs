@@ -30,6 +30,8 @@ pub use request::HttpRequest;
 
 pub mod server;
 
+mod backoff;
+
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>

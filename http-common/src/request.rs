@@ -2,6 +2,8 @@
 
 use std::io::{Error, ErrorKind};
 
+use crate::backoff::DEFAULT_BACKOFF;
+
 const CONTENT_TYPE_JSON: &str = "application/json";
 
 pub struct HttpRequest<TBody, TConnector> {
@@ -161,9 +163,8 @@ where
         let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(self.connector);
 
         let mut current_attempt = 1;
-        let retry_limit = self.retries + 1;
 
-        let response = loop {
+        loop {
             let mut request = hyper::Request::builder()
                 .method(&self.method)
                 .uri(&self.uri);
@@ -186,61 +187,99 @@ where
                 .body(request_body)
                 .expect("cannot fail to create request");
 
-            let err = match tokio::time::timeout(self.timeout, client.request(request)).await {
-                Ok(response) => {
-                    match response {
-                        Ok(response) => break response,
-                        Err(err) => {
-                            if err.is_connect() {
-                                // Network error.
-                                std::io::Error::new(std::io::ErrorKind::NotConnected, err)
-                            } else {
-                                std::io::Error::new(std::io::ErrorKind::Other, err)
+            let (err, backoff_exponential) =
+                match tokio::time::timeout(self.timeout, client.request(request)).await {
+                    Ok(response) => {
+                        match response {
+                            Ok(response) => {
+                                let (
+                                    http::response::Parts {
+                                        status: response_status,
+                                        headers: response_headers,
+                                        ..
+                                    },
+                                    response_body,
+                                ) = response.into_parts();
+
+                                // Make sure to download body inside the timeout
+                                let response_body = if has_response_body {
+                                    let response_body = hyper::body::to_bytes(response_body)
+                                        .await
+                                        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+
+                                    Some(response_body)
+                                } else {
+                                    None
+                                };
+
+                                // if response throttled, go into exponential backoff
+                                if response_status == http::StatusCode::TOO_MANY_REQUESTS {
+                                    (
+                                        std::io::Error::new(
+                                            std::io::ErrorKind::Other,
+                                            "429: Too many requests",
+                                        ),
+                                        true,
+                                    )
+                                } else {
+                                    // Return results
+                                    return Ok((response_status, response_headers, response_body));
+                                }
+                            }
+                            Err(err) => {
+                                if err.is_connect() {
+                                    // Network error.
+                                    (
+                                        std::io::Error::new(std::io::ErrorKind::NotConnected, err),
+                                        false,
+                                    )
+                                } else {
+                                    (std::io::Error::new(std::io::ErrorKind::Other, err), false)
+                                }
                             }
                         }
                     }
+
+                    Err(timeout) => (timeout.into(), false),
+                };
+
+            if backoff_exponential {
+                if let Some(backoff_duration) =
+                    DEFAULT_BACKOFF.get_backoff_duration(current_attempt)
+                {
+                    log::warn!(
+                        "HTTP request throttled (attempt {} of {}). Sleeping for {} seconds.",
+                        current_attempt,
+                        DEFAULT_BACKOFF.max_retries() + 1,
+                        backoff_duration.as_secs()
+                    );
+                    tokio::time::sleep(backoff_duration).await;
+                } else {
+                    log::warn!(
+                        "Final HTTP request throttled (attempt {} of {}).",
+                        current_attempt,
+                        DEFAULT_BACKOFF.max_retries() + 1,
+                    );
+                    return Err(err);
+                }
+            } else {
+                log::warn!(
+                    "Failed to send HTTP request (attempt {} of {}): {}",
+                    current_attempt,
+                    self.retries + 1,
+                    err
+                );
+
+                if current_attempt > self.retries {
+                    return Err(err);
                 }
 
-                Err(timeout) => timeout.into(),
-            };
-
-            log::warn!(
-                "Failed to send HTTP request (attempt {} of {}): {}",
-                current_attempt,
-                retry_limit,
-                err
-            );
-
-            if current_attempt == retry_limit {
-                return Err(err);
+                // Wait a short time between failed requests.
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
             }
 
             current_attempt += 1;
-
-            // Wait a short time between failed requests.
-            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-        };
-
-        let (
-            http::response::Parts {
-                status: response_status,
-                headers: response_headers,
-                ..
-            },
-            response_body,
-        ) = response.into_parts();
-
-        let response_body = if has_response_body {
-            let response_body = hyper::body::to_bytes(response_body)
-                .await
-                .map_err(|err| Error::new(ErrorKind::Other, err))?;
-
-            Some(response_body)
-        } else {
-            None
-        };
-
-        Ok((response_status, response_headers, response_body))
+        }
     }
 }
 
