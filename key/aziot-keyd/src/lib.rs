@@ -84,7 +84,7 @@ pub async fn main(
             principals: principal_to_map(principal),
         }
     };
-    let api = std::sync::Arc::new(futures_util::lock::Mutex::new(api));
+    let api = std::sync::Arc::new(tokio::sync::Mutex::new(api));
 
     config_common::watcher::start_watcher(config_path, config_directory_path, api.clone());
 

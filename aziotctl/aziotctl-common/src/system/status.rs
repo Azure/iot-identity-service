@@ -94,7 +94,7 @@ enum State {
 impl State {
     fn from_systemctl(unit: &str) -> Result<State> {
         let result = Command::new("systemctl")
-            .args(&["is-active", unit])
+            .args(["is-active", unit])
             .output()
             .context("Failed to call systemctl is-active")?;
 
@@ -189,7 +189,7 @@ struct SocketStatus<'a> {
 
 fn print_journalctl_logs(unit: &str) -> Result<()> {
     Command::new("journalctl")
-        .args(&["-u", unit, "--no-pager", "-e", "-n", "10"])
+        .args(["-u", unit, "--no-pager", "-e", "-n", "10"])
         .spawn()
         .context("Failed to spawn new process for printing logs")?
         .wait()

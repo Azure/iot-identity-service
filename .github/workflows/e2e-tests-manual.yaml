@@ -17,10 +17,10 @@ on:
 
 jobs:
   suite-setup:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -39,7 +39,7 @@ jobs:
   test-run:
     needs: 'suite-setup'
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -63,7 +63,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -104,10 +104,10 @@ jobs:
     needs: 'test-run'
     if: "${{ success() }}"
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -127,10 +127,10 @@ jobs:
     needs: 'test-run'
     if: "${{ failure() }}"
 
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         ref: "${{ github.event.inputs.branch }}"
 

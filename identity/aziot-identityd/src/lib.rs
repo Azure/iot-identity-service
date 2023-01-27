@@ -68,7 +68,7 @@ pub async fn main(
     let max_requests = settings.max_requests;
 
     if !homedir_path.exists() {
-        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+        if let Err(err) = std::fs::create_dir_all(homedir_path) {
             log::error!("Failed to create home directory: {}", err);
 
             return Err(error::InternalError::CreateHomeDir(err).into());
@@ -110,7 +110,7 @@ pub async fn main(
         None
     };
 
-    let api = Arc::new(futures_util::lock::Mutex::new(api));
+    let api = Arc::new(tokio::sync::Mutex::new(api));
 
     // Configure the device identity certificate to auto-renew if enabled.
     if let Some((engine, registration_id, identity_cert, identity_pk, auto_renew)) =
@@ -120,7 +120,7 @@ pub async fn main(
             auto_renew.rotate_key,
             &identity_cert,
             &identity_pk,
-            registration_id.as_deref(),
+            registration_id.as_ref(),
             api.clone(),
         )
         .await?;
@@ -176,7 +176,7 @@ pub struct Api {
     >,
 
     key_client: Arc<aziot_key_client_async::Client>,
-    key_engine: Arc<futures_util::lock::Mutex<openssl2::FunctionalEngine>>,
+    key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
@@ -204,7 +204,7 @@ impl Api {
             let key_client = Arc::new(key_client);
             let key_engine = aziot_key_openssl_engine::load(key_client)
                 .map_err(|err| Error::Internal(InternalError::LoadKeyOpensslEngine(err)))?;
-            let key_engine = Arc::new(futures_util::lock::Mutex::new(key_engine));
+            let key_engine = Arc::new(tokio::sync::Mutex::new(key_engine));
             key_engine
         };
 
@@ -306,7 +306,7 @@ impl Api {
                         ..
                     } => {
                         let registration_id = if let Some(registration_id) = registration_id {
-                            registration_id.to_string()
+                            registration_id.common_name().to_owned()
                         } else {
                             // Get the registration ID from the identity certificate if it was not provided
                             // in the config.
@@ -678,6 +678,11 @@ impl Api {
                 "{}.{}.{}",
                 module_id, self.settings.hostname, localid.domain
             );
+            let subject =
+                openssl::x509::X509Name::try_from(&config::CsrSubject::CommonName(subject))
+                    .map_err(|err| {
+                        Error::Internal(InternalError::CreateCertificate(Box::new(err)))
+                    })?;
             let csr = create_csr(&subject, &public_key, &private_key, Some(attributes))
                 .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
             let certificate = self
@@ -759,7 +764,7 @@ impl UpdateConfig for Api {
 
 pub(crate) async fn get_keys(
     key_handle: aziot_key_common::KeyHandle,
-    key_engine: &futures_util::lock::Mutex<openssl2::FunctionalEngine>,
+    key_engine: &tokio::sync::Mutex<openssl2::FunctionalEngine>,
 ) -> Result<
     (
         openssl::pkey::PKey<openssl::pkey::Private>,
@@ -784,7 +789,7 @@ pub(crate) async fn get_keys(
 }
 
 pub(crate) fn create_csr(
-    subject: &str,
+    subject: &openssl::x509::X509NameRef,
     public_key: &openssl::pkey::PKeyRef<openssl::pkey::Public>,
     private_key: &openssl::pkey::PKeyRef<openssl::pkey::Private>,
     attributes: Option<aziot_identity_common::LocalIdAttr>,
@@ -829,16 +834,11 @@ pub(crate) fn create_csr(
         csr.add_extensions(&extensions)?;
     }
 
-    let mut subject_name = openssl::x509::X509Name::builder()?;
-    subject_name.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, subject)?;
-    let subject_name = subject_name.build();
-    csr.set_subject_name(&subject_name)?;
+    csr.set_subject_name(subject)?;
     csr.set_pubkey(public_key)?;
     csr.sign(private_key, openssl::hash::MessageDigest::sha256())?;
 
-    let csr = csr.build();
-    let csr = csr.to_pem()?;
-    Ok(csr)
+    csr.build().to_pem()
 }
 
 pub struct SettingsAuthenticator {
@@ -907,7 +907,11 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
         .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
-    let expiration = chrono::NaiveDateTime::from_timestamp(diff, 0);
+    let expiration = chrono::NaiveDateTime::from_timestamp_opt(diff, 0).ok_or_else(|| {
+        Error::Internal(InternalError::CreateCertificate(
+            "failed to convert timestamp".into(),
+        ))
+    })?;
     let expiration =
         chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 

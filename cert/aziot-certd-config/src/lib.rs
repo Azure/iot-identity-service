@@ -23,7 +23,7 @@ use url::Url;
 
 use http_common::Connector;
 
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Config {
     /// Path of home directory.
     pub homedir_path: PathBuf,
@@ -62,7 +62,7 @@ pub struct Config {
 }
 
 /// Configuration of how new certificates should be issued.
-#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CertIssuance {
     /// Configuration of parameters for issuing certs via EST.
     pub est: Option<Est>,
@@ -76,7 +76,7 @@ pub struct CertIssuance {
 }
 
 /// Configuration of parameters for issuing certs via EST.
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Est {
     /// List of certs that should be treated as trusted roots for validating the EST server's TLS certificate.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -125,7 +125,7 @@ pub fn is_default_est_renew(auto_renew: &cert_renewal::RenewalPolicy) -> bool {
 ///
 /// Note that EST servers may be configured to have only basic auth, only TLS client cert auth, or both.
 #[skip_serializing_none]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(try_from = "EstAuthInner")]
 pub struct EstAuth {
     /// Authentication parameters when using basic HTTP authentication.
@@ -162,14 +162,14 @@ impl TryFrom<EstAuthInner> for EstAuth {
 }
 
 /// Authentication parameters when using basic HTTP authentication.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EstAuthBasic {
     pub username: String,
     pub password: String,
 }
 
 /// Authentication parameters when using TLS client cert authentication.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EstAuthX509 {
     /// Cert ID and private key ID for the identity cert.
     ///
@@ -200,7 +200,7 @@ pub struct CertificateWithPrivateKey {
 }
 
 /// Details for issuing a single cert.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CertIssuanceOptions {
     /// The method used to issue a certificate.
     #[serde(flatten)]
@@ -215,7 +215,7 @@ pub struct CertIssuanceOptions {
     pub subject: Option<CertSubject>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CertSubject {
     CommonName(String),
@@ -228,25 +228,41 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
     fn try_from(
         subject: &CertSubject,
     ) -> Result<openssl::x509::X509Name, openssl::error::ErrorStack> {
-        // X.509 requires CNs to be shorter than 64 characters.
+        // NOTE: X.509 requires CNs to be at most 64 characters.
+        //
+        // Ref: https://www.rfc-editor.org/rfc/rfc5280 PAGE 124
         const CN_MAX_LENGTH: usize = 64;
+
+        #[inline]
+        fn truncate_cn_length(cn: &str) -> String {
+            // NOTE: An option that would allow returning a string reference is
+            // ```
+            // let mut it = cn.chars();
+            // let _ = it.by_ref().take(CN_MAX_LENGTH).last();
+            // &cn[..usize::try_from(unsafe { it.as_str().as_ptr().offset(cn.as_str().as_ptr()) }).unwrap()]
+            // ```
+            cn.chars().take(CN_MAX_LENGTH).collect()
+        }
 
         let mut builder = openssl::x509::X509Name::builder()?;
 
         match subject {
             CertSubject::CommonName(cn) => {
-                let mut cn = cn.to_string();
-                cn.truncate(CN_MAX_LENGTH);
-
-                builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
+                builder
+                    .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &truncate_cn_length(cn))?;
             }
             CertSubject::Subject(fields) => {
                 for (name, value) in fields {
-                    if name.to_lowercase() == "cn" {
-                        let mut cn = value.to_string();
-                        cn.truncate(CN_MAX_LENGTH);
-
-                        builder.append_entry_by_text(name, &cn)?;
+                    // NOTE: Size limits exist for other X509Name fields as
+                    // well [RFC5280].  We only truncate the Common Name since
+                    // we have only encountered customer issues with Common Name
+                    // length so far [1, 2].
+                    //
+                    // Ref[RFC5280]: https://www.rfc-editor.org/rfc/rfc5280
+                    // Ref[1]: https://github.com/Azure/iotedge/issues/6288
+                    // Ref[2]: https://github.com/Azure/iot-identity-service/pull/411#discussion_r871640144
+                    if name.eq_ignore_ascii_case("cn") {
+                        builder.append_entry_by_text(name, &truncate_cn_length(value))?;
                     } else {
                         builder.append_entry_by_text(name, value)?;
                     }
@@ -292,7 +308,7 @@ where
 
 /// The method used to issue a certificate.
 #[allow(clippy::large_enum_variant)]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "method", rename_all = "snake_case")]
 pub enum CertIssuanceMethod {
     /// The certificate is to be issued via EST.
@@ -310,7 +326,7 @@ pub enum CertIssuanceMethod {
 }
 
 /// The location of a preloaded cert.
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum PreloadedCert {
     /// A URI for the location.
@@ -325,7 +341,7 @@ pub enum PreloadedCert {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Endpoints {
     /// The endpoint that the certd service binds to.
     pub aziot_certd: Connector,
@@ -348,7 +364,7 @@ impl Default for Endpoints {
 }
 
 /// Map of a Unix UID to certificate IDs with write access.
-#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,
@@ -360,6 +376,34 @@ pub struct Principal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn common_name_truncation_does_not_panic() {
+        let long_name_unicode_boundary =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaáa";
+        let expected_truncation =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaá";
+
+        let expected_x509 = {
+            let mut builder = openssl::x509::X509Name::builder().unwrap();
+            builder
+                .append_entry_by_nid(openssl::nid::Nid::COMMONNAME, expected_truncation)
+                .unwrap();
+            builder.build()
+        };
+        let common_name = CertSubject::CommonName(long_name_unicode_boundary.to_owned());
+
+        assert_eq!(
+            // WARN: X509NameRef::try_cmp can spuriously return Ordering::Less
+            // if the underlying call to X509_NAME_cmp fails.
+            // Ref: https://docs.rs/openssl/0.10.42/openssl/x509/struct.X509Name.html#method.try_cmp
+            openssl::x509::X509Name::try_from(&common_name)
+                .unwrap()
+                .try_cmp(&expected_x509)
+                .unwrap(),
+            std::cmp::Ordering::Equal
+        );
+    }
 
     #[test]
     fn parse_config() {

@@ -3,7 +3,9 @@ name = "aziot-keys"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
-
+homepage = "https://azure.github.io/iot-identity-service/"
+description = "aziot-keys is the default implementation of cryptographic operations used by the Keys Service."
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib"]
