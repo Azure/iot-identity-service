@@ -6,10 +6,10 @@ use rand::Rng;
 
 pub const DEFAULT_BACKOFF: Backoff<4> = Backoff {
     pattern: [
-        BackoffInstance::new(Duration::from_secs(60), Duration::from_secs(10)),
-        BackoffInstance::new(Duration::from_secs(120), Duration::from_secs(20)),
-        BackoffInstance::new(Duration::from_secs(180), Duration::from_secs(30)),
-        BackoffInstance::new(Duration::from_secs(300), Duration::from_secs(30)),
+        BackoffInstance::from_secs(60, 10),
+        BackoffInstance::from_secs(120, 20),
+        BackoffInstance::from_secs(180, 30),
+        BackoffInstance::from_secs(300, 30),
     ],
 };
 
@@ -37,10 +37,10 @@ pub struct BackoffInstance {
 }
 
 impl BackoffInstance {
-    const fn new(duration: Duration, max_jitter: Duration) -> Self {
+    const fn from_secs(duration: u64, max_jitter: u64) -> Self {
         Self {
-            duration,
-            max_jitter,
+            duration: Duration::from_secs(duration),
+            max_jitter: Duration::from_secs(max_jitter),
         }
     }
 

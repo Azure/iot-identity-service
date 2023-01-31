@@ -339,11 +339,14 @@ impl HttpResponse {
 ///
 /// To run this test, first create a new device in a hub. Then use the az cli to generate a device token:
 /// `az iot hub generate-sas-token --hub-name "your-hub" --device-id "your-device-id"`
-/// 
-/// Then simply set the HUB_HOSTNAME, DEVICE_ID, and SAS_TOKEN variables and run the test using
+///
+/// Then simply set the `HUB_HOSTNAME`, `DEVICE_ID`, and `SAS_TOKEN` variables and run the test using
 /// `RUST_LOG=info cargo test test_backoff -- --nocapture --ignored`
-/// 
-/// A successful run should print lots of throttle warnings, but never error. The throttle warnings should have some jitter:
+///
+/// A successful run should print lots of throttle warnings, but never error. The throttle warnings should have some jitter.
+/// It will never return and must be manually canceled.
+///
+/// Example output:
 /// ```
 /// [2023-01-31T05:03:18Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 66 seconds.
 /// Finished request 2201 (57) in 9.593452176
@@ -438,7 +441,7 @@ mod tests {
     #[ignore]
     async fn test_backoff_manual() {
         if HUB_HOSTNAME == "your-hubname-here.azurecr.io" {
-            return
+            return;
         }
 
         env_logger::init();
