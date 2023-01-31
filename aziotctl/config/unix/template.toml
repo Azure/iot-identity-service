@@ -29,9 +29,13 @@
 # cloud_retries controls how many times a request may be retried should it fail.
 # The client will always send at least one attempt, so its value will be the number
 # of retries after the first attempt should that fail (i.e. cloud_retries = 2
-# means that the client will make a total of 3 attempts).
+# means that the client will make a total of 3 attempts). 
 #
-# cloud_timeout_sec = 10
+# cloud_timeout_sec has a minimum of 60s to allow hub to throttle requests. 
+# If a request is throttled, it will enter an exponentual backoff with 5 retries instead
+# of using the configured value. The configured value is used for all other errors.
+#
+# cloud_timeout_sec = 60
 # cloud_retries = 1
 
 # ==============================================================================
