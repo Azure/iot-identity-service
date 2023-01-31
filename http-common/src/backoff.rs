@@ -26,7 +26,7 @@ impl<const N: usize> Backoff<N> {
     /// Computes backoff for current try. Returns None if no retry attempts left
     pub fn get_backoff_duration(&self, current_attempt: u32) -> Option<Duration> {
         self.pattern
-            .get(current_attempt as usize)
+            .get(current_attempt as usize - 1)
             .map(BackoffInstance::backoff_duration)
     }
 }
@@ -46,7 +46,7 @@ impl BackoffInstance {
 
     fn backoff_duration(&self) -> Duration {
         let mut rng = rand::thread_rng();
-        let jitter_multiple = rng.gen_range(-1.0..1.0);
+        let jitter_multiple = rng.gen_range(0.0..1.0);
 
         self.duration + self.max_jitter.mul_f32(jitter_multiple)
     }

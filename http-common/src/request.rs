@@ -331,3 +331,176 @@ impl HttpResponse {
         }
     }
 }
+
+/// Using this test:
+///
+/// This test can only be run manually. It will send thousands of concurrent tests to iothub to induce a throttle.
+/// This should cause the exponential backoff with jitter to trigger.
+///
+/// To run this test, first create a new device in a hub. Then use the az cli to generate a device token:
+/// `az iot hub generate-sas-token --hub-name "your-hub" --device-id "your-device-id"`
+/// 
+/// Then simply set the HUB_HOSTNAME, DEVICE_ID, and SAS_TOKEN variables and run the test using
+/// `RUST_LOG=info cargo test test_backoff -- --nocapture --ignored`
+/// 
+/// A successful run should print lots of throttle warnings, but never error. The throttle warnings should have some jitter:
+/// ```
+/// [2023-01-31T05:03:18Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 66 seconds.
+/// Finished request 2201 (57) in 9.593452176
+/// Making request 2219 (57)
+/// [2023-01-31T05:03:19Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 67 seconds.
+/// Finished request 2209 (677) in 6.339969904
+/// Making request 2220 (677)
+/// [2023-01-31T05:03:20Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 62 seconds.
+/// Finished request 1725 (116) in 274.212254168
+/// Making request 2221 (116)
+/// [2023-01-31T05:03:20Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 61 seconds.
+/// [2023-01-31T05:03:21Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 66 seconds.
+/// Finished request 1737 (271) in 272.654453645
+/// Making request 2222 (271)
+/// Finished request 2040 (340) in 108.331706338
+/// Making request 2223 (340)
+/// [2023-01-31T05:03:22Z WARN  http_common::request] HTTP request throttled (attempt 2 of 5). Sleeping for 121 seconds.
+/// Finished request 2054 (59) in 105.782412118
+/// Making request 2224 (59)
+/// [2023-01-31T05:03:22Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 62 seconds.
+/// Finished request 2177 (457) in 36.547918943
+/// Making request 2225 (457)
+/// [2023-01-31T05:03:23Z WARN  http_common::request] HTTP request throttled (attempt 3 of 5). Sleeping for 186 seconds.
+/// [2023-01-31T05:03:23Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 69 seconds.
+/// Finished request 2039 (890) in 109.541071346
+/// Making request 2226 (890)
+/// Finished request 1684 (52) in 280.208850293
+/// Making request 2227 (52)
+/// [2023-01-31T05:03:23Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 64 seconds.
+/// Finished request 2041 (223) in 109.602108785
+/// Making request 2228 (223)
+/// Finished request 2035 (446) in 110.378473331
+/// Making request 2229 (446)
+/// [2023-01-31T05:03:24Z WARN  http_common::request] HTTP request throttled (attempt 2 of 5). Sleeping for 139 seconds.
+/// Finished request 2030 (865) in 111.498652518
+/// Making request 2230 (865)
+/// [2023-01-31T05:03:25Z WARN  http_common::request] HTTP request throttled (attempt 2 of 5). Sleeping for 122 seconds.
+/// Finished request 2043 (793) in 110.364761699
+/// Making request 2231 (793)
+/// Finished request 1707 (341) in 280.771491736
+/// Making request 2232 (341)
+/// Finished request 1673 (506) in 282.369761148
+/// Making request 2233 (506)
+/// [2023-01-31T05:03:25Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 63 seconds.
+/// Finished request 2190 (634) in 28.784852222
+/// Making request 2234 (634)
+/// [2023-01-31T05:03:26Z WARN  http_common::request] HTTP request throttled (attempt 2 of 5). Sleeping for 134 seconds.
+/// [2023-01-31T05:03:26Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 60 seconds.
+/// Finished request 2073 (458) in 104.998458255
+/// Making request 2235 (458)
+/// Finished request 1941 (815) in 140.595490728
+/// Making request 2236 (815)
+/// [2023-01-31T05:03:27Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 64 seconds.
+/// Finished request 2220 (677) in 8.386235762
+/// Making request 2237 (677)
+/// Finished request 1739 (630) in 278.837086908
+/// Making request 2238 (630)
+/// Finished request 2213 (475) in 13.79317502
+/// Making request 2239 (475)
+/// [2023-01-31T05:03:30Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 65 seconds.
+/// [2023-01-31T05:03:31Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 60 seconds.
+/// [2023-01-31T05:03:32Z WARN  http_common::request] HTTP request throttled (attempt 2 of 5). Sleeping for 129 seconds.
+/// [2023-01-31T05:03:32Z WARN  http_common::request] HTTP request throttled (attempt 1 of 5). Sleeping for 69 seconds.
+/// Finished request 2208 (623) in 19.796385227000002
+/// Making request 2240 (623)
+/// Finished request 2240 (623) in 0.060063126
+/// Making request 2241 (623)
+/// [2023-01-31T05:03:32Z WARN  http_common::request] HTTP request
+/// ```
+#[cfg(test)]
+mod tests {
+    const HUB_HOSTNAME: &str = "your-hubname-here.azurecr.io";
+    const DEVICE_ID: &str = "your-deviceid";
+    const SAS_TOKEN: &str = "sas token generated by az iot hub generate-sas-token --hub-name 'your-hubname-here' --device-id 'your-device-id'";
+
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        time::{Duration, Instant},
+    };
+
+    use http::header::{AUTHORIZATION, CONTENT_TYPE};
+    use hyper_tls::HttpsConnector;
+
+    use aziot_identity_common::hub::Module;
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_backoff_manual() {
+        if HUB_HOSTNAME == "your-hubname-here.azurecr.io" {
+            return
+        }
+
+        env_logger::init();
+
+        let count = Arc::new(AtomicUsize::new(1));
+        for i in 1..1000 {
+            println!("Starting loop {}", i);
+            let count = count.clone();
+
+            tokio::spawn(async move {
+                loop {
+                    let j = count.fetch_add(1, Ordering::Relaxed);
+
+                    let request_num = format!("{} ({})", j, i);
+                    if let Err(e) = query_hub(&request_num).await {
+                        println!("Error: {}", e);
+                    }
+
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                }
+            });
+        }
+
+        tokio::time::sleep(Duration::MAX).await;
+    }
+
+    async fn query_hub(i: &str) -> Result<(), Box<Error>> {
+        println!("Making request {}", i);
+        let timer = Instant::now();
+
+        let uri = format!(
+            "https://{}/devices/{}/modules?api-version=2020-05-31-preview",
+            HUB_HOSTNAME, DEVICE_ID
+        );
+
+        let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new(), &uri)
+            .with_retry(0)
+            .with_timeout(Duration::from_secs(60));
+        request.add_header(CONTENT_TYPE, "application/json")?;
+        request.add_header(AUTHORIZATION, SAS_TOKEN)?;
+
+        let response = request.json_response().await?;
+        let _modules = response.parse_expect_ok::<Vec<Module>, HubError>()?;
+
+        println!(
+            "Finished request {} in {}",
+            i,
+            timer.elapsed().as_secs_f64()
+        );
+
+        Ok(())
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct HubError {
+        #[serde(rename = "Message")]
+        pub message: String,
+    }
+
+    impl std::convert::From<HubError> for Error {
+        fn from(err: HubError) -> Error {
+            Error::new(ErrorKind::Other, err.message)
+        }
+    }
+}
