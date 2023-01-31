@@ -465,7 +465,7 @@ mod tests {
             });
         }
 
-        tokio::time::sleep(Duration::MAX).await;
+        std::future::pending::<()>().await;
     }
 
     async fn query_hub(i: &str) -> Result<(), Box<Error>> {
