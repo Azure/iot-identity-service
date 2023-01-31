@@ -119,7 +119,7 @@ default:
 	# incorrect assumption of /usr/local.  There is probably a better
 	# way to do this...
 	set -euo pipefail; \
-	if [ -d third-party/tpm2-tss ]; then \
+	if [ $(VENDOR_LIBTSS) != 0 -a -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
 		./bootstrap; \
 		./configure \
@@ -457,7 +457,7 @@ install-common:
 	# tpm2-tss
 	# See comment above regarding environment bleedover on RPM
 	# builds.
-	if [ -d third-party/tpm2-tss ]; then \
+	if [ $(VENDOR_LIBTSS) != 0 -a -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
 		$(MAKE) libdir=$(AZIOT_PRIVATE_LIBRARIES) install-exec; \
 	fi

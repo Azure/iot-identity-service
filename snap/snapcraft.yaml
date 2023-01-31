@@ -58,6 +58,7 @@ parts:
       contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
       make install-deb \
         RELEASE=1 \
+        VENDOR_LIBTSS=0 \
         PLATFORM_FEATURES=snapd \
         USER_AZIOTID=root \
         USER_AZIOTCS=root \
