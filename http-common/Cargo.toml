@@ -29,9 +29,9 @@ url = { version = "2", features = ["serde"] }
 [dev-dependencies]
 aziot-identity-common = { path = "../identity/aziot-identity-common" }
 env_logger = "0.9"
-hyper-tls = "0.5.0"
+hyper-openssl = "0.5.0"
 serde_json = "1"
-tokio = { version = "1", features = ["net", "rt-multi-thread", "sync", "time", "macros"] }
+tokio = { version = "1", features = ["net", "rt", "sync", "time", "macros"] }
 
 [features]
 no-socket-throttle = []

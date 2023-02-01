@@ -187,7 +187,7 @@ where
                 .body(request_body)
                 .expect("cannot fail to create request");
 
-            let mut is_timeout = false;
+            let mut is_throttled = false;
             let response_future = async {
                 match client.request(request).await {
                     Ok(response) => {
@@ -213,7 +213,7 @@ where
 
                         // if response throttled, go into exponential backoff
                         if response_status == http::StatusCode::TOO_MANY_REQUESTS {
-                            is_timeout = true;
+                            is_throttled = true;
                             Err(std::io::Error::new(
                                 std::io::ErrorKind::Other,
                                 "429: Too many requests",
@@ -243,7 +243,7 @@ where
                 Err(timeout) => timeout.into(),
             };
 
-            if is_timeout {
+            if is_throttled {
                 if let Some(backoff_duration) =
                     DEFAULT_BACKOFF.get_backoff_duration(current_attempt)
                 {
@@ -431,7 +431,7 @@ mod tests {
     };
 
     use http::header::{AUTHORIZATION, CONTENT_TYPE};
-    use hyper_tls::HttpsConnector;
+    use hyper_openssl::HttpsConnector;
 
     use aziot_identity_common::hub::Module;
 
@@ -477,7 +477,7 @@ mod tests {
             HUB_HOSTNAME, DEVICE_ID
         );
 
-        let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new(), &uri)
+        let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new().unwrap(), &uri)
             .with_retry(0)
             .with_timeout(Duration::from_secs(60));
         request.add_header(CONTENT_TYPE, "application/json")?;
