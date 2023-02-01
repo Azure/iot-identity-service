@@ -187,63 +187,63 @@ where
                 .body(request_body)
                 .expect("cannot fail to create request");
 
-            let (err, backoff_exponential) =
-                match tokio::time::timeout(self.timeout, client.request(request)).await {
+            let mut is_timeout = false;
+            let response_future = async {
+                match client.request(request).await {
                     Ok(response) => {
-                        match response {
-                            Ok(response) => {
-                                let (
-                                    http::response::Parts {
-                                        status: response_status,
-                                        headers: response_headers,
-                                        ..
-                                    },
-                                    response_body,
-                                ) = response.into_parts();
+                        let (
+                            http::response::Parts {
+                                status: response_status,
+                                headers: response_headers,
+                                ..
+                            },
+                            response_body,
+                        ) = response.into_parts();
 
-                                // Make sure to download body inside the timeout
-                                let response_body = if has_response_body {
-                                    let response_body = hyper::body::to_bytes(response_body)
-                                        .await
-                                        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+                        // Make sure to download body inside the timeout
+                        let response_body = if has_response_body {
+                            let response_body = hyper::body::to_bytes(response_body)
+                                .await
+                                .map_err(|err| Error::new(ErrorKind::Other, err))?;
 
-                                    Some(response_body)
-                                } else {
-                                    None
-                                };
+                            Some(response_body)
+                        } else {
+                            None
+                        };
 
-                                // if response throttled, go into exponential backoff
-                                if response_status == http::StatusCode::TOO_MANY_REQUESTS {
-                                    (
-                                        std::io::Error::new(
-                                            std::io::ErrorKind::Other,
-                                            "429: Too many requests",
-                                        ),
-                                        true,
-                                    )
-                                } else {
-                                    // Return results
-                                    return Ok((response_status, response_headers, response_body));
-                                }
-                            }
-                            Err(err) => {
-                                if err.is_connect() {
-                                    // Network error.
-                                    (
-                                        std::io::Error::new(std::io::ErrorKind::NotConnected, err),
-                                        false,
-                                    )
-                                } else {
-                                    (std::io::Error::new(std::io::ErrorKind::Other, err), false)
-                                }
-                            }
+                        // if response throttled, go into exponential backoff
+                        if response_status == http::StatusCode::TOO_MANY_REQUESTS {
+                            is_timeout = true;
+                            Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "429: Too many requests",
+                            ))
+                        } else {
+                            // Return results
+                            Ok((response_status, response_headers, response_body))
                         }
                     }
+                    Err(err) => {
+                        if err.is_connect() {
+                            // Network error.
+                            Err(std::io::Error::new(std::io::ErrorKind::NotConnected, err))
+                        } else {
+                            Err(std::io::Error::new(std::io::ErrorKind::Other, err))
+                        }
+                    }
+                }
+            };
 
-                    Err(timeout) => (timeout.into(), false),
-                };
+            let err = match tokio::time::timeout(self.timeout, response_future).await {
+                Ok(response) => match response {
+                    Ok(response) => return Ok(response),
+                    Err(err) => err,
+                },
 
-            if backoff_exponential {
+                Err(timeout) => timeout.into(),
+            };
+
+            if is_timeout {
                 if let Some(backoff_duration) =
                     DEFAULT_BACKOFF.get_backoff_duration(current_attempt)
                 {
