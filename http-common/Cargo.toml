@@ -19,6 +19,7 @@ nix = "0.24"
 openssl = { version = "0.10" }
 openssl-sys = { version = "0.9" }
 percent-encoding = "2"
+rand = "0.8.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["net", "rt-multi-thread", "sync", "time"] }
@@ -26,7 +27,10 @@ tracing = { version = "0.1", features = ["log"] }
 url = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
+aziot-identity-common = { path = "../identity/aziot-identity-common" }
+env_logger = "0.9"
 serde_json = "1"
+tokio = { version = "1", features = ["net", "rt", "sync", "time", "macros"] }
 
 [features]
 no-socket-throttle = []
