@@ -83,7 +83,7 @@ where
 
     if result < 70 {
         return Err(serde::de::Error::custom(
-            "cloud_timeout_sec must be at least 60 seconds",
+            "cloud_timeout_sec must be at least 70 seconds",
         ));
     }
 
