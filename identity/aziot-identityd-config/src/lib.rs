@@ -57,7 +57,7 @@ pub struct Settings {
 
 impl Settings {
     pub fn default_cloud_timeout() -> u64 {
-        60
+        70
     }
 
     pub fn default_cloud_retries() -> u32 {
@@ -81,7 +81,7 @@ where
 {
     let result: u64 = Deserialize::deserialize(deserializer)?;
 
-    if result < 60 {
+    if result < 70 {
         return Err(serde::de::Error::custom(
             "cloud_timeout_sec must be at least 60 seconds",
         ));

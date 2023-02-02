@@ -31,11 +31,11 @@
 # of retries after the first attempt should that fail (i.e. cloud_retries = 2
 # means that the client will make a total of 3 attempts). 
 #
-# cloud_timeout_sec has a minimum of 60s to allow hub to throttle requests. 
-# If a request is throttled, it will enter an exponential backoff with 5 retries instead
+# cloud_timeout_sec has a minimum of 70s to allow hub to throttle requests. 
+# If a request is throttled, it will enter an exponential backoff with 4 retries instead
 # of using the configured value. The configured value is used for all other errors.
 #
-# cloud_timeout_sec = 60
+# cloud_timeout_sec = 70
 # cloud_retries = 1
 
 # ==============================================================================
