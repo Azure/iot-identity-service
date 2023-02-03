@@ -131,12 +131,14 @@ impl Client {
     pub async fn create_module_identity(
         &self,
         module_name: &str,
+        managed_by: Option<String>,
     ) -> Result<Identity, std::io::Error> {
         let uri = make_uri!("/identities/modules", self.api_version);
 
         let body = create_module_identity::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
             module_id: module_name.to_string(),
+            managed_by,
             opts: None,
         };
 
@@ -154,6 +156,7 @@ impl Client {
     pub async fn create_local_identity(
         &self,
         module_name: &str,
+        managed_by: Option<String>,
         opts: Option<aziot_identity_common::LocalIdOpts>,
     ) -> Result<Identity, std::io::Error> {
         let uri = make_uri!("/identities/modules", self.api_version);
@@ -162,6 +165,7 @@ impl Client {
         let body = create_module_identity::Request {
             id_type: ID_TYPE_LOCAL.to_string(),
             module_id: module_name.to_string(),
+            managed_by,
             opts: opts.map(|opts| create_module_identity::CreateModuleOpts::LocalIdOpts(opts)),
         };
 
@@ -179,6 +183,7 @@ impl Client {
     pub async fn update_module_identity(
         &self,
         module_name: &str,
+        managed_by: Option<String>,
     ) -> Result<Identity, std::io::Error> {
         let uri = make_uri!(
             "/identities/modules",
@@ -190,6 +195,7 @@ impl Client {
         let body = update_module_identity::Request {
             id_type: ID_TYPE_AZIOT.to_string(),
             module_id: module_name.to_string(),
+            managed_by,
         };
 
         let request = HttpRequest::put(self.connector.clone(), uri, body)

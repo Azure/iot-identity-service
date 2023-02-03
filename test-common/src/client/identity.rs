@@ -166,6 +166,7 @@ fn test_identity(module_name: &str) -> Identity {
             key_handle: Some(aziot_key_common::KeyHandle(format!("{}-key", module_name))),
             cert_id: Some(format!("{}-cert", module_name)),
         }),
+        managed_by: Some("test".to_string()),
     })
 }
 

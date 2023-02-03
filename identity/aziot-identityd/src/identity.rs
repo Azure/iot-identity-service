@@ -106,6 +106,7 @@ impl IdentityManager {
     pub async fn create_module_identity(
         &self,
         module_id: &str,
+        managed_by: Option<String>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
@@ -126,7 +127,7 @@ impl IdentityManager {
                 .with_proxy(self.proxy_uri.clone());
 
                 let new_module = client
-                    .create_module(module_id, None, None)
+                    .create_module(module_id, None, managed_by)
                     .await
                     .map_err(Error::HubClient)?;
 
@@ -148,7 +149,7 @@ impl IdentityManager {
                             x509_thumbprint: None,
                             type_: Some(aziot_identity_common::hub::AuthType::Sas),
                         }),
-                        None,
+                        Some("Gordon".to_string()),
                     )
                     .await
                     .map_err(Error::HubClient)?;
@@ -177,6 +178,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: response.managed_by,
                     });
                 Ok(identity)
             }
@@ -258,6 +260,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: response.managed_by,
                     });
                 Ok(identity)
             }
@@ -275,6 +278,7 @@ impl IdentityManager {
                     module_id: None,
                     gen_id: None,
                     auth: Some(self.get_device_identity_key().await?),
+                    managed_by: None,
                 },
             )),
             None => Err(Error::DeviceNotFound),
@@ -366,6 +370,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: module.managed_by,
                     });
 
                 Ok(identity)
@@ -415,6 +420,7 @@ impl IdentityManager {
                                 module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
                                 gen_id: module.generation_id.map(aziot_identity_common::GenId),
                                 auth: None, //Auth information can be requested via get_module_identity
+                                managed_by: module.managed_by,
                             },
                         )
                     })
@@ -939,9 +945,9 @@ impl IdentityManager {
 
                 let hub_module_ids = self.get_module_identities().await?;
 
-                for m in hub_module_ids {
+                for m in &hub_module_ids {
                     if let aziot_identity_common::Identity::Aziot(m) = m {
-                        if let Some(m) = m.module_id {
+                        if let Some(m) = &m.module_id {
                             if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
                                 self.delete_module_identity(&m.0).await?;
                                 log::info!("Hub identity {:?} removed", &m.0);
@@ -960,9 +966,36 @@ impl IdentityManager {
                     }
                 }
 
+                let hub_module_ids_and_managed_bys: std::collections::HashMap<
+                    String,
+                    Option<String>,
+                > = hub_module_ids
+                    .into_iter()
+                    .filter_map(|i| {
+                        if let aziot_identity_common::Identity::Aziot(i) = i {
+                            if let Some(module_id) = &i.module_id {
+                                Some((module_id.0.clone(), i.managed_by.clone()))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let mut module_set = vec![];
                 for m in current_module_set {
-                    self.create_module_identity(&m.0).await?;
-                    log::info!("Hub identity {:?} added", &m.0);
+                    let managed_by = hub_module_ids_and_managed_bys.get(&m.0).cloned().flatten();
+
+                    module_set.push((m, managed_by));
+                }
+
+                for (module_id, managed_by) in module_set {
+                    // TODO: do we need to take previous identity and pass along?
+                    self.create_module_identity(&module_id.0, managed_by.clone())
+                        .await?;
+                    log::info!("Hub identity {:?} added", &module_id.0);
                 }
 
                 // Write out device state and settings.

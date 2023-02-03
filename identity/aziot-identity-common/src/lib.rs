@@ -38,6 +38,8 @@ pub struct AzureIoTSpec {
     pub gen_id: Option<GenId>,
     #[serde(rename = "auth", skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthenticationInfo>,
+    #[serde(rename = "managedBy", skip_serializing_if = "Option::is_none")]
+    pub managed_by: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
