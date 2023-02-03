@@ -127,6 +127,7 @@ impl IdentityClient {
     pub async fn update_module_identity(
         &self,
         module_name: &str,
+        _managed_by: Option<String>,
     ) -> Result<Identity, std::io::Error> {
         if self.update_identity_ok {
             // A real identity client would update the Idenitity in Hub. But this test
