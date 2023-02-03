@@ -189,6 +189,7 @@ impl IdentityManager {
     pub async fn update_module_identity(
         &self,
         module_id: &str,
+        managed_by: Option<String>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
@@ -231,7 +232,7 @@ impl IdentityManager {
                             x509_thumbprint: None,
                             type_: Some(aziot_identity_common::hub::AuthType::Sas),
                         }),
-                        None,
+                        managed_by,
                     )
                     .await
                     .map_err(Error::HubClient)?;
