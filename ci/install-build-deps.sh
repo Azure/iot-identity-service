@@ -338,8 +338,8 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-BINDGEN_VERSION='0.64.0'
-CBINDGEN_VERSION='0.24.3'
+BINDGEN_VERSION='0.60.0'
+CBINDGEN_VERSION='0.24.2'
 
 case "$ARCH" in
     'amd64')
