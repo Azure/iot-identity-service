@@ -81,10 +81,10 @@ default:
 	set -euo pipefail; \
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
-			--blacklist-type '__.*' \
-			--whitelist-function 'aziot_keys_.*' \
-			--whitelist-type 'AZIOT_KEYS_.*' \
-			--whitelist-var 'AZIOT_KEYS_.*' \
+			--blocklist-type '__.*' \
+			--allowlist-function 'aziot_keys_.*' \
+			--allowlist-type 'AZIOT_KEYS_.*' \
+			--allowlist-var 'AZIOT_KEYS_.*' \
 			-o key/aziot-keyd/src/keys.generated.rs.tmp \
 			$(BINDGEN_VERBOSE) \
 			key/aziot-keys/aziot-keys.h; \
