@@ -23,8 +23,13 @@ where
     TConfig: serde::de::DeserializeOwned,
 {
     let mut config: toml::Value = match std::fs::read(config_path) {
-        Ok(contents) => toml::from_slice(&contents)
-            .map_err(|err| Error::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?,
+        Ok(contents) => {
+            let contents = std::str::from_utf8(&contents)
+                .map_err(|err| Error::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?;
+
+            toml::from_str(contents)
+                .map_err(|err| Error::ReadConfig(Some(config_path.to_owned()), Box::new(err)))?
+        }
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             toml::Value::Table(Default::default())
         }
@@ -65,7 +70,10 @@ where
                     let patch = std::fs::read(&patch_path).map_err(|err| {
                         Error::ReadConfig(Some(patch_path.clone()), Box::new(err))
                     })?;
-                    let patch: toml::Value = toml::from_slice(&patch)
+                    let patch = std::str::from_utf8(&patch).map_err(|err| {
+                        Error::ReadConfig(Some(patch_path.clone()), Box::new(err))
+                    })?;
+                    let patch: toml::Value = toml::from_str(patch)
                         .map_err(|err| Error::ReadConfig(Some(patch_path), Box::new(err)))?;
                     merge_toml(&mut config, patch);
                 }

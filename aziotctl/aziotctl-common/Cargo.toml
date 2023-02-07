@@ -25,4 +25,4 @@ http-common = { path = "../../http-common" }
 
 [dev-dependencies]
 bytes = "1"
-toml = "0.5"
+toml = "0.7"

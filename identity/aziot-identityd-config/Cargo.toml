@@ -21,4 +21,4 @@ cert-renewal = { path = "../../cert/cert-renewal"}
 http-common = { path = "../../http-common" }
 
 [dev-dependencies]
-toml = "0.5"
+toml = "0.7"
