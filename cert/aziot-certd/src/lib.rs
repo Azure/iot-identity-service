@@ -788,7 +788,9 @@ fn principal_to_map(principal: Vec<Principal>) -> BTreeMap<libc::uid_t, Vec<wild
 fn chunked_base64_encode(bytes: &[u8]) -> Vec<u8> {
     const PEM_LINE_LENGTH: usize = 64;
 
-    base64::encode(bytes)
+    let engine = base64::engine::general_purpose::STANDARD;
+
+    base64::Engine::encode(&engine, bytes)
         .into_bytes()
         .chunks(PEM_LINE_LENGTH)
         .flat_map(|chunk| chunk.iter().chain(b"\n"))

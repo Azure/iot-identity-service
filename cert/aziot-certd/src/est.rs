@@ -97,7 +97,9 @@ pub(crate) async fn create_cert(
     let (simple_enroll_request, ca_certs_request) =
         if let Some(EstAuthBasic { username, password }) = basic_auth {
             let authorization_header_value = format!("{}:{}", username, password);
-            let authorization_header_value = base64::encode(authorization_header_value);
+            let engine = base64::engine::general_purpose::STANDARD;
+            let authorization_header_value =
+                base64::Engine::encode(&engine, authorization_header_value);
             let authorization_header_value = format!("Basic {}", authorization_header_value);
 
             let simple_enroll_request = simple_enroll_request
@@ -177,7 +179,8 @@ async fn get_pkcs7_response(
             .into_iter()
             .filter(|c| !(*c as char).is_whitespace())
             .collect::<Vec<_>>();
-        let bytes = base64::decode(&no_whitespace)?;
+        let engine = base64::engine::general_purpose::STANDARD;
+        let bytes = base64::Engine::decode(&engine, &no_whitespace)?;
         Ok(Pkcs7::from_der(&bytes)?)
     })?;
 

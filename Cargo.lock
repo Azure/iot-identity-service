@@ -117,7 +117,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-key-openssl-engine",
- "base64",
+ "base64 0.21.0",
  "cert-renewal",
  "config-common",
  "foreign-types-shared",
@@ -169,7 +169,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-tpm-client-async",
  "aziot-tpm-common",
- "base64",
+ "base64 0.21.0",
  "chrono",
  "http-common",
  "hyper",
@@ -324,7 +324,7 @@ version = "0.1.0"
 dependencies = [
  "aziot-key-client",
  "aziot-key-common",
- "base64",
+ "base64 0.21.0",
  "foreign-types-shared",
  "log",
  "openssl",
@@ -375,7 +375,7 @@ dependencies = [
  "aziot-key-common",
  "aziot-key-common-http",
  "aziot-keyd-config",
- "base64",
+ "base64 0.21.0",
  "config-common",
  "futures-util",
  "http",
@@ -508,7 +508,7 @@ dependencies = [
  "aziot-keys-common",
  "aziot-tpmd-config",
  "aziotctl-common",
- "base64",
+ "base64 0.21.0",
  "byte-unit",
  "bytes",
  "chrono",
@@ -545,7 +545,7 @@ dependencies = [
  "aziot-keyd-config",
  "aziot-keys-common",
  "aziot-tpmd-config",
- "base64",
+ "base64 0.21.0",
  "bytes",
  "cert-renewal",
  "http-common",
@@ -596,6 +596,12 @@ name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+
+[[package]]
+name = "base64"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 
 [[package]]
 name = "bindgen"
@@ -1275,7 +1281,7 @@ version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3e372db8e5c0d213e0cd0b9be18be2aca3d44cf2fe30a9d46a65581cd454584"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "bytes",
  "headers-core",
@@ -1362,7 +1368,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "aziot-identity-common",
- "base64",
+ "base64 0.21.0",
  "env_logger",
  "futures-util",
  "headers",
@@ -2324,7 +2330,7 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30d904179146de381af4c93d3af6ca4984b3152db687dacb9c3c35e86f39809c"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "chrono",
  "hex",
  "indexmap",

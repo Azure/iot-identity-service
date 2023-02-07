@@ -140,7 +140,8 @@ impl Client {
                 hyper::StatusCode::UNAUTHORIZED,
             ])?;
 
-        let auth_key = base64::decode(response.authentication_key)
+        let engine = base64::engine::general_purpose::STANDARD;
+        let auth_key = base64::Engine::decode(&engine, response.authentication_key)
             .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
         // Decrypt and import the nonce into the TPM. This nonce will be used to sign a SAS token
@@ -249,7 +250,8 @@ impl Client {
             match registration {
                 schema::response::DeviceRegistration::Assigned { device, tpm } => {
                     if let Some(tpm) = tpm {
-                        let auth_key = base64::decode(tpm.authentication_key)
+                        let engine = base64::engine::general_purpose::STANDARD;
+                        let auth_key = base64::Engine::decode(&engine, tpm.authentication_key)
                             .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
                         self.tpm_client.import_auth_key(auth_key).await?;
