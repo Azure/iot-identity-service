@@ -1,4 +1,5 @@
 homedir_path = "/var/lib/aziot/certd"
+
 [cert_issuance.est]
 trusted_certs = ["est-server-ca-1"]
 username = "estuser"

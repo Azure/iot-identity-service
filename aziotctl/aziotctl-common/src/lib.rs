@@ -78,9 +78,7 @@ pub fn hostname() -> anyhow::Result<String> {
     if cfg!(test) {
         Ok("my-device".to_owned())
     } else {
-        let mut hostname = vec![0_u8; 256];
-        let hostname =
-            nix::unistd::gethostname(&mut hostname).context("could not get machine hostname")?;
+        let hostname = nix::unistd::gethostname().context("could not get machine hostname")?;
         let hostname = hostname
             .to_str()
             .context("could not get machine hostname")?;

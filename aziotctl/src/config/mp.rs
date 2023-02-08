@@ -87,13 +87,13 @@ To reconfigure IoT Identity Service, run:
 
         endpoints: Default::default(),
     };
-    let config = toml::to_vec(&config).context("could not serialize system config")?;
+    let config = toml::to_string(&config).context("could not serialize system config")?;
 
     let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())
         .context("could not query current user information")?
         .ok_or_else(|| anyhow!("could not query current user information"))?;
 
-    common_config::write_file(&out_config_file, &config, &user, 0o0600)?;
+    common_config::write_file(&out_config_file, config.as_bytes(), &user, 0o0600)?;
 
     println!("Azure IoT Identity Service has been configured successfully!");
     println!(

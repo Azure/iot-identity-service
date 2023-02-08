@@ -910,7 +910,7 @@ impl IdentityManager {
             .map_err(|err| Error::Internal(InternalError::BadSettings(err)))?;
 
         let settings_serialized =
-            toml::to_vec(&settings).expect("serializing settings cannot fail");
+            toml::to_string(&settings).expect("serializing settings cannot fail");
 
         let (_, mut current_module_set, _) =
             crate::configext::prepare_authorized_principals(&settings.principal);
@@ -974,7 +974,7 @@ impl IdentityManager {
                 std::fs::write(prev_device_info_path, device_status)
                     .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
 
-                std::fs::write(prev_settings_path, &settings_serialized)
+                std::fs::write(prev_settings_path, settings_serialized)
                     .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
             None => log::info!("reconcilation skipped since device is not provisioned"),
