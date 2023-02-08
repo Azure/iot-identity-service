@@ -153,11 +153,12 @@ unsafe extern "C" fn engine_load_privkey(
         };
 
         let key_algorithm = client.get_key_pair_public_parameter(&key_handle, "algorithm")?;
+        let base64_engine = base64::engine::general_purpose::STANDARD;
         let openssl_key_raw = match &*key_algorithm {
             "ECDSA" => {
                 let curve_oid =
                     client.get_key_pair_public_parameter(&key_handle, "ec-curve-oid")?;
-                let curve_oid = base64::decode(&curve_oid)?;
+                let curve_oid = base64::Engine::decode(&base64_engine, &curve_oid)?;
                 let curve = openssl2::EcCurve::from_oid_der(&curve_oid)
                     .ok_or_else(|| format!("unrecognized curve {:?}", curve_oid))?;
                 let curve = curve.as_nid();
@@ -165,7 +166,7 @@ unsafe extern "C" fn engine_load_privkey(
                 group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
 
                 let point = client.get_key_pair_public_parameter(&key_handle, "ec-point")?;
-                let point = base64::decode(&point)?;
+                let point = base64::Engine::decode(&base64_engine, &point)?;
                 let mut big_num_context = openssl::bn::BigNumContext::new()?;
                 let point = openssl::ec::EcPoint::from_bytes(&group, &point, &mut big_num_context)?;
 
@@ -197,11 +198,11 @@ unsafe extern "C" fn engine_load_privkey(
 
             "RSA" => {
                 let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
-                let modulus = base64::decode(&modulus)?;
+                let modulus = base64::Engine::decode(&base64_engine, &modulus)?;
                 let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
                 let exponent = client.get_key_pair_public_parameter(&key_handle, "rsa-exponent")?;
-                let exponent = base64::decode(&exponent)?;
+                let exponent = base64::Engine::decode(&base64_engine, &exponent)?;
                 let exponent = openssl::bn::BigNum::from_slice(&exponent)?;
 
                 let parameters =
@@ -258,11 +259,12 @@ unsafe extern "C" fn engine_load_pubkey(
         let client = engine.client.clone();
 
         let key_algorithm = client.get_key_pair_public_parameter(&key_handle, "algorithm")?;
+        let base64_engine = base64::engine::general_purpose::STANDARD;
         let openssl_key_raw = match &*key_algorithm {
             "ECDSA" => {
                 let curve_oid =
                     client.get_key_pair_public_parameter(&key_handle, "ec-curve-oid")?;
-                let curve_oid = base64::decode(&curve_oid)?;
+                let curve_oid = base64::Engine::decode(&base64_engine, &curve_oid)?;
                 let curve = openssl2::EcCurve::from_oid_der(&curve_oid)
                     .ok_or_else(|| format!("unrecognized curve {:?}", curve_oid))?;
                 let curve = curve.as_nid();
@@ -270,7 +272,7 @@ unsafe extern "C" fn engine_load_pubkey(
                 group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
 
                 let point = client.get_key_pair_public_parameter(&key_handle, "ec-point")?;
-                let point = base64::decode(&point)?;
+                let point = base64::Engine::decode(&base64_engine, &point)?;
                 let mut big_num_context = openssl::bn::BigNumContext::new()?;
                 let point = openssl::ec::EcPoint::from_bytes(&group, &point, &mut big_num_context)?;
 
@@ -285,11 +287,11 @@ unsafe extern "C" fn engine_load_pubkey(
 
             "RSA" => {
                 let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
-                let modulus = base64::decode(&modulus)?;
+                let modulus = base64::Engine::decode(&base64_engine, &modulus)?;
                 let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
                 let exponent = client.get_key_pair_public_parameter(&key_handle, "rsa-exponent")?;
-                let exponent = base64::decode(&exponent)?;
+                let exponent = base64::Engine::decode(&base64_engine, &exponent)?;
                 let exponent = openssl::bn::BigNum::from_slice(&exponent)?;
 
                 let parameters =

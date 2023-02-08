@@ -397,7 +397,8 @@ mod base64 {
             where
                 E: serde::de::Error,
             {
-                let b = base64::decode(s).map_err(serde::de::Error::custom)?;
+                let engine = base64::engine::general_purpose::STANDARD;
+                let b = base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)?;
                 Ok(b)
             }
         }
@@ -409,7 +410,8 @@ mod base64 {
     where
         S: serde::Serializer,
     {
-        let s = base64::encode(b);
+        let engine = base64::engine::general_purpose::STANDARD;
+        let s = base64::Engine::encode(&engine, b);
         serializer.serialize_str(&s)
     }
 }

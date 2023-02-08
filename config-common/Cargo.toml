@@ -12,7 +12,7 @@ log = { version = "0.4", optional = true }
 notify = { version = "4", optional = true }
 serde = "1"
 tokio = { version = "1", features = ["rt", "sync"], optional = true }
-toml = "0.5"
+toml = "0.7"
 
 
 [features]

@@ -17,4 +17,4 @@ tcti-sys = { path = "./tcti-sys" }
 types-sys = { path = "./types-sys" }
 
 [dev-dependencies]
-env_logger = "0.9"
+env_logger = "0.10"

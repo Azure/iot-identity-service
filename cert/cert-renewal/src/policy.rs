@@ -202,25 +202,32 @@ mod tests {
 
     #[test]
     fn serialize() {
+        // toml does not support serializing enums to strings,
+        // so put the enum in a dummy struct.
+        #[derive(serde::Serialize)]
+        struct TestPolicy {
+            input: Policy,
+        }
+
         let input = Policy::Percentage(80);
-        let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"80%\"", result);
+        let result = toml::to_string(&TestPolicy { input }).unwrap();
+        assert_eq!("input = \"80%\"\n", result);
 
         let input = Policy::Percentage(89);
-        let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"89%\"", result);
+        let result = toml::to_string(&TestPolicy { input }).unwrap();
+        assert_eq!("input = \"89%\"\n", result);
 
         let input = Policy::Time(2 * 60);
-        let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"2min\"", result);
+        let result = toml::to_string(&TestPolicy { input }).unwrap();
+        assert_eq!("input = \"2min\"\n", result);
 
         let input = Policy::Time(86460);
-        let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"1441min\"", result);
+        let result = toml::to_string(&TestPolicy { input }).unwrap();
+        assert_eq!("input = \"1441min\"\n", result);
 
         let input = Policy::Time(3 * 86400);
-        let result = toml::to_string(&input).unwrap();
-        assert_eq!("\"3day\"", result);
+        let result = toml::to_string(&TestPolicy { input }).unwrap();
+        assert_eq!("input = \"3day\"\n", result);
     }
 
     #[test]

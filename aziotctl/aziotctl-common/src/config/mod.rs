@@ -179,8 +179,9 @@ fn parse_manual_connection_string(
 
     let symmetric_key =
         symmetric_key.ok_or(r#"required parameter "SharedAccessKey" is missing"#)?;
+    let engine = base64::engine::general_purpose::STANDARD;
     let symmetric_key =
-        base64::decode(symmetric_key)
+        base64::Engine::decode(&engine, symmetric_key)
         .map_err(|err| format!(r#"connection string's "SharedAccessKey" parameter could not be decoded from base64: {}"#, err))?;
 
     Ok((

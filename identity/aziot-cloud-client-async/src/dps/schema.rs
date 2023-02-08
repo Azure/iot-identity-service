@@ -28,9 +28,11 @@ pub struct TpmAttestation {
 
 impl std::convert::From<aziot_tpm_common::TpmKeys> for TpmAttestation {
     fn from(keys: aziot_tpm_common::TpmKeys) -> TpmAttestation {
+        let engine = base64::engine::general_purpose::STANDARD;
+
         TpmAttestation {
-            endorsement_key: base64::encode(keys.endorsement_key),
-            storage_root_key: base64::encode(keys.storage_root_key),
+            endorsement_key: base64::Engine::encode(&engine, keys.endorsement_key),
+            storage_root_key: base64::Engine::encode(&engine, keys.storage_root_key),
         }
     }
 }
