@@ -571,7 +571,8 @@ impl Keys {
                                 parameter_type,
                             )
                             .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
-                            let parameter_value = base64::encode(&parameter_value);
+                            let engine = base64::engine::general_purpose::STANDARD;
+                            let parameter_value = base64::Engine::encode(&engine, &parameter_value);
                             Ok(parameter_value)
                         }
                     }

@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-base64 = "0.13"
+base64 = "0.21"
 futures-util = "0.3"
 headers = { version = "0.3" }
 http = "0.2"
@@ -15,7 +15,7 @@ hyper-openssl = { version = "0.9" }
 hyper-proxy = { version = "0.9", features = ["openssl-tls"], default-features = false }
 libc = "0.2"
 log = "0.4"
-nix = "0.24"
+nix = "0.26"
 openssl = { version = "0.10" }
 openssl-sys = { version = "0.9" }
 percent-encoding = "2"
@@ -28,7 +28,7 @@ url = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 aziot-identity-common = { path = "../identity/aziot-identity-common" }
-env_logger = "0.9"
+env_logger = "0.10"
 serde_json = "1"
 tokio = { version = "1", features = ["net", "rt", "sync", "time", "macros"] }
 

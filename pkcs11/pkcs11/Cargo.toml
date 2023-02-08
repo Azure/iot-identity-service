@@ -25,4 +25,4 @@ openssl-build = { path = "../../openssl-build/" }
 
 
 [dev-dependencies]
-itertools = "0.8"
+itertools = "0.10"
