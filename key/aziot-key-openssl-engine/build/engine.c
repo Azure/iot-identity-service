@@ -17,7 +17,9 @@
  * so invoke them from C instead of creating complicated bindings.
  */
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+int aziot_key_dupf_engine_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void **from_d, int idx, long argl, void *argp);
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 int aziot_key_dupf_engine_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);
 #else
 int aziot_key_dupf_engine_ex_data(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);
@@ -33,7 +35,9 @@ int aziot_key_get_engine_ex_index() {
 	return ENGINE_get_ex_new_index(0, NULL, NULL, aziot_key_dupf_engine_ex_data, NULL);
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+int aziot_key_dupf_ec_key_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void **from_d, int idx, long argl, void *argp);
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 int aziot_key_dupf_ec_key_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);
 #else
 int aziot_key_dupf_ec_key_ex_data(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);
@@ -48,7 +52,9 @@ int aziot_key_get_ec_key_ex_index() {
 #endif
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+int aziot_key_dupf_rsa_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void **from_d, int idx, long argl, void *argp);
+#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 int aziot_key_dupf_rsa_ex_data(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);
 #else
 int aziot_key_dupf_rsa_ex_data(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d, int idx, long argl, void *argp);

@@ -310,7 +310,6 @@ deb: dist
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
 
-	# Build package
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
 
 # rpm
@@ -396,6 +395,7 @@ presetdir = $(libdir)/systemd/system-preset
 #
 # The correct value is the one output by `openssl version -e`, but we
 # can't invoke that ourselves since we could be cross-compiling.
+# On an openssl 3.0 box this will be replaced with $(libdir)/engines-3
 OPENSSL_ENGINES_DIR = $(libdir)/engines-1.1
 
 # NOTE: This is the default destination for vendored libraries.

@@ -16,7 +16,7 @@ case "$OS:$ARCH" in
 
         yum install -y centos-release-scl epel-release
         yum install -y \
-            autoconf autoconf-archive automake clang curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
+            autoconf autoconf-archive automake curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
             git jq libcurl-devel libtool llvm-toolset-7-clang llvm-toolset-7-llvm-devel \
             make openssl openssl-devel pkgconfig
 
@@ -43,7 +43,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'debian:11:amd64'|'ubuntu:20.04:amd64')
+    'debian:11:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -161,7 +161,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:arm32v7')
+    'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -218,7 +218,7 @@ case "$OS:$ARCH" in
             pkg-config
         ;;
 
-    'ubuntu:20.04:aarch64')
+    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

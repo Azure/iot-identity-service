@@ -47,7 +47,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
+    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04'|'ubuntu:22.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 deb
@@ -70,6 +70,11 @@ case "$OS" in
 
             'ubuntu:20.04')
                 TARGET_DIR="ubuntu2004/$ARCH"
+                DBGSYM_EXT='ddeb'
+                ;;
+
+            'ubuntu:22.04')
+                TARGET_DIR="ubuntu2204/$ARCH"
                 DBGSYM_EXT='ddeb'
                 ;;
 

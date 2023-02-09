@@ -38,8 +38,9 @@ case "$OS" in
         esac
         ;;
 
-    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04')
-        # openssl 1.1.0 for Debian 9, 1.1.1 for the others
+    'debian:10'|'debian:11'|'ubuntu:18.04'|'ubuntu:20.04'|'ubuntu:22.04')
+        # openssl 1.1.1 for Debian 10/11 and Ubuntu 18.04/20.04
+	# openssl 3.0 for Ubuntu 22.04
 
         apt-get update -y
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates
