@@ -75,10 +75,6 @@ jobs:
         - 'manual-x509'
         - 'dps-symmetric-key'
         - 'dps-x509'
-        exclude:
-          # The scheduled E2E test in the release/1.x branch would fail until the changes are merged. Excluding for now.
-          - os: 'ubuntu:22.04'
-            branch: 'release/1.4'
 
       max-parallel: 10
 
