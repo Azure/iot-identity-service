@@ -16,7 +16,7 @@ pub trait UpdateConfig {
 pub fn start_watcher<TApi>(
     config_path: PathBuf,
     config_directory_path: PathBuf,
-    api: std::sync::Arc<futures_util::lock::Mutex<TApi>>,
+    api: std::sync::Arc<tokio::sync::Mutex<TApi>>,
 ) where
     TApi: UpdateConfig + Send + 'static,
 {

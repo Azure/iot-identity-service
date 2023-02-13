@@ -20,7 +20,7 @@ pub struct IdentityClient {
     // The test client may need to mutate this map of identities, so the workaround is to place it in
     // a RefCell and use replace_with.
     pub identities:
-        futures_util::lock::Mutex<std::cell::RefCell<std::collections::BTreeMap<String, Identity>>>,
+        tokio::sync::Mutex<std::cell::RefCell<std::collections::BTreeMap<String, Identity>>>,
 }
 
 impl Default for IdentityClient {
@@ -28,7 +28,7 @@ impl Default for IdentityClient {
         let mut identities = std::collections::BTreeMap::new();
         identities.insert("testModule".to_string(), test_identity("testModule"));
 
-        let identities = futures_util::lock::Mutex::new(std::cell::RefCell::new(identities));
+        let identities = tokio::sync::Mutex::new(std::cell::RefCell::new(identities));
 
         IdentityClient {
             get_provisioning_info_ok: true,
