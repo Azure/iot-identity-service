@@ -66,6 +66,7 @@ pub fn write_file(
         .with_context(|| format!("could not create {}", path_displayable))?;
     let () = unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {}", path_displayable))?;
+    #[cfg(not(feature = "snapctl"))] // Workaround - set_permissions hits a permission denied in a snapped environment. The 2 above work.
     let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
         .with_context(|| format!("could not set permissions on {}", path_displayable))?;
 

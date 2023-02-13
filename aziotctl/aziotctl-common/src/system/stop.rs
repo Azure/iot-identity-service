@@ -39,7 +39,11 @@ pub fn stop(services: &[&ServiceDefinition]) -> Result<()> {
 
     let service_names = services
         .iter()
-        .map(|s| format!("{}.{}", snap_instance_name, s.service));
+        .map(|s| {
+            s.service
+                .trim_start_matches("snap.")
+                .trim_end_matches(".service")
+        });
 
     let result = Command::new("snapctl")
         .arg("stop")

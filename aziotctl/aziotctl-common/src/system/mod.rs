@@ -42,19 +42,19 @@ pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
 #[cfg(feature = "snapctl")]
 pub const SERVICE_DEFINITIONS: &[&ServiceDefinition] = &[
     &ServiceDefinition {
-        service: "identityd",
+        service: "snap.azure-iot-identity.identityd.service",
         sockets: &["aziot-identityd.socket"],
     },
     &ServiceDefinition {
-        service: "keyd",
+        service: "snap.azure-iot-identity.keyd.service",
         sockets: &["aziot-keyd.socket"],
     },
     &ServiceDefinition {
-        service: "certd",
+        service: "snap.azure-iot-identity.certd.service",
         sockets: &["aziot-certd.socket"],
     },
     &ServiceDefinition {
-        service: "tpmd",
+        service: "snap.azure-iot-identity.tpmd.service",
         sockets: &["aziot-tpmd.socket"],
     },
 ];
