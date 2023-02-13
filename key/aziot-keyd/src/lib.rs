@@ -588,15 +588,17 @@ fn key_handle_to_id(
     let mut sr = None;
     let mut sig = None;
 
+    let engine = base64::engine::general_purpose::STANDARD;
+
     for param in params {
         if let Some(value) = param.strip_prefix("sr=") {
-            let value = base64::decode(value.as_bytes())
+            let value = base64::Engine::decode(&engine, value.as_bytes())
                 .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             let value = String::from_utf8(value)
                 .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             sr = Some(value);
         } else if let Some(value) = param.strip_prefix("sig=") {
-            let value = base64::decode(value.as_bytes())
+            let value = base64::Engine::decode(&engine, value.as_bytes())
                 .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
             sig = Some(value);
         }
@@ -650,11 +652,13 @@ fn key_id_to_handle(
     id: &KeyId<'_>,
     keys: &mut keys::Keys,
 ) -> Result<aziot_key_common::KeyHandle, Error> {
+    let engine = base64::engine::general_purpose::STANDARD;
+
     let sr = {
         let mut nonce = [0_u8; 64];
         openssl::rand::rand_bytes(&mut nonce)
             .map_err(|err| Error::Internal(InternalError::GenerateNonce(err)))?;
-        let nonce = base64::encode(&nonce[..]);
+        let nonce = base64::Engine::encode(&engine, &nonce[..]);
 
         let sr = Sr {
             key_id: id.borrow(),
@@ -680,8 +684,8 @@ fn key_id_to_handle(
     // since = is also used between a key and its value. But that usage of = is not ambiguous, so it isn't a problem.
     let token = format!(
         "sr={}&sig={}",
-        base64::encode(sr.as_bytes()),
-        base64::encode(&sig)
+        base64::Engine::encode(&engine, sr.as_bytes()),
+        base64::Engine::encode(&engine, &sig)
     );
 
     let handle = aziot_key_common::KeyHandle(token);

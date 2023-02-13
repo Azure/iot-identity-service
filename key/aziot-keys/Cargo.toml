@@ -14,12 +14,12 @@ crate-type = ["cdylib"]
 [dependencies]
 foreign-types-shared = "0.1"
 hex = "0.4"
-hmac = "0.8"
+hmac = "0.12"
 lazy_static = "1"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"
-sha2 = "0.9"
+sha2 = "0.10"
 url = "2"
 
 aziot-keys-common = { path = "../aziot-keys-common" }

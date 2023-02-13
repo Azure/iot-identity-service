@@ -140,7 +140,8 @@ async fn generate_token(
 
     let sig_data = format!("{}\n{}", resource_uri, expiry);
     let signature = client.sign_data(key_handle, sig_data.as_bytes()).await?;
-    let signature = base64::encode(&signature);
+    let engine = base64::engine::general_purpose::STANDARD;
+    let signature = base64::Engine::encode(&engine, &signature);
 
     let token = {
         let mut token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri));

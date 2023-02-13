@@ -694,8 +694,9 @@ mod tests {
             println!(".\n.\n=========\n.\nRunning test {}", test_name);
 
             let config = std::fs::read(case_directory.join("config.toml")).unwrap();
+            let config = std::str::from_utf8(&config).unwrap();
             let config: super_config::Config =
-                toml::from_slice(&config).expect("could not parse config file");
+                toml::from_str(config).expect("could not parse config file");
 
             let expected_keyd_config = std::fs::read(case_directory.join("keyd.toml"))
                 .expect("could not deserialize expected aziot-keyd config");
@@ -724,13 +725,13 @@ mod tests {
                 preloaded_device_id_pk_bytes: actual_preloaded_device_id_pk_bytes,
             } = super::run(config, aziotcs_uid, aziotid_uid).unwrap();
 
-            let actual_keyd_config = toml::to_vec(&actual_keyd_config)
+            let actual_keyd_config = toml::to_string(&actual_keyd_config)
                 .expect("could not serialize actual aziot-keyd config");
-            let actual_certd_config = toml::to_vec(&actual_certd_config)
+            let actual_certd_config = toml::to_string(&actual_certd_config)
                 .expect("could not serialize actual aziot-certd config");
-            let actual_identityd_config = toml::to_vec(&actual_identityd_config)
+            let actual_identityd_config = toml::to_string(&actual_identityd_config)
                 .expect("could not serialize actual aziot-identityd config");
-            let actual_tpmd_config = toml::to_vec(&actual_tpmd_config)
+            let actual_tpmd_config = toml::to_string(&actual_tpmd_config)
                 .expect("could not serialize actual aziot-tpmd config");
 
             // Convert the four configs to bytes::Bytes before asserting, because bytes::Bytes's Debug format prints strings.

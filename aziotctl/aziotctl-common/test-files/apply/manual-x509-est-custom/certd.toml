@@ -1,4 +1,5 @@
 homedir_path = "/var/lib/aziot/certd"
+
 [cert_issuance.device-id]
 method = "est"
 url = "https://example.org/.well-known/est"
