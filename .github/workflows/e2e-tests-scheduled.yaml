@@ -79,10 +79,6 @@ jobs:
           # The scheduled E2E test in the release/1.x branch would fail until the changes are merged. Excluding for now.
           - os: 'ubuntu:22.04'
             branch: 'release/1.4'
-          - os: 'ubuntu:22.04'
-            test_name: 'manual-x509'
-          - os: 'ubuntu:22.04'
-            test_name: 'dps-x509'
 
       max-parallel: 10
 
@@ -99,6 +95,7 @@ jobs:
         BRANCH: "${{ matrix.branch }}"
 
         OS: "${{ matrix.os }}"
+        TEST_NAME: "${{ matrix.test_name }}"
 
         AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
         AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
