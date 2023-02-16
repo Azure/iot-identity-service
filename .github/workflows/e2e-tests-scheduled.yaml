@@ -95,7 +95,6 @@ jobs:
         BRANCH: "${{ matrix.branch }}"
 
         OS: "${{ matrix.os }}"
-        TEST_NAME: "${{ matrix.test_name }}"
 
         AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
         AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
