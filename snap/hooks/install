@@ -1,5 +1,7 @@
 #!/bin/bash
 
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
 mkdir -p $SNAP_DATA/shared/{secrets,sockets}/aziot
 mkdir -p $SNAP_DATA/shared/config/aziot/{keyd,certd,identityd,tpmd}/config.d
 mkdir -p $SNAP_DATA/var/lib/{aziot/{keyd,certd,identityd,tpmd},tpm}
