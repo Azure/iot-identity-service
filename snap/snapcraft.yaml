@@ -7,6 +7,8 @@ description: |
   on symmetric keys or X.509 certificates. It supports manual device registrations or individual/group
   enrollments with the Azure Device Provisioning Service.
 
+license: MIT 
+
 grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: strict
 
@@ -68,12 +70,17 @@ parts:
         DESTDIR=$SNAPCRAFT_PART_INSTALL
     organize:
       usr/: .
+    filesets:
+      exclude-symlinks: [ -libexec/aziot-identity-service/aziot-* ]
     stage:
       - -include
       # - -lib/systemd
       - -var
+      - $exclude-symlinks
     override-prime: |
       snapcraftctl prime
+      # Recreate expected relative symlinks that were not staged from the install because they link external to the snap
+      # and prevent publishing to snapcraft.
       ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-certd
       ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-identityd
       ln -vrfs $SNAPCRAFT_PRIME/libexec/aziot-identity-service/aziotd $SNAPCRAFT_PRIME/libexec/aziot-keyd
