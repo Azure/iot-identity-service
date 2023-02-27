@@ -30,6 +30,8 @@ pub use request::HttpRequest;
 
 pub mod server;
 
+mod backoff;
+
 mod uid;
 
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
@@ -65,8 +67,10 @@ impl<'de> serde::Deserialize<'de> for ByteString {
             where
                 E: serde::de::Error,
             {
+                let engine = base64::engine::general_purpose::STANDARD;
+
                 Ok(ByteString(
-                    base64::decode_config(v, base64::STANDARD).map_err(serde::de::Error::custom)?,
+                    base64::Engine::decode(&engine, v).map_err(serde::de::Error::custom)?,
                 ))
             }
         }
@@ -80,7 +84,9 @@ impl serde::Serialize for ByteString {
     where
         S: serde::Serializer,
     {
-        base64::encode_config(&self.0, base64::STANDARD).serialize(serializer)
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        base64::Engine::encode(&engine, &self.0).serialize(serializer)
     }
 }
 

@@ -1,4 +1,5 @@
 homedir_path = "/var/lib/aziot/certd"
+
 [cert_issuance.local_ca]
 cert = "local-ca"
 pk = "local-ca"

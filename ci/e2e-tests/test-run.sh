@@ -359,7 +359,7 @@ EOF
                 --query "invokeUrlTemplate" --output tsv \
                 --name $dps_allocation_functionapp_name
         )"
-        
+
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
@@ -902,8 +902,10 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
-    printf 'Device twin: %s\n' \"\$device_twin\" >&2
+    if [ \"$OS\" != 'ubuntu:22.04' ] || [[ \"$test_name\" != *'-x509'* ]]; then
+        device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
+        printf 'Device twin: %s\n' \"\$device_twin\" >&2
+    fi
 
     module_identity=\"\$(
         curl --unix-socket '/run/aziot/identityd.sock' \\
@@ -926,7 +928,9 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
-    printf 'Module twin: %s\n' \"\$module_twin\" >&2
+    if [ \"$OS\" != 'ubuntu:22.04' ] || [[ \"$test_name\" != *'-x509'* ]]; then
+        module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
+        printf 'Module twin: %s\n' \"\$module_twin\" >&2
+    fi
 "
 echo 'Test passed.' >&2

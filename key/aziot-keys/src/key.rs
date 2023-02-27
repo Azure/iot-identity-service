@@ -1,5 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use hmac::Mac;
+
+type HmacSha256 = hmac::Hmac<sha2::Sha256>;
+
 pub(crate) unsafe extern "C" fn create_key_if_not_exists(
     id: *const std::os::raw::c_char,
     usage: crate::AZIOT_KEYS_KEY_USAGE,
@@ -230,10 +234,8 @@ pub(crate) unsafe fn sign(
 
     match key {
         Key::FileSystem(key) => {
-            use hmac::{Mac, NewMac};
-
-            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
-                .map_err(crate::implementation::err_external)?;
+            let mut signer =
+                HmacSha256::new_from_slice(&key).map_err(crate::implementation::err_external)?;
 
             signer.update(digest);
 
@@ -271,16 +273,14 @@ pub(crate) unsafe fn verify(
 
     match key {
         Key::FileSystem(key) => {
-            use hmac::{Mac, NewMac};
-
-            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(&key)
-                .map_err(crate::implementation::err_external)?;
+            let mut signer =
+                HmacSha256::new_from_slice(&key).map_err(crate::implementation::err_external)?;
 
             signer.update(digest);
 
             // As hmac's docs say, it's important to use `verify` here instead of just running `finalize().into_bytes()` and comparing the signatures,
             // because `verify` makes sure to be constant-time.
-            let ok = signer.verify(signature).is_ok();
+            let ok = signer.verify_slice(signature).is_ok();
             Ok(ok)
         }
 
@@ -771,10 +771,8 @@ unsafe fn derive_key_common(
 
     match key {
         Key::FileSystem(key) => {
-            use hmac::{Mac, NewMac};
-
-            let mut signer = hmac::Hmac::<sha2::Sha256>::new_varkey(key)
-                .map_err(crate::implementation::err_external)?;
+            let mut signer =
+                HmacSha256::new_from_slice(key).map_err(crate::implementation::err_external)?;
 
             signer.update(derivation_data);
 
