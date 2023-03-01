@@ -12,9 +12,10 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
         let snap_instance_name = match std::env::var("SNAP_INSTANCE_NAME") {
             Ok(snap_instance_name) => snap_instance_name,
             Err(_) => {
-                std::env::var("SNAP_NAME").expect("snapctl must be used within the context of a snap")
+                std::env::var("SNAP_NAME").expect("A snap's instance name should only exist within the context of a snap")
             }
         };
+
         return Err(anyhow!("Command not supported in a snapped environment. Use 'snap services {}'", snap_instance_name));
     }
 
