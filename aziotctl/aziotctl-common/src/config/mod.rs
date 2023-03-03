@@ -159,7 +159,6 @@ fn base64_decode_ignore_pad(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
     let engine = base64::engine::general_purpose::STANDARD;
     match base64::Engine::decode(&engine, s) {
         Ok(b) => Ok(b),
-
         Err(base64::DecodeError::InvalidPadding) => {
             let engine = base64::engine::general_purpose::STANDARD_NO_PAD;
             base64::Engine::decode(&engine, s)
