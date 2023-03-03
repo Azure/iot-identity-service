@@ -397,17 +397,7 @@ mod base64 {
             where
                 E: serde::de::Error,
             {
-                let engine = base64::engine::general_purpose::STANDARD;
-                match base64::Engine::decode(&engine, s) {
-                    Ok(b) => Ok(b),
-                    // Previous version of i-i-s did not require padding for symmetric keys.
-                    // Maintain compatibility with these versions by allowing unpadded base64.
-                    Err(base64::DecodeError::InvalidPadding) => {
-                        let engine = base64::engine::general_purpose::STANDARD_NO_PAD;
-                        base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)
-                    }
-                    Err(e) => Err(serde::de::Error::custom(e)),
-                }
+                crate::config::base64_decode_ignore_pad(s).map_err(serde::de::Error::custom)
             }
         }
 

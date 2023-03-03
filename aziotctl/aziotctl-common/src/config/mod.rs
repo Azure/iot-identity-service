@@ -152,6 +152,22 @@ pub fn check_readable(mut path: &Path, user: &User, fix: bool) -> anyhow::Result
     Ok(())
 }
 
+/// Decode base64 without considering padding.
+/// Previous version of i-i-s did not require padding for symmetric keys.
+/// Maintain compatibility with these versions by allowing unpadded base64.
+fn base64_decode_ignore_pad(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
+    let engine = base64::engine::general_purpose::STANDARD;
+    match base64::Engine::decode(&engine, s) {
+        Ok(b) => Ok(b),
+
+        Err(base64::DecodeError::InvalidPadding) => {
+            let engine = base64::engine::general_purpose::STANDARD_NO_PAD;
+            base64::Engine::decode(&engine, s)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 fn parse_manual_connection_string(
     connection_string: &str,
 ) -> Result<(String, String, Vec<u8>), String> {
@@ -179,9 +195,7 @@ fn parse_manual_connection_string(
 
     let symmetric_key =
         symmetric_key.ok_or(r#"required parameter "SharedAccessKey" is missing"#)?;
-    let engine = base64::engine::general_purpose::STANDARD;
-    let symmetric_key =
-        base64::Engine::decode(&engine, symmetric_key)
+    let symmetric_key = base64_decode_ignore_pad(symmetric_key)
         .map_err(|err| format!(r#"connection string's "SharedAccessKey" parameter could not be decoded from base64: {}"#, err))?;
 
     Ok((
