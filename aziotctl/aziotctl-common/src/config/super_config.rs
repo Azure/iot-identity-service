@@ -398,8 +398,16 @@ mod base64 {
                 E: serde::de::Error,
             {
                 let engine = base64::engine::general_purpose::STANDARD;
-                let b = base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)?;
-                Ok(b)
+                match base64::Engine::decode(&engine, s) {
+                    Ok(b) => Ok(b),
+                    // Previous version of i-i-s did not require padding for symmetric keys.
+                    // Maintain compatibility with these versions by allowing unpadded base64.
+                    Err(base64::DecodeError::InvalidPadding) => {
+                        let engine = base64::engine::general_purpose::STANDARD_NO_PAD;
+                        base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)
+                    }
+                    Err(e) => Err(serde::de::Error::custom(e)),
+                }
             }
         }
 
