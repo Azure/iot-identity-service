@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   basic:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -28,7 +28,7 @@ jobs:
         - 'amd64'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
     - name: 'Run'
@@ -68,7 +68,7 @@ jobs:
 
 
   aziot-key-openssl-engine-shared:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -95,7 +95,7 @@ jobs:
     needs: 'basic'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
     - name: 'Generate artifact properties'
@@ -132,7 +132,7 @@ jobs:
         PKCS11_BACKEND: "${{ matrix.pkcs11_backend }}"
 
   mock-iot-tests:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     strategy:
       fail-fast: false
@@ -151,7 +151,7 @@ jobs:
     needs: 'basic'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
     - name: 'Generate artifact properties'
       id: 'generate-artifact-properties'
       run: |
@@ -194,19 +194,19 @@ jobs:
         SERVER_KEY: '/src/mock_iot_server_certs/server_cert_key.pem'
 
   openapi:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
     - name: 'Test OpenAPI specs'
       run: |
         make target/openapi-schema-validated
 
   codecoverage:
-    runs-on: 'ubuntu-18.04'
+    runs-on: 'ubuntu-22.04'
 
     steps:
-    - uses: 'actions/checkout@v1'
+    - uses: 'actions/checkout@v3'
       with:
         submodules: 'recursive'
 
