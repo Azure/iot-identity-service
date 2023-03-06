@@ -397,9 +397,7 @@ mod base64 {
             where
                 E: serde::de::Error,
             {
-                let engine = base64::engine::general_purpose::STANDARD;
-                let b = base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)?;
-                Ok(b)
+                crate::config::base64_decode_ignore_pad(s).map_err(serde::de::Error::custom)
             }
         }
 

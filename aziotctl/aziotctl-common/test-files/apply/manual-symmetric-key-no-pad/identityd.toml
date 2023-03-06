@@ -1,0 +1,11 @@
+hostname = "my-device"
+homedir = "/var/lib/aziot/identityd"
+
+[provisioning]
+source = "manual"
+iothub_hostname = "example.azure-devices.net"
+device_id = "my-device"
+
+[provisioning.authentication]
+method = "sas"
+device_id_pk = "device-id"
