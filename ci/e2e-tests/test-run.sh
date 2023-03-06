@@ -101,6 +101,10 @@ get_package() {
             artifact_name='redhat-ubi8-latest'
             ;;
 
+        'platform:el9')
+            artifact_name='redhat-ubi9-latest'
+            ;;
+
         'ubuntu:18.04')
             artifact_name='ubuntu-18.04'
             ;;
@@ -192,6 +196,11 @@ get_package() {
 
         'platform:el8')
             unzip -j package.zip 'el8/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
+            ;;
+
+        'platform:el9')
+            unzip -j package.zip 'el9/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
             ;;
 
@@ -585,6 +594,19 @@ case "$OS" in
         #
         # The Azure SP does not have permissions to do this. Use your regular Azure account.
         vm_image='almalinux:almalinux:8_4-gen2:latest'
+        ;;
+
+     'platform:el9')
+        # az vm image list --all \
+        #     --publisher 'almalinux' --offer 'almalinux' --sku '9-gen2' \
+        #     --query "[?publisher == 'almalinux' && offer == 'almalinux'].{ sku: sku, version: version, urn: urn }" --output table
+        #
+        # When changing this, accept the VM image terms with
+        #
+        #    az vm image terms accept --urn "$vm_image"
+        #
+        # The Azure SP does not have permissions to do this. Use your regular Azure account.
+        vm_image='almalinux:almalinux:9-gen2:latest'
         ;;
 
     'ubuntu:18.04')
