@@ -19,6 +19,10 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <td>RHEL 8 compatible</td>
 <td><code>redhat/ubi8:latest</code></td>
 </tr>
+<<tr>
+<td>RHEL 9 compatible</td>
+<td><code>redhat/ubi9:latest</code></td>
+</tr>
 <tr>
 <td>Debian 10 / Raspberry Pi OS 10</td>
 <td><code>debian:10-slim</code></td>
@@ -133,5 +137,7 @@ The first file is the binary package, the second through fourth file together co
 1. Building ARM32 and ARM64 packages for CentOS 7 is currently not supported, because CentOS 7 does do not have functional cross compilers for those architectures. (It has the `gcc` cross compiler itself but not a cross `glibc` for the compiled binary to link to, because the cross compiler is only intended for cross-compiling the kernel.)
 
 1. Building ARM32 and ARM64 packages for RHEL 8 is currently not supported. More investigation would be required to determine feasibility.
+
+1. Building ARM32 and ARM64 packages for RHEL 9 is currently not supported. More investigation would be required to determine feasibility.
 
 1. The packages script is also run in our CI, via the `.github/workflows/packages.yaml` file.
