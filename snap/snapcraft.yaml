@@ -140,6 +140,13 @@ apps:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/tpmd.sock
         socket-mode: 0666
 
+hooks:
+  configure:
+    plugs:
+      - hostname-control
+      - log-observe
+      - mount-observe
+
 environment:
   LD_LIBRARY_PATH: $SNAP/lib/aziot-identity-service
 
