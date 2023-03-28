@@ -56,11 +56,11 @@ else
 	CARGO_PROFILE_DIRECTORY = release
 endif
 
-ifeq ($(ARCH), arm32v7)
+ifneq (,$(filter $(ARCH), arm32v7 armhf))
 	CARGO_TARGET = armv7-unknown-linux-gnueabihf
     CROSS_HOST_TRIPLE = arm-linux-gnueabihf
 	DPKG_ARCH_FLAGS = --host-arch armhf
-else ifeq ($(ARCH), aarch64)
+else ifneq (,$(filter $(ARCH), aarch64 arm64))
 	CARGO_TARGET = aarch64-unknown-linux-gnu
     CROSS_HOST_TRIPLE = aarch64-linux-gnu
 	DPKG_ARCH_FLAGS = --host-arch arm64 --host-type aarch64-linux-gnu --target-type aarch64-linux-gnu

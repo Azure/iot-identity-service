@@ -59,6 +59,7 @@ parts:
     override-build: |
       contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
       make install-deb \
+        ARCH=$SNAPCRAFT_TARGET_ARCH \
         RELEASE=1 \
         VENDOR_LIBTSS=0 \
         PLATFORM_FEATURES=snapd \
