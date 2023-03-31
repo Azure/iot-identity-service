@@ -598,15 +598,15 @@ case "$OS" in
 
      'platform:el9')
         # az vm image list --all \
-        #     --publisher 'almalinux' --offer 'almalinux' --sku '9-gen2' \
-        #     --query "[?publisher == 'almalinux' && offer == 'almalinux'].{ sku: sku, version: version, urn: urn }" --output table
+        #     --publisher 'RedHat' --offer 'RHEL' --sku '9-lvm-gen2' \
+        #     --query "[?publisher == 'RedHat' && offer == 'RHEL'].{ sku: sku, version: version, urn: urn }" --output table
         #
         # When changing this, accept the VM image terms with
         #
         #    az vm image terms accept --urn "$vm_image"
         #
         # The Azure SP does not have permissions to do this. Use your regular Azure account.
-        vm_image='almalinux:almalinux:9-gen2:latest'
+        vm_image='RedHat:RHEL:9-lvm-gen2:latest'
         ;;
 
     'ubuntu:18.04')
