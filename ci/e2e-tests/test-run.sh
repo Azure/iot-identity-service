@@ -902,7 +902,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"$OS\" != 'ubuntu:22.04' ] || [[ \"$test_name\" != *'-x509'* ]]; then
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
         device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
         printf 'Device twin: %s\n' \"\$device_twin\" >&2
     fi
@@ -928,7 +928,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [ \"$OS\" != 'ubuntu:22.04' ] || [[ \"$test_name\" != *'-x509'* ]]; then
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
         module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
         printf 'Module twin: %s\n' \"\$module_twin\" >&2
     fi
