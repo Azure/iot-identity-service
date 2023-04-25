@@ -135,7 +135,7 @@ case "$OS:$ARCH" in
             pkgconfig
         ;;
 
-    'platform:el8:aarch64'|'platform:el8:arm32v7'|'platform:el9:aarc64'|'platform:el9:arm32v7')
+    'platform:el8:aarch64'|'platform:el8:arm32v7'|'platform:el9:aarch64'|'platform:el9:arm32v7')
         echo "Cross-compilation on $OS $ARCH is not supported" >&2
         exit 1
         ;;
