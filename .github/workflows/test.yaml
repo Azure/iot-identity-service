@@ -21,6 +21,7 @@ jobs:
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -45,16 +46,16 @@ jobs:
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::test-artifacts_${container_os}_${{ matrix.arch }}"
+        echo "artifact-name=test-artifacts_${container_os}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
           'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
           'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
         esac
-        echo "::set-output name=target_dir::$target_dir"
+        echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v2'
+      uses: 'actions/upload-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: |
@@ -79,6 +80,7 @@ jobs:
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -103,17 +105,17 @@ jobs:
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::test-artifacts_${container_os}_${{ matrix.arch }}"
+        echo "artifact-name=test-artifacts_${container_os}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
           'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
           'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
         esac
-        echo "::set-output name=target_dir::$target_dir"
+        echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Download'
       id: 'download-artifact'
-      uses: 'actions/download-artifact@v2'
+      uses: 'actions/download-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'target/debug'
@@ -142,6 +144,7 @@ jobs:
         - 'centos:7'
         - 'debian:10-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         arch:
         - 'amd64'
@@ -157,17 +160,17 @@ jobs:
       run: |
         container_os="${{ matrix.container_os }}"
         container_os="$(sed -e 's@[:/]@-@g' <<< "$container_os")"
-        echo "::set-output name=artifact-name::test-artifacts_${container_os}_${{ matrix.arch }}"
+        echo "artifact-name=test-artifacts_${container_os}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
         case "${{ matrix.arch }}" in
           'amd64') target_dir='x86_64-unknown-linux-gnu' ;;
           'arm32v7') target_dir='armv7-unknown-linux-gnueabihf' ;;
           'aarch64') target_dir='aarch64-unknown-linux-gnu' ;;
         esac
-        echo "::set-output name=target_dir::$target_dir"
+        echo "target_dir=$target_dir" >> $GITHUB_OUTPUT
     - name: 'Download'
       id: 'download-artifact'
-      uses: 'actions/download-artifact@v2'
+      uses: 'actions/download-artifact@v3'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'target/debug'

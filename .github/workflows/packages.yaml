@@ -17,6 +17,7 @@ jobs:
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
+        - 'redhat/ubi9:latest'
         - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
@@ -33,10 +34,14 @@ jobs:
           arch: 'arm32v7'
         - container_os: 'centos:7'
           arch: 'aarch64'
-        # More investigation needed for RHEL 8. Excluding for now.
+        # More investigation needed for RHEL 8 and 9. Excluding for now.
         - container_os: 'redhat/ubi8:latest'
           arch: 'arm32v7'
         - container_os: 'redhat/ubi8:latest'
+          arch: 'aarch64'
+        - container_os: 'redhat/ubi9:latest'
+          arch: 'arm32v7'
+        - container_os: 'redhat/ubi9:latest'
           arch: 'aarch64'
         # Include this for mariner package builds. Mariner cannot be built on its own OS so we need an Ubuntu container.
         include:
@@ -79,7 +84,7 @@ jobs:
           os_package="$OS"
         fi
         os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
-        echo "::set-output name=artifact-name::packages_${os_package}_${{ matrix.arch }}"
+        echo "artifact-name=packages_${os_package}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
     - name: 'Upload'
       uses: 'actions/upload-artifact@v3'
       with:
