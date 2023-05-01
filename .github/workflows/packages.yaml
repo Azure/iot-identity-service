@@ -71,7 +71,7 @@ jobs:
         ARCH: "${{ matrix.arch }}"
         OS: "${{ matrix.os }}"
         # PACKAGE_VERSION should end with '~dev' on the main branch.
-        PACKAGE_VERSION: '1.4.3'
+        PACKAGE_VERSION: '1.4.4'
         # PACKAGE_RELEASE should always be '1'.
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
