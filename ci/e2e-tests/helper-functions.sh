@@ -148,7 +148,6 @@ installTestTools() {
     local os="${distributor_id,,}"
     case "$os" in
         debian|ubuntu)
-            sudo apt-get install dotnet6 -y
             release="$(lsb_release -rs)"
             wget "https://packages.microsoft.com/config/$os/$release/packages-microsoft-prod.deb" \
                 -O packages-microsoft-prod.deb
@@ -165,7 +164,7 @@ installTestTools() {
                 fi
             done
             set -e
-            sudo apt-get install -y apt-transport-https azure-functions-core-tools
+            sudo apt-get install -y dotnet6 apt-transport-https azure-functions-core-tools
             ;;
         *)
             echo "Install of test tools unsupported on OS: $os" >&2
