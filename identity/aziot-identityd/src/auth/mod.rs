@@ -6,7 +6,7 @@ pub mod authentication;
 pub mod authorization;
 
 /// Authenticated user types
-#[derive(Clone, PartialOrd, PartialEq)]
+#[derive(Clone, PartialOrd, PartialEq, Eq)]
 pub enum AuthId {
     Unknown,
 
@@ -18,7 +18,7 @@ pub enum AuthId {
 }
 
 /// Operation types to be authorized
-#[derive(Clone, PartialOrd, PartialEq)]
+#[derive(Clone, PartialOrd, PartialEq, Eq)]
 pub enum OperationType {
     GetModule(String),
     GetAllHubModules,
