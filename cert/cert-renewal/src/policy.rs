@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn deserialize_err() {
         // Empty policy.
-        let input = toml::Value::String("".to_string());
+        let input = toml::Value::String(String::new());
         let err: Result<Policy, toml::de::Error> = serde::Deserialize::deserialize(input);
         err.unwrap_err();
 

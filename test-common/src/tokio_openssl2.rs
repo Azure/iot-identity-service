@@ -23,7 +23,7 @@ impl Incoming {
         private_key: &openssl::pkey::PKey<openssl::pkey::Private>,
         verify_client: bool,
     ) -> std::io::Result<Self> {
-        let listener = std::net::TcpListener::bind(&(addr, port))?;
+        let listener = std::net::TcpListener::bind((addr, port))?;
         listener.set_nonblocking(true)?;
         let listener = tokio::net::TcpListener::from_std(listener)?;
 

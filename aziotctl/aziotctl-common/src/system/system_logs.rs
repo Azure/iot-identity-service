@@ -9,6 +9,9 @@ pub fn get_system_logs(processes: &[&str], additional_args: &[&OsStr]) -> Result
     let processes = processes.iter().flat_map(|p| vec!["-u", p]);
     let default_args = [OsStr::new("-e"), OsStr::new("--no-pager")];
 
+    // NOTE: Clippy is incorrectly suggesting to remove the borrow on
+    // default_args.
+    #[allow(clippy::needless_borrow)]
     Command::new("journalctl")
         .args(processes)
         .args(if additional_args.is_empty() {
