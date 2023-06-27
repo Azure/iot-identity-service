@@ -176,7 +176,7 @@ impl Api {
             .transpose()?;
 
         let x509 = create_cert_inner(
-            &mut *this,
+            &mut this,
             &id,
             (&req, &pubkey),
             issuer.as_ref().map(|(x509, pk)| (&**x509, &**pk)),
@@ -751,7 +751,7 @@ pub(crate) fn get_cert_inner(
                     result.extend_from_slice(&bytes);
                 }
             }
-            Ok((!result.is_empty()).then(|| result))
+            Ok((!result.is_empty()).then_some(result))
         }
     }
 }

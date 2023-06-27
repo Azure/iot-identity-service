@@ -4,7 +4,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access)]
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     /// Maximum number of simultaneous requests per user that keyd will service.
     #[serde(
@@ -39,7 +39,7 @@ pub struct Config {
 }
 
 /// Map of service names to endpoint URIs.
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Endpoints {
     /// The endpoint that the keyd service binds to.
     pub aziot_keyd: http_common::Connector,
@@ -56,7 +56,7 @@ impl Default for Endpoints {
 }
 
 /// Map of a Unix UID to key IDs with access.
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Principal {
     /// Unix UID.
     pub uid: libc::uid_t,

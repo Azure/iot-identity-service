@@ -25,6 +25,8 @@ impl Default for KeyClient {
     }
 }
 
+// These functions need to be async to match the real client's.
+#[allow(clippy::unused_async)]
 impl KeyClient {
     pub async fn create_key_if_not_exists(
         &self,

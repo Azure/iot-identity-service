@@ -67,7 +67,7 @@ impl EstIdRenewal {
         })
     }
 
-    async fn load_keys(
+    fn load_keys(
         &self,
         key_handle: aziot_key_common::KeyHandle,
     ) -> Result<
@@ -175,7 +175,6 @@ impl cert_renewal::CertInterface for EstIdRenewal {
 
         let (est_id_key, _) = self
             .load_keys(est_id_key)
-            .await
             .map_err(|_| cert_renewal::Error::retryable_error("failed to load EST auth key"))?;
 
         // Generate a new key if needed. Otherwise, retrieve the existing key.
@@ -206,7 +205,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
             (key_id.to_string(), key_handle)
         };
 
-        let keys = self.load_keys(key_handle).await?;
+        let keys = self.load_keys(key_handle)?;
 
         let cert = {
             let est_config = self.est_config.read().await;

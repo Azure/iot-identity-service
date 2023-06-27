@@ -322,7 +322,7 @@ pub(crate) unsafe extern "C" fn verify(
             _ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
         };
 
-        *ok_out.as_mut() = if ok { 1 } else { 0 };
+        *ok_out.as_mut() = i32::from(ok);
 
         Ok(())
     })

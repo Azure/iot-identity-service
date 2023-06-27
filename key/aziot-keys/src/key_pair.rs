@@ -672,7 +672,7 @@ fn create_inner(
             };
 
             let private_key_pem = private_key.private_key_to_pem_pkcs8()?;
-            std::fs::write(&path, &private_key_pem).map_err(crate::implementation::err_external)?;
+            std::fs::write(path, &private_key_pem).map_err(crate::implementation::err_external)?;
 
             Ok(())
         }

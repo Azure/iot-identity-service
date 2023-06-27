@@ -11,7 +11,7 @@ pub fn stop(services: &[&ServiceDefinition]) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
         print!("Stopping {}...", service);
         let result = Command::new("systemctl")
-            .args(&["stop", service])
+            .args(["stop", service])
             .output()
             .context("Failed to call systemctl stop")?;
 

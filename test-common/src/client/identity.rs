@@ -44,6 +44,8 @@ impl Default for IdentityClient {
     }
 }
 
+// These functions need to be async to match the real client's.
+#[allow(clippy::unused_async)]
 impl IdentityClient {
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(

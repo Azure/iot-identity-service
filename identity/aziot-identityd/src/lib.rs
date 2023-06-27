@@ -68,7 +68,7 @@ pub async fn main(
     let max_requests = settings.max_requests;
 
     if !homedir_path.exists() {
-        if let Err(err) = std::fs::create_dir_all(&homedir_path) {
+        if let Err(err) = std::fs::create_dir_all(homedir_path) {
             log::error!("Failed to create home directory: {}", err);
 
             return Err(error::InternalError::CreateHomeDir(err).into());
@@ -516,6 +516,8 @@ impl Api {
         })
     }
 
+    // Allow unused async for consistency with other functions.
+    #[allow(clippy::unused_async)]
     pub async fn get_trust_bundle(
         &self,
         auth_id: auth::AuthId,
