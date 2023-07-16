@@ -34,16 +34,18 @@ jobs:
         sudo apt install -y \
           acl autoconf autoconf-archive automake build-essential clang cmake curl git jq libclang1 \
           libltdl-dev libssl-dev libtss2-dev libtool llvm-dev pkg-config
-        echo 'Install Rustup'
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-        echo 'Update Rustup'
-        ~/.cargo/bin/rustup self update
-        echo 'Set Rustup profile'
-        ~/.cargo/bin/rustup set profile minimal
+
+        curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
+        chmod +x ~/.cargo/bin/rustup
+        hash -r
+
+        rustup self update
+        rustup set profile minimal
+
         BINDGEN_VERSION='0.60.0'
         CBINDGEN_VERSION='0.24.2'
-        ~/.cargo/bin/cargo install bindgen --version "=$BINDGEN_VERSION"
-        ~/.cargo/bin/cargo install cbindgen --version "=$CBINDGEN_VERSION"
+        cargo install bindgen --version "=$BINDGEN_VERSION"
+        cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
