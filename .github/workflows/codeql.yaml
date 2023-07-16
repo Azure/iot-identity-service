@@ -32,7 +32,7 @@ jobs:
 
     - run: |
         export ARCH=amd64
-        sudo bash ci/install-build-deps.sh
+        sudo --preserve-env bash ci/install-build-deps.sh
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
