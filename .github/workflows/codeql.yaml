@@ -39,6 +39,8 @@ jobs:
           sleep 1;
         done
 
+        sudo rm /var/lib/apt/lists/lock
+
         export ARCH=amd64
         . ./ci/install-build-deps.sh
 
