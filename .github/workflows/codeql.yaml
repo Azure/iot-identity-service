@@ -44,8 +44,8 @@ jobs:
 
         BINDGEN_VERSION='0.60.0'
         CBINDGEN_VERSION='0.24.2'
-        cargo install bindgen --version "=$BINDGEN_VERSION"
-        cargo install cbindgen --version "=$CBINDGEN_VERSION"
+        cargo install bindgen --force --version "=$BINDGEN_VERSION"
+        cargo install cbindgen --force --version "=$CBINDGEN_VERSION"
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
