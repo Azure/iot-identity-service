@@ -31,21 +31,8 @@ jobs:
       uses: actions/checkout@v3
 
     - run: |
-        #!/bin/bash
-        echo 'kill apt-daily.service'
-        sudo systemctl stop apt-daily.service
-        sudo systemctl kill --kill-who=all apt-daily.service
-        while ! (systemctl list-units --all apt-daily.service | egrep -q '(dead|failed)')
-        do
-          sleep 1;
-        done
-
-        echo 'Delete lock file'
-        sudo rm /var/lib/apt/lists/lock
-
         export ARCH=amd64
-        echo 'Install build dependencies'
-        . ./ci/install-build-deps.sh
+        sudo source ./ci/install-build-deps.sh
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
