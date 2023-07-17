@@ -30,23 +30,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - run: |
-        sudo apt install -y \
-          acl autoconf autoconf-archive automake build-essential clang cmake curl git jq libclang1 \
-          libltdl-dev libssl-dev libtss2-dev libtool llvm-dev pkg-config
-
-        curl -Lo ~/.cargo/bin/rustup 'https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init'
-        chmod +x ~/.cargo/bin/rustup
-        hash -r
-
-        rustup self update
-        rustup set profile minimal
-
-        BINDGEN_VERSION='0.60.0'
-        CBINDGEN_VERSION='0.24.2'
-        cargo install bindgen --force --version "=$BINDGEN_VERSION"
-        cargo install cbindgen --force --version "=$CBINDGEN_VERSION"
-
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
@@ -54,6 +37,7 @@ jobs:
         languages: ${{ matrix.language }}
 
     - run: |
+        sudo bash -c '. install-build-deps.sh
         rm -r third-party/tpm2-tss
         make
 
