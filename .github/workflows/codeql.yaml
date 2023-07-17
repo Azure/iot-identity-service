@@ -37,7 +37,7 @@ jobs:
         languages: ${{ matrix.language }}
 
     - run: |
-        sudo bash -c '. install-build-deps.sh
+        sudo bash -c '. install-build-deps.sh'
         rm -r third-party/tpm2-tss
         make
 
