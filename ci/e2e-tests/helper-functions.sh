@@ -88,7 +88,7 @@ setupCustomAllocationPolicy() {
         func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --language C# --force
         
         # Copy source code into function app project
-        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.cs" .
+        cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.csfunc" ./DpsCustomAllocation.cs
 
         # Add build deps
         dotnet add package Microsoft.Azure.Devices.Provisioning.Service -v 1.16.3
