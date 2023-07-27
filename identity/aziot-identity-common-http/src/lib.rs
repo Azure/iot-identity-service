@@ -68,6 +68,8 @@ pub mod create_module_identity {
         pub id_type: String,
         #[serde(rename = "moduleId")]
         pub module_id: String,
+        #[serde(rename = "managedBy", skip_serializing_if = "Option::is_none")]
+        pub managed_by: Option<String>,
         #[serde(flatten)]
         pub opts: Option<CreateModuleOpts>,
     }
@@ -86,6 +88,8 @@ pub mod update_module_identity {
         pub id_type: String,
         #[serde(rename = "moduleId")]
         pub module_id: String,
+        #[serde(rename = "managedBy", skip_serializing_if = "Option::is_none")]
+        pub managed_by: Option<String>,
     }
 
     #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

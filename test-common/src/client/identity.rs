@@ -26,7 +26,7 @@ pub struct IdentityClient {
 impl Default for IdentityClient {
     fn default() -> Self {
         let mut identities = std::collections::BTreeMap::new();
-        identities.insert("testModule".to_string(), test_identity("testModule"));
+        identities.insert("testModule".to_string(), test_identity("testModule", None));
 
         let identities = tokio::sync::Mutex::new(std::cell::RefCell::new(identities));
 
@@ -68,9 +68,10 @@ impl IdentityClient {
     pub async fn create_module_identity(
         &self,
         module_name: &str,
+        managed_by: Option<String>,
     ) -> Result<Identity, std::io::Error> {
         if self.get_identity_ok {
-            let identity = test_identity(module_name);
+            let identity = test_identity(module_name, managed_by);
 
             let identities = self.identities.lock().await;
 
@@ -126,6 +127,7 @@ impl IdentityClient {
     pub async fn update_module_identity(
         &self,
         module_name: &str,
+        _managed_by: Option<String>,
     ) -> Result<Identity, std::io::Error> {
         if self.update_identity_ok {
             // A real identity client would update the Idenitity in Hub. But this test
@@ -154,7 +156,7 @@ impl IdentityClient {
 }
 
 /// Generates an Identity struct for a given module name.
-fn test_identity(module_name: &str) -> Identity {
+fn test_identity(module_name: &str, managed_by: Option<String>) -> Identity {
     Identity::Aziot(aziot_identity_common::AzureIoTSpec {
         hub_name: "test-hub.test.net".to_string(),
         gateway_host: "gateway-host.test.net".to_string(),
@@ -166,6 +168,7 @@ fn test_identity(module_name: &str) -> Identity {
             key_handle: Some(aziot_key_common::KeyHandle(format!("{}-key", module_name))),
             cert_id: Some(format!("{}-cert", module_name)),
         }),
+        managed_by,
     })
 }
 

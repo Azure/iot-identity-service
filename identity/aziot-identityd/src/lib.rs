@@ -445,6 +445,7 @@ impl Api {
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
+        managed_by: Option<String>,
         opts: Option<aziot_identity_common_http::create_module_identity::CreateModuleOpts>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
@@ -455,7 +456,7 @@ impl Api {
         }
 
         match_id_type!( id_type {
-            ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id).await },
+            ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id, managed_by).await },
             ID_TYPE_LOCAL => {
                 if self.local_identities
                     .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
@@ -485,6 +486,7 @@ impl Api {
         auth_id: auth::AuthId,
         id_type: Option<&str>,
         module_id: &str,
+        managed_by: Option<String>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if !self.authorizer.authorize(auth::Operation {
             auth_id,
@@ -494,7 +496,7 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.update_module_identity(module_id).await },
+            ID_TYPE_AZIOT => { self.id_manager.update_module_identity(module_id, managed_by).await },
         })
     }
 

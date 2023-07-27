@@ -106,6 +106,7 @@ impl IdentityManager {
     pub async fn create_module_identity(
         &self,
         module_id: &str,
+        managed_by: Option<String>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
@@ -126,7 +127,7 @@ impl IdentityManager {
                 .with_proxy(self.proxy_uri.clone());
 
                 let new_module = client
-                    .create_module(module_id, None, None)
+                    .create_module(module_id, None, managed_by.clone())
                     .await
                     .map_err(Error::HubClient)?;
 
@@ -148,7 +149,7 @@ impl IdentityManager {
                             x509_thumbprint: None,
                             type_: Some(aziot_identity_common::hub::AuthType::Sas),
                         }),
-                        None,
+                        managed_by,
                     )
                     .await
                     .map_err(Error::HubClient)?;
@@ -177,6 +178,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: response.managed_by,
                     });
                 Ok(identity)
             }
@@ -187,6 +189,7 @@ impl IdentityManager {
     pub async fn update_module_identity(
         &self,
         module_id: &str,
+        managed_by: Option<String>,
     ) -> Result<aziot_identity_common::Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
@@ -229,7 +232,7 @@ impl IdentityManager {
                             x509_thumbprint: None,
                             type_: Some(aziot_identity_common::hub::AuthType::Sas),
                         }),
-                        None,
+                        managed_by,
                     )
                     .await
                     .map_err(Error::HubClient)?;
@@ -258,6 +261,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: response.managed_by,
                     });
                 Ok(identity)
             }
@@ -275,6 +279,7 @@ impl IdentityManager {
                     module_id: None,
                     gen_id: None,
                     auth: Some(self.get_device_identity_key().await?),
+                    managed_by: None,
                 },
             )),
             None => Err(Error::DeviceNotFound),
@@ -366,6 +371,7 @@ impl IdentityManager {
                         auth: Some(aziot_identity_common::AuthenticationInfo::from(
                             module_credentials,
                         )),
+                        managed_by: module.managed_by,
                     });
 
                 Ok(identity)
@@ -415,6 +421,7 @@ impl IdentityManager {
                                 module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
                                 gen_id: module.generation_id.map(aziot_identity_common::GenId),
                                 auth: None, //Auth information can be requested via get_module_identity
+                                managed_by: module.managed_by,
                             },
                         )
                     })
@@ -939,15 +946,15 @@ impl IdentityManager {
 
                 let hub_module_ids = self.get_module_identities().await?;
 
-                for m in hub_module_ids {
+                for m in &hub_module_ids {
                     if let aziot_identity_common::Identity::Aziot(m) = m {
-                        if let Some(m) = m.module_id {
-                            if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+                        if let Some(m) = &m.module_id {
+                            if !current_module_set.contains(m) && prev_module_set.contains(m) {
                                 self.delete_module_identity(&m.0).await?;
                                 log::info!("Hub identity {:?} removed", &m.0);
-                            } else if current_module_set.contains(&m) {
-                                if prev_module_set.contains(&m) {
-                                    current_module_set.remove(&m);
+                            } else if current_module_set.contains(m) {
+                                if prev_module_set.contains(m) {
+                                    current_module_set.remove(m);
                                     log::info!("Hub identity {:?} already exists", &m.0);
                                 } else {
                                     self.delete_module_identity(&m.0).await?;
@@ -961,7 +968,8 @@ impl IdentityManager {
                 }
 
                 for m in current_module_set {
-                    self.create_module_identity(&m.0).await?;
+                    // TODO: do we need to take previous identity and pass along?
+                    self.create_module_identity(&m.0, None).await?;
                     log::info!("Hub identity {:?} added", &m.0);
                 }
 
