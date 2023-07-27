@@ -20,7 +20,7 @@ set -e
 
 case "$1" in
 	purge)
-		systemctl daemon-reload
+		systemctl daemon-reload 2>/dev/null || true
 
 		# Kill all processes running under aziot-identity-service users.
 		killall -SIGKILL -u aziotid || true
