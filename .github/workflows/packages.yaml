@@ -58,6 +58,9 @@ jobs:
         submodules: 'recursive'
     - name: 'Run'
       run: |
+        sudo df -h
+        sudo rm -rf /usr/local
+        sudo df -h
         docker run --rm \
           -v "$GITHUB_WORKSPACE:/src" \
           -e "ARCH=$ARCH" \
