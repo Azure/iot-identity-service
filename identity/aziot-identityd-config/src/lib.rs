@@ -21,6 +21,9 @@ pub struct Settings {
 
     pub homedir: std::path::PathBuf,
 
+    #[serde(default)]
+    pub prefer_module_identity_cache: bool,
+
     /// Maximum number of simultaneous requests per user that identityd will service.
     #[serde(
         default = "http_common::Incoming::default_max_requests",

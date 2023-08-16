@@ -54,6 +54,9 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "AziotMaxRequests::is_default")]
     pub aziot_max_requests: AziotMaxRequests,
 
+    #[serde(default)]
+    pub prefer_module_identity_cache: bool,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,
