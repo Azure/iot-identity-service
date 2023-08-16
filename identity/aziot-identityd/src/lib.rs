@@ -421,7 +421,7 @@ impl Api {
         }
 
         match_id_type!(id_type {
-            ID_TYPE_AZIOT => { self.id_manager.get_module_identities().await },
+            ID_TYPE_AZIOT => { self.id_manager.get_module_identities(true).await },
         })
     }
 

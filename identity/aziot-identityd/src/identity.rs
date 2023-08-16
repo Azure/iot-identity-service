@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use aziot_identity_common::hub::Module;
+use aziot_identity_common::{hub::Module, Identity, IoTHubDevice};
 use aziot_identityd_config as config;
 use config::Payload;
 
@@ -29,7 +29,7 @@ pub struct IdentityManager {
     tpm_client: Arc<aziot_tpm_client_async::Client>,
     proxy_uri: Option<hyper::Uri>,
 
-    pub(crate) iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+    pub(crate) iot_hub_device: Option<IoTHubDevice>,
     pub(crate) identity_cert_renewal: Option<
         Arc<tokio::sync::Mutex<cert_renewal::RenewalEngine<crate::renewal::IdentityCertRenewal>>>,
     >,
@@ -42,7 +42,7 @@ impl IdentityManager {
         key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
         cert_client: Arc<aziot_cert_client_async::Client>,
         tpm_client: Arc<aziot_tpm_client_async::Client>,
-        iot_hub_device: Option<aziot_identity_common::IoTHubDevice>,
+        iot_hub_device: Option<IoTHubDevice>,
         proxy_uri: Option<hyper::Uri>,
     ) -> Self {
         IdentityManager {
@@ -60,7 +60,7 @@ impl IdentityManager {
         }
     }
 
-    pub fn set_device(&mut self, device: &aziot_identity_common::IoTHubDevice) {
+    pub fn set_device(&mut self, device: &IoTHubDevice) {
         ModuleBackup::set_device(
             &self.homedir_path,
             &device.iothub_hostname,
@@ -106,10 +106,7 @@ impl IdentityManager {
         self.iot_hub_device = None;
     }
 
-    pub async fn create_module_identity(
-        &self,
-        module_id: &str,
-    ) -> Result<aziot_identity_common::Identity, Error> {
+    pub async fn create_module_identity(&self, module_id: &str) -> Result<Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
                 "module_id",
@@ -161,7 +158,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &response.module_id,
-                    Some(aziot_identity_common::hub::Module {
+                    Some(Module {
                         module_id: response.module_id.clone(),
                         device_id: response.device_id.clone(),
                         generation_id: response.generation_id.clone(),
@@ -170,27 +167,23 @@ impl IdentityManager {
                     }),
                 );
 
-                let identity =
-                    aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
-                        hub_name: device.iothub_hostname.clone(),
-                        gateway_host: device.local_gateway_hostname.clone(),
-                        device_id: aziot_identity_common::DeviceId(response.device_id),
-                        module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
-                        gen_id: response.generation_id.map(aziot_identity_common::GenId),
-                        auth: Some(aziot_identity_common::AuthenticationInfo::from(
-                            module_credentials,
-                        )),
-                    });
+                let identity = Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                    hub_name: device.iothub_hostname.clone(),
+                    gateway_host: device.local_gateway_hostname.clone(),
+                    device_id: aziot_identity_common::DeviceId(response.device_id),
+                    module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
+                    gen_id: response.generation_id.map(aziot_identity_common::GenId),
+                    auth: Some(aziot_identity_common::AuthenticationInfo::from(
+                        module_credentials,
+                    )),
+                });
                 Ok(identity)
             }
             None => Err(Error::DeviceNotFound),
         }
     }
 
-    pub async fn update_module_identity(
-        &self,
-        module_id: &str,
-    ) -> Result<aziot_identity_common::Identity, Error> {
+    pub async fn update_module_identity(&self, module_id: &str) -> Result<Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
                 "module_id",
@@ -242,7 +235,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &response.module_id,
-                    Some(aziot_identity_common::hub::Module {
+                    Some(Module {
                         module_id: response.module_id.clone(),
                         device_id: response.device_id.clone(),
                         generation_id: response.generation_id.clone(),
@@ -251,43 +244,37 @@ impl IdentityManager {
                     }),
                 );
 
-                let identity =
-                    aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
-                        hub_name: device.iothub_hostname.clone(),
-                        gateway_host: device.local_gateway_hostname.clone(),
-                        device_id: aziot_identity_common::DeviceId(response.device_id),
-                        module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
-                        gen_id: response.generation_id.map(aziot_identity_common::GenId),
-                        auth: Some(aziot_identity_common::AuthenticationInfo::from(
-                            module_credentials,
-                        )),
-                    });
+                let identity = Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                    hub_name: device.iothub_hostname.clone(),
+                    gateway_host: device.local_gateway_hostname.clone(),
+                    device_id: aziot_identity_common::DeviceId(response.device_id),
+                    module_id: Some(aziot_identity_common::ModuleId(response.module_id)),
+                    gen_id: response.generation_id.map(aziot_identity_common::GenId),
+                    auth: Some(aziot_identity_common::AuthenticationInfo::from(
+                        module_credentials,
+                    )),
+                });
                 Ok(identity)
             }
             None => Err(Error::DeviceNotFound),
         }
     }
 
-    pub async fn get_device_identity(&self) -> Result<aziot_identity_common::Identity, Error> {
+    pub async fn get_device_identity(&self) -> Result<Identity, Error> {
         match &self.iot_hub_device {
-            Some(device) => Ok(aziot_identity_common::Identity::Aziot(
-                aziot_identity_common::AzureIoTSpec {
-                    hub_name: device.iothub_hostname.clone(),
-                    gateway_host: device.local_gateway_hostname.clone(),
-                    device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
-                    module_id: None,
-                    gen_id: None,
-                    auth: Some(self.get_device_identity_key().await?),
-                },
-            )),
+            Some(device) => Ok(Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                hub_name: device.iothub_hostname.clone(),
+                gateway_host: device.local_gateway_hostname.clone(),
+                device_id: aziot_identity_common::DeviceId(device.device_id.clone()),
+                module_id: None,
+                gen_id: None,
+                auth: Some(self.get_device_identity_key().await?),
+            })),
             None => Err(Error::DeviceNotFound),
         }
     }
 
-    pub async fn get_module_identity(
-        &self,
-        module_id: &str,
-    ) -> Result<aziot_identity_common::Identity, Error> {
+    pub async fn get_module_identity(&self, module_id: &str) -> Result<Identity, Error> {
         if module_id.trim().is_empty() {
             return Err(Error::invalid_parameter(
                 "module_id",
@@ -336,17 +323,16 @@ impl IdentityManager {
                 let module_credentials =
                     aziot_identity_common::Credentials::SharedPrivateKey(primary_key_handle.0);
 
-                let identity =
-                    aziot_identity_common::Identity::Aziot(aziot_identity_common::AzureIoTSpec {
-                        hub_name: device.iothub_hostname.clone(),
-                        gateway_host: device.local_gateway_hostname.clone(),
-                        device_id: aziot_identity_common::DeviceId(module.device_id),
-                        module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
-                        gen_id: module.generation_id.map(aziot_identity_common::GenId),
-                        auth: Some(aziot_identity_common::AuthenticationInfo::from(
-                            module_credentials,
-                        )),
-                    });
+                let identity = Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                    hub_name: device.iothub_hostname.clone(),
+                    gateway_host: device.local_gateway_hostname.clone(),
+                    device_id: aziot_identity_common::DeviceId(module.device_id),
+                    module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
+                    gen_id: module.generation_id.map(aziot_identity_common::GenId),
+                    auth: Some(aziot_identity_common::AuthenticationInfo::from(
+                        module_credentials,
+                    )),
+                });
 
                 Ok(identity)
             }
@@ -354,53 +340,30 @@ impl IdentityManager {
         }
     }
 
-    pub async fn get_module_identities(
-        &self,
-    ) -> Result<Vec<aziot_identity_common::Identity>, Error> {
+    pub async fn get_module_identities(&self, use_cache: bool) -> Result<Vec<Identity>, Error> {
         match &self.iot_hub_device {
-            Some(device) => {
-                let client = aziot_cloud_client_async::HubClient::new(
-                    device,
-                    self.key_client.clone(),
-                    self.tpm_client.clone(),
-                )
-                .with_retry(self.req_retries)
-                .with_timeout(self.req_timeout)
-                .with_proxy(self.proxy_uri.clone());
+            Some(device) => match (use_cache, self.prefer_module_identity_cache) {
+                (true, true) => {
+                    let identities = ModuleBackup::list_module_backups(device, &self.homedir_path);
 
-                let response = client.list_modules().await.map_err(Error::HubClient)?;
+                    if let Ok(identities) = identities {
+                        Ok(identities)
+                    } else {
+                        self.list_module_identities_from_hub(device).await
+                    }
+                }
+                (true, false) => {
+                    let identities = self.list_module_identities_from_hub(device).await;
 
-                let identities = response
-                    .into_iter()
-                    .map(|module| {
-                        ModuleBackup::set_module_backup(
-                            &self.homedir_path,
-                            &device.iothub_hostname,
-                            &device.device_id,
-                            &module.module_id,
-                            Some(aziot_identity_common::hub::Module {
-                                module_id: module.module_id.clone(),
-                                device_id: module.device_id.clone(),
-                                generation_id: module.generation_id.clone(),
-                                managed_by: module.managed_by.clone(),
-                                authentication: None,
-                            }),
-                        );
-
-                        aziot_identity_common::Identity::Aziot(
-                            aziot_identity_common::AzureIoTSpec {
-                                hub_name: device.iothub_hostname.clone(),
-                                gateway_host: device.local_gateway_hostname.clone(),
-                                device_id: aziot_identity_common::DeviceId(module.device_id),
-                                module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
-                                gen_id: module.generation_id.map(aziot_identity_common::GenId),
-                                auth: None, //Auth information can be requested via get_module_identity
-                            },
-                        )
-                    })
-                    .collect();
-                Ok(identities)
-            }
+                    if let Ok(identities) = identities {
+                        Ok(identities)
+                    } else {
+                        ModuleBackup::list_module_backups(device, &self.homedir_path)
+                            .map_err(Error::HubClient)
+                    }
+                }
+                (false, _) => self.list_module_identities_from_hub(device).await,
+            },
             None => Err(Error::DeviceNotFound),
         }
     }
@@ -511,7 +474,7 @@ impl IdentityManager {
     async fn get_module_derived_keys(
         &self,
         master_id: aziot_key_common::KeyHandle,
-        module: aziot_identity_common::hub::Module,
+        module: Module,
     ) -> Result<
         (
             aziot_key_common::KeyHandle,
@@ -604,7 +567,7 @@ impl IdentityManager {
                         .await?
                     }
                 };
-                let device = aziot_identity_common::IoTHubDevice {
+                let device = IoTHubDevice {
                     local_gateway_hostname: provisioning
                         .local_gateway_hostname
                         .clone()
@@ -720,7 +683,7 @@ impl IdentityManager {
         credentials: aziot_identity_common::Credentials,
         local_gateway_hostname: Option<String>,
         payload: Option<Payload>,
-    ) -> Result<aziot_identity_common::IoTHubDevice, Error> {
+    ) -> Result<IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
         if skip_if_backup_is_valid && backup_device.is_some() {
@@ -747,7 +710,7 @@ impl IdentityManager {
             .await
             .map_err(Error::DpsClient)?;
 
-        Ok(aziot_identity_common::IoTHubDevice {
+        Ok(IoTHubDevice {
             local_gateway_hostname: local_gateway_hostname
                 .unwrap_or_else(|| response.assigned_hub.clone()),
             iothub_hostname: response.assigned_hub,
@@ -759,7 +722,7 @@ impl IdentityManager {
     fn get_backup_provisioning_info(
         &self,
         credentials: aziot_identity_common::Credentials,
-    ) -> Option<aziot_identity_common::IoTHubDevice> {
+    ) -> Option<IoTHubDevice> {
         let mut prev_device_info_path = self.homedir_path.clone();
         prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
@@ -770,7 +733,7 @@ impl IdentityManager {
         match HubDeviceInfo::new(&prev_device_info_path) {
             Ok(device_info) => match device_info {
                 Some(device_info) => {
-                    let device = aziot_identity_common::IoTHubDevice {
+                    let device = IoTHubDevice {
                         local_gateway_hostname: device_info.local_gateway_hostname,
                         iothub_hostname: device_info.hub_name,
                         device_id: device_info.device_id,
@@ -917,10 +880,10 @@ impl IdentityManager {
                     curr_hub_device_info,
                 );
 
-                let hub_module_ids = self.get_module_identities().await?;
+                let hub_module_ids = self.get_module_identities(false).await?;
 
                 for m in hub_module_ids {
-                    if let aziot_identity_common::Identity::Aziot(m) = m {
+                    if let Identity::Aziot(m) = m {
                         if let Some(m) = m.module_id {
                             if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
                                 self.delete_module_identity(&m.0).await?;
@@ -961,7 +924,7 @@ impl IdentityManager {
 
     async fn get_module_identity_from_hub(
         &self,
-        device: &aziot_identity_common::IoTHubDevice,
+        device: &IoTHubDevice,
         module_id: &str,
     ) -> Result<Module, Error> {
         let client = aziot_cloud_client_async::HubClient::new(
@@ -980,7 +943,7 @@ impl IdentityManager {
                     &device.iothub_hostname,
                     &device.device_id,
                     &module.module_id,
-                    Some(aziot_identity_common::hub::Module {
+                    Some(Module {
                         module_id: module.module_id.clone(),
                         device_id: module.device_id.clone(),
                         generation_id: module.generation_id.clone(),
@@ -1005,6 +968,52 @@ impl IdentityManager {
                 Err(Error::HubClient(err))
             }
         }
+    }
+
+    async fn list_module_identities_from_hub(
+        &self,
+        device: &IoTHubDevice,
+    ) -> Result<Vec<Identity>, Error> {
+        let client = aziot_cloud_client_async::HubClient::new(
+            device,
+            self.key_client.clone(),
+            self.tpm_client.clone(),
+        )
+        .with_retry(self.req_retries)
+        .with_timeout(self.req_timeout)
+        .with_proxy(self.proxy_uri.clone());
+
+        let response = client.list_modules().await.map_err(Error::HubClient)?;
+
+        let identities = response
+            .into_iter()
+            .map(|module| {
+                ModuleBackup::set_module_backup(
+                    &self.homedir_path,
+                    &device.iothub_hostname,
+                    &device.device_id,
+                    &module.module_id,
+                    Some(Module {
+                        module_id: module.module_id.clone(),
+                        device_id: module.device_id.clone(),
+                        generation_id: module.generation_id.clone(),
+                        managed_by: module.managed_by.clone(),
+                        authentication: None,
+                    }),
+                );
+
+                Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                    hub_name: device.iothub_hostname.clone(),
+                    gateway_host: device.local_gateway_hostname.clone(),
+                    device_id: aziot_identity_common::DeviceId(module.device_id),
+                    module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
+                    gen_id: module.generation_id.map(aziot_identity_common::GenId),
+                    auth: None, //Auth information can be requested via get_module_identity
+                })
+            })
+            .collect();
+
+        Ok(identities)
     }
 }
 
@@ -1134,7 +1143,7 @@ impl ModuleBackup {
         iothub_hostname: &str,
         device_id: &str,
         module_id: &str,
-        data: Option<aziot_identity_common::hub::Module>,
+        data: Option<Module>,
     ) {
         let result = match data {
             Some(module) => {
@@ -1166,7 +1175,7 @@ impl ModuleBackup {
         iothub_hostname: &str,
         device_id: &str,
         module_id: &str,
-    ) -> Option<aziot_identity_common::hub::Module> {
+    ) -> Option<Module> {
         match Self::get_module_path(homedir_path, iothub_hostname, device_id, module_id) {
             Ok(path) => match std::fs::read(path) {
                 Ok(module) => match serde_json::from_slice(&module) {
@@ -1190,6 +1199,46 @@ impl ModuleBackup {
                 None
             }
         }
+    }
+
+    pub fn list_module_backups(
+        device: &IoTHubDevice,
+        homedir_path: &Path,
+    ) -> Result<Vec<Identity>, std::io::Error> {
+        let module_dir =
+            Self::get_device_path(homedir_path, &device.iothub_hostname, &device.device_id)
+                .map_err(|_| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "failed to calculate module path",
+                    )
+                })?;
+        let mut identities = Vec::new();
+
+        // Read all paths in module directory, but ignore directories.
+        for file in std::fs::read_dir(module_dir)? {
+            let path = file?.path();
+
+            if path.is_dir() {
+                continue;
+            }
+
+            let module = std::fs::read(path)?;
+            let module: Module = serde_json::from_slice(&module)?;
+
+            let identity = Identity::Aziot(aziot_identity_common::AzureIoTSpec {
+                hub_name: device.iothub_hostname.clone(),
+                gateway_host: device.local_gateway_hostname.clone(),
+                device_id: aziot_identity_common::DeviceId(module.device_id),
+                module_id: Some(aziot_identity_common::ModuleId(module.module_id)),
+                gen_id: module.generation_id.map(aziot_identity_common::GenId),
+                auth: None, //Auth information can be requested via get_module_identity
+            });
+
+            identities.push(identity);
+        }
+
+        Ok(identities)
     }
 
     fn get_device_path(
