@@ -4,6 +4,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use aziot_identity_common::hub::Module;
 use aziot_identityd_config as config;
 use config::Payload;
 
@@ -294,59 +295,38 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let module = {
-                    let client = aziot_cloud_client_async::HubClient::new(
-                        device,
-                        self.key_client.clone(),
-                        self.tpm_client.clone(),
-                    )
-                    .with_retry(self.req_retries)
-                    .with_timeout(self.req_timeout)
-                    .with_proxy(self.proxy_uri.clone());
+                let prefer_module_identity_cache = true;
 
-                    match client.get_module(module_id).await {
-                        Ok(module) => {
-                            ModuleBackup::set_module_backup(
-                                &self.homedir_path,
-                                &device.iothub_hostname,
-                                &device.device_id,
-                                &module.module_id,
-                                Some(aziot_identity_common::hub::Module {
-                                    module_id: module.module_id.clone(),
-                                    device_id: module.device_id.clone(),
-                                    generation_id: module.generation_id.clone(),
-                                    managed_by: module.managed_by.clone(),
-                                    authentication: None,
-                                }),
-                            );
+                let module = if prefer_module_identity_cache {
+                    let module = ModuleBackup::get_module_backup(
+                        &self.homedir_path,
+                        &device.iothub_hostname,
+                        &device.device_id,
+                        module_id,
+                    );
 
-                            module
-                        }
-                        Err(err) => {
-                            if err.kind() == std::io::ErrorKind::NotFound {
-                                ModuleBackup::set_module_backup(
-                                    &self.homedir_path,
-                                    &device.iothub_hostname,
-                                    &device.device_id,
-                                    module_id,
-                                    None,
-                                );
-                                return Err(Error::HubClient(err));
-                            }
-
-                            let module = ModuleBackup::get_module_backup(
-                                &self.homedir_path,
-                                &device.iothub_hostname,
-                                &device.device_id,
-                                module_id,
-                            );
-
-                            match module {
-                                Some(module) => module,
-                                None => return Err(Error::HubClient(err)),
-                            }
-                        }
+                    if let Some(module) = module {
+                        module
+                    } else {
+                        self.get_module_identity_from_hub(device, module_id).await?
                     }
+                } else if let Ok(module) =
+                    self.get_module_identity_from_hub(device, module_id).await
+                {
+                    module
+                } else {
+                    ModuleBackup::get_module_backup(
+                        &self.homedir_path,
+                        &device.iothub_hostname,
+                        &device.device_id,
+                        module_id,
+                    )
+                    .ok_or_else(|| {
+                        Error::HubClient(std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            format!("module {module_id} not found"),
+                        ))
+                    })?
                 };
 
                 let master_id_key_handle = self.get_master_identity_key().await?;
@@ -977,6 +957,54 @@ impl IdentityManager {
         }
 
         Ok(())
+    }
+
+    async fn get_module_identity_from_hub(
+        &self,
+        device: &aziot_identity_common::IoTHubDevice,
+        module_id: &str,
+    ) -> Result<Module, Error> {
+        let client = aziot_cloud_client_async::HubClient::new(
+            device,
+            self.key_client.clone(),
+            self.tpm_client.clone(),
+        )
+        .with_retry(self.req_retries)
+        .with_timeout(self.req_timeout)
+        .with_proxy(self.proxy_uri.clone());
+
+        match client.get_module(module_id).await {
+            Ok(module) => {
+                ModuleBackup::set_module_backup(
+                    &self.homedir_path,
+                    &device.iothub_hostname,
+                    &device.device_id,
+                    &module.module_id,
+                    Some(aziot_identity_common::hub::Module {
+                        module_id: module.module_id.clone(),
+                        device_id: module.device_id.clone(),
+                        generation_id: module.generation_id.clone(),
+                        managed_by: module.managed_by.clone(),
+                        authentication: None,
+                    }),
+                );
+
+                Ok(module)
+            }
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    ModuleBackup::set_module_backup(
+                        &self.homedir_path,
+                        &device.iothub_hostname,
+                        &device.device_id,
+                        module_id,
+                        None,
+                    );
+                }
+
+                Err(Error::HubClient(err))
+            }
+        }
     }
 }
 
