@@ -27,6 +27,7 @@ pub fn run(
         cloud_timeout_sec,
         cloud_retries,
         aziot_max_requests,
+        prefer_module_identity_cache,
         mut aziot_keys,
         mut preloaded_keys,
         cert_issuance,
@@ -342,6 +343,8 @@ pub fn run(
         },
 
         homedir: super::AZIOT_IDENTITYD_HOMEDIR_PATH.into(),
+
+        prefer_module_identity_cache,
 
         max_requests: aziot_max_requests.identityd,
 

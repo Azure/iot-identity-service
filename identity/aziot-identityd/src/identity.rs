@@ -20,6 +20,7 @@ pub(crate) const DEVICE_BACKUP_LOCATION: &str = "device_info";
 
 pub struct IdentityManager {
     homedir_path: std::path::PathBuf,
+    prefer_module_identity_cache: bool,
     req_timeout: std::time::Duration,
     req_retries: u32,
     key_client: Arc<aziot_key_client_async::Client>,
@@ -46,6 +47,7 @@ impl IdentityManager {
     ) -> Self {
         IdentityManager {
             homedir_path: settings.homedir.clone(),
+            prefer_module_identity_cache: settings.prefer_module_identity_cache,
             req_timeout: std::time::Duration::from_secs(settings.cloud_timeout_sec),
             req_retries: settings.cloud_retries,
             key_client,
@@ -295,9 +297,7 @@ impl IdentityManager {
 
         match &self.iot_hub_device {
             Some(device) => {
-                let prefer_module_identity_cache = true;
-
-                let module = if prefer_module_identity_cache {
+                let module = if self.prefer_module_identity_cache {
                     let module = ModuleBackup::get_module_backup(
                         &self.homedir_path,
                         &device.iothub_hostname,
