@@ -29,14 +29,28 @@
 # cloud_retries controls how many times a request may be retried should it fail.
 # The client will always send at least one attempt, so its value will be the number
 # of retries after the first attempt should that fail (i.e. cloud_retries = 2
-# means that the client will make a total of 3 attempts). 
+# means that the client will make a total of 3 attempts).
 #
-# cloud_timeout_sec has a minimum of 70s to allow hub to throttle requests. 
+# cloud_timeout_sec has a minimum of 70s to allow hub to throttle requests.
 # If a request is throttled, it will enter an exponential backoff with 4 retries instead
 # of using the configured value. The configured value is used for all other errors.
 #
 # cloud_timeout_sec = 70
 # cloud_retries = 1
+
+# ==============================================================================
+# Module identity cache preference
+# ==============================================================================
+#
+# The default behavior is to request module identities from IoT Hub and fall back to a
+# cached backup if the Hub request fails. This keeps identities in sync with IoT Hub,
+# but results in extra requests to Hub that may not be necessary depending on use case.
+#
+# Setting prefer_module_identity_cache to true reverses the behavior so that the cached
+# identities are preferred to IoT Hub requests. Requests to Hub are still made if identities
+# are not found in the cache.
+#
+# prefer_module_identity_cache = false
 
 # ==============================================================================
 # Provisioning
