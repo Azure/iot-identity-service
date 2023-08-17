@@ -298,6 +298,9 @@ impl Connector {
                 match std::fs::remove_file(&*socket_path) {
                     Ok(()) => (),
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(err) if err.kind() == std::io::ErrorKind::IsADirectory => {
+                        std::fs::remove_dir_all(&*socket_path)?
+                    }
                     Err(err) => return Err(err),
                 }
 
