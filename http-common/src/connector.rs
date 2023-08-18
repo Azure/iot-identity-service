@@ -298,7 +298,7 @@ impl Connector {
                 match std::fs::remove_file(&*socket_path) {
                     Ok(()) => (),
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
-                    Err(err) if err.raw_os_error() == Some(21) => {
+                    Err(err) if err.raw_os_error() == Some(libc::EISDIR) => {
                         log::warn!("Could not remove socket file because it is a directory. Removing directory.");
                         std::fs::remove_dir_all(&*socket_path)?
                     },
