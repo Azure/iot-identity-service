@@ -11,7 +11,7 @@ mkdir -p packages
 
 
 case "$OS" in
-    'centos:7'|'platform:el8')
+    'centos:7'|'platform:el8'|'platform:el9')
         case "$ARCH" in
             'arm32v7'|'aarch64')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -29,6 +29,12 @@ case "$OS" in
                 TARGET_DIR="el8/$ARCH"
                 PACKAGE_DIST="el8"
                 ;;
+
+            'platform:el9')
+                TARGET_DIR="el9/$ARCH"
+                PACKAGE_DIST="el9"
+                ;;
+
         esac
 
         yum -y install rpm-build

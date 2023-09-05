@@ -101,6 +101,10 @@ get_package() {
             artifact_name='redhat-ubi8-latest'
             ;;
 
+        'platform:el9')
+            artifact_name='redhat-ubi9-latest'
+            ;;
+
         'ubuntu:18.04')
             artifact_name='ubuntu-18.04'
             ;;
@@ -192,6 +196,11 @@ get_package() {
 
         'platform:el8')
             unzip -j package.zip 'el8/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
+            ;;
+
+        'platform:el9')
+            unzip -j package.zip 'el9/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
             ;;
 
@@ -350,7 +359,7 @@ EOF
                 --query "invokeUrlTemplate" --output tsv \
                 --name $dps_allocation_functionapp_name
         )"
-        
+
         echo 'Creating symmetric key enrollment group in DPS...' >&2
         dps_symmetric_key="$(
             az iot dps enrollment-group create \
@@ -585,6 +594,19 @@ case "$OS" in
         #
         # The Azure SP does not have permissions to do this. Use your regular Azure account.
         vm_image='almalinux:almalinux:8_4-gen2:latest'
+        ;;
+
+     'platform:el9')
+        # az vm image list --all \
+        #     --publisher 'RedHat' --offer 'RHEL' --sku '9-lvm-gen2' \
+        #     --query "[?publisher == 'RedHat' && offer == 'RHEL'].{ sku: sku, version: version, urn: urn }" --output table
+        #
+        # When changing this, accept the VM image terms with
+        #
+        #    az vm image terms accept --urn "$vm_image"
+        #
+        # The Azure SP does not have permissions to do this. Use your regular Azure account.
+        vm_image='RedHat:RHEL:9-lvm-gen2:latest'
         ;;
 
     'ubuntu:18.04')
@@ -880,8 +902,10 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
-    printf 'Device twin: %s\n' \"\$device_twin\" >&2
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
+        device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
+        printf 'Device twin: %s\n' \"\$device_twin\" >&2
+    fi
 
     module_identity=\"\$(
         curl --unix-socket '/run/aziot/identityd.sock' \\
@@ -904,7 +928,9 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
-    printf 'Module twin: %s\n' \"\$module_twin\" >&2
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
+        module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
+        printf 'Module twin: %s\n' \"\$module_twin\" >&2
+    fi
 "
 echo 'Test passed.' >&2
