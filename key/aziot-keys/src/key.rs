@@ -653,30 +653,34 @@ fn create_inner(
                     }
                 };
 
-                // At this point we've successfully created an AES key but we don't know if the token supports AES-GCM specifically or not.
-                // So we do a dummy encryption.
+                if let pkcs11::KeyUsage::Aes = usage {
+                    // At this point we've successfully created an AES key but we don't know if the token supports AES-GCM specifically or not.
+                    // So we do a dummy encryption.
 
-                let iv: &[u8; 12] = b"123456789012";
-                let aad = b"someaad";
-                let plaintext = b"someplaintext";
-                // We can use the block size of AES-256-GCM from openssl even though the token didn't necessarily use AES-256-GCM,
-                // because all AES ciphers have the same block size by definition.
-                let cipher = openssl::symm::Cipher::aes_256_gcm();
-                let mut ciphertext = vec![0_u8; plaintext.len() + cipher.block_size() + 16];
+                    let iv: &[u8; 12] = b"123456789012";
+                    let aad = b"someaad";
+                    let plaintext = b"someplaintext";
+                    // We can use the block size of AES-256-GCM from openssl even though the token didn't necessarily use AES-256-GCM,
+                    // because all AES ciphers have the same block size by definition.
+                    let cipher = openssl::symm::Cipher::aes_256_gcm();
+                    let mut ciphertext = vec![0_u8; plaintext.len() + cipher.block_size() + 16];
 
-                if pkcs11_object
-                    .encrypt(iv, aad, plaintext, &mut ciphertext)
-                    .is_ok()
-                {
+                    if pkcs11_object
+                        .encrypt(iv, aad, plaintext, &mut ciphertext)
+                        .is_ok()
+                    {
+                        return Ok(());
+                    }
+
+                    // Delete the object we just created...
+                    if let Some(object_label) = &uri.object_label {
+                        let _ = pkcs11_session.clone().delete_key(object_label);
+                    }
+
+                    // ... and continue to the next location.
+                } else {
                     return Ok(());
                 }
-
-                // Delete the object we just created...
-                if let Some(object_label) = &uri.object_label {
-                    let _ = pkcs11_session.clone().delete_key(object_label);
-                }
-
-                // ... and continue to the next location.
             }
         }
     }
