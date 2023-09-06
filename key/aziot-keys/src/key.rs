@@ -669,14 +669,14 @@ fn create_inner(
                     .is_ok()
                 {
                     return Ok(());
-                } else {
-                    // Delete the object we just created...
-                    if let Some(object_label) = &uri.object_label {
-                        _ = pkcs11_session.clone().delete_key(object_label);
-                    }
-
-                    // ... and continue to the next location.
                 }
+
+                // Delete the object we just created...
+                if let Some(object_label) = &uri.object_label {
+                    let _ = pkcs11_session.clone().delete_key(object_label);
+                }
+
+                // ... and continue to the next location.
             }
         }
     }
