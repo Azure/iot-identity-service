@@ -70,7 +70,7 @@ pub fn write_file(
     // doesn't exist, in which case great, or b) there is some sort of permission
     // or path error which will just crop up in the fs::write call anyway
 
-    let _ = fs::remove_file(path);
+    let _file = fs::remove_file(path);
 
     let () = fs::write(path, content)
         .with_context(|| format!("could not create {}", path_displayable))?;
