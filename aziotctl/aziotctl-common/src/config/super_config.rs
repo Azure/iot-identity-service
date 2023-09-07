@@ -54,6 +54,9 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "AziotMaxRequests::is_default")]
     pub aziot_max_requests: AziotMaxRequests,
 
+    #[serde(default)]
+    pub prefer_module_identity_cache: bool,
+
     pub provisioning: Provisioning,
 
     pub localid: Option<aziot_identityd_config::LocalId>,
@@ -397,9 +400,7 @@ mod base64 {
             where
                 E: serde::de::Error,
             {
-                let engine = base64::engine::general_purpose::STANDARD;
-                let b = base64::Engine::decode(&engine, s).map_err(serde::de::Error::custom)?;
-                Ok(b)
+                crate::config::base64_decode_ignore_pad(s).map_err(serde::de::Error::custom)
             }
         }
 

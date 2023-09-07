@@ -219,6 +219,7 @@ mod tests {
             max_requests: 10,
             cloud_retries: 1,
             cloud_timeout_sec: 1,
+            prefer_module_identity_cache: false,
             provisioning: device_provisioning,
             principal: Vec::new(),
             endpoints: Endpoints::default(),

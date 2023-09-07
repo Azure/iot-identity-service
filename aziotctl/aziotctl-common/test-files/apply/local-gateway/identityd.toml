@@ -1,5 +1,6 @@
 hostname = "my-device"
 homedir = "/var/lib/aziot/identityd"
+prefer_module_identity_cache = false
 
 [provisioning]
 local_gateway_hostname = "my-gateway-device"
