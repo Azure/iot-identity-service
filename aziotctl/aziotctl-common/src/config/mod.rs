@@ -64,7 +64,7 @@ pub fn write_file(
 
     // We're about to truncate the file anyway, but it is a little safer to
     // fully remove it, as a truncating write does not actually reset ownership
-    // or user permissions (which can lead to needing CAP_FOWNER, as then we 
+    // or user permissions (which can lead to needing CAP_FOWNER, as then we
     // encounter a set_permissions call on a file we may or may not own). We
     // can just ignore any errors returned here as they either mean a) the file
     // doesn't exist, in which case great, or b) there is some sort of permission
