@@ -22,14 +22,10 @@ get_hostname() {
 	printf "$hostname"
 }
 
+snapctl get raw-config > /etc/aziot/config.toml
+
 {
 	toml_kvp "hostname" "$(get_hostname)"
-
-	snapctl get raw-config
-
-	toml_new_section "aziot_keys"
-	toml_kvp "homedir_path" "$SNAP_COMMON/libaziot_keys_homedir"
-
-} > /etc/aziot/config.toml
+} | tee /etc/aziot/keyd/config.d/01-snap.toml /etc/aziot/certd/config.d/01-snap.toml /etc/aziot/identityd/config.d/01-snap.toml /etc/aziot/tpmd/config.d/01-snap.toml
 
 $SNAP/bin/aziotctl config apply
