@@ -126,7 +126,7 @@ case "$OS:$ARCH" in
             pkgconfig
         ;;
 
-     'platform:el9:amd64')
+    'platform:el9:amd64')
         export VENDOR_LIBTSS=1
 
         dnf install -y \
