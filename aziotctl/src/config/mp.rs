@@ -75,6 +75,8 @@ To reconfigure IoT Identity Service, run:
 
         aziot_max_requests: Default::default(),
 
+        prefer_module_identity_cache: Default::default(),
+
         aziot_keys: Default::default(),
 
         preloaded_keys: Default::default(),
