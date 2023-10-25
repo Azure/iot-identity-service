@@ -692,6 +692,8 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
+            sudo yum -y clean all
+            sudo yum -y makecache
             sudo yum -y update
 
             # The test needs jq
@@ -731,6 +733,8 @@ case "$OS" in
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
             set -euxo pipefail
 
+            sudo yum -y clean all
+            sudo yum -y makecache
             sudo yum -y update
         '
         ;;
