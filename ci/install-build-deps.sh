@@ -269,9 +269,6 @@ case "$OS:$ARCH" in
             libclang1 libssl-dev llvm-dev \
             cpio genisoimage golang-1.20-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
 
-        apt-get update
-        apt-get upgrade -y
-
         rm -f /usr/bin/go
         ln -vs /usr/lib/go-1.20/bin/go /usr/bin/go
         if [ -f /.dockerenv ]; then
