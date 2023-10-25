@@ -267,10 +267,13 @@ case "$OS:$ARCH" in
         apt-get install -y \
             cmake curl gcc g++ git jq make pkg-config \
             libclang1 libssl-dev llvm-dev \
-            cpio genisoimage golang-1.19-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
+            cpio genisoimage golang-1.20-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
+
+        apt-get update
+        apt-get upgrade -y
 
         rm -f /usr/bin/go
-        ln -vs /usr/lib/go-1.19/bin/go /usr/bin/go
+        ln -vs /usr/lib/go-1.20/bin/go /usr/bin/go
         if [ -f /.dockerenv ]; then
             mv /.dockerenv /.dockerenv.old
         fi
