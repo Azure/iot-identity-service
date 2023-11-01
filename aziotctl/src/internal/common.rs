@@ -108,8 +108,8 @@ pub async fn resolve_and_tls_handshake(
 pub(crate) fn get_system_user(name: &str) -> anyhow::Result<User> {
     if Uid::current().is_root() {
         Ok(User::from_name(name)
-            .with_context(|| format!("could not query {} user information", name))?
-            .ok_or_else(|| anyhow!("could not query {} user information", name))?)
+            .with_context(|| format!("could not query {name} user information"))?
+            .ok_or_else(|| anyhow!("could not query {name} user information"))?)
     } else if cfg!(debug_assertions) {
         Ok(User::from_uid(Uid::current())
             .context("could not query current user information")?

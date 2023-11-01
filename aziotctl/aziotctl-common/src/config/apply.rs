@@ -139,10 +139,7 @@ pub fn run(
                                             cn: device_id.clone(),
                                             rest: entries
                                                 .iter()
-                                                .filter_map(|(k, v)| {
-                                                    (!k.eq_ignore_ascii_case("cn"))
-                                                        .then(|| (k.to_uppercase(), v.clone()))
-                                                })
+                                                .filter(|&(k, v)| (!k.eq_ignore_ascii_case("cn"))).map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                 .collect(),
                                         })
                                     }
@@ -268,10 +265,7 @@ pub fn run(
                                                 cn: id,
                                                 rest: entries
                                                     .iter()
-                                                    .filter_map(|(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn"))
-                                                            .then(|| (k.to_uppercase(), v.clone()))
-                                                    })
+                                                    .filter(|&(k, v)| (!k.eq_ignore_ascii_case("cn"))).map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                     .collect(),
                                             }
                                         }
@@ -636,7 +630,7 @@ pub fn set_est_auth(
 
                     // Certificates Service needs authorization to manage a temporary key
                     // during key rotation.
-                    aziotcs_keys.keys.push(format!("{}-temp", identity_cert_id));
+                    aziotcs_keys.keys.push(format!("{identity_cert_id}-temp"));
 
                     Some(aziot_certd_config::CertificateWithPrivateKey {
                         cert: bootstrap_cert_id.clone(),

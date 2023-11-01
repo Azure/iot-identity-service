@@ -6,7 +6,8 @@
     clippy::let_and_return,
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
-    clippy::shadow_unrelated
+    clippy::shadow_unrelated,
+    clippy::uninlined_format_args
 )]
 
 pub struct Client {

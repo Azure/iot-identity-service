@@ -197,12 +197,11 @@ fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
             _ => {
                 let message = if shared.cfg.verbose {
                     format!(
-                        "{}'s configuration is not well-formed.\n\
-                        Note: In case of syntax errors, the error may not be exactly at the reported line number and position.",
-                        daemon,
+                        "{daemon}'s configuration is not well-formed.\n\
+                        Note: In case of syntax errors, the error may not be exactly at the reported line number and position."
                     )
                 } else {
-                    format!("{}'s configuration file is not well-formed.", daemon)
+                    format!("{daemon}'s configuration file is not well-formed.")
                 };
 
                 if let Some(path) = path {

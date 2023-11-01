@@ -40,7 +40,7 @@ async fn renewal_loop<I>(
                 }
             }
 
-            futures_util::future::Either::Right((_, _)) => {
+            futures_util::future::Either::Right(((), _)) => {
                 let mut engine = engine.lock().await;
 
                 loop {
@@ -231,7 +231,7 @@ where
     let mut credential = if let Some(credential) = engine.credentials.remove(cert_id, key_id) {
         credential
     } else {
-        return Err(crate::Error::fatal_error(format!("{} not found", cert_id)));
+        return Err(crate::Error::fatal_error(format!("{cert_id} not found")));
     };
 
     let output = match get_cert_chain(
@@ -346,8 +346,8 @@ where
     let expiry = crate::Time::from(cert_chain[0].not_after());
 
     if expiry.in_past() {
-        let message = format!("Cert {} is expired and could not be renewed", cert_id);
-        log::error!("{}.", message);
+        let message = format!("Cert {cert_id} is expired and could not be renewed");
+        log::error!("{message}.");
 
         Err(crate::Error::retryable_error(message))
     } else {

@@ -55,17 +55,17 @@ impl ReadCerts {
                 let cert = cert_client
                     .get_cert(id)
                     .await
-                    .with_context(|| format!("could not load cert with ID {:?}", id))?;
+                    .with_context(|| format!("could not load cert with ID {id:?}"))?;
 
                 // PEM blob might have multiple certs, but we only care about the first one.
                 // However we still use `openssl::x509::X509::stack_from_pem` so that all the certs in the PEM
                 // are parsed and thus verified to be correct.
                 let cert = openssl::x509::X509::stack_from_pem(&cert)
-                    .with_context(|| format!("could not load cert with ID {:?}", id))?
+                    .with_context(|| format!("could not load cert with ID {id:?}"))?
                     .into_iter()
                     .next()
                     .with_context(|| {
-                        format!("could not load cert with ID {:?}: cert is empty", id)
+                        format!("could not load cert with ID {id:?}: cert is empty")
                     })?;
                 Ok::<_, anyhow::Error>(cert)
             };
@@ -77,7 +77,7 @@ impl ReadCerts {
                     if !err_aggregated.is_empty() {
                         err_aggregated.push('\n');
                     }
-                    write!(&mut err_aggregated, "{:?}", err)
+                    write!(&mut err_aggregated, "{err:?}")
                         .expect("std::fmt::Write for String should not fail");
                 }
             }

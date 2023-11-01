@@ -312,7 +312,7 @@ impl std::fmt::Debug for Error {
 
         let mut source = self.0.source();
         while let Some(err) = source {
-            writeln!(f, "caused by: {}", err)?;
+            writeln!(f, "caused by: {err}")?;
             source = err.source();
         }
 

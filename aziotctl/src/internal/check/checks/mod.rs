@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![allow(clippy::box_default)]
+
 use super::Checker;
 
 /// Tries to unwrap an option, early-returning with

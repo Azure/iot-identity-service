@@ -39,7 +39,7 @@ async fn try_main() -> Result<()> {
 #[tokio::main]
 async fn main() {
     if let Err(err) = try_main().await {
-        eprintln!("{:?}", err);
+        eprintln!("{err:?}");
     }
 }
 

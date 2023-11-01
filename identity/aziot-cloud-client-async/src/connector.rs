@@ -57,14 +57,14 @@ pub(crate) async fn auth_header(
             scope_id,
             registration_id,
         } => (
-            format!("{}/registrations/{}", scope_id, registration_id),
+            format!("{scope_id}/registrations/{registration_id}"),
             true,
         ),
 
         Audience::Hub {
             hub_hostname,
             device_id,
-        } => (format!("{}/devices/{}", hub_hostname, device_id), false),
+        } => (format!("{hub_hostname}/devices/{device_id}"), false),
     };
 
     match auth {
@@ -138,13 +138,13 @@ async fn generate_token(
     let audience = audience.to_lowercase();
     let resource_uri = percent_encoding::percent_encode(audience.as_bytes(), crate::ENCODE_SET);
 
-    let sig_data = format!("{}\n{}", resource_uri, expiry);
+    let sig_data = format!("{resource_uri}\n{expiry}");
     let signature = client.sign_data(key_handle, sig_data.as_bytes()).await?;
     let engine = base64::engine::general_purpose::STANDARD;
-    let signature = base64::Engine::encode(&engine, &signature);
+    let signature = base64::Engine::encode(&engine, signature);
 
     let token = {
-        let mut token = url::form_urlencoded::Serializer::new(format!("sr={}", resource_uri));
+        let mut token = url::form_urlencoded::Serializer::new(format!("sr={resource_uri}"));
 
         token
             .append_pair("sig", &signature)
@@ -157,5 +157,5 @@ async fn generate_token(
         token.finish()
     };
 
-    Ok(format!("SharedAccessSignature {}", token))
+    Ok(format!("SharedAccessSignature {token}"))
 }

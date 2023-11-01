@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![allow(clippy::manual_let_else)]
+
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 use url::Url;
@@ -59,8 +61,7 @@ impl HostConnectDpsEndpoint {
             .parse::<hyper::Uri>()
             .with_context(|| {
                 format!(
-                    "url::Url {:?} could not be parsed as hyper::Uri",
-                    dps_endpoint
+                    "url::Url {dps_endpoint:?} could not be parsed as hyper::Uri"
                 )
             })?;
 

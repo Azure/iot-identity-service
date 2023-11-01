@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
-
+#![allow(
+    clippy::missing_panics_doc
+)]
 use std::fs;
 use std::path::Path;
 
@@ -28,7 +30,7 @@ pub fn check_last_modified(services: &[&str]) -> Result<(), LastModifiedError> {
         .expect("file metadata should contain valid last_modified");
 
     for service in services {
-        let service_config = format!("/etc/aziot/{}/config.d/00-super.toml", service);
+        let service_config = format!("/etc/aziot/{service}/config.d/00-super.toml");
         let service_config = Path::new(&service_config);
 
         if !service_config.exists() {

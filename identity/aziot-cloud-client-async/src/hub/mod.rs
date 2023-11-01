@@ -168,7 +168,7 @@ impl Client {
             if let Some(module_id) = module_id {
                 let module_id =
                     percent_encoding::percent_encode(module_id.as_bytes(), crate::ENCODE_SET);
-                path = format!("{}/{}", path, module_id);
+                path = format!("{path}/{module_id}");
             }
 
             path

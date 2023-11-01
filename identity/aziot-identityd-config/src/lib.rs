@@ -264,7 +264,7 @@ impl Payload {
                 "payload uri is not a file",
             ));
         }
-        let content = std::fs::read_to_string(url.to_file_path().map_err(|_| {
+        let content = std::fs::read_to_string(url.to_file_path().map_err(|()| {
             std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
         })?)
         .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;

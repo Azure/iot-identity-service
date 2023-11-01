@@ -11,7 +11,7 @@ use super::ServiceDefinition;
 pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
         write_log_level_file(service, level).with_context(|| {
-            format!("could not write log level service override for {}", service)
+            format!("could not write log level service override for {service}")
         })?;
     }
     Command::new("systemctl")
@@ -24,11 +24,11 @@ pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Resu
 }
 
 fn write_log_level_file(service: &str, level: log::Level) -> Result<()> {
-    let directory = format!("/etc/systemd/system/{}.d", service);
+    let directory = format!("/etc/systemd/system/{service}.d");
     fs::create_dir_all(&directory)?;
 
-    let filename = format!("{}/log-level.conf", directory);
-    let contents = format!("[Service]\nEnvironment=AZIOT_LOG={}", level);
+    let filename = format!("{directory}/log-level.conf");
+    let contents = format!("[Service]\nEnvironment=AZIOT_LOG={level}");
 
     let mut file = fs::File::create(filename)?;
     file.write_all(contents.as_bytes())?;

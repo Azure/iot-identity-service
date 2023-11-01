@@ -70,7 +70,7 @@ impl ReadKeyPairs {
                 if let Err(err) =
                     aziotctl_common::config::check_readable(&path, &aziotks_user, false)
                 {
-                    err_aggregated.push(format!("{:?}", err));
+                    err_aggregated.push(format!("{err:?}"));
                     // There's no point trying to load the key through the API,
                     // so just continue to the next key.
                     continue;
@@ -88,9 +88,7 @@ impl ReadKeyPairs {
             // since PKCS#11 implementations are generally not cross-process-safe.
             //
             // So as a best effort, ignore errors from loading key pairs entirely.
-            let key_handle = if let Ok(key_handle) = key_client.load_key_pair(id).await {
-                key_handle
-            } else {
+            let Ok(key_handle) = key_client.load_key_pair(id).await else {
                 continue;
             };
 
@@ -98,7 +96,7 @@ impl ReadKeyPairs {
                 let key_handle = std::ffi::CString::new(key_handle.0)
                     .context("internal error: key handle is malformed")?;
                 let key = key_engine.load_private_key(&key_handle).with_context(|| {
-                    format!("could not load preloaded private key with ID {:?}", id)
+                    format!("could not load preloaded private key with ID {id:?}")
                 })?;
                 Ok::<_, anyhow::Error>(key)
             };
@@ -110,29 +108,26 @@ impl ReadKeyPairs {
 
                         if key_length < RSA_RECOMMENDED_MIN_BITS {
                             warn_aggregated.push(format!(
-                                "RSA key {} has length {} (min recommended: {})",
-                                id, key_length, RSA_RECOMMENDED_MIN_BITS
+                                "RSA key {id} has length {key_length} (min recommended: {RSA_RECOMMENDED_MIN_BITS})"
                             ));
                         }
                     } else if let Ok(ec_key) = key.ec_key() {
                         if ec_key.group().curve_name() != Some(openssl::nid::Nid::X9_62_PRIME256V1)
                         {
                             warn_aggregated.push(format!(
-                                "EC key {} not using recommended curve (recommended: P-256)",
-                                id
+                                "EC key {id} not using recommended curve (recommended: P-256)"
                             ));
                         }
                     } else {
                         warn_aggregated.push(format!(
-                            "Key {} not using recommended algorithm (recommended: RSA, EC)",
-                            id
+                            "Key {id} not using recommended algorithm (recommended: RSA, EC)"
                         ));
                     }
 
                     cache.private_keys.insert(id.clone(), key);
                 }
                 Err(err) => {
-                    err_aggregated.push(format!("{:?}", err));
+                    err_aggregated.push(format!("{err:?}"));
                 }
             }
         }

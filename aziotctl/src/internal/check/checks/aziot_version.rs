@@ -66,7 +66,7 @@ impl AziotVersion {
                 };
 
                 let res = client.request(req).await.with_context(|| {
-                    format!("could not query {} for latest available version", uri)
+                    format!("could not query {uri} for latest available version")
                 })?;
                 match res.status() {
                     status_code if status_code.is_redirection() => {

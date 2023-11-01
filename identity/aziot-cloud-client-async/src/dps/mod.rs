@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![allow(clippy::missing_errors_doc)]
 pub mod schema;
 
 use std::io::{Error, ErrorKind};
@@ -81,7 +82,7 @@ impl Client {
         let connector = crate::connector::from_auth(&self.auth, self.proxy.clone())?;
 
         let register_uri = {
-            let register_path = format!("{}/registrations/{}/register", scope_id, registration_id);
+            let register_path = format!("{scope_id}/registrations/{registration_id}/register");
 
             let mut register_uri = self.endpoint.clone();
             register_uri.set_path(&register_path);
@@ -215,8 +216,7 @@ impl Client {
         // Determine the registration request's status URI.
         let status_uri = {
             let status_path = format!(
-                "{}/registrations/{}/operations/{}",
-                scope_id, registration_id, operation_id
+                "{scope_id}/registrations/{registration_id}/operations/{operation_id}"
             );
 
             let mut status_uri = self.endpoint.clone();

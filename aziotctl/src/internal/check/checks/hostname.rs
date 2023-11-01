@@ -63,7 +63,7 @@ impl Hostname {
             let machine_hostname = machine_hostname.to_lowercase();
 
             if config_hostname != machine_hostname
-                && !config_hostname.starts_with(&format!("{}.", machine_hostname))
+                && !config_hostname.starts_with(&format!("{machine_hostname}."))
             {
                 return Err(anyhow!(
                     "identityd config has hostname {} but device reports hostname {}.\n\

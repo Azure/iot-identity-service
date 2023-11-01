@@ -400,7 +400,7 @@ impl Api {
                     None => Err(
                         Error::invalid_parameter(
                             "moduleId",
-                            format!("local identity for {} doesn't exist", module_id)
+                            format!("local identity for {module_id} doesn't exist")
                         )
                     ),
                 }
@@ -463,7 +463,7 @@ impl Api {
                     // Don't create a local identity for a module in the principals list.
                     Err(Error::invalid_parameter(
                         "moduleId",
-                        format!("local identity for {} already exists", module_id)
+                        format!("local identity for {module_id} already exists")
                     ))
                 } else {
                     let opts = opts.map(|opts| {

@@ -10,6 +10,7 @@
     clippy::too_many_lines,
     clippy::type_complexity,
     clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
     clippy::must_use_candidate
 )]
 
@@ -106,10 +107,7 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
             return false;
         }
 
-        let first_char = match label.chars().next() {
-            Some(c) => c,
-            None => return false,
-        };
+        let Some(first_char) = label.chars().next() else { return false };
         if !first_char.is_ascii_alphabetic() {
             return false;
         }
