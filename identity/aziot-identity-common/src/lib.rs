@@ -2,6 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(clippy::derivable_impls)]
 
 /// URI query parameter that identifies module identity type.
 pub const ID_TYPE_AZIOT: &str = "aziot";

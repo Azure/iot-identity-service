@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+#![allow(clippy::missing_panics_doc)]
+
 use std::io::{Error, ErrorKind};
 
 use crate::backoff::DEFAULT_BACKOFF;
