@@ -33,7 +33,7 @@ pub fn create_dir_all(path: impl AsRef<Path>, user: &User, mode: u32) -> anyhow:
 
     // Create `path` and all its parent directories.
     let () = fs::create_dir_all(path)
-        .with_context(|| format!("could not create {} directory", path_displayable))?;
+        .with_context(|| format!("could not create {path_displayable} directory"))?;
 
     // Enforce all parent directories of `path` are readable by `user`.
     if let Some(parent) = path.parent() {

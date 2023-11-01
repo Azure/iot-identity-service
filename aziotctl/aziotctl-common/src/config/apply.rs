@@ -139,7 +139,7 @@ pub fn run(
                                             cn: device_id.clone(),
                                             rest: entries
                                                 .iter()
-                                                .filter(|&(k, v)| (!k.eq_ignore_ascii_case("cn")))
+                                                .filter(|&(k, _v)| (!k.eq_ignore_ascii_case("cn")))
                                                 .map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                 .collect(),
                                         })
@@ -266,8 +266,8 @@ pub fn run(
                                                 cn: id,
                                                 rest: entries
                                                     .iter()
-                                                    .filter(|&(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn"))
+                                                    .filter(|&(k, _v)| {
+                                                        !k.eq_ignore_ascii_case("cn")
                                                     })
                                                     .map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                     .collect(),
