@@ -30,7 +30,7 @@ pub fn get_path(
 
     let hash = openssl::hash::hash(openssl::hash::MessageDigest::sha256(), cert_id.as_bytes())?;
     let hash = hex::encode(hash);
-    path.push(format!("{}-{}.cer", id_sanitized, hash));
+    path.push(format!("{id_sanitized}-{hash}.cer"));
 
     Ok(path)
 }
@@ -44,16 +44,14 @@ fn get_preloaded_cert_path(
             let scheme = uri.scheme();
             if scheme != "file" {
                 return Err(format!(
-                    "preloaded cert {:?} does not have a valid URI: unrecognized scheme {:?}",
-                    cert_id, scheme,
+                    "preloaded cert {cert_id:?} does not have a valid URI: unrecognized scheme {scheme:?}",
                 )
                 .into());
             }
 
             let path = uri.to_file_path().map_err(|()| {
                 format!(
-                    "preloaded cert {:?} does not have a valid URI: not a valid path",
-                    cert_id,
+                    "preloaded cert {cert_id:?} does not have a valid URI: not a valid path",
                 )
             })?;
 
@@ -61,8 +59,7 @@ fn get_preloaded_cert_path(
         }
 
         PreloadedCert::Ids(_) => Err(format!(
-            "preloaded cert {:?} is a list of IDs, not a single URI",
-            cert_id,
+            "preloaded cert {cert_id:?} is a list of IDs, not a single URI",
         )
         .into()),
     }
