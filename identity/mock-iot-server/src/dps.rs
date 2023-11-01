@@ -78,10 +78,8 @@ fn register(
 fn operation_status(operation_id: &str, context: &mut crate::server::Context) -> Response {
     let mut context = context.lock().unwrap();
 
-    let operation = if let Some(operation) = context.in_progress_operations.remove(operation_id) {
-        operation
-    } else {
-        return Response::not_found(format!("operation {} not found", operation_id));
+    let Some(operation) = context.in_progress_operations.remove(operation_id) else {
+        return Response::not_found(format!("operation {operation_id} not found"));
     };
 
     // Add new device with empty module set for successful registrations.

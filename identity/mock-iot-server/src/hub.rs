@@ -63,10 +63,7 @@ pub(crate) fn process_request(
 
     let mut context = context.lock().unwrap();
 
-    let modules = match context.devices.get_mut(&device_id) {
-        Some(modules) => modules,
-        None => return None,
-    };
+    let Some(modules) = context.devices.get_mut(&device_id) else { return None };
 
     if MODULE_REGEX.is_match(&action) {
         let captures = MODULE_REGEX.captures(&action).unwrap();
