@@ -107,7 +107,9 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
             return false;
         }
 
-        let Some(first_char) = label.chars().next() else { return false };
+        let Some(first_char) = label.chars().next() else {
+            return false;
+        };
         if !first_char.is_ascii_alphabetic() {
             return false;
         }

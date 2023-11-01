@@ -686,7 +686,12 @@ impl IdentityManager {
         local_gateway_hostname: Option<String>,
         payload: Option<Payload>,
     ) -> Result<IoTHubDevice, Error> {
-        let Some(backup_device) = self.get_backup_provisioning_info(credentials.clone()) else { return Err(Error::DpsClient(std::io::Error::new(std::io::ErrorKind::Other, "backup device cannot be none"))); };
+        let Some(backup_device) = self.get_backup_provisioning_info(credentials.clone()) else {
+            return Err(Error::DpsClient(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "backup device cannot be none",
+            )));
+        };
 
         if skip_if_backup_is_valid {
             let backup_device = backup_device;

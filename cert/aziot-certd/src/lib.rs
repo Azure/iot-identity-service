@@ -677,11 +677,9 @@ async fn get_credentials(
 
     let mut key_engine = api.key_engine.lock().expect("mutex poisoned");
 
-    let pk = key_engine.load_private_key(&pk_handle).map_err(|err| {
-        format!(
-            "could not get EST bootstrap identity cert private key: {err}"
-        )
-    })?;
+    let pk = key_engine
+        .load_private_key(&pk_handle)
+        .map_err(|err| format!("could not get EST bootstrap identity cert private key: {err}"))?;
 
     Ok((cert, pk))
 }

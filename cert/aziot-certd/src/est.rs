@@ -146,28 +146,22 @@ async fn get_pkcs7_response(
     let body = hyper::body::to_bytes(body).await?;
 
     if status != hyper::StatusCode::OK {
-        return Err(format!(
-            "EST endpoint did not return successful response: {status} {body:?}",
-        )
-        .into());
+        return Err(
+            format!("EST endpoint did not return successful response: {status} {body:?}",).into(),
+        );
     }
 
     let content_type = headers
         .get(hyper::header::CONTENT_TYPE)
         .ok_or("EST response does not contain content-type header")?
         .to_str()
-        .map_err(|err| {
-            format!(
-                "EST response does not contain valid content-type header: {err}"
-            )
-        })?;
+        .map_err(|err| format!("EST response does not contain valid content-type header: {err}"))?;
     if content_type != "application/pkcs7-mime"
         && !content_type.starts_with("application/pkcs7-mime;")
     {
-        return Err(format!(
-            "EST response has unexpected content-type header: {content_type}"
-        )
-        .into());
+        return Err(
+            format!("EST response has unexpected content-type header: {content_type}").into(),
+        );
     }
 
     let pkcs7 = Pkcs7::from_pem(&body).or_else(|_| -> Result<_, crate::BoxedError> {

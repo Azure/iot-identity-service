@@ -279,10 +279,7 @@ pub async fn check(cfg: Options) -> Result<()> {
             None => (None, None),
         };
 
-        serde_json::to_value(AdditionalInfo::new(
-            iothub_hostname,
-            local_gateway_hostname,
-        ))?
+        serde_json::to_value(AdditionalInfo::new(iothub_hostname, local_gateway_hostname))?
     };
 
     match cfg.output {

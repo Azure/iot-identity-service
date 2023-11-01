@@ -221,7 +221,9 @@ impl LocalCaCert {
             .local_ca
             .as_ref()
             .map(|local_ca| &local_ca.cert);
-        let Some(cert_id) = cert_id else { return Ok(CheckResult::Ignored) };
+        let Some(cert_id) = cert_id else {
+            return Ok(CheckResult::Ignored);
+        };
 
         let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;
 

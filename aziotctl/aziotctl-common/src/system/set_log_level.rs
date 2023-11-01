@@ -10,9 +10,8 @@ use super::ServiceDefinition;
 
 pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Result<()> {
     for service in services.iter().map(|s| s.service) {
-        write_log_level_file(service, level).with_context(|| {
-            format!("could not write log level service override for {service}")
-        })?;
+        write_log_level_file(service, level)
+            .with_context(|| format!("could not write log level service override for {service}"))?;
     }
     Command::new("systemctl")
         .arg("daemon-reload")

@@ -216,9 +216,8 @@ impl Client {
 
         // Determine the registration request's status URI.
         let status_uri = {
-            let status_path = format!(
-                "{scope_id}/registrations/{registration_id}/operations/{operation_id}"
-            );
+            let status_path =
+                format!("{scope_id}/registrations/{registration_id}/operations/{operation_id}");
 
             let mut status_uri = self.endpoint.clone();
             status_uri.set_path(&status_path);

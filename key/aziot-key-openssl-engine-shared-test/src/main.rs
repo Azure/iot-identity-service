@@ -101,9 +101,7 @@ async fn main() -> Result<(), Error> {
                                 .unwrap()
                         );
                     }
-                    println!(
-                        "openssl verification result: {openssl_verification_result}"
-                    );
+                    println!("openssl verification result: {openssl_verification_result}");
                     openssl_verification_result
                 },
             );

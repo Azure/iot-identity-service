@@ -43,11 +43,8 @@ pub fn create_dir_all(path: impl AsRef<Path>, user: &User, mode: u32) -> anyhow:
     // Set `path` itself to have the given owner and mode.
     let () = unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {path_displayable} directory"))?;
-    let () = fs::set_permissions(path, fs::Permissions::from_mode(mode)).with_context(|| {
-        format!(
-            "could not set permissions on {path_displayable} directory"
-        )
-    })?;
+    let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
+        .with_context(|| format!("could not set permissions on {path_displayable} directory"))?;
 
     Ok(())
 }
@@ -61,8 +58,8 @@ pub fn write_file(
     let path = path.as_ref();
     let path_displayable = path.display();
 
-    let () = fs::write(path, content)
-        .with_context(|| format!("could not create {path_displayable}"))?;
+    let () =
+        fs::write(path, content).with_context(|| format!("could not create {path_displayable}"))?;
     let () = unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {path_displayable}"))?;
     let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))

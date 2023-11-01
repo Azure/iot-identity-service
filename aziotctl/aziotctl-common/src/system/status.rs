@@ -76,9 +76,7 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
 
     let name = crate::program_name();
     println!("Use '{name} system logs' to check for non-fatal errors.");
-    println!(
-        "Use '{name} check' to diagnose connectivity and configuration issues."
-    );
+    println!("Use '{name} check' to diagnose connectivity and configuration issues.");
 
     Ok(())
 }

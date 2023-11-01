@@ -165,10 +165,10 @@ pub(crate) unsafe extern "C" fn derive_key(
         let locations = crate::implementation::Location::of(base_id)?;
 
         let Some(base_key) = load_inner(&locations)? else {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "base_id",
-                    "key not found",
-                ))
+            return Err(crate::implementation::err_invalid_parameter(
+                "base_id",
+                "key not found",
+            ));
         };
 
         let expected_derived_key =
@@ -207,10 +207,10 @@ pub(crate) unsafe fn sign(
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let Some(key) = load_inner(locations)? else {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, _) = if mechanism == crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED {
@@ -256,10 +256,10 @@ pub(crate) unsafe fn verify(
     signature: &[u8],
 ) -> Result<bool, crate::AZIOT_KEYS_RC> {
     let Some(key) = load_inner(locations)? else {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     match key {
@@ -337,10 +337,10 @@ pub(crate) unsafe fn encrypt(
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let Some(key) = load_inner(locations)? else {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
@@ -410,10 +410,10 @@ pub(crate) unsafe fn decrypt(
     ciphertext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let Some(key) = load_inner(locations)? else {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {

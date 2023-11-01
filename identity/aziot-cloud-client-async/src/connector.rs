@@ -56,10 +56,7 @@ pub(crate) async fn auth_header(
         Audience::Registration {
             scope_id,
             registration_id,
-        } => (
-            format!("{scope_id}/registrations/{registration_id}"),
-            true,
-        ),
+        } => (format!("{scope_id}/registrations/{registration_id}"), true),
 
         Audience::Hub {
             hub_hostname,

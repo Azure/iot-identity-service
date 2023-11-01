@@ -60,9 +60,7 @@ impl HostConnectDpsEndpoint {
             .to_string()
             .parse::<hyper::Uri>()
             .with_context(|| {
-                format!(
-                    "url::Url {dps_endpoint:?} could not be parsed as hyper::Uri"
-                )
+                format!("url::Url {dps_endpoint:?} could not be parsed as hyper::Uri")
             })?;
 
         crate::internal::common::resolve_and_tls_handshake(

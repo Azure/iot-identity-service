@@ -433,10 +433,10 @@ pub(crate) unsafe fn encrypt(
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
     let Some(key_pair) = load_inner(locations)? else {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (result_len, result) = match key_pair {
