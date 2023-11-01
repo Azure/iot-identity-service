@@ -454,13 +454,12 @@ async fn create_cert_inner<'a>(
                 let CertificateWithPrivateKey { cert, pk } = api.cert_issuance.local_ca.as_ref()
                     .ok_or_else(||
                         format!(
-                            "cert {:?} is configured to be issued by local CA, but local CA is not configured",
-                            id
+                            "cert {id:?} is configured to be issued by local CA, but local CA is not configured"
                         )
                     )?;
 
                 let pem = get_cert_inner(&api.homedir_path, &api.preloaded_certs, cert)?
-                    .ok_or_else(|| format!("cert for issuer id {:?} not found", id))?;
+                    .ok_or_else(|| format!("cert for issuer id {id:?} not found"))?;
                 let stack = X509::stack_from_pem(&pem)?;
 
                 let pk = api.key_client.load_key_pair(pk).await?;
@@ -501,10 +500,9 @@ async fn create_cert_inner<'a>(
 
                         let bootstrap_auth = x509.bootstrap_identity.as_ref().ok_or_else(|| {
                             format!(
-                                "cert {:?} is configured to be issued by EST, \
+                                "cert {id:?} is configured to be issued by EST, \
                                     but EST identity could not be obtained \
-                                    and EST bootstrap identity is not configured",
-                                id
+                                    and EST bootstrap identity is not configured"
                             )
                         })?;
 
@@ -551,10 +549,9 @@ async fn create_cert_inner<'a>(
                             .await
                             .map_err(|err| {
                                 format!(
-                                    "cert {:?} is configured to be issued by EST, \
+                                    "cert {id:?} is configured to be issued by EST, \
                                         but neither EST identity nor EST bootstrap \
-                                        identity could be obtained: {}",
-                                    id, err
+                                        identity could be obtained: {err}"
                                 )
                             })?;
 
@@ -625,7 +622,7 @@ pub(crate) fn get_est_opts(
         if let CertIssuanceMethod::Est { url, auth } = &cert_options.method {
             (url.as_ref(), auth.as_ref())
         } else {
-            return Err(format!("cert {:?} does not have EST issuance method", cert_id).into());
+            return Err(format!("cert {cert_id:?} does not have EST issuance method").into());
         }
     } else {
         (None, None)
@@ -643,8 +640,7 @@ pub(crate) fn get_est_opts(
         })
         .ok_or_else(|| {
             format!(
-                "cert {:?} is configured to be issued by EST, but EST auth is not configured",
-                cert_id
+                "cert {cert_id:?} is configured to be issued by EST, but EST auth is not configured"
             )
         })?;
 
@@ -656,8 +652,7 @@ pub(crate) fn get_est_opts(
         })
         .ok_or_else(|| {
             format!(
-                "cert {:?} is configured to be issued by EST, but EST URL is not configured",
-                cert_id
+                "cert {cert_id:?} is configured to be issued by EST, but EST URL is not configured"
             )
         })?;
 
@@ -684,8 +679,7 @@ async fn get_credentials(
 
     let pk = key_engine.load_private_key(&pk_handle).map_err(|err| {
         format!(
-            "could not get EST bootstrap identity cert private key: {}",
-            err
+            "could not get EST bootstrap identity cert private key: {err}"
         )
     })?;
 
@@ -765,7 +759,7 @@ fn write_cert(
     let path = aziot_certd_config::util::get_path(homedir_path, preloaded_certs, id, true)
         .map_err(|err| Error::Internal(InternalError::GetPath(err)))?;
 
-    fs::write(&path, x509).map_err(|err| Error::Internal(InternalError::WriteFile(err)))?;
+    fs::write(path, x509).map_err(|err| Error::Internal(InternalError::WriteFile(err)))?;
 
     Ok(())
 }

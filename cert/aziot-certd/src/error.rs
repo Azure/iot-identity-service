@@ -21,13 +21,12 @@ impl std::fmt::Display for Error {
         match self {
             Error::Internal(_) => f.write_str("internal error"),
             Error::InvalidParameter(name, _) => {
-                write!(f, "parameter {:?} has an invalid value", name)
+                write!(f, "parameter {name:?} has an invalid value")
             }
             Error::Unauthorized(user, id) => {
                 write!(
                     f,
-                    "user {} is not authorized to modify the cert {}",
-                    user, id
+                    "user {user} is not authorized to modify the cert {id}"
                 )
             }
         }
