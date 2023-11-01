@@ -102,8 +102,7 @@ async fn main() -> Result<(), Error> {
                         );
                     }
                     println!(
-                        "openssl verification result: {}",
-                        openssl_verification_result
+                        "openssl verification result: {openssl_verification_result}"
                     );
                     openssl_verification_result
                 },
@@ -116,13 +115,13 @@ async fn main() -> Result<(), Error> {
                 hyper::Client::builder().build(tls_connector);
 
             let response = client
-                .get(format!("https://127.0.0.1:{}/", port).parse()?)
+                .get(format!("https://127.0.0.1:{port}/").parse()?)
                 .await?;
 
             let (http::response::Parts { status, .. }, response_body) = response.into_parts();
             let response_body = hyper::body::to_bytes(response_body).await?;
 
-            println!("server returned {} {:?}", status, response_body);
+            println!("server returned {status} {response_body:?}");
 
             if status != http::StatusCode::OK || &*response_body != b"Hello, world!\n" {
                 return Err("server did not return expected response".into());
