@@ -231,7 +231,7 @@ impl Connector {
 
             scheme => Err(ConnectorError {
                 uri: uri.clone(),
-                inner: format!("unrecognized scheme {:?}", scheme).into(),
+                inner: format!("unrecognized scheme {scheme:?}").into(),
             }),
         }
     }
@@ -338,13 +338,13 @@ impl Connector {
     fn to_url(&self) -> Result<url::Url, String> {
         match self {
             Connector::Tcp { host, port } => {
-                let url = format!("http://{}:{}", host, port);
+                let url = format!("http://{host}:{port}");
                 let mut url: url::Url = url.parse().expect("hard-coded URL parses successfully");
                 url.set_host(Some(host))
-                    .map_err(|err| format!("could not set host {:?}: {:?}", host, err))?;
+                    .map_err(|err| format!("could not set host {host:?}: {err:?}"))?;
                 if *port != 80 {
                     url.set_port(Some(*port))
-                        .map_err(|()| format!("could not set port {:?}", port))?;
+                        .map_err(|()| format!("could not set port {port:?}"))?;
                 }
                 Ok(url)
             }
@@ -365,7 +365,7 @@ impl Connector {
             }
 
             Connector::Fd { fd } => {
-                let fd_path = format!("fd://{}", fd);
+                let fd_path = format!("fd://{fd}");
 
                 let url = url::Url::parse(&fd_path).expect("hard-coded URL parses successfully");
 
@@ -637,7 +637,7 @@ fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
 
         family => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("systemd socket has unsupported address family {:?}", family),
+            format!("systemd socket has unsupported address family {family:?}"),
         )),
     }
 }
@@ -652,13 +652,13 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
             Ok(listen_pid) => listen_pid,
             Err(std::env::VarError::NotPresent) => return Ok(None),
             Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_PID env var: {}", err))
+                return Err(format!("could not read LISTEN_PID env var: {err}"))
             }
         };
 
         let listen_pid = listen_pid
             .parse()
-            .map_err(|err| format!("could not read LISTEN_PID env var: {}", err))?;
+            .map_err(|err| format!("could not read LISTEN_PID env var: {err}"))?;
 
         nix::unistd::Pid::from_raw(listen_pid)
     };
@@ -677,7 +677,7 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
         Ok(value) => Ok(Some(value)),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(err @ std::env::VarError::NotUnicode(_)) => {
-            Err(format!("could not read {} env var: {}", env, err))
+            Err(format!("could not read {env} env var: {err}"))
         }
     }
 }
@@ -696,7 +696,7 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
                 Ok(index) => index,
                 Err(_) => return Err("couldn't convert LISTEN_FDNAMES index to fd".to_string()),
             },
-            None => return Err(format!("socket {} not found", name)),
+            None => return Err(format!("socket {name} not found")),
         };
 
     // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
@@ -758,7 +758,7 @@ fn get_systemd_socket(
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
             .parse()
-            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?,
+            .map_err(|err| format!("could not read LISTEN_FDS env var: {err}"))?,
 
         None => return Ok(None),
     };
@@ -776,8 +776,7 @@ fn get_systemd_socket(
             nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::FD_CLOEXEC),
         ) {
             return Err(format!(
-                "could not fcntl({}, F_SETFD, FD_CLOEXEC): {}",
-                fd, err
+                "could not fcntl({fd}, F_SETFD, FD_CLOEXEC): {err}"
             ));
         }
     }
@@ -824,8 +823,7 @@ fn get_systemd_socket(
         Ok(Some(SD_LISTEN_FDS_START + index))
     } else {
         Err(format!(
-            "Could not find a match for {} in the fd list",
-            socket_name
+            "Could not find a match for {socket_name} in the fd list"
         ))
     }
 }
