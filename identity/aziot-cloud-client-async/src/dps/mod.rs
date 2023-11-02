@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
 
 pub mod schema;
 

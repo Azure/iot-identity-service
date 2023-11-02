@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![allow(clippy::missing_panics_doc)]
-
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

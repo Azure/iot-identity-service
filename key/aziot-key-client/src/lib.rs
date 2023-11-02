@@ -6,8 +6,6 @@
     clippy::let_and_return,
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
-    clippy::shadow_unrelated,
-    clippy::uninlined_format_args
 )]
 
 pub struct Client {
@@ -370,9 +368,7 @@ where
 
     write!(
         stream,
-        "{method} {uri} HTTP/1.1\r\n",
-        method = method,
-        uri = uri
+        "{method} {uri} HTTP/1.1\r\n"
     )?;
 
     if let Some(body) = body {
@@ -387,9 +383,7 @@ where
             content-type: application/json\r\n\
             \r\n\
             {body}\
-            ",
-            body_len = body_len,
-            body = body,
+            "
         )?;
     } else {
         stream.write_all(b"\r\n")?;
@@ -454,9 +448,7 @@ where
 
     write!(
         stream,
-        "{method} {uri} HTTP/1.1\r\n",
-        method = method,
-        uri = uri
+        "{method} {uri} HTTP/1.1\r\n"
     )?;
 
     if let Some(body) = body {
@@ -471,9 +463,7 @@ where
             content-type: application/json\r\n\
             \r\n\
             {body}\
-            ",
-            body_len = body_len,
-            body = body,
+            "
         )?;
     } else {
         stream.write_all(b"\r\n")?;

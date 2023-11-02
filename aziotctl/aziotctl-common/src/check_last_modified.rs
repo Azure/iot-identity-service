@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
-#![allow(clippy::missing_panics_doc)]
+
 use std::fs;
 use std::path::Path;
 

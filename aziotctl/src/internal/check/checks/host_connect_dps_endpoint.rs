@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![allow(clippy::manual_let_else)]
-
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 use url::Url;
