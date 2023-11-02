@@ -25,10 +25,7 @@ impl std::fmt::Display for Error {
             }
             Error::InvalidParameter(None) => f.write_str("a parameter has an invalid value"),
             Error::Unauthorized(user, id) => {
-                write!(
-                    f,
-                    "user {user} is not authorized to access the key {id}"
-                )
+                write!(f, "user {user} is not authorized to access the key {id}")
             }
         }
     }

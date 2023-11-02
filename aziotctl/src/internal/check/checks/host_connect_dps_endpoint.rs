@@ -37,9 +37,15 @@ impl HostConnectDpsEndpoint {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
 
-        let ProvisioningType::Dps { global_endpoint: dps_endpoint, .. } = &unwrap_or_skip!(&cache.cfg.identityd)
+        let ProvisioningType::Dps {
+            global_endpoint: dps_endpoint,
+            ..
+        } = &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning
-            .provisioning else { return Ok(CheckResult::Ignored) };
+            .provisioning
+        else {
+            return Ok(CheckResult::Ignored);
+        };
 
         self.dps_endpoint = Some(dps_endpoint.clone());
 

@@ -624,7 +624,9 @@ unsafe extern "C" fn lock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::
     }
 
     let mutex: &mut Mutex = &mut *pMutex.cast();
-    let Ok(guard) = mutex.inner.lock() else { return pkcs11_sys::CKR_GENERAL_ERROR };
+    let Ok(guard) = mutex.inner.lock() else {
+        return pkcs11_sys::CKR_GENERAL_ERROR;
+    };
     let guard = std::mem::transmute(guard);
     mutex.guard = guard;
     pkcs11_sys::CKR_OK

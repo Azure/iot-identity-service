@@ -128,7 +128,9 @@ impl std::str::FromStr for Uri {
 
             let key = percent_encoding::percent_decode(key.as_bytes());
             let key: std::borrow::Cow<'a, _> = key.into();
-            let Some(typed_key) = key_discriminant(&key) else { return Ok(None) };
+            let Some(typed_key) = key_discriminant(&key) else {
+                return Ok(None);
+            };
 
             let value = percent_encoding::percent_decode(value.as_bytes());
             match value.decode_utf8() {
@@ -221,10 +223,9 @@ impl std::fmt::Display for ParsePkcs11UriError {
             ParsePkcs11UriError::InvalidUtf8(key, _) => {
                 write!(f, "URI component with key [{key:?}] is not valid UTF-8")
             }
-            ParsePkcs11UriError::MalformedSlotId(value, _) => write!(
-                f,
-                "pin-value path component has malformed value [{value}]"
-            ),
+            ParsePkcs11UriError::MalformedSlotId(value, _) => {
+                write!(f, "pin-value path component has malformed value [{value}]")
+            }
             ParsePkcs11UriError::NeitherSlotIdNorTokenSpecified => {
                 f.write_str("URI has neither [slot-id] nor [token] components")
             }

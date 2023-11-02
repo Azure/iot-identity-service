@@ -684,18 +684,14 @@ impl IdentityManager {
         local_gateway_hostname: Option<String>,
         payload: Option<Payload>,
     ) -> Result<IoTHubDevice, Error> {
-        let Some(backup_device) = self.get_backup_provisioning_info(credentials.clone()) else {
-            return Err(Error::DpsClient(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "backup device cannot be none",
-            )));
-        };
+        let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
         if skip_if_backup_is_valid {
-            let backup_device = backup_device;
-            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+            if let Some(backup_device) = backup_device {
+                log::info!("Provisioned with backup for {}.", backup_device.device_id);
 
-            return Ok(backup_device);
+                return Ok(backup_device);
+            }
         }
 
         let dps_request = aziot_cloud_client_async::DpsClient::new(

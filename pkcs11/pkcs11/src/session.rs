@@ -168,10 +168,9 @@ impl std::fmt::Display for GetKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetKeyError::FindObjectsFailed(_) => f.write_str("could not find objects"),
-            GetKeyError::GetKeyTypeFailed(result) => write!(
-                f,
-                "C_GetAttributeValue(CKA_KEY_TYPE) failed with {result}"
-            ),
+            GetKeyError::GetKeyTypeFailed(result) => {
+                write!(f, "C_GetAttributeValue(CKA_KEY_TYPE) failed with {result}")
+            }
             GetKeyError::KeyDoesNotExist => f.write_str("did not find any keys in the slot"),
             GetKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
             GetKeyError::MismatchedMechanismType => {

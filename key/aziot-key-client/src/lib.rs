@@ -5,7 +5,7 @@
 #![allow(
     clippy::let_and_return,
     clippy::missing_errors_doc,
-    clippy::must_use_candidate,
+    clippy::must_use_candidate
 )]
 
 pub struct Client {
@@ -366,10 +366,7 @@ where
 {
     use std::io::{Read, Write};
 
-    write!(
-        stream,
-        "{method} {uri} HTTP/1.1\r\n"
-    )?;
+    write!(stream, "{method} {uri} HTTP/1.1\r\n")?;
 
     if let Some(body) = body {
         let body =
@@ -446,10 +443,7 @@ where
 {
     use std::io::{Read, Write};
 
-    write!(
-        stream,
-        "{method} {uri} HTTP/1.1\r\n"
-    )?;
+    write!(stream, "{method} {uri} HTTP/1.1\r\n")?;
 
     if let Some(body) = body {
         let body =
