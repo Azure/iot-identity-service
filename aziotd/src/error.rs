@@ -13,7 +13,7 @@ pub(crate) enum ErrorKind {
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorKind::GetProcessName(message) => write!(f, "could not read argv[0]: {}", message),
+            ErrorKind::GetProcessName(message) => write!(f, "could not read argv[0]: {message}"),
             ErrorKind::ReadConfig(_) => f.write_str("could not read config"),
             ErrorKind::Service(_) => f.write_str("service encountered an error"),
         }
