@@ -46,8 +46,7 @@ pub async fn main(
             let name = std::ffi::CString::new(name.clone()).map_err(|err| {
                 Error::Internal(InternalError::ReadConfig(
                     format!(
-                        "key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                        name, err,
+                        "key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}",
                     )
                     .into(),
                 ))
@@ -55,25 +54,22 @@ pub async fn main(
 
             let value =
                 std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "value of key {:?} in [aziot_keys] section of the configuration could not be converted to a C string: {}",
-                    name, err,
+                    "value of key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}",
                 ).into())))?;
 
             keys.set_parameter(&name, &value)?;
         }
 
         for (key_id, value) in preloaded_keys {
-            let name = format!("preloaded_key:{}", key_id);
+            let name = format!("preloaded_key:{key_id}");
             let name =
                 std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
+                    "key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}",
                 ).into())))?;
 
             let value =
                 std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "location of key ID {:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {}",
-                    key_id, err,
+                    "location of key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}",
                 ).into())))?;
 
             keys.set_parameter(&name, &value)?;
@@ -685,7 +681,7 @@ fn key_id_to_handle(
     let token = format!(
         "sr={}&sig={}",
         base64::Engine::encode(&engine, sr.as_bytes()),
-        base64::Engine::encode(&engine, &sig)
+        base64::Engine::encode(&engine, sig)
     );
 
     let handle = aziot_key_common::KeyHandle(token);

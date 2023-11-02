@@ -21,7 +21,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Internal(_) => f.write_str("internal error"),
             Error::InvalidParameter(Some((name, _))) => {
-                write!(f, "parameter {:?} has an invalid value", name)
+                write!(f, "parameter {name:?} has an invalid value")
             }
             Error::InvalidParameter(None) => f.write_str("a parameter has an invalid value"),
             Error::Unauthorized(user, id) => {
