@@ -15,20 +15,20 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::BadServerResponse(reason) => {
-                write!(f, "could not parse NTP server response: {}", reason)
+                write!(f, "could not parse NTP server response: {reason}")
             }
             Error::BindLocalSocket(_) => write!(f, "could not bind local UDP socket"),
             Error::ReceiveServerResponse(err) => {
-                write!(f, "could not receive NTP server response: {}", err)
+                write!(f, "could not receive NTP server response: {err}")
             }
             Error::ResolveNtpPoolHostname(Some(err)) => {
-                write!(f, "could not resolve NTP pool hostname: {}", err)
+                write!(f, "could not resolve NTP pool hostname: {err}")
             }
             Error::ResolveNtpPoolHostname(None) => {
                 write!(f, "could not resolve NTP pool hostname: no addresses found")
             }
             Error::SendClientRequest(err) => {
-                write!(f, "could not send SNTP client request: {}", err)
+                write!(f, "could not send SNTP client request: {err}")
             }
             Error::SetReadTimeoutOnSocket(_) => {
                 write!(f, "could not set read timeout on local UDP socket")
@@ -71,20 +71,18 @@ impl std::fmt::Display for BadServerResponseReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BadServerResponseReason::LeapIndicator(leap_indicator) => {
-                write!(f, "invalid value of leap indicator {}", leap_indicator)
+                write!(f, "invalid value of leap indicator {leap_indicator}")
             }
             BadServerResponseReason::OriginateTimestamp { expected, actual } => write!(
                 f,
-                "expected originate timestamp to be {} but it was {}",
-                expected, actual
+                "expected originate timestamp to be {expected} but it was {actual}"
             ),
             BadServerResponseReason::Mode(mode) => {
-                write!(f, "expected mode to be 4 but it was {}", mode)
+                write!(f, "expected mode to be 4 but it was {mode}")
             }
             BadServerResponseReason::VersionNumber(version_number) => write!(
                 f,
-                "expected version number to be 3 but it was {}",
-                version_number
+                "expected version number to be 3 but it was {version_number}"
             ),
         }
     }
