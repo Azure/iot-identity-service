@@ -95,7 +95,7 @@ impl std::fmt::Display for AuthenticationType {
             AuthenticationType::X509 => "x509",
             AuthenticationType::Tpm => "tpm",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
