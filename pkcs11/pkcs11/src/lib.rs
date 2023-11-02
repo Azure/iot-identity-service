@@ -5,7 +5,7 @@
 #![allow(
     non_snake_case,
     clippy::default_trait_access,
-    clippy::let_underscore_drop,
+    let_underscore_drop,
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
     clippy::must_use_candidate,
@@ -58,7 +58,7 @@ impl std::fmt::Display for Uri {
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
-                    write!(f, "{}", s)?;
+                    write!(f, "{s}")?;
                 }
             }
 
@@ -70,7 +70,7 @@ impl std::fmt::Display for Uri {
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
-                    write!(f, "{}", s)?;
+                    write!(f, "{s}")?;
                 }
             }
         }
@@ -82,7 +82,7 @@ impl std::fmt::Display for Uri {
                 percent_encoding::NON_ALPHANUMERIC,
             );
             for s in value {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
 
@@ -91,7 +91,7 @@ impl std::fmt::Display for Uri {
             let value =
                 percent_encoding::utf8_percent_encode(pin, percent_encoding::NON_ALPHANUMERIC);
             for s in value {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
 
@@ -128,10 +128,7 @@ impl std::str::FromStr for Uri {
 
             let key = percent_encoding::percent_decode(key.as_bytes());
             let key: std::borrow::Cow<'a, _> = key.into();
-            let typed_key = match key_discriminant(&key) {
-                Some(typed_key) => typed_key,
-                None => return Ok(None),
-            };
+            let Some(typed_key) = key_discriminant(&key) else { return Ok(None) };
 
             let value = percent_encoding::percent_decode(value.as_bytes());
             match value.decode_utf8() {
@@ -222,12 +219,11 @@ impl std::fmt::Display for ParsePkcs11UriError {
         match self {
             ParsePkcs11UriError::InvalidScheme => f.write_str("URI does not have pkcs11 scheme"),
             ParsePkcs11UriError::InvalidUtf8(key, _) => {
-                write!(f, "URI component with key [{:?}] is not valid UTF-8", key)
+                write!(f, "URI component with key [{key:?}] is not valid UTF-8")
             }
             ParsePkcs11UriError::MalformedSlotId(value, _) => write!(
                 f,
-                "pin-value path component has malformed value [{}]",
-                value
+                "pin-value path component has malformed value [{value}]"
             ),
             ParsePkcs11UriError::NeitherSlotIdNorTokenSpecified => {
                 f.write_str("URI has neither [slot-id] nor [token] components")
