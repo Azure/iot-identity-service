@@ -75,7 +75,7 @@ pub(super) unsafe fn aziot_key_rsa_method() -> *const openssl_sys::RSA_METHOD {
 
         openssl_sys2::RSA_meth_set_priv_dec(aziot_key_rsa_method, aziot_key_rsa_method_priv_dec);
 
-        RESULT = aziot_key_rsa_method as _;
+        RESULT = aziot_key_rsa_method.cast_const();
     });
 
     RESULT
@@ -95,7 +95,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
             openssl_sys::RSA_PKCS1_PADDING => aziot_key_common::EncryptMechanism::RsaPkcs1,
             openssl_sys::RSA_NO_PADDING => aziot_key_common::EncryptMechanism::RsaNoPadding,
             padding => {
-                return Err(format!("unrecognized RSA padding scheme 0x{:08x}", padding).into())
+                return Err(format!("unrecognized RSA padding scheme 0x{padding:08x}").into())
             }
         };
 
@@ -110,7 +110,7 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
                 rsa.size().try_into().expect("c_int -> usize")
             };
             if signature_len > max_signature_len {
-                return Err(format!("openssl expected signature of length <= {} but ks returned a signature of length {}", max_signature_len, signature_len).into());
+                return Err(format!("openssl expected signature of length <= {max_signature_len} but ks returned a signature of length {signature_len}").into());
             }
         }
 

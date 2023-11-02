@@ -174,15 +174,15 @@ unsafe extern "C" fn engine_load_privkey(
             "ECDSA" => {
                 let curve_oid =
                     client.get_key_pair_public_parameter(&key_handle, "ec-curve-oid")?;
-                let curve_oid = base64::Engine::decode(&base64_engine, &curve_oid)?;
+                let curve_oid = base64::Engine::decode(&base64_engine, curve_oid)?;
                 let curve = openssl2::EcCurve::from_oid_der(&curve_oid)
-                    .ok_or_else(|| format!("unrecognized curve {:?}", curve_oid))?;
+                    .ok_or_else(|| format!("unrecognized curve {curve_oid:?}"))?;
                 let curve = curve.as_nid();
                 let mut group = openssl::ec::EcGroup::from_curve_name(curve)?;
                 group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
 
                 let point = client.get_key_pair_public_parameter(&key_handle, "ec-point")?;
-                let point = base64::Engine::decode(&base64_engine, &point)?;
+                let point = base64::Engine::decode(&base64_engine, point)?;
                 let mut big_num_context = openssl::bn::BigNumContext::new()?;
                 let point = openssl::ec::EcPoint::from_bytes(&group, &point, &mut big_num_context)?;
 
@@ -214,11 +214,11 @@ unsafe extern "C" fn engine_load_privkey(
 
             "RSA" => {
                 let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
-                let modulus = base64::Engine::decode(&base64_engine, &modulus)?;
+                let modulus = base64::Engine::decode(&base64_engine, modulus)?;
                 let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
                 let exponent = client.get_key_pair_public_parameter(&key_handle, "rsa-exponent")?;
-                let exponent = base64::Engine::decode(&base64_engine, &exponent)?;
+                let exponent = base64::Engine::decode(&base64_engine, exponent)?;
                 let exponent = openssl::bn::BigNum::from_slice(&exponent)?;
 
                 let parameters =
@@ -244,7 +244,7 @@ unsafe extern "C" fn engine_load_privkey(
             }
 
             key_algorithm => {
-                return Err(format!("unrecognized key algorithm {}", key_algorithm).into())
+                return Err(format!("unrecognized key algorithm {key_algorithm}").into())
             }
         };
 
@@ -280,15 +280,15 @@ unsafe extern "C" fn engine_load_pubkey(
             "ECDSA" => {
                 let curve_oid =
                     client.get_key_pair_public_parameter(&key_handle, "ec-curve-oid")?;
-                let curve_oid = base64::Engine::decode(&base64_engine, &curve_oid)?;
+                let curve_oid = base64::Engine::decode(&base64_engine, curve_oid)?;
                 let curve = openssl2::EcCurve::from_oid_der(&curve_oid)
-                    .ok_or_else(|| format!("unrecognized curve {:?}", curve_oid))?;
+                    .ok_or_else(|| format!("unrecognized curve {curve_oid:?}"))?;
                 let curve = curve.as_nid();
                 let mut group = openssl::ec::EcGroup::from_curve_name(curve)?;
                 group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
 
                 let point = client.get_key_pair_public_parameter(&key_handle, "ec-point")?;
-                let point = base64::Engine::decode(&base64_engine, &point)?;
+                let point = base64::Engine::decode(&base64_engine, point)?;
                 let mut big_num_context = openssl::bn::BigNumContext::new()?;
                 let point = openssl::ec::EcPoint::from_bytes(&group, &point, &mut big_num_context)?;
 
@@ -303,11 +303,11 @@ unsafe extern "C" fn engine_load_pubkey(
 
             "RSA" => {
                 let modulus = client.get_key_pair_public_parameter(&key_handle, "rsa-modulus")?;
-                let modulus = base64::Engine::decode(&base64_engine, &modulus)?;
+                let modulus = base64::Engine::decode(&base64_engine, modulus)?;
                 let modulus = openssl::bn::BigNum::from_slice(&modulus)?;
 
                 let exponent = client.get_key_pair_public_parameter(&key_handle, "rsa-exponent")?;
-                let exponent = base64::Engine::decode(&base64_engine, &exponent)?;
+                let exponent = base64::Engine::decode(&base64_engine, exponent)?;
                 let exponent = openssl::bn::BigNum::from_slice(&exponent)?;
 
                 let parameters =
@@ -322,7 +322,7 @@ unsafe extern "C" fn engine_load_pubkey(
             }
 
             key_algorithm => {
-                return Err(format!("unrecognized key algorithm {}", key_algorithm).into())
+                return Err(format!("unrecognized key algorithm {key_algorithm}").into())
             }
         };
 
@@ -377,7 +377,7 @@ unsafe extern "C" fn engine_pkey_meths(
                     Ok(1)
                 }
 
-                nid => Err(format!("unsupported nid 0x{:08x}", nid).into()),
+                nid => Err(format!("unsupported nid 0x{nid:08x}").into()),
             }
         }
     });
