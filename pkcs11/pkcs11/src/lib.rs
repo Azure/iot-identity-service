@@ -393,9 +393,9 @@ mod tests {
                 },
             ) => (),
 
-            (object_label, uri) => panic!(
-                "test failure: object_label: {object_label:?}, uri: {uri:?}"
-            ),
+            (object_label, uri) => {
+                panic!("test failure: object_label: {object_label:?}, uri: {uri:?}")
+            }
         }
 
         match (pin, &uri) {
