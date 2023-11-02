@@ -172,8 +172,7 @@ mod tests {
         assert!(is_rfc_1035_valid("foobar.baz"));
         assert!(is_rfc_1035_valid(&longest_valid_label));
         assert!(is_rfc_1035_valid(&format!(
-            "{label}.{label}.{label}",
-            label = longest_valid_label
+            "{longest_valid_label}.{longest_valid_label}.{longest_valid_label}"
         )));
         assert!(is_rfc_1035_valid(&longest_valid_name));
         assert!(is_rfc_1035_valid("xn--v9ju72g90p.com"));
@@ -183,8 +182,8 @@ mod tests {
         assert!(is_rfc_1035_valid("FOOBAR.BAZ"));
         assert!(is_rfc_1035_valid("FoObAr01.bAz"));
 
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_label)));
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_name)));
+        assert!(!is_rfc_1035_valid(&format!("{longest_valid_label}a")));
+        assert!(!is_rfc_1035_valid(&format!("{longest_valid_name}a")));
         assert!(!is_rfc_1035_valid("01.org"));
         assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}"));
         assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}.com"));

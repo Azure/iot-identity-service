@@ -284,15 +284,15 @@ mod tests {
                         let mut path_components = vec![];
 
                         if let Some(slot_id) = slot_id {
-                            path_components.push(format!("slot-id={}", slot_id));
+                            path_components.push(format!("slot-id={slot_id}"));
                         }
 
                         if let Some(token_label) = token_label {
-                            path_components.push(format!("token={}", token_label));
+                            path_components.push(format!("token={token_label}"));
                         }
 
                         if let Some(object_label) = object_label {
-                            path_components.push(format!("object={}", object_label));
+                            path_components.push(format!("object={object_label}"));
                         }
 
                         let path_components_len = path_components.len();
@@ -304,7 +304,7 @@ mod tests {
 
                             if let Some(pin) = pin {
                                 use std::fmt::Write;
-                                write!(uri_string, "?pin-value={}", pin).unwrap();
+                                write!(uri_string, "?pin-value={pin}").unwrap();
                             }
 
                             parse_pkcs11_uri_inner(
@@ -336,7 +336,7 @@ mod tests {
         object_label: Option<&str>,
         pin: Option<&str>,
     ) {
-        eprintln!("{}", uri_string);
+        eprintln!("{uri_string}");
 
         let uri: Result<super::Uri, _> = uri_string.parse();
 
@@ -367,15 +367,13 @@ mod tests {
             ) => assert_eq!(expected_token_label, actual_token_label),
 
             (slot_id, token_label, uri) => panic!(
-                "test failure: slot_id: {:?}, token_label: {:?}, uri: {:?}",
-                slot_id, token_label, uri
+                "test failure: slot_id: {slot_id:?}, token_label: {token_label:?}, uri: {uri:?}"
             ),
         }
 
         let uri = uri.unwrap_or_else(|err| {
             panic!(
-                "URI {:?} ought to have been successfully parsed but failed with {:?}",
-                uri_string, err
+                "URI {uri_string:?} ought to have been successfully parsed but failed with {err:?}"
             )
         });
 
@@ -396,8 +394,7 @@ mod tests {
             ) => (),
 
             (object_label, uri) => panic!(
-                "test failure: object_label: {:?}, uri: {:?}",
-                object_label, uri
+                "test failure: object_label: {object_label:?}, uri: {uri:?}"
             ),
         }
 
@@ -412,7 +409,7 @@ mod tests {
 
             (None, super::Uri { pin: None, .. }) => (),
 
-            (pin, uri) => panic!("test failure: pin: {:?}, uri: {:?}", pin, uri),
+            (pin, uri) => panic!("test failure: pin: {pin:?}, uri: {uri:?}"),
         }
     }
 }

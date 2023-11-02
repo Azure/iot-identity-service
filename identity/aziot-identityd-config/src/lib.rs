@@ -349,10 +349,7 @@ mod tests {
     fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
         let s = load_settings(config_filename).unwrap();
 
-        let actual_payload = match s.provisioning.provisioning {
-            ProvisioningType::Dps { payload: p, .. } => p,
-            _ => panic!("wrong provisioning type specified in test config file"),
-        };
+        let ProvisioningType::Dps { payload: actual_payload, .. } = s.provisioning.provisioning else { panic!("wrong provisioning type specified in test config file") };
 
         assert_eq!(
             expected_payload, &actual_payload,

@@ -692,7 +692,7 @@ mod tests {
 
             let test_name = case_directory.file_name().unwrap().to_str().unwrap();
 
-            println!(".\n.\n=========\n.\nRunning test {}", test_name);
+            println!(".\n.\n=========\n.\nRunning test {test_name}");
 
             let config = std::fs::read(case_directory.join("config.toml")).unwrap();
             let config = std::str::from_utf8(&config).unwrap();
@@ -712,7 +712,7 @@ mod tests {
                 match std::fs::read(case_directory.join("device-id")) {
                     Ok(contents) => Some(contents),
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-                    Err(err) => panic!("could not read device-id file: {}", err),
+                    Err(err) => panic!("could not read device-id file: {err}"),
                 };
 
             let aziotcs_uid = nix::unistd::Uid::from_raw(5555);
