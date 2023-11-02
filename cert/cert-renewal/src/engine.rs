@@ -228,9 +228,7 @@ where
 {
     let mut engine = engine.lock().await;
 
-    let mut credential = if let Some(credential) = engine.credentials.remove(cert_id, key_id) {
-        credential
-    } else {
+    let Some(mut credential) = engine.credentials.remove(cert_id, key_id) else {
         return Err(crate::Error::fatal_error(format!("{cert_id} not found")));
     };
 

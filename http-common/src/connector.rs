@@ -683,10 +683,7 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
 }
 
 fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
-    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
-        Some(listen_fdnames) => listen_fdnames,
-        None => return Err("LISTEN_FDNAMES not found".to_string()),
-    };
+    let Some(listen_fdnames) = get_env("LISTEN_FDNAMES")? else { return Err("LISTEN_FDNAMES not found".to_string()) };
 
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
@@ -787,18 +784,12 @@ fn get_systemd_socket(
     }
 
     // If there is more than 1 socket and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
-    let socket_name = match socket_name {
-        Some(socket_name) => socket_name,
-        None => return Ok(None),
-    };
+    let Some(socket_name) = socket_name else { return Ok(None) };
 
     // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
     // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created nonetheless, so we still prefer to use them.
     // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, and we can't match either.
-    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
-        Some(listen_fdnames) => listen_fdnames,
-        None => return Ok(None),
-    };
+    let Some(listen_fdnames) = get_env("LISTEN_FDNAMES")? else { return Ok(None) };
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
     let len: std::os::unix::io::RawFd = listen_fdnames
