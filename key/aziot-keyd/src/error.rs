@@ -27,8 +27,7 @@ impl std::fmt::Display for Error {
             Error::Unauthorized(user, id) => {
                 write!(
                     f,
-                    "user {} is not authorized to access the key {}",
-                    user, id
+                    "user {user} is not authorized to access the key {id}"
                 )
             }
         }

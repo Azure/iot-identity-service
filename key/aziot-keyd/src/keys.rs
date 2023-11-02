@@ -375,8 +375,7 @@ impl std::fmt::Display for LoadLibraryError {
             }
             LoadLibraryError::UnsupportedApiVersion(api_version) => write!(
                 f,
-                "library exports API version 0x{:08x} which is not supported",
-                api_version
+                "library exports API version 0x{api_version:08x} which is not supported"
             ),
         }
     }
@@ -603,14 +602,12 @@ impl std::fmt::Display for GetKeyPairPublicParameterError {
             }
             GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithm { algorithm } => write!(
                 f,
-                "could not get key pair parameter: key has unknown algorithm {}",
-                algorithm
+                "could not get key pair parameter: key has unknown algorithm {algorithm}"
             ),
             GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len } => {
                 write!(
                 f,
-                "could not get key pair parameter: key has unknown algorithm value of length {}",
-                algorithm_len
+                "could not get key pair parameter: key has unknown algorithm value of length {algorithm_len}"
             )
             }
         }
