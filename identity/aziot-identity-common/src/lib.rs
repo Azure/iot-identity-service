@@ -2,7 +2,6 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::derivable_impls)]
 
 /// URI query parameter that identifies module identity type.
 pub const ID_TYPE_AZIOT: &str = "aziot";
@@ -112,18 +111,14 @@ pub enum IdType {
 /// X.509 extensions given to local identity certificates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LocalIdAttr {
     /// TLS client certificate.
+    #[default]
     Client,
 
     /// TLS server certificate. Also has client attributes.
     Server,
-}
-
-impl Default for LocalIdAttr {
-    fn default() -> Self {
-        LocalIdAttr::Client
-    }
 }
 
 impl std::fmt::Display for LocalIdAttr {
