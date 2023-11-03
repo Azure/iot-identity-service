@@ -5,7 +5,7 @@
 #![allow(
     clippy::default_trait_access,
     clippy::let_and_return,
-    clippy::let_underscore_drop,
+    let_underscore_drop,
     clippy::let_unit_value,
     clippy::module_name_repetitions,
     clippy::similar_names,
@@ -39,7 +39,7 @@ async fn try_main() -> Result<()> {
 #[tokio::main]
 async fn main() {
     if let Err(err) = try_main().await {
-        eprintln!("{:?}", err);
+        eprintln!("{err:?}");
     }
 }
 

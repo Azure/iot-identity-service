@@ -36,8 +36,7 @@ impl std::fmt::Display for Error {
                 expected, actual, ..
             } => write!(
                 f,
-                "expected operation to return {} but it returned {}",
-                expected, actual
+                "expected operation to return {expected} but it returned {actual}"
             ),
         }
     }

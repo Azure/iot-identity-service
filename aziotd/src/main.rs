@@ -9,7 +9,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(
     clippy::default_trait_access,
-    clippy::let_underscore_drop,
+    let_underscore_drop,
     clippy::let_unit_value
 )]
 
@@ -137,7 +137,7 @@ where
         Some("aziotd") => process_name_from_args(args),
 
         _ => Err(ErrorKind::GetProcessName(
-            format!("unrecognized process name {:?}", process_name).into(),
+            format!("unrecognized process name {process_name:?}").into(),
         )
         .into()),
     }

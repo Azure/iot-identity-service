@@ -21,7 +21,7 @@ pub fn restart(services: &[&ServiceDefinition]) -> Result<()> {
 }
 
 fn start(name: &str) -> Result<()> {
-    print!("Starting {}...", name);
+    print!("Starting {name}...");
     let result = Command::new("systemctl")
         .args(["start", name])
         .output()

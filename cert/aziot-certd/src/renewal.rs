@@ -104,7 +104,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
         _cert_id: &str,
     ) -> Result<Vec<openssl::x509::X509>, cert_renewal::Error> {
         let cert = std::fs::read(&self.path).map_err(|err| {
-            cert_renewal::Error::retryable_error(format!("failed to read cert chain: {}", err))
+            cert_renewal::Error::retryable_error(format!("failed to read cert chain: {err}"))
         })?;
 
         let cert_chain = openssl::x509::X509::stack_from_pem(&cert)
@@ -179,7 +179,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
 
         // Generate a new key if needed. Otherwise, retrieve the existing key.
         let (key_id, key_handle) = if self.rotate_key {
-            let key_id = format!("{}-temp", key_id);
+            let key_id = format!("{key_id}-temp");
 
             if let Ok(key_handle) = self.key_client.load_key_pair(&key_id).await {
                 self.key_client
@@ -222,8 +222,7 @@ impl cert_renewal::CertInterface for EstIdRenewal {
             .await
             .map_err(|err| {
                 cert_renewal::Error::retryable_error(format!(
-                    "failed to issue new EST identity cert: {}",
-                    err
+                    "failed to issue new EST identity cert: {err}"
                 ))
             })?
         };

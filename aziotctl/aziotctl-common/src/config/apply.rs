@@ -139,10 +139,8 @@ pub fn run(
                                             cn: device_id.clone(),
                                             rest: entries
                                                 .iter()
-                                                .filter_map(|(k, v)| {
-                                                    (!k.eq_ignore_ascii_case("cn"))
-                                                        .then(|| (k.to_uppercase(), v.clone()))
-                                                })
+                                                .filter(|&(k, _v)| (!k.eq_ignore_ascii_case("cn")))
+                                                .map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                 .collect(),
                                         })
                                     }
@@ -268,10 +266,10 @@ pub fn run(
                                                 cn: id,
                                                 rest: entries
                                                     .iter()
-                                                    .filter_map(|(k, v)| {
-                                                        (!k.eq_ignore_ascii_case("cn"))
-                                                            .then(|| (k.to_uppercase(), v.clone()))
+                                                    .filter(|&(k, _v)| {
+                                                        !k.eq_ignore_ascii_case("cn")
                                                     })
+                                                    .map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                     .collect(),
                                             }
                                         }
@@ -636,7 +634,7 @@ pub fn set_est_auth(
 
                     // Certificates Service needs authorization to manage a temporary key
                     // during key rotation.
-                    aziotcs_keys.keys.push(format!("{}-temp", identity_cert_id));
+                    aziotcs_keys.keys.push(format!("{identity_cert_id}-temp"));
 
                     Some(aziot_certd_config::CertificateWithPrivateKey {
                         cert: bootstrap_cert_id.clone(),
@@ -694,7 +692,7 @@ mod tests {
 
             let test_name = case_directory.file_name().unwrap().to_str().unwrap();
 
-            println!(".\n.\n=========\n.\nRunning test {}", test_name);
+            println!(".\n.\n=========\n.\nRunning test {test_name}");
 
             let config = std::fs::read(case_directory.join("config.toml")).unwrap();
             let config = std::str::from_utf8(&config).unwrap();
@@ -714,7 +712,7 @@ mod tests {
                 match std::fs::read(case_directory.join("device-id")) {
                     Ok(contents) => Some(contents),
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-                    Err(err) => panic!("could not read device-id file: {}", err),
+                    Err(err) => panic!("could not read device-id file: {err}"),
                 };
 
             let aziotcs_uid = nix::unistd::Uid::from_raw(5555);

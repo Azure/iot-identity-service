@@ -8,7 +8,7 @@
     clippy::default_trait_access,
     clippy::doc_markdown, // clippy wants "IoT" in a code fence
     clippy::let_and_return,
-    clippy::let_underscore_drop,
+    let_underscore_drop,
     clippy::let_unit_value,
     clippy::missing_safety_doc,
     clippy::shadow_unrelated,

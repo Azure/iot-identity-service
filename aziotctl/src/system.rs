@@ -97,7 +97,7 @@ async fn reprovision(uri: &url::Url) -> Result<()> {
     );
 
     match client.reprovision().await {
-        Ok(_) => {
+        Ok(()) => {
             println!("Successfully reprovisioned with IoT Hub.");
             Ok(())
         }

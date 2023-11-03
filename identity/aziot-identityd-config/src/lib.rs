@@ -264,7 +264,7 @@ impl Payload {
                 "payload uri is not a file",
             ));
         }
-        let content = std::fs::read_to_string(url.to_file_path().map_err(|_| {
+        let content = std::fs::read_to_string(url.to_file_path().map_err(|()| {
             std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
         })?)
         .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;
@@ -349,9 +349,12 @@ mod tests {
     fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
         let s = load_settings(config_filename).unwrap();
 
-        let actual_payload = match s.provisioning.provisioning {
-            ProvisioningType::Dps { payload: p, .. } => p,
-            _ => panic!("wrong provisioning type specified in test config file"),
+        let ProvisioningType::Dps {
+            payload: actual_payload,
+            ..
+        } = s.provisioning.provisioning
+        else {
+            panic!("wrong provisioning type specified in test config file")
         };
 
         assert_eq!(

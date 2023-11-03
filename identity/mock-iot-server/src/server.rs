@@ -28,7 +28,7 @@ impl ParsedRequest {
                 .to_string();
 
             println!();
-            println!("{}", body);
+            println!("{body}");
 
             Some(body)
         };
@@ -67,7 +67,7 @@ impl Response {
     pub fn method_not_allowed(method: &hyper::Method) -> Self {
         Response::Error {
             status: hyper::StatusCode::METHOD_NOT_ALLOWED,
-            message: format!("{} not allowed", method),
+            message: format!("{method} not allowed"),
         }
     }
 
@@ -84,7 +84,7 @@ impl Response {
         let (status, body, debug_body) = match self {
             Response::Error { status, message } => {
                 println!();
-                println!("{}", message);
+                println!("{message}");
 
                 (status, hyper::Body::empty(), None)
             }
@@ -97,7 +97,7 @@ impl Response {
         };
 
         println!();
-        println!("< {}", status);
+        println!("< {status}");
 
         let response = response.status(status).body(body).unwrap();
 
@@ -107,7 +107,7 @@ impl Response {
 
         if let Some(body) = debug_body {
             println!();
-            println!("{}", body);
+            println!("{body}");
         }
 
         response
@@ -163,7 +163,7 @@ pub(crate) fn get_param(captures: &regex::Captures<'_>, name: &str) -> Result<St
 
     let value = percent_encoding::percent_decode_str(value)
         .decode_utf8()
-        .map_err(|_| Response::bad_request(format!("bad {}", name)))?
+        .map_err(|_| Response::bad_request(format!("bad {name}")))?
         .to_string();
 
     Ok(value)

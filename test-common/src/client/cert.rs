@@ -105,7 +105,7 @@ impl CertClient {
         cert.set_issuer_name(&issuer_name).unwrap();
         cert.set_pubkey(&csr_pubkey).unwrap();
 
-        for extension in csr_extensions.iter() {
+        for extension in &csr_extensions {
             cert.append_extension2(extension).unwrap();
         }
 

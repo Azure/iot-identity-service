@@ -686,11 +686,12 @@ impl IdentityManager {
     ) -> Result<IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
-        if skip_if_backup_is_valid && backup_device.is_some() {
-            let backup_device = backup_device.expect("backup device cannot be none");
-            log::info!("Provisioned with backup for {}.", backup_device.device_id);
+        if skip_if_backup_is_valid {
+            if let Some(backup_device) = backup_device {
+                log::info!("Provisioned with backup for {}.", backup_device.device_id);
 
-            return Ok(backup_device);
+                return Ok(backup_device);
+            }
         }
 
         let dps_request = aziot_cloud_client_async::DpsClient::new(
@@ -786,9 +787,7 @@ impl IdentityManager {
 
                 (cert, private_key)
             } else {
-                let subject = if let Some(subject) = subject {
-                    subject
-                } else {
+                let Some(subject) = subject else {
                     return Err(Error::Internal(InternalError::CreateCertificate(
                         "identity cert does not exist; cannot create new cert as registration ID is unknown".into()
                     )));
@@ -1259,7 +1258,7 @@ impl ModuleBackup {
             openssl::hash::hash(openssl::hash::MessageDigest::sha256(), device_id.as_bytes())?;
         let device_id_hash = hex::encode(device_id_hash);
 
-        path.push(format!("{}-{}", iothub_hostname_hash, device_id_hash));
+        path.push(format!("{iothub_hostname_hash}-{device_id_hash}"));
 
         Ok(path)
     }
@@ -1281,7 +1280,7 @@ impl ModuleBackup {
             openssl::hash::hash(openssl::hash::MessageDigest::sha256(), module_id.as_bytes())?;
         let module_id_hash = hex::encode(module_id_hash);
 
-        path.push(format!("{}-{}", module_id_sanitized, module_id_hash));
+        path.push(format!("{module_id_sanitized}-{module_id_hash}"));
 
         Ok(path)
     }

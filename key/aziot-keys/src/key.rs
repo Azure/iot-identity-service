@@ -164,14 +164,11 @@ pub(crate) unsafe extern "C" fn derive_key(
 
         let locations = crate::implementation::Location::of(base_id)?;
 
-        let base_key = match load_inner(&locations)? {
-            Some(key) => key,
-            None => {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "base_id",
-                    "key not found",
-                ))
-            }
+        let Some(base_key) = load_inner(&locations)? else {
+            return Err(crate::implementation::err_invalid_parameter(
+                "base_id",
+                "key not found",
+            ));
         };
 
         let expected_derived_key =
@@ -209,14 +206,11 @@ pub(crate) unsafe fn sign(
     parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, _) = if mechanism == crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED {
@@ -261,14 +255,11 @@ pub(crate) unsafe fn verify(
     digest: &[u8],
     signature: &[u8],
 ) -> Result<bool, crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     match key {
@@ -345,14 +336,11 @@ pub(crate) unsafe fn encrypt(
     parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
@@ -421,14 +409,11 @@ pub(crate) unsafe fn decrypt(
     parameters: *const std::ffi::c_void,
     ciphertext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
@@ -485,7 +470,7 @@ pub(crate) unsafe fn decrypt(
                 version => {
                     return Err(crate::implementation::err_invalid_parameter(
                         "ciphertext",
-                        format!("unknown version {:?}", version),
+                        format!("unknown version {version:?}"),
                     ));
                 }
             };
@@ -502,7 +487,7 @@ pub(crate) unsafe fn decrypt(
                 version => {
                     return Err(crate::implementation::err_invalid_parameter(
                         "ciphertext",
-                        format!("unknown version {:?}", version),
+                        format!("unknown version {version:?}"),
                     ));
                 }
             };

@@ -23,7 +23,7 @@ fn main() {
         .unwrap();
 
     for lib in lib_cfg.libs {
-        println!("cargo:rustc-link-lib={}", lib);
+        println!("cargo:rustc-link-lib={lib}");
     }
 
     for path in lib_cfg.link_paths {

@@ -359,8 +359,7 @@ pub(crate) unsafe fn sign(
                         let signature_len = openssl_sys2::ECDSA_size(ec_key);
                         let signature_len = signature_len.try_into().map_err(|err| {
                             crate::implementation::err_external(format!(
-                                "ECDSA_size returned invalid value: {}",
-                                err
+                                "ECDSA_size returned invalid value: {err}"
                             ))
                         })?;
                         signature_len
@@ -384,8 +383,7 @@ pub(crate) unsafe fn sign(
                 let signature_len = {
                     let ec_key = public_key.parameters().map_err(|err| {
                         crate::implementation::err_external(format!(
-                            "could not get key pair parameters: {}",
-                            err
+                            "could not get key pair parameters: {err}"
                         ))
                     })?;
                     let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
@@ -393,8 +391,7 @@ pub(crate) unsafe fn sign(
                     let signature_len = openssl_sys2::ECDSA_size(ec_key);
                     let signature_len = signature_len.try_into().map_err(|err| {
                         crate::implementation::err_external(format!(
-                            "ECDSA_size returned invalid value: {}",
-                            err
+                            "ECDSA_size returned invalid value: {err}"
                         ))
                     })?;
                     signature_len
@@ -404,7 +401,7 @@ pub(crate) unsafe fn sign(
                     let mut signature = vec![0_u8; signature_len];
                     let signature_len =
                         private_key.sign(digest, &mut signature).map_err(|err| {
-                            crate::implementation::err_external(format!("could not sign: {}", err))
+                            crate::implementation::err_external(format!("could not sign: {err}"))
                         })?;
                     let signature_len: usize = signature_len.try_into().expect("CK_ULONG -> usize");
                     let r = openssl::bn::BigNum::from_slice(&signature[..(signature_len / 2)])?;
@@ -435,14 +432,11 @@ pub(crate) unsafe fn encrypt(
     _parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key_pair = match load_inner(locations)? {
-        Some(key_pair) => key_pair,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key_pair) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (result_len, result) = match key_pair {
@@ -464,8 +458,7 @@ pub(crate) unsafe fn encrypt(
 
             let result_len = rsa.size().try_into().map_err(|err| {
                 crate::implementation::err_external(format!(
-                    "RSA_size returned invalid value: {}",
-                    err
+                    "RSA_size returned invalid value: {err}"
                 ))
             })?;
             let mut result = vec![0_u8; result_len];
@@ -499,15 +492,13 @@ pub(crate) unsafe fn encrypt(
             let result_len = {
                 let rsa = public_key.parameters().map_err(|err| {
                     crate::implementation::err_external(format!(
-                        "could not get key pair parameters: {}",
-                        err
+                        "could not get key pair parameters: {err}"
                     ))
                 })?;
 
                 let result_len = rsa.size().try_into().map_err(|err| {
                     crate::implementation::err_external(format!(
-                        "RSA_size returned invalid value: {}",
-                        err
+                        "RSA_size returned invalid value: {err}"
                     ))
                 })?;
                 result_len
@@ -518,7 +509,7 @@ pub(crate) unsafe fn encrypt(
                 let signature_len = private_key
                     .sign(&mechanism, plaintext, &mut signature)
                     .map_err(|err| {
-                        crate::implementation::err_external(format!("could not encrypt: {}", err))
+                        crate::implementation::err_external(format!("could not encrypt: {err}"))
                     })?;
                 let signature_len = signature_len.try_into().expect("CK_ULONG -> usize");
                 signature.truncate(signature_len);
@@ -548,8 +539,7 @@ impl KeyPair {
             KeyPair::Pkcs11(pkcs11::KeyPair::Ec(public_key, _)) => {
                 let ec_key = public_key.parameters().map_err(|err| {
                     crate::implementation::err_external(format!(
-                        "could not get key pair parameters: {}",
-                        err
+                        "could not get key pair parameters: {err}"
                     ))
                 })?;
                 Some(ec_key)
@@ -572,8 +562,7 @@ impl KeyPair {
             KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(public_key, _)) => {
                 let rsa = public_key.parameters().map_err(|err| {
                     crate::implementation::err_external(format!(
-                        "could not get key pair public parameters: {}",
-                        err
+                        "could not get key pair public parameters: {err}"
                     ))
                 })?;
                 Some(rsa)
@@ -672,7 +661,7 @@ fn create_inner(
             };
 
             let private_key_pem = private_key.private_key_to_pem_pkcs8()?;
-            std::fs::write(path, &private_key_pem).map_err(crate::implementation::err_external)?;
+            std::fs::write(path, private_key_pem).map_err(crate::implementation::err_external)?;
 
             Ok(())
         }

@@ -10,9 +10,9 @@ use crate::internal::common::CertificateValidity;
 
 pub fn cert_expirations() -> impl Iterator<Item = Box<dyn Checker>> {
     let v: Vec<Box<dyn Checker>> = vec![
-        Box::new(IdentityCert::default()),
-        Box::new(EstIdentityBootstrapCerts::default()),
-        Box::new(LocalCaCert::default()),
+        Box::<IdentityCert>::default(),
+        Box::<EstIdentityBootstrapCerts>::default(),
+        Box::<LocalCaCert>::default(),
     ];
     v.into_iter()
 }
@@ -221,9 +221,8 @@ impl LocalCaCert {
             .local_ca
             .as_ref()
             .map(|local_ca| &local_ca.cert);
-        let cert_id = match cert_id {
-            Some(id) => id,
-            None => return Ok(CheckResult::Ignored),
+        let Some(cert_id) = cert_id else {
+            return Ok(CheckResult::Ignored);
         };
 
         let aziotcs_user = crate::internal::common::get_system_user("aziotcs")?;

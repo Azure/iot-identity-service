@@ -231,7 +231,7 @@ impl Connector {
 
             scheme => Err(ConnectorError {
                 uri: uri.clone(),
-                inner: format!("unrecognized scheme {:?}", scheme).into(),
+                inner: format!("unrecognized scheme {scheme:?}").into(),
             }),
         }
     }
@@ -338,13 +338,13 @@ impl Connector {
     fn to_url(&self) -> Result<url::Url, String> {
         match self {
             Connector::Tcp { host, port } => {
-                let url = format!("http://{}:{}", host, port);
+                let url = format!("http://{host}:{port}");
                 let mut url: url::Url = url.parse().expect("hard-coded URL parses successfully");
                 url.set_host(Some(host))
-                    .map_err(|err| format!("could not set host {:?}: {:?}", host, err))?;
+                    .map_err(|err| format!("could not set host {host:?}: {err:?}"))?;
                 if *port != 80 {
                     url.set_port(Some(*port))
-                        .map_err(|()| format!("could not set port {:?}", port))?;
+                        .map_err(|()| format!("could not set port {port:?}"))?;
                 }
                 Ok(url)
             }
@@ -365,7 +365,7 @@ impl Connector {
             }
 
             Connector::Fd { fd } => {
-                let fd_path = format!("fd://{}", fd);
+                let fd_path = format!("fd://{fd}");
 
                 let url = url::Url::parse(&fd_path).expect("hard-coded URL parses successfully");
 
@@ -637,7 +637,7 @@ fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
 
         family => Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("systemd socket has unsupported address family {:?}", family),
+            format!("systemd socket has unsupported address family {family:?}"),
         )),
     }
 }
@@ -652,13 +652,13 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
             Ok(listen_pid) => listen_pid,
             Err(std::env::VarError::NotPresent) => return Ok(None),
             Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_PID env var: {}", err))
+                return Err(format!("could not read LISTEN_PID env var: {err}"))
             }
         };
 
         let listen_pid = listen_pid
             .parse()
-            .map_err(|err| format!("could not read LISTEN_PID env var: {}", err))?;
+            .map_err(|err| format!("could not read LISTEN_PID env var: {err}"))?;
 
         nix::unistd::Pid::from_raw(listen_pid)
     };
@@ -677,15 +677,14 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
         Ok(value) => Ok(Some(value)),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(err @ std::env::VarError::NotUnicode(_)) => {
-            Err(format!("could not read {} env var: {}", env, err))
+            Err(format!("could not read {env} env var: {err}"))
         }
     }
 }
 
 fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
-    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
-        Some(listen_fdnames) => listen_fdnames,
-        None => return Err("LISTEN_FDNAMES not found".to_string()),
+    let Some(listen_fdnames) = get_env("LISTEN_FDNAMES")? else {
+        return Err("LISTEN_FDNAMES not found".to_string());
     };
 
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
@@ -696,7 +695,7 @@ fn socket_name_to_fd(name: &str) -> Result<std::os::unix::io::RawFd, String> {
                 Ok(index) => index,
                 Err(_) => return Err("couldn't convert LISTEN_FDNAMES index to fd".to_string()),
             },
-            None => return Err(format!("socket {} not found", name)),
+            None => return Err(format!("socket {name} not found")),
         };
 
     // The index in LISTEN_FDNAMES is an offset from SD_LISTEN_FDS_START.
@@ -758,7 +757,7 @@ fn get_systemd_socket(
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
             .parse()
-            .map_err(|err| format!("could not read LISTEN_FDS env var: {}", err))?,
+            .map_err(|err| format!("could not read LISTEN_FDS env var: {err}"))?,
 
         None => return Ok(None),
     };
@@ -775,10 +774,7 @@ fn get_systemd_socket(
             fd,
             nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::FD_CLOEXEC),
         ) {
-            return Err(format!(
-                "could not fcntl({}, F_SETFD, FD_CLOEXEC): {}",
-                fd, err
-            ));
+            return Err(format!("could not fcntl({fd}, F_SETFD, FD_CLOEXEC): {err}"));
         }
     }
 
@@ -788,17 +784,15 @@ fn get_systemd_socket(
     }
 
     // If there is more than 1 socket and we don't have a socket name to match, this is edged telling us that there is no systemd socket we can match.
-    let socket_name = match socket_name {
-        Some(socket_name) => socket_name,
-        None => return Ok(None),
+    let Some(socket_name) = socket_name else {
+        return Ok(None);
     };
 
     // If there is more than one socket, this is edged. We can attempt to match the socket name to systemd.
     // This happens when a unix Uri is provided in the config.toml. Systemd sockets get created nonetheless, so we still prefer to use them.
     // If a socket name is provided but we don't see the env variable LISTEN_FDNAMES, it means we are probably on an older OS, and we can't match either.
-    let listen_fdnames = match get_env("LISTEN_FDNAMES")? {
-        Some(listen_fdnames) => listen_fdnames,
-        None => return Ok(None),
+    let Some(listen_fdnames) = get_env("LISTEN_FDNAMES")? else {
+        return Ok(None);
     };
     let listen_fdnames: Vec<&str> = listen_fdnames.split(':').collect();
 
@@ -824,8 +818,7 @@ fn get_systemd_socket(
         Ok(Some(SD_LISTEN_FDS_START + index))
     } else {
         Err(format!(
-            "Could not find a match for {} in the fd list",
-            socket_name
+            "Could not find a match for {socket_name} in the fd list"
         ))
     }
 }

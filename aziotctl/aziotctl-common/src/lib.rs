@@ -10,6 +10,7 @@
     clippy::too_many_lines,
     clippy::type_complexity,
     clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
     clippy::must_use_candidate
 )]
 
@@ -106,9 +107,8 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
             return false;
         }
 
-        let first_char = match label.chars().next() {
-            Some(c) => c,
-            None => return false,
+        let Some(first_char) = label.chars().next() else {
+            return false;
         };
         if !first_char.is_ascii_alphabetic() {
             return false;
@@ -172,8 +172,7 @@ mod tests {
         assert!(is_rfc_1035_valid("foobar.baz"));
         assert!(is_rfc_1035_valid(&longest_valid_label));
         assert!(is_rfc_1035_valid(&format!(
-            "{label}.{label}.{label}",
-            label = longest_valid_label
+            "{longest_valid_label}.{longest_valid_label}.{longest_valid_label}"
         )));
         assert!(is_rfc_1035_valid(&longest_valid_name));
         assert!(is_rfc_1035_valid("xn--v9ju72g90p.com"));
@@ -183,8 +182,8 @@ mod tests {
         assert!(is_rfc_1035_valid("FOOBAR.BAZ"));
         assert!(is_rfc_1035_valid("FoObAr01.bAz"));
 
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_label)));
-        assert!(!is_rfc_1035_valid(&format!("{}a", longest_valid_name)));
+        assert!(!is_rfc_1035_valid(&format!("{longest_valid_label}a")));
+        assert!(!is_rfc_1035_valid(&format!("{longest_valid_name}a")));
         assert!(!is_rfc_1035_valid("01.org"));
         assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}"));
         assert!(!is_rfc_1035_valid("\u{4eca}\u{65e5}\u{306f}.com"));

@@ -48,7 +48,7 @@ impl std::fmt::Display for Error {
             Error::ModuleNotFound => f.write_str("module identity not found"),
             Error::Internal(_) => f.write_str("internal error"),
             Error::InvalidParameter(name, _) => {
-                write!(f, "parameter {:?} has an invalid value", name)
+                write!(f, "parameter {name:?} has an invalid value")
             }
         }
     }
@@ -93,7 +93,7 @@ pub enum InternalError {
 impl std::fmt::Display for InternalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InternalError::BadSettings(m) => write!(f, "bad settings: {}", m),
+            InternalError::BadSettings(m) => write!(f, "bad settings: {m}"),
             InternalError::CreateCertificate(_) => f.write_str("could not create certificate"),
             InternalError::CreateHomeDir(_) => f.write_str("could not create home directory"),
             InternalError::GetModulePath(_) => f.write_str("could not get module backup file path"),
@@ -115,7 +115,7 @@ impl std::fmt::Display for InternalError {
                 f.write_str("could not save device information state")
             }
             InternalError::SaveModuleBackup(m) => {
-                write!(f, "could not save module information backup state: {}", m)
+                write!(f, "could not save module information backup state: {m}")
             }
             InternalError::SerializeDeviceInfo(_) => {
                 f.write_str("could not serialize device information state")

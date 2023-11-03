@@ -67,7 +67,7 @@ impl http_common::server::Route for Route {
             type_ => {
                 return Err(http_common::server::Error {
                     status_code: hyper::StatusCode::BAD_REQUEST,
-                    message: format!("invalid type {:?}", type_).into(),
+                    message: format!("invalid type {type_:?}").into(),
                 })
             }
         };

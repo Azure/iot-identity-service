@@ -94,7 +94,7 @@ fn r#catch<T>(
             if let Some(function) = function {
                 openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
             } else {
-                eprintln!("[aziot-key-openssl-engine-shared] error: {}", err);
+                eprintln!("[aziot-key-openssl-engine-shared] error: {err}");
             }
 
             let mut source = err.source();
@@ -102,7 +102,7 @@ fn r#catch<T>(
                 if let Some(function) = function {
                     openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
                 } else {
-                    eprintln!("[aziot-key-openssl-engine-shared] caused by: {}", err);
+                    eprintln!("[aziot-key-openssl-engine-shared] caused by: {err}");
                 }
 
                 source = err.source();

@@ -82,7 +82,7 @@ pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::EC_KEY_ME
             Some(aziot_key_ec_key_sign_sig),
         );
 
-        RESULT = aziot_key_ec_key_method as _;
+        RESULT = aziot_key_ec_key_method.cast_const();
     });
 
     RESULT
@@ -102,7 +102,7 @@ pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::ECDSA_MET
             Some(aziot_key_ec_key_sign_sig),
         );
 
-        RESULT = aziot_key_ec_key_method as _;
+        RESULT = aziot_key_ec_key_method.cast_const();
     });
 
     RESULT

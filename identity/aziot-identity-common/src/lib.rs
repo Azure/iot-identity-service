@@ -94,7 +94,7 @@ impl std::fmt::Display for AuthenticationType {
             AuthenticationType::X509 => "x509",
             AuthenticationType::Tpm => "tpm",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -111,18 +111,14 @@ pub enum IdType {
 /// X.509 extensions given to local identity certificates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum LocalIdAttr {
     /// TLS client certificate.
+    #[default]
     Client,
 
     /// TLS server certificate. Also has client attributes.
     Server,
-}
-
-impl Default for LocalIdAttr {
-    fn default() -> Self {
-        LocalIdAttr::Client
-    }
 }
 
 impl std::fmt::Display for LocalIdAttr {

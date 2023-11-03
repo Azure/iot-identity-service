@@ -33,9 +33,7 @@ impl IdentityCertRenewal {
 
         // Create the initial identity certificate if it does not exist.
         if cert_client.get_cert(cert_id).await.is_err() {
-            let registration_id = if let Some(registration_id) = registration_id {
-                registration_id
-            } else {
+            let Some(registration_id) = registration_id else {
                 return Err(crate::Error::Internal(
                     crate::InternalError::CreateCertificate(
                         "identity cert does not exist; cannot create new cert as registration ID is unknown".into()
@@ -49,7 +47,7 @@ impl IdentityCertRenewal {
                     .await
                     .map_err(|err| {
                         crate::Error::Internal(crate::InternalError::CreateCertificate(
-                            format!("failed to remove old key: {}", err).into(),
+                            format!("failed to remove old key: {err}").into(),
                         ))
                     })?;
             }
@@ -59,7 +57,7 @@ impl IdentityCertRenewal {
                 .await
                 .map_err(|err| {
                     crate::Error::Internal(crate::InternalError::CreateCertificate(
-                        format!("failed to generate new key: {}", err).into(),
+                        format!("failed to generate new key: {err}").into(),
                     ))
                 })?;
 
@@ -91,7 +89,7 @@ impl IdentityCertRenewal {
 
         // Determine the temporary cert ID used during renewal. Identity Service must be authorized
         // to modify this cert with Certificates Service.
-        let temp_cert = format!("{}-temp", cert_id);
+        let temp_cert = format!("{cert_id}-temp");
 
         Ok(IdentityCertRenewal {
             rotate_key,
@@ -152,7 +150,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
     ) -> Result<(Vec<openssl::x509::X509>, Self::NewKey), cert_renewal::Error> {
         // Generate a new key if needed. Otherwise, retrieve the existing key.
         let (key_id, key_handle) = if self.rotate_key {
-            let key_id = format!("{}-temp", key_id);
+            let key_id = format!("{key_id}-temp");
 
             if let Ok(key_handle) = self.key_client.load_key_pair(&key_id).await {
                 self.key_client
@@ -265,8 +263,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
         .await
         .map_err(|err| {
             cert_renewal::Error::retryable_error(format!(
-                "failed to reprovision with new credentials: {}",
-                err
+                "failed to reprovision with new credentials: {err}"
             ))
         })?;
 

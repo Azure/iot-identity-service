@@ -71,13 +71,11 @@ macro_rules! make_service {
                             }
                         }
 
-                        let api_version = match api_version {
-                            Some(api_version) => api_version,
-                            None => return Box::pin(futures_util::future::ok((http_common::server::Error {
-                                status_code: http::StatusCode::BAD_REQUEST,
-                                message: "api-version not specified".into(),
-                            }).to_http_response())),
-                        };
+                        let Some(api_version) = api_version else { return Box::pin(futures_util::future::ok((http_common::server::Error {
+                            status_code: http::StatusCode::BAD_REQUEST,
+                            message: "api-version not specified".into(),
+                        }).to_http_response())) };
+
                         let api_version: $api_version_ty = match api_version.parse() {
                             Ok(api_version) => api_version,
                             Err(()) => return Box::pin(futures_util::future::ok((http_common::server::Error {
