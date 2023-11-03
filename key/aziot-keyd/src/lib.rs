@@ -46,7 +46,7 @@ pub async fn main(
             let name = std::ffi::CString::new(name.clone()).map_err(|err| {
                 Error::Internal(InternalError::ReadConfig(
                     format!(
-                        "key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}",
+                        "key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}"
                     )
                     .into(),
                 ))
@@ -54,7 +54,7 @@ pub async fn main(
 
             let value =
                 std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "value of key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}",
+                    "value of key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
             keys.set_parameter(&name, &value)?;
@@ -64,12 +64,12 @@ pub async fn main(
             let name = format!("preloaded_key:{key_id}");
             let name =
                 std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}",
+                    "key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
             let value =
                 std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
-                    "location of key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}",
+                    "location of key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
             keys.set_parameter(&name, &value)?;
