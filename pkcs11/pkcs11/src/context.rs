@@ -543,7 +543,7 @@ impl Context {
             );
             if result != pkcs11_sys::CKR_OK {
                 return Err(OpenSessionError::OpenSessionFailed(
-                    format!("C_OpenSession failed with {result}").into(),
+                    format!("C_OpenSession failed with {result}").into()
                 ));
             }
             if handle == pkcs11_sys::CK_INVALID_SESSION_HANDLE {
