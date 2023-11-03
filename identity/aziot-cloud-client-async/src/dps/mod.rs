@@ -1,7 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![allow(clippy::missing_errors_doc)]
-
 pub mod schema;
 
 use std::io::{Error, ErrorKind};
