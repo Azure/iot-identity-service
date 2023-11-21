@@ -61,10 +61,7 @@ impl Incoming {
                                 .unwrap()
                         );
                     }
-                    println!(
-                        "openssl verification result: {}",
-                        openssl_verification_result
-                    );
+                    println!("openssl verification result: {openssl_verification_result}");
                     openssl_verification_result
                 },
             );
@@ -99,8 +96,7 @@ impl hyper::server::accept::Accept for Incoming {
                         Ok(stream) => stream,
                         Err(err) => {
                             eprintln!(
-                                "Dropping client that failed to complete a TLS handshake: {}",
-                                err
+                                "Dropping client that failed to complete a TLS handshake: {err}"
                             );
                             continue;
                         }
@@ -112,8 +108,7 @@ impl hyper::server::accept::Accept for Incoming {
                 }
 
                 std::task::Poll::Ready(Err(err)) => eprintln!(
-                    "Dropping client that failed to completely establish a TCP connection: {}",
-                    err
+                    "Dropping client that failed to completely establish a TCP connection: {err}"
                 ),
 
                 std::task::Poll::Pending => break,
@@ -131,10 +126,9 @@ impl hyper::server::accept::Accept for Incoming {
                     return std::task::Poll::Ready(Some(Ok(stream)));
                 }
 
-                std::task::Poll::Ready(Some(Err(err))) => eprintln!(
-                    "Dropping client that failed to complete a TLS handshake: {}",
-                    err
-                ),
+                std::task::Poll::Ready(Some(Err(err))) => {
+                    eprintln!("Dropping client that failed to complete a TLS handshake: {err}");
+                }
 
                 std::task::Poll::Ready(None) => {
                     println!("Shutting down web server");

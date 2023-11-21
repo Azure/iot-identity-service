@@ -30,8 +30,7 @@ impl EstConfig {
                         crate::Error::Internal(crate::InternalError::ReadFile(std::io::Error::new(
                             std::io::ErrorKind::NotFound,
                             format!(
-                                "cert_issuance.est.trusted_certs contains unreadable cert {:?}",
-                                cert
+                                "cert_issuance.est.trusted_certs contains unreadable cert {cert:?}"
                             ),
                         )))
                     },
@@ -96,11 +95,11 @@ pub(crate) async fn create_cert(
 
     let (simple_enroll_request, ca_certs_request) =
         if let Some(EstAuthBasic { username, password }) = basic_auth {
-            let authorization_header_value = format!("{}:{}", username, password);
+            let authorization_header_value = format!("{username}:{password}");
             let engine = base64::engine::general_purpose::STANDARD;
             let authorization_header_value =
                 base64::Engine::encode(&engine, authorization_header_value);
-            let authorization_header_value = format!("Basic {}", authorization_header_value);
+            let authorization_header_value = format!("Basic {authorization_header_value}");
 
             let simple_enroll_request = simple_enroll_request
                 .header(hyper::header::AUTHORIZATION, &authorization_header_value);
@@ -147,31 +146,22 @@ async fn get_pkcs7_response(
     let body = hyper::body::to_bytes(body).await?;
 
     if status != hyper::StatusCode::OK {
-        return Err(format!(
-            "EST endpoint did not return successful response: {} {:?}",
-            status, body,
-        )
-        .into());
+        return Err(
+            format!("EST endpoint did not return successful response: {status} {body:?}",).into(),
+        );
     }
 
     let content_type = headers
         .get(hyper::header::CONTENT_TYPE)
         .ok_or("EST response does not contain content-type header")?
         .to_str()
-        .map_err(|err| {
-            format!(
-                "EST response does not contain valid content-type header: {}",
-                err
-            )
-        })?;
+        .map_err(|err| format!("EST response does not contain valid content-type header: {err}"))?;
     if content_type != "application/pkcs7-mime"
         && !content_type.starts_with("application/pkcs7-mime;")
     {
-        return Err(format!(
-            "EST response has unexpected content-type header: {}",
-            content_type
-        )
-        .into());
+        return Err(
+            format!("EST response has unexpected content-type header: {content_type}").into(),
+        );
     }
 
     let pkcs7 = Pkcs7::from_pem(&body).or_else(|_| -> Result<_, crate::BoxedError> {
@@ -180,7 +170,7 @@ async fn get_pkcs7_response(
             .filter(|c| !(*c as char).is_whitespace())
             .collect::<Vec<_>>();
         let engine = base64::engine::general_purpose::STANDARD;
-        let bytes = base64::Engine::decode(&engine, &no_whitespace)?;
+        let bytes = base64::Engine::decode(&engine, no_whitespace)?;
         Ok(Pkcs7::from_der(&bytes)?)
     })?;
 
@@ -188,7 +178,7 @@ async fn get_pkcs7_response(
     let x509_stack = unsafe {
         let x509_stack =
             aziot_certd_pkcs7_to_x509(foreign_types_shared::ForeignType::as_ptr(&pkcs7));
-        let x509_stack = x509_stack as *mut <X509 as openssl::stack::Stackable>::StackType;
+        let x509_stack = x509_stack.cast_mut();
         let x509_stack: &openssl::stack::StackRef<X509> =
             foreign_types_shared::ForeignTypeRef::from_ptr(x509_stack);
         x509_stack

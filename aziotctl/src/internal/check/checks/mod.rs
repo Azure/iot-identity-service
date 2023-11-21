@@ -36,27 +36,23 @@ pub fn all_checks() -> Vec<(&'static str, Vec<Box<dyn Checker>>)> {
         ("Configuration checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(well_formed_configs::well_formed_configs());
-            v.push(Box::new(up_to_date_configs::UpToDateConfigs::default()));
-            v.push(Box::new(hostname::Hostname::default()));
-            v.push(Box::new(aziot_version::AziotVersion::default()));
-            v.push(Box::new(host_local_time::HostLocalTime::default()));
+            v.push(Box::<up_to_date_configs::UpToDateConfigs>::default());
+            v.push(Box::<hostname::Hostname>::default());
+            v.push(Box::<aziot_version::AziotVersion>::default());
+            v.push(Box::<host_local_time::HostLocalTime>::default());
             v.extend(cert_expiry::cert_expirations());
-            v.push(Box::new(certs_preloaded::CertsPreloaded::default()));
+            v.push(Box::<certs_preloaded::CertsPreloaded>::default());
             v.extend(daemons_running::daemons_running());
-            v.push(Box::new(read_certs::ReadCerts::default()));
-            v.push(Box::new(read_key_pairs::ReadKeyPairs::default()));
-            v.push(Box::new(est_server_https::EstServerHttps::default()));
-            v.push(Box::new(
-                certs_match_private_keys::CertsMatchPrivateKeys::default(),
-            ));
+            v.push(Box::<read_certs::ReadCerts>::default());
+            v.push(Box::<read_key_pairs::ReadKeyPairs>::default());
+            v.push(Box::<est_server_https::EstServerHttps>::default());
+            v.push(Box::<certs_match_private_keys::CertsMatchPrivateKeys>::default());
             v
         }),
         ("Connectivity checks", {
             let mut v: Vec<Box<dyn Checker>> = Vec::new();
             v.extend(host_connect_iothub::host_connect_iothub_checks());
-            v.push(Box::new(
-                host_connect_dps_endpoint::HostConnectDpsEndpoint::default(),
-            ));
+            v.push(Box::<host_connect_dps_endpoint::HostConnectDpsEndpoint>::default());
             v
         }),
     ]

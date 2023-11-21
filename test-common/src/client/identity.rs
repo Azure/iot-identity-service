@@ -163,8 +163,8 @@ fn test_identity(module_name: &str) -> Identity {
         gen_id: Some(aziot_identity_common::GenId("test-gen-id".to_string())),
         auth: Some(aziot_identity_common::AuthenticationInfo {
             auth_type: aziot_identity_common::AuthenticationType::X509,
-            key_handle: Some(aziot_key_common::KeyHandle(format!("{}-key", module_name))),
-            cert_id: Some(format!("{}-cert", module_name)),
+            key_handle: Some(aziot_key_common::KeyHandle(format!("{module_name}-key"))),
+            cert_id: Some(format!("{module_name}-cert")),
         }),
     })
 }

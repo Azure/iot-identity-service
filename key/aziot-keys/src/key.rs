@@ -164,14 +164,11 @@ pub(crate) unsafe extern "C" fn derive_key(
 
         let locations = crate::implementation::Location::of(base_id)?;
 
-        let base_key = match load_inner(&locations)? {
-            Some(key) => key,
-            None => {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "base_id",
-                    "key not found",
-                ))
-            }
+        let Some(base_key) = load_inner(&locations)? else {
+            return Err(crate::implementation::err_invalid_parameter(
+                "base_id",
+                "key not found",
+            ));
         };
 
         let expected_derived_key =
@@ -209,14 +206,11 @@ pub(crate) unsafe fn sign(
     parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, _) = if mechanism == crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED {
@@ -261,14 +255,11 @@ pub(crate) unsafe fn verify(
     digest: &[u8],
     signature: &[u8],
 ) -> Result<bool, crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     match key {
@@ -345,14 +336,11 @@ pub(crate) unsafe fn encrypt(
     parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
@@ -421,14 +409,11 @@ pub(crate) unsafe fn decrypt(
     parameters: *const std::ffi::c_void,
     ciphertext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key = match load_inner(locations)? {
-        Some(key) => key,
-        None => {
-            return Err(crate::implementation::err_invalid_parameter(
-                "id",
-                "key not found",
-            ))
-        }
+    let Some(key) = load_inner(locations)? else {
+        return Err(crate::implementation::err_invalid_parameter(
+            "id",
+            "key not found",
+        ));
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
@@ -485,7 +470,7 @@ pub(crate) unsafe fn decrypt(
                 version => {
                     return Err(crate::implementation::err_invalid_parameter(
                         "ciphertext",
-                        format!("unknown version {:?}", version),
+                        format!("unknown version {version:?}"),
                     ));
                 }
             };
@@ -502,7 +487,7 @@ pub(crate) unsafe fn decrypt(
                 version => {
                     return Err(crate::implementation::err_invalid_parameter(
                         "ciphertext",
-                        format!("unknown version {:?}", version),
+                        format!("unknown version {version:?}"),
                     ));
                 }
             };
@@ -612,14 +597,15 @@ fn create_inner(
                     .open_session(pkcs11_slot, uri.pin.clone())
                     .map_err(crate::implementation::err_external)?;
 
-                match create_method {
+                let pkcs11_object = match create_method {
                     CreateMethod::Generate => {
-                        let result =
-                            pkcs11_session.generate_key(uri.object_label.as_deref(), usage);
+                        let result = pkcs11_session
+                            .clone()
+                            .generate_key(uri.object_label.as_deref(), usage);
 
                         #[allow(clippy::unnested_or_patterns)]
                         match result {
-                            Ok(_) => return Ok(()),
+                            Ok(pkcs11_key) => pkcs11_key,
 
                             Err(pkcs11::GenerateKeyError::GenerateKeyFailed(
                                 pkcs11_sys::CKR_FUNCTION_NOT_SUPPORTED,
@@ -627,7 +613,7 @@ fn create_inner(
                             // Some PKCS#11 implementations like Cryptoauthlib don't support `C_GenerateKey(CKM_GENERIC_SECRET_KEY_GEN)`
                             Err(pkcs11::GenerateKeyError::GenerateKeyFailed(
                                 pkcs11_sys::CKR_MECHANISM_INVALID,
-                            )) => (),
+                            )) => continue,
 
                             Err(err) => return Err(crate::implementation::err_external(err)),
                         }
@@ -636,17 +622,49 @@ fn create_inner(
                     CreateMethod::Import(bytes) => {
                         // TODO: Verify if CAL actually smashes the stack for keys that are too large,
                         // and if not, if it returns a better error than CKR_GENERAL_ERROR
-                        let result =
-                            pkcs11_session.import_key(bytes, uri.object_label.as_deref(), usage);
+                        let result = pkcs11_session.clone().import_key(
+                            bytes,
+                            uri.object_label.as_deref(),
+                            usage,
+                        );
                         match result {
-                            Ok(_) => return Ok(()),
+                            Ok(pkcs11_key) => pkcs11_key,
 
                             // No better error from some PKCS#11 implementations like Cryptoauthlib than CKR_GENERAL_ERROR
-                            Err(pkcs11::ImportKeyError::CreateObjectFailed(_)) => (),
+                            Err(pkcs11::ImportKeyError::CreateObjectFailed(_)) => continue,
 
                             Err(err) => return Err(crate::implementation::err_external(err)),
                         }
                     }
+                };
+
+                if let pkcs11::KeyUsage::Aes = usage {
+                    // At this point we've successfully created an AES key but we don't know if the token supports AES-GCM specifically or not.
+                    // So we do a dummy encryption.
+
+                    let iv: &[u8; 12] = b"123456789012";
+                    let aad = b"someaad";
+                    let plaintext = b"someplaintext";
+                    // We can use the block size of AES-256-GCM from openssl even though the token didn't necessarily use AES-256-GCM,
+                    // because all AES ciphers have the same block size by definition.
+                    let cipher = openssl::symm::Cipher::aes_256_gcm();
+                    let mut ciphertext = vec![0_u8; plaintext.len() + cipher.block_size() + 16];
+
+                    if pkcs11_object
+                        .encrypt(iv, aad, plaintext, &mut ciphertext)
+                        .is_ok()
+                    {
+                        return Ok(());
+                    }
+
+                    // Delete the object we just created...
+                    if let Some(object_label) = &uri.object_label {
+                        let _ = pkcs11_session.clone().delete_key(object_label);
+                    }
+
+                    // ... and continue to the next location.
+                } else {
+                    return Ok(());
                 }
             }
         }

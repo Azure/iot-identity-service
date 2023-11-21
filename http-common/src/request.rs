@@ -448,16 +448,16 @@ mod tests {
 
         let count = Arc::new(AtomicUsize::new(1));
         for i in 1..1000 {
-            println!("Starting loop {}", i);
+            println!("Starting loop {i}");
             let count = count.clone();
 
             tokio::spawn(async move {
                 loop {
                     let j = count.fetch_add(1, Ordering::Relaxed);
 
-                    let request_num = format!("{} ({})", j, i);
+                    let request_num = format!("{j} ({i})");
                     if let Err(e) = query_hub(&request_num).await {
-                        println!("Error: {}", e);
+                        println!("Error: {e}");
                     }
 
                     tokio::time::sleep(Duration::from_millis(1)).await;
@@ -469,12 +469,11 @@ mod tests {
     }
 
     async fn query_hub(i: &str) -> Result<(), Box<Error>> {
-        println!("Making request {}", i);
+        println!("Making request {i}");
         let timer = Instant::now();
 
         let uri = format!(
-            "https://{}/devices/{}/modules?api-version=2020-05-31-preview",
-            HUB_HOSTNAME, DEVICE_ID
+            "https://{HUB_HOSTNAME}/devices/{DEVICE_ID}/modules?api-version=2020-05-31-preview"
         );
 
         let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new().unwrap(), &uri)

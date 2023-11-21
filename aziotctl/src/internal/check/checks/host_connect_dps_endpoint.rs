@@ -37,14 +37,14 @@ impl HostConnectDpsEndpoint {
     ) -> Result<CheckResult> {
         use aziot_identityd_config::ProvisioningType;
 
-        let dps_endpoint = match &unwrap_or_skip!(&cache.cfg.identityd)
+        let ProvisioningType::Dps {
+            global_endpoint: dps_endpoint,
+            ..
+        } = &unwrap_or_skip!(&cache.cfg.identityd)
             .provisioning
             .provisioning
-        {
-            ProvisioningType::Dps {
-                global_endpoint, ..
-            } => global_endpoint,
-            _ => return Ok(CheckResult::Ignored),
+        else {
+            return Ok(CheckResult::Ignored);
         };
 
         self.dps_endpoint = Some(dps_endpoint.clone());
@@ -58,10 +58,7 @@ impl HostConnectDpsEndpoint {
             .to_string()
             .parse::<hyper::Uri>()
             .with_context(|| {
-                format!(
-                    "url::Url {:?} could not be parsed as hyper::Uri",
-                    dps_endpoint
-                )
+                format!("url::Url {dps_endpoint:?} could not be parsed as hyper::Uri")
             })?;
 
         crate::internal::common::resolve_and_tls_handshake(

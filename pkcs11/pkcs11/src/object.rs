@@ -218,13 +218,13 @@ impl std::fmt::Display for GetKeyParametersError {
                 write!(f, "could not convert components to openssl types")
             }
             GetKeyParametersError::GetAttributeValueFailed(result) => {
-                write!(f, "C_GetAttributeValue failed with {}", result)
+                write!(f, "C_GetAttributeValue failed with {result}")
             }
             GetKeyParametersError::MalformedEcPoint(_) => {
                 write!(f, "could not parse the DER-encoded EC point")
             }
             GetKeyParametersError::UnrecognizedEcCurve(curve) => {
-                write!(f, "the EC point is using an unknown curve: {:?}", curve)
+                write!(f, "the EC point is using an unknown curve: {curve:?}")
             }
         }
     }
@@ -399,8 +399,8 @@ impl std::fmt::Display for SignError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SignError::LoginFailed(_) => f.write_str("could not log in to the token"),
-            SignError::SignInitFailed(result) => write!(f, "C_SignInit failed with {}", result),
-            SignError::SignFailed(result) => write!(f, "C_Sign failed with {}", result),
+            SignError::SignInitFailed(result) => write!(f, "C_SignInit failed with {result}"),
+            SignError::SignFailed(result) => write!(f, "C_Sign failed with {result}"),
         }
     }
 }
@@ -459,9 +459,9 @@ impl std::fmt::Display for VerifyError {
         match self {
             VerifyError::LoginFailed(_) => f.write_str("could not log in to the token"),
             VerifyError::VerifyInitFailed(result) => {
-                write!(f, "C_VerifyInit failed with {}", result)
+                write!(f, "C_VerifyInit failed with {result}")
             }
-            VerifyError::VerifyFailed(result) => write!(f, "C_Verify failed with {}", result),
+            VerifyError::VerifyFailed(result) => write!(f, "C_Verify failed with {result}"),
         }
     }
 }
@@ -518,9 +518,9 @@ impl std::fmt::Display for EncryptError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EncryptError::EncryptInitFailed(result) => {
-                write!(f, "C_EncryptInit failed with {}", result)
+                write!(f, "C_EncryptInit failed with {result}")
             }
-            EncryptError::EncryptFailed(result) => write!(f, "C_Encrypt failed with {}", result),
+            EncryptError::EncryptFailed(result) => write!(f, "C_Encrypt failed with {result}"),
             EncryptError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
     }
@@ -569,9 +569,9 @@ impl std::fmt::Display for DecryptError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DecryptError::DecryptInitFailed(result) => {
-                write!(f, "C_DecryptInit failed with {}", result)
+                write!(f, "C_DecryptInit failed with {result}")
             }
-            DecryptError::DecryptFailed(result) => write!(f, "C_Decrypt failed with {}", result),
+            DecryptError::DecryptFailed(result) => write!(f, "C_Decrypt failed with {result}"),
             DecryptError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
     }

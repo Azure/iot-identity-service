@@ -22,6 +22,22 @@ BuildRequires: pkgconfig
 # Required for _unitdir to be defined, as described in https://fedoraproject.org/wiki/Packaging:Systemd
 BuildRequires: systemd
 
+
+# Since we vendor tpm2-tss (VENDOR_LIBTSS=1 for all CentOS and EL packages), we need to tell rpm that
+# we do not want it showing up in the package's Requires or Provides lists.
+# If it shows up in the Provides list it will force the distro tpm2-tss package to be uninstalled,
+# and if it's removed from the Provides list but not the Requires list it will force
+# the distro tpm2-tss package to be installed.
+#
+# Ideally we would want this to apply to $libdir/$name/*.so.* , but the regex is run on
+# the sonames rather than the full path, so we need list the library names explicitly.
+#
+# Ref: https://docs.fedoraproject.org/en-US/packaging-guidelines/AutoProvidesAndRequiresFiltering/#_private_libraries
+%global _privatelibs libtss2.*[.]so.*
+%global __provides_exclude ^(%{_privatelibs})$
+%global __requires_exclude ^(%{_privatelibs})$
+
+
 %description
 This package contains the Azure IoT device runtime, comprised of the following services:
 

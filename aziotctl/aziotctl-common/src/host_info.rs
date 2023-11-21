@@ -130,7 +130,7 @@ pub fn parse_shell_line(line: &str) -> Option<(&str, &str)> {
 }
 
 fn try_read_dmi(entry: &'static str) -> Option<String> {
-    let path = format!("/sys/devices/virtual/dmi/id/{}", entry);
+    let path = format!("/sys/devices/virtual/dmi/id/{entry}");
 
     let bytes = fs::read(path).ok()?;
 

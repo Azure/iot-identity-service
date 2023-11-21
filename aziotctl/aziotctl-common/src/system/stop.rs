@@ -10,7 +10,7 @@ use super::{print_command_error, ServiceDefinition};
 pub fn stop(services: &[&ServiceDefinition]) -> Result<()> {
     // stop all services
     for service in services.iter().map(|s| s.service) {
-        print!("Stopping {}...", service);
+        print!("Stopping {service}...");
         let result = Command::new("systemctl")
             .args(["stop", service])
             .output()

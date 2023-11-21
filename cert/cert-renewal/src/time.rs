@@ -93,15 +93,11 @@ impl std::convert::From<Time> for i64 {
 
 impl std::convert::From<&openssl::asn1::Asn1TimeRef> for Time {
     fn from(time: &openssl::asn1::Asn1TimeRef) -> Self {
-        let epoch = if let Ok(epoch) = openssl::asn1::Asn1Time::from_unix(0) {
-            epoch
-        } else {
+        let Ok(epoch) = openssl::asn1::Asn1Time::from_unix(0) else {
             abort("Failed to determine UNIX epoch.");
         };
 
-        let unix = if let Ok(diff) = epoch.diff(time) {
-            diff
-        } else {
+        let Ok(unix) = epoch.diff(time) else {
             abort("Failed to calculate time difference.");
         };
 

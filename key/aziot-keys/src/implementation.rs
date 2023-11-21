@@ -531,7 +531,7 @@ impl Location {
                 let hash =
                     openssl::hash::hash(openssl::hash::MessageDigest::sha256(), id.as_bytes())?;
                 let hash = hex::encode(hash);
-                path.push(format!("{}-{}.key", id_sanitized, hash));
+                path.push(format!("{id_sanitized}-{hash}.key"));
 
                 locations.push(Location::Filesystem(path));
             }

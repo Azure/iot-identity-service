@@ -11,7 +11,7 @@ impl std::fmt::Display for KeysRawError {
                 f.write_str("AZIOT_KEYS_RC_ERR_INVALID_PARAMETER")
             }
             sys::AZIOT_KEYS_RC_ERR_EXTERNAL => f.write_str("AZIOT_KEYS_RC_ERR_EXTERNAL"),
-            err => write!(f, "0x{:08x}", err),
+            err => write!(f, "0x{err:08x}"),
         }
     }
 }
@@ -368,15 +368,14 @@ impl std::fmt::Display for LoadLibraryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LoadLibraryError::GetFunctionList(inner) => {
-                write!(f, "could not get function list: {}", inner)
+                write!(f, "could not get function list: {inner}")
             }
             LoadLibraryError::MissingFunction(name) => {
-                write!(f, "library does not define {}", name)
+                write!(f, "library does not define {name}")
             }
             LoadLibraryError::UnsupportedApiVersion(api_version) => write!(
                 f,
-                "library exports API version 0x{:08x} which is not supported",
-                api_version
+                "library exports API version 0x{api_version:08x} which is not supported"
             ),
         }
     }
@@ -572,7 +571,7 @@ impl Keys {
                             )
                             .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
                             let engine = base64::engine::general_purpose::STANDARD;
-                            let parameter_value = base64::Engine::encode(&engine, &parameter_value);
+                            let parameter_value = base64::Engine::encode(&engine, parameter_value);
                             Ok(parameter_value)
                         }
                     }
@@ -599,18 +598,16 @@ impl std::fmt::Display for GetKeyPairPublicParameterError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetKeyPairPublicParameterError::Api { err } => {
-                write!(f, "could not get key pair parameter: {}", err)
+                write!(f, "could not get key pair parameter: {err}")
             }
             GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithm { algorithm } => write!(
                 f,
-                "could not get key pair parameter: key has unknown algorithm {}",
-                algorithm
+                "could not get key pair parameter: key has unknown algorithm {algorithm}"
             ),
             GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len } => {
                 write!(
                 f,
-                "could not get key pair parameter: key has unknown algorithm value of length {}",
-                algorithm_len
+                "could not get key pair parameter: key has unknown algorithm value of length {algorithm_len}"
             )
             }
         }

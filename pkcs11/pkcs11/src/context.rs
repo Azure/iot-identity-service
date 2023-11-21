@@ -75,7 +75,7 @@ impl Context {
             let result = C_GetFunctionList(&mut function_list);
             if result != pkcs11_sys::CKR_OK {
                 return Err(LoadContextError::GetFunctionListFailed(
-                    format!("C_GetFunctionList failed with {}", result).into(),
+                    format!("C_GetFunctionList failed with {result}").into(),
                 ));
             }
             if function_list.is_null() {
@@ -277,24 +277,23 @@ impl std::fmt::Display for LoadContextError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LoadContextError::LoadGetFunctionListSymbol(message) => {
-                write!(f, "could not load C_GetFunctionList symbol: {}", message)
+                write!(f, "could not load C_GetFunctionList symbol: {message}")
             }
             LoadContextError::LoadLibrary(message) => {
-                write!(f, "could not load library: {}", message)
+                write!(f, "could not load library: {message}")
             }
             LoadContextError::GetFunctionListFailed(message) => {
-                write!(f, "could not get function list: {}", message)
+                write!(f, "could not get function list: {message}")
             }
             LoadContextError::InitializeFailed(result) => {
-                write!(f, "C_Initialize failed with {}", result)
+                write!(f, "C_Initialize failed with {result}")
             }
             LoadContextError::MissingFunction(name) => {
-                write!(f, "function list is missing required function {}", name)
+                write!(f, "function list is missing required function {name}")
             }
             LoadContextError::UnsupportedPkcs11Version { expected, actual } => write!(
                 f,
-                "expected library to support {} or higher, but it supports {}",
-                expected, actual
+                "expected library to support {expected} or higher, but it supports {actual}"
             ),
         }
     }
@@ -388,7 +387,7 @@ impl std::fmt::Display for ListSlotsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ListSlotsError::GetSlotList(result) => {
-                write!(f, "C_GetSlotList failed with {}", result)
+                write!(f, "C_GetSlotList failed with {result}")
             }
         }
     }
@@ -492,7 +491,7 @@ impl std::fmt::Display for GetTokenInfoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetTokenInfoError::GetTokenInfo(result) => {
-                write!(f, "C_GetTokenInfo failed with {}", result)
+                write!(f, "C_GetTokenInfo failed with {result}")
             }
         }
     }
@@ -544,7 +543,7 @@ impl Context {
             );
             if result != pkcs11_sys::CKR_OK {
                 return Err(OpenSessionError::OpenSessionFailed(
-                    format!("C_OpenSession failed with {}", result).into(),
+                    format!("C_OpenSession failed with {result}").into(),
                 ));
             }
             if handle == pkcs11_sys::CK_INVALID_SESSION_HANDLE {
@@ -569,7 +568,7 @@ impl std::fmt::Display for OpenSessionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OpenSessionError::OpenSessionFailed(message) => {
-                write!(f, "could not open session: {}", message)
+                write!(f, "could not open session: {message}")
             }
         }
     }
@@ -625,9 +624,8 @@ unsafe extern "C" fn lock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::
     }
 
     let mutex: &mut Mutex = &mut *pMutex.cast();
-    let guard = match mutex.inner.lock() {
-        Ok(guard) => guard,
-        Err(_) => return pkcs11_sys::CKR_GENERAL_ERROR,
+    let Ok(guard) = mutex.inner.lock() else {
+        return pkcs11_sys::CKR_GENERAL_ERROR;
     };
     let guard = std::mem::transmute(guard);
     mutex.guard = guard;

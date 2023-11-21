@@ -5,7 +5,7 @@
 #![allow(
     non_snake_case,
     clippy::default_trait_access,
-    clippy::let_underscore_drop,
+    let_underscore_drop,
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
     clippy::must_use_candidate,
@@ -58,7 +58,7 @@ impl std::fmt::Display for Uri {
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
-                    write!(f, "{}", s)?;
+                    write!(f, "{s}")?;
                 }
             }
 
@@ -70,7 +70,7 @@ impl std::fmt::Display for Uri {
                     percent_encoding::NON_ALPHANUMERIC,
                 );
                 for s in value {
-                    write!(f, "{}", s)?;
+                    write!(f, "{s}")?;
                 }
             }
         }
@@ -82,7 +82,7 @@ impl std::fmt::Display for Uri {
                 percent_encoding::NON_ALPHANUMERIC,
             );
             for s in value {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
 
@@ -91,7 +91,7 @@ impl std::fmt::Display for Uri {
             let value =
                 percent_encoding::utf8_percent_encode(pin, percent_encoding::NON_ALPHANUMERIC);
             for s in value {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
 
@@ -128,9 +128,8 @@ impl std::str::FromStr for Uri {
 
             let key = percent_encoding::percent_decode(key.as_bytes());
             let key: std::borrow::Cow<'a, _> = key.into();
-            let typed_key = match key_discriminant(&key) {
-                Some(typed_key) => typed_key,
-                None => return Ok(None),
+            let Some(typed_key) = key_discriminant(&key) else {
+                return Ok(None);
             };
 
             let value = percent_encoding::percent_decode(value.as_bytes());
@@ -222,13 +221,11 @@ impl std::fmt::Display for ParsePkcs11UriError {
         match self {
             ParsePkcs11UriError::InvalidScheme => f.write_str("URI does not have pkcs11 scheme"),
             ParsePkcs11UriError::InvalidUtf8(key, _) => {
-                write!(f, "URI component with key [{:?}] is not valid UTF-8", key)
+                write!(f, "URI component with key [{key:?}] is not valid UTF-8")
             }
-            ParsePkcs11UriError::MalformedSlotId(value, _) => write!(
-                f,
-                "pin-value path component has malformed value [{}]",
-                value
-            ),
+            ParsePkcs11UriError::MalformedSlotId(value, _) => {
+                write!(f, "pin-value path component has malformed value [{value}]")
+            }
             ParsePkcs11UriError::NeitherSlotIdNorTokenSpecified => {
                 f.write_str("URI has neither [slot-id] nor [token] components")
             }
@@ -287,15 +284,15 @@ mod tests {
                         let mut path_components = vec![];
 
                         if let Some(slot_id) = slot_id {
-                            path_components.push(format!("slot-id={}", slot_id));
+                            path_components.push(format!("slot-id={slot_id}"));
                         }
 
                         if let Some(token_label) = token_label {
-                            path_components.push(format!("token={}", token_label));
+                            path_components.push(format!("token={token_label}"));
                         }
 
                         if let Some(object_label) = object_label {
-                            path_components.push(format!("object={}", object_label));
+                            path_components.push(format!("object={object_label}"));
                         }
 
                         let path_components_len = path_components.len();
@@ -307,7 +304,7 @@ mod tests {
 
                             if let Some(pin) = pin {
                                 use std::fmt::Write;
-                                write!(uri_string, "?pin-value={}", pin).unwrap();
+                                write!(uri_string, "?pin-value={pin}").unwrap();
                             }
 
                             parse_pkcs11_uri_inner(
@@ -339,7 +336,7 @@ mod tests {
         object_label: Option<&str>,
         pin: Option<&str>,
     ) {
-        eprintln!("{}", uri_string);
+        eprintln!("{uri_string}");
 
         let uri: Result<super::Uri, _> = uri_string.parse();
 
@@ -370,15 +367,13 @@ mod tests {
             ) => assert_eq!(expected_token_label, actual_token_label),
 
             (slot_id, token_label, uri) => panic!(
-                "test failure: slot_id: {:?}, token_label: {:?}, uri: {:?}",
-                slot_id, token_label, uri
+                "test failure: slot_id: {slot_id:?}, token_label: {token_label:?}, uri: {uri:?}"
             ),
         }
 
         let uri = uri.unwrap_or_else(|err| {
             panic!(
-                "URI {:?} ought to have been successfully parsed but failed with {:?}",
-                uri_string, err
+                "URI {uri_string:?} ought to have been successfully parsed but failed with {err:?}"
             )
         });
 
@@ -398,10 +393,9 @@ mod tests {
                 },
             ) => (),
 
-            (object_label, uri) => panic!(
-                "test failure: object_label: {:?}, uri: {:?}",
-                object_label, uri
-            ),
+            (object_label, uri) => {
+                panic!("test failure: object_label: {object_label:?}, uri: {uri:?}")
+            }
         }
 
         match (pin, &uri) {
@@ -415,7 +409,7 @@ mod tests {
 
             (None, super::Uri { pin: None, .. }) => (),
 
-            (pin, uri) => panic!("test failure: pin: {:?}, uri: {:?}", pin, uri),
+            (pin, uri) => panic!("test failure: pin: {pin:?}, uri: {uri:?}"),
         }
     }
 }

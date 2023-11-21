@@ -2,7 +2,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc, clippy::must_use_candidate)]
 
 /// Emits `ossl110` and `ossl330` cfg based on the version of openssl.
 pub fn define_version_number_cfg() {

@@ -46,9 +46,7 @@ impl CertsMatchPrivateKeys {
                         }
                         write!(
                             &mut err_aggregated,
-                            "preloaded cert with ID {:?} does not match preloaded private key with ID {:?}",
-                            id,
-                            id
+                            "preloaded cert with ID {id:?} does not match preloaded private key with ID {id:?}"
                         ).expect("std::fmt::Write for String should not fail");
                     }
                 }

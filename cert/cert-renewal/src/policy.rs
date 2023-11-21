@@ -57,9 +57,7 @@ impl<'de> serde::Deserialize<'de> for Policy {
     {
         let mut policy: String = serde::Deserialize::deserialize(deserializer)?;
 
-        let last = if let Some(last) = policy.pop() {
-            last
-        } else {
+        let Some(last) = policy.pop() else {
             return Err(serde::de::Error::custom("policy not specified"));
         };
 
@@ -118,18 +116,18 @@ impl serde::Serialize for Policy {
     {
         let policy = match self {
             Policy::Percentage(percentage) => {
-                format!("{}%", percentage)
+                format!("{percentage}%")
             }
             Policy::Time(time) => {
                 // Represent time as whole days if possible, otherwise as minutes.
                 if time % 86400 == 0 {
                     let days = time / 86400;
 
-                    format!("{}day", days)
+                    format!("{days}day")
                 } else {
                     let minutes = time / 60;
 
-                    format!("{}min", minutes)
+                    format!("{minutes}min")
                 }
             }
         };

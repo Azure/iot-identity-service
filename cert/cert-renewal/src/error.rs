@@ -22,7 +22,7 @@ impl std::fmt::Display for Error {
             Error::Fatal(message) | Error::Retryable(message) => message,
         };
 
-        write!(f, "{}", message)
+        write!(f, "{message}")
     }
 }
 

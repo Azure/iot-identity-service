@@ -168,11 +168,9 @@ impl std::fmt::Display for GetKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GetKeyError::FindObjectsFailed(_) => f.write_str("could not find objects"),
-            GetKeyError::GetKeyTypeFailed(result) => write!(
-                f,
-                "C_GetAttributeValue(CKA_KEY_TYPE) failed with {}",
-                result
-            ),
+            GetKeyError::GetKeyTypeFailed(result) => {
+                write!(f, "C_GetAttributeValue(CKA_KEY_TYPE) failed with {result}")
+            }
             GetKeyError::KeyDoesNotExist => f.write_str("did not find any keys in the slot"),
             GetKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
             GetKeyError::MismatchedMechanismType => {
@@ -209,7 +207,7 @@ impl std::fmt::Display for RenameKeyError {
             RenameKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
             RenameKeyError::SourceNotFound => f.write_str("source not found"),
             RenameKeyError::ChangeLabelFailed(result) => {
-                write!(f, "C_SetAttributeValue failed with {}", result)
+                write!(f, "C_SetAttributeValue failed with {result}")
             }
         }
     }
@@ -297,7 +295,7 @@ impl<'session> Iterator for FindObjects<'session> {
             );
             if result != pkcs11_sys::CKR_OK {
                 return Some(Err(FindObjectsError::FindObjectsFailed(
-                    format!("C_FindObjects failed with {}", result).into(),
+                    format!("C_FindObjects failed with {result}").into(),
                 )));
             }
             match num_objects {
@@ -310,7 +308,7 @@ impl<'session> Iterator for FindObjects<'session> {
                         .into(),
                 ))),
                 num_objects => Some(Err(FindObjectsError::FindObjectsFailed(
-                    format!("C_FindObjects found {} objects", num_objects).into(),
+                    format!("C_FindObjects found {num_objects} objects").into(),
                 ))),
             }
         }
@@ -337,7 +335,7 @@ impl std::fmt::Display for FindObjectsError {
         match self {
             FindObjectsError::FindObjectsFailed(message) => f.write_str(message),
             FindObjectsError::FindObjectsInitFailed(result) => {
-                write!(f, "C_FindObjectsInit failed with {}", result)
+                write!(f, "C_FindObjectsInit failed with {result}")
             }
         }
     }
@@ -573,10 +571,10 @@ pub enum GenerateKeyError {
 impl std::fmt::Display for GenerateKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GenerateKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            GenerateKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {result}"),
             GenerateKeyError::GenerateKeyDidNotReturnHandle =>
                 f.write_str("could not generate key pair: C_GenerateKey succeeded but key handle is still CK_INVALID_HANDLE"),
-            GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key: C_GenerateKey failed with {}", result),
+            GenerateKeyError::GenerateKeyFailed(result) => write!(f, "could not generate key: C_GenerateKey failed with {result}"),
             GenerateKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
             GenerateKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
@@ -744,8 +742,8 @@ impl std::fmt::Display for ImportKeyError {
         match self {
             ImportKeyError::CreateObjectDidNotReturnHandle =>
                 f.write_str("could not generate key pair: C_CreateObject succeeded but key handle is still CK_INVALID_HANDLE"),
-            ImportKeyError::CreateObjectFailed(result) => write!(f, "could not generate key pair: C_CreateObject failed with {}", result),
-            ImportKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            ImportKeyError::CreateObjectFailed(result) => write!(f, "could not generate key pair: C_CreateObject failed with {result}"),
+            ImportKeyError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {result}"),
             ImportKeyError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
             ImportKeyError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
@@ -1003,10 +1001,10 @@ pub enum GenerateKeyPairError {
 impl std::fmt::Display for GenerateKeyPairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GenerateKeyPairError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {}", result),
+            GenerateKeyPairError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {result}"),
             GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) =>
-                write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {} key handle is still CK_INVALID_HANDLE", kind),
-            GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {}", result),
+                write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {kind} key handle is still CK_INVALID_HANDLE"),
+            GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {result}"),
             GenerateKeyPairError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
             GenerateKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
@@ -1061,7 +1059,7 @@ impl std::fmt::Display for DeleteKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeleteKeyError::DeleteExistingKeyFailed(result) => {
-                write!(f, "C_DestroyObject failed with {}", result)
+                write!(f, "C_DestroyObject failed with {result}")
             }
             DeleteKeyError::GetExistingKeyFailed(_) => {
                 write!(f, "could not get existing key object")
@@ -1122,7 +1120,7 @@ impl std::fmt::Display for DeleteKeyPairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeleteKeyPairError::DeleteExistingKeyFailed(result) => {
-                write!(f, "C_DestroyObject failed with {}", result)
+                write!(f, "C_DestroyObject failed with {result}")
             }
             DeleteKeyPairError::GetExistingKeyFailed(_) => {
                 write!(f, "could not get existing key object")
@@ -1192,9 +1190,9 @@ impl std::fmt::Display for LoginError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LoginError::GetSessionInfoFailed(result) => {
-                write!(f, "C_GetSessionInfo failed with {}", result)
+                write!(f, "C_GetSessionInfo failed with {result}")
             }
-            LoginError::LoginFailed(result) => write!(f, "C_Login failed with {}", result),
+            LoginError::LoginFailed(result) => write!(f, "C_Login failed with {result}"),
         }
     }
 }

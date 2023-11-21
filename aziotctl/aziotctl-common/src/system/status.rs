@@ -88,11 +88,8 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
     }
 
     let name = crate::program_name();
-    println!("Use '{} system logs' to check for non-fatal errors.", name);
-    println!(
-        "Use '{} check' to diagnose connectivity and configuration issues.",
-        name
-    );
+    println!("Use '{name} system logs' to check for non-fatal errors.");
+    println!("Use '{name} check' to diagnose connectivity and configuration issues.");
 
     Ok(())
 }
@@ -156,7 +153,7 @@ impl fmt::Display for StateDisplay<'_, state_kind::Service> {
         match self.state {
             State::Active => write!(f, "Running"),
             State::Inactive => write!(f, "Ready"),
-            State::Failed(msg) => write!(f, "Down - {}", msg),
+            State::Failed(msg) => write!(f, "Down - {msg}"),
         }
     }
 }
@@ -166,7 +163,7 @@ impl fmt::Display for StateDisplay<'_, state_kind::Socket> {
         match self.state {
             State::Active => write!(f, "Running"),
             State::Inactive => write!(f, "Down - inactive"),
-            State::Failed(msg) => write!(f, "Down - {}", msg),
+            State::Failed(msg) => write!(f, "Down - {msg}"),
         }
     }
 }
