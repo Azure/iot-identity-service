@@ -32,10 +32,6 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <td><code>debian:11-slim</code></td>
 </tr>
 <tr>
-<td>Ubuntu 18.04</td>
-<td><code>ubuntu:18.04</code></td>
-</tr>
-<tr>
 <td>Ubuntu 20.04</td>
 <td><code>ubuntu:20.04</code></td>
 </tr>
