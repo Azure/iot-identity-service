@@ -22,7 +22,6 @@ jobs:
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         arch:
@@ -81,7 +80,6 @@ jobs:
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         pkcs11_backend:
@@ -145,7 +143,6 @@ jobs:
         - 'debian:10-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:18.04'
         arch:
         - 'amd64'
         test:
@@ -223,7 +220,7 @@ jobs:
           -e "ARCH=$ARCH" \
           --privileged \
           --name "code-cov" \
-          "ubuntu:18.04" \
+          "ubuntu:22.04" \
           '/src/ci/code-coverage.sh'
         sudo chown -R runner:docker $GITHUB_WORKSPACE/coverage
       env:
