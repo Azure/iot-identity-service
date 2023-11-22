@@ -1,8 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use openssl::pkcs7::Pkcs7;
-use openssl::pkey::{PKeyRef, Private};
-use openssl::x509::X509;
+use foreign_types_shared::{ForeignType as _, ForeignTypeRef as _};
+use openssl::{
+    pkcs7::Pkcs7,
+    pkey::{PKeyRef, Private},
+    stack::StackRef,
+    x509::X509,
+};
 use url::Url;
 
 use aziot_certd_config::EstAuthBasic;
@@ -174,27 +178,31 @@ async fn get_pkcs7_response(
         Ok(Pkcs7::from_der(&bytes)?)
     })?;
 
-    // Note: This borrows from pkcs7. Do not drop pkcs7 before this.
-    let x509_stack = unsafe {
-        let x509_stack =
-            aziot_certd_pkcs7_to_x509(foreign_types_shared::ForeignType::as_ptr(&pkcs7));
-        let x509_stack = x509_stack.cast_mut();
-        let x509_stack: &openssl::stack::StackRef<X509> =
-            foreign_types_shared::ForeignTypeRef::from_ptr(x509_stack);
-        x509_stack
-    };
+    let x509_stack = pkcs7_to_x509(&pkcs7);
 
     let mut pem = vec![];
 
-    for x509 in x509_stack {
+    for x509 in x509_stack.into_iter().flatten() {
         pem.extend_from_slice(&x509.to_pem()?);
     }
 
     Ok(pem)
 }
 
-extern "C" {
-    fn aziot_certd_pkcs7_to_x509(
-        pkcs7: *const openssl_sys::PKCS7,
-    ) -> *const openssl_sys::stack_st_X509;
+fn pkcs7_to_x509(pkcs7: &Pkcs7) -> Option<&StackRef<X509>> {
+    unsafe {
+        let pkcs7 = &*pkcs7.as_ptr();
+
+        if openssl_sys::OBJ_obj2nid(pkcs7.type_) != openssl_sys::NID_pkcs7_signed {
+            return None;
+        }
+
+        // When an arbitrary PKCS#7 blob is decoded, `d.sign` may still be NULL
+        // even if the type is `NID_pkcs7_signed`, so we need to check both.
+        //
+        // Ref: https://github.com/openssl/openssl/commit/79356a83b78a2d936dcd022847465d9ebf6c67b1
+        let sign = pkcs7.d.sign.as_ref()?;
+
+        Some(StackRef::from_ptr(sign.cert))
+    }
 }
