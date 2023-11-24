@@ -206,3 +206,21 @@ fn pkcs7_to_x509(pkcs7: &Pkcs7) -> Option<&StackRef<X509>> {
         Some(StackRef::from_ptr(sign.cert))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use openssl::pkcs7::Pkcs7;
+
+    #[test]
+    fn pkcs7_to_x509_signed_but_no_certs() {
+        // This has `OBJ_obj2nid(.type_) == NID_pkcs7_signed` but the `.d.sign` pointer will be `NULL`.
+        let pkcs7 = Pkcs7::from_pem(
+            b"-----BEGIN PKCS7-----
+MAsGCSqGSIb3DQEHAg==
+-----END PKCS7-----",
+        )
+        .unwrap();
+        let x509_stack = super::pkcs7_to_x509(&pkcs7);
+        assert!(x509_stack.is_none());
+    }
+}
