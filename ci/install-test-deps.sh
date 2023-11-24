@@ -21,7 +21,7 @@ case "$OS" in
     # repositories, but the available version does not provide a TCTI
     # module for swtpm.  So, we skip testing tss-minimal on
     # ubuntu:20.04.
-    'debian:'*|'ubuntu:18.04')
+    'debian:'*)
         export SKIP_TSS_MINIMAL=0
         export USE_SWTPM_PKG=0
 

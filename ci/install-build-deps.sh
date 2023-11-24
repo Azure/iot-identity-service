@@ -30,7 +30,7 @@ case "$OS:$ARCH" in
         exit 1
         ;;
 
-    'debian:10:amd64'|'ubuntu:18.04:amd64')
+    'debian:10:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
         export VENDOR_LIBTSS=1
@@ -141,35 +141,6 @@ case "$OS:$ARCH" in
         ;;
 
 
-    'ubuntu:18.04:arm32v7')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
-        export VENDOR_LIBTSS=1
-
-        sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
-        if [ -n "$sources" ]; then
-            # Update existing repos to be specifically for amd64
-            sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-        fi
-
-        # Add armhf repos
-        </etc/apt/sources.list sed \
-            -e 's/^deb \[arch=amd64\] /deb [arch=armhf] /g' \
-            -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            >/etc/apt/sources.list.d/ports.list
-
-        dpkg --add-architecture armhf
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-armhf curl git jq \
-            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool llvm-dev \
-            pkg-config
-        ;;
-
     'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
@@ -196,35 +167,6 @@ case "$OS:$ARCH" in
             libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
             libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
             llvm-dev pkg-config
-        ;;
-
-    'ubuntu:18.04:aarch64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
-        export VENDOR_LIBTSS=1
-
-        sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
-        if [ -n "$sources" ]; then
-            # Update existing repos to be specifically for amd64
-            sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-        fi
-
-        # Add arm64 repos
-        </etc/apt/sources.list sed \
-            -e 's/^deb \[arch=amd64\] /deb [arch=arm64] /g' \
-            -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            >/etc/apt/sources.list.d/ports.list
-
-        dpkg --add-architecture arm64
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-arm64 curl git jq \
-            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool llvm-dev \
-            pkg-config
         ;;
 
     'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
@@ -373,7 +315,7 @@ if [ "${OS#mariner}" = "$OS" ]; then
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION"
 
-    if [ "$OS:$ARCH" = 'ubuntu:18.04:amd64' ]; then
+    if [ "$OS:$ARCH" = 'ubuntu:22.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.20' --locked
     fi
 fi

@@ -124,7 +124,7 @@ export GITHUB_RUN_NUMBER='1'
 
 
 # One of the supported OSes. The full list can be found in the workflows files.
-export OS='ubuntu:18.04'
+export OS='ubuntu:22.04'
 
 
 # Suite-level setup for things shared between all tests (IoT Hub, DPS, etc)
