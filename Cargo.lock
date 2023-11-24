@@ -186,7 +186,6 @@ dependencies = [
  "libc",
  "log",
  "openssl",
- "openssl-build",
  "openssl-sys",
  "openssl2",
  "percent-encoding",

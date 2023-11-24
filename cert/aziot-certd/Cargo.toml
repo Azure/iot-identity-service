@@ -3,7 +3,6 @@ name = "aziot-certd"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
-build = "build/main.rs"
 
 
 [dependencies]
@@ -20,7 +19,7 @@ lazy_static = "1"
 libc = "0.2"
 log = "0.4"
 openssl = "0.10"
-openssl-sys = "0.9"
+openssl-sys = "0.9.86" # for openssl_sys::PKCS7
 percent-encoding = "2"
 regex = "1"
 serde = "1"
@@ -40,7 +39,3 @@ cert-renewal = { path = "../cert-renewal" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
-
-
-[build-dependencies]
-openssl-build = { path = "../../openssl-build/" }
