@@ -5,7 +5,7 @@ set -eu
 # Install mock-iot-server's root CA certificate.
 # Don't modify trusted certificates if not running on a CI container OS.
 case "$CONTAINER_OS" in
-    'ubuntu:18.04' | 'debian:10-slim')
+    'debian:10-slim')
         mkdir -p /usr/local/share/ca-certificates
         cp "$ROOT_CERT" /usr/local/share/ca-certificates/dps_root_cert.crt
         update-ca-certificates

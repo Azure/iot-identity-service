@@ -50,7 +50,7 @@ impl Default for DmiInfo {
 ///  CentOS 7            | centos              | 7
 ///  Debian 9            | debian              | 9
 ///  openSUSE Tumbleweed | opensuse-tumbleweed | 20190325
-///  Ubuntu 18.04        | ubuntu              | 18.04
+///  Ubuntu 22.04        | ubuntu              | 22.04
 /// ```
 ///
 /// Ref: <https://www.freedesktop.org/software/systemd/man/os-release.html>

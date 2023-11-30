@@ -68,7 +68,6 @@ jobs:
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
         # - 'platform:el8'
         - 'platform:el9'
-        - 'ubuntu:18.04'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         test_name:

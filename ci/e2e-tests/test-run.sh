@@ -105,10 +105,6 @@ get_package() {
             artifact_name='redhat-ubi9-latest'
             ;;
 
-        'ubuntu:18.04')
-            artifact_name='ubuntu-18.04'
-            ;;
-
         'ubuntu:20.04')
             artifact_name='ubuntu-20.04'
             ;;
@@ -202,11 +198,6 @@ get_package() {
         'platform:el9')
             unzip -j package.zip 'el9/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
-            ;;
-
-        'ubuntu:18.04')
-            unzip -j package.zip 'ubuntu1804/amd64/aziot-identity-service_*_amd64.deb' >&2
-            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
         'ubuntu:20.04')
@@ -607,13 +598,6 @@ case "$OS" in
         #
         # The Azure SP does not have permissions to do this. Use your regular Azure account.
         vm_image='almalinux:almalinux:9-gen2:latest'
-        ;;
-
-    'ubuntu:18.04')
-        # az vm image list --all \
-        #     --publisher 'Canonical' --offer 'UbuntuServer' --sku '18' \
-        #     --query "[?publisher == 'Canonical' && offer == 'UbuntuServer'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:UbuntuServer:18_04-lts-gen2:latest'
         ;;
 
     'ubuntu:20.04')
