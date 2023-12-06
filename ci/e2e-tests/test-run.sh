@@ -536,11 +536,11 @@ echo 'Created allow-ssh rule in NSG' >&2
 
 echo 'Creating VM...' >&2
 
-# VM image as taken by `az vm create` is specified as the URN, which is `$publisher:$offer:$sku:$version`
+# VM image as taken by `az vm create` is specified as the URN, which is `$publisher:$offer:$sku:$version`.
+# We set the version to `latest` so that we don't have to keep updating it.
 #
-# Commented-out commands show how to query the SKU and version if needed to update.
-# When possible, use the SKU that has a `-gen2` suffix so that it creates a Gen 2 VM instead of a Gen 1 VM.
-# (The VM generation is determined by the SKU.)
+# Commented-out commands show how to query the SKU if needed to update. When possible, use the SKU that has
+# a `-gen2` suffix so that it creates a Gen 2 VM instead of a Gen 1 VM. (The VM generation is determined by the SKU.)
 #
 # `--publisher` and `--offer` are useful to filter server-side. But they filter as substrings and return many irrelevant matches,
 # so the commands also filter for exact matches using `--query`. `--sku` is left as a substring match so that the query doesn't have to
@@ -645,6 +645,7 @@ vm_id="$(
         --vnet-name "$test_common_resource_name" \
         --public-ip-sku 'Basic' \
         --enable-agent 'false' \
+        --security-type 'Standard' \
         --tags "suite_id=$suite_id" "test_id=$test_id" \
         --query 'id' --output tsv
 )"
