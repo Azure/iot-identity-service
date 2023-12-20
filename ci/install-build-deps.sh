@@ -314,9 +314,9 @@ esac
 
 # Mariner build installs the following as part of the specfile.
 if [ "${OS#mariner}" = "$OS" ]; then
-    cargo install bindgen --version "=$BINDGEN_VERSION"
+    cargo install bindgen --version "=$BINDGEN_VERSION" --locked
 
-    cargo install cbindgen --version "=$CBINDGEN_VERSION"
+    cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
 
     if [ "$OS:$ARCH" = 'ubuntu:22.04:amd64' ]; then
         cargo install cargo-tarpaulin --version '^0.20' --locked
