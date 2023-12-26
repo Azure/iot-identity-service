@@ -5,6 +5,22 @@ on:
 - 'push'
 
 jobs:
+  snap:
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-20.04-msmoby
+
+    steps:
+    - uses: 'actions/checkout@v3'
+      with:
+        submodules: 'recursive'
+    
+    - name: 'Run'
+      run: |
+        sudo snap install snapcraft --classic
+        snapcraft --destructive-mode
+
   packages:
     runs-on: 'ubuntu-22.04'
 
