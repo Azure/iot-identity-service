@@ -25,7 +25,7 @@ jobs:
       uses: 'actions/upload-artifact@v3'
       with:
         name: 'packages_snap_amd64'
-        path: 'packages'
+        path: '*.snap'
 
   packages:
     runs-on: 'ubuntu-22.04'
