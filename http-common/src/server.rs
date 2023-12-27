@@ -234,12 +234,12 @@ macro_rules! make_service {
                 }
 
                 // TODO: When we get distributed tracing, associate these two logs with the tracing ID.
-                log::info!("<-- {:?} {:?} {:?}", req.method(), req.uri(), req.headers());
+                log::debug!("<-- {:?} {:?} {:?}", req.method(), req.uri(), req.headers());
                 let res = call_inner(self, req);
                 Box::pin(async move {
                     let res = res.await;
                     match &res {
-                        Ok(res) => log::info!("--> {:?} {:?}", res.status(), res.headers()),
+                        Ok(res) => log::debug!("--> {:?} {:?}", res.status(), res.headers()),
                         Err(err) => log::error!("-!> {:?}", err),
                     }
                     res
