@@ -49,7 +49,7 @@ case "$OS" in
         # openssl 3.0 for Ubuntu 22.04
 
         apt-get update -y
-        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates
+        DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates libtss2-dev
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
