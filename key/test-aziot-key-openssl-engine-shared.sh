@@ -42,11 +42,11 @@ set -euxo pipefail
 # For CI, this would be target/debug
 cd "$(find target -type f -name aziot-key-openssl-engine-shared-test -exec dirname {} \; -quit)"
 
+# Set constants and LD_LIBRARY_PATH (to be able to load libaziot_keys.so from the same directory)
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$PWD"
 if [ -d fakeroot ]; then
     PRIVATE_LIBS="$(find fakeroot -name aziot-identity-service -exec readlink -f {} \; -quit)"
-
-    # Set constants and LD_LIBRARY_PATH (to be able to load libaziot_keys.so from the same directory)
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${PRIVATE_LIBS:-}:$PWD"
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${PRIVATE_LIBS:-}"
 fi
 
 
