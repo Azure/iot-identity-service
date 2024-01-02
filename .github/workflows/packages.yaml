@@ -5,41 +5,6 @@ on:
 - 'push'
 
 jobs:
-  snap:
-    strategy:
-      fail-fast: false
-
-      matrix:
-        runner:
-        - arch: amd64
-          pool: iot-identity-1es-hosted-linux-amd64
-          image: agent-aziotedge-ubuntu-20.04-msmoby
-        - arch: aarch64
-          pool: iot-identity-1es-hosted-linux-arm64
-          image: agent-aziotedge-ubuntu-20.04-arm64-docker
-
-    runs-on:
-    - self-hosted
-    - 1ES.Pool=${{ matrix.runner.pool }}
-    - 1ES.ImageOverride=${{ matrix.runner.image }}
-
-    steps:
-    - uses: 'actions/checkout@v3'
-      with:
-        submodules: 'recursive'
-
-    - name: 'Run'
-      run: |
-        sudo snap install snapcraft --classic
-        lxd init --minimal
-        snapcraft --use-lxd
-
-    - name: 'Upload'
-      uses: 'actions/upload-artifact@v3'
-      with:
-        name: "packages_snap_${{ matrix.runner.arch }}"
-        path: '*.snap'
-
   packages:
     runs-on: 'ubuntu-22.04'
 
@@ -127,3 +92,38 @@ jobs:
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'packages'
+
+  snap:
+    strategy:
+      fail-fast: false
+
+      matrix:
+        runner:
+        - arch: amd64
+          pool: iot-identity-1es-hosted-linux-amd64
+          image: agent-aziotedge-ubuntu-20.04-msmoby
+        - arch: aarch64
+          pool: iot-identity-1es-hosted-linux-arm64
+          image: agent-aziotedge-ubuntu-20.04-arm64-docker
+
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=${{ matrix.runner.pool }}
+    - 1ES.ImageOverride=${{ matrix.runner.image }}
+
+    steps:
+    - uses: 'actions/checkout@v3'
+      with:
+        submodules: 'recursive'
+
+    - name: 'Run'
+      run: |
+        sudo snap install snapcraft --classic
+        lxd init --minimal
+        snapcraft --use-lxd
+
+    - name: 'Upload'
+      uses: 'actions/upload-artifact@v3'
+      with:
+        name: "packages_snap_${{ matrix.runner.arch }}"
+        path: '*.snap'
