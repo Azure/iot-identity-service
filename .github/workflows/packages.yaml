@@ -117,13 +117,13 @@ jobs:
         submodules: 'recursive'
 
     - name: 'Run'
-      run: |
-        sudo snap install snapcraft --classic
-        lxd init --minimal
-        snapcraft --use-lxd
+      uses: 'snapcore/action-build@v1'
+      id: 'snapcraft'
+      with:
+        build-info: true
 
     - name: 'Upload'
       uses: 'actions/upload-artifact@v3'
       with:
-        name: "packages_snap_${{ matrix.runner.arch }}"
-        path: '*.snap'
+        name: 'packages_snap_${{ matrix.runner.arch }}'
+        path: '${{ steps.snapcraft.outputs.snap }}'
