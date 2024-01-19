@@ -50,6 +50,7 @@ members = [
 	"tpm/aziot-tpmd",
 	"tpm/tss-minimal",
 ]
+resolver = "2"
 
 # Don't let panics from callbacks cross FFI boundary
 
