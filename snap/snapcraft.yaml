@@ -150,9 +150,6 @@ hooks:
       - log-observe
       - mount-observe
 
-environment:
-  LD_LIBRARY_PATH: $SNAP/lib/aziot-identity-service
-
 slots:
   aziotctl-executables:
     interface: content
