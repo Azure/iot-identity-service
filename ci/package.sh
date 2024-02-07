@@ -220,6 +220,7 @@ EOF
         mkdir -p "/src/packages/$TARGET_DIR"
         cp \
             "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
             "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
             "/src/packages/$TARGET_DIR"
         ;;
