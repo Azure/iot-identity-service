@@ -127,8 +127,6 @@ case "$OS:$ARCH" in
         ;;
 
     'platform:el9:amd64')
-        export VENDOR_LIBTSS=1
-
         dnf install -y \
             autoconf autoconf-archive automake clang cmake diffutils gcc gcc-c++ \
             git jq make libcurl-devel libtool llvm-devel openssl-devel \
