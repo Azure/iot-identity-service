@@ -3,11 +3,11 @@ Description=Azure IoT Certificates Service API socket
 PartOf=aziot-certd.service
 
 [Socket]
-ListenStream=/run/aziot/certd.sock
+ListenStream=@socket_dir@/certd.sock
 SocketMode=0660
 DirectoryMode=0755
-SocketUser=aziotcs
-SocketGroup=aziotcs
+SocketUser=@user_aziotcs@
+SocketGroup=@user_aziotcs@
 
 [Install]
 WantedBy=sockets.target

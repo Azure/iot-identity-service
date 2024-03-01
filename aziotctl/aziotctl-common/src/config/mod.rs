@@ -62,12 +62,22 @@ pub fn write_file(
     let path = path.as_ref();
     let path_displayable = path.display();
 
-    let () = fs::write(path, content)
-        .with_context(|| format!("could not create {}", path_displayable))?;
-    let () = unistd::chown(path, Some(user.uid), Some(user.gid))
-        .with_context(|| format!("could not set ownership on {}", path_displayable))?;
+    // We're about to truncate the file anyway, but it is a little safer to
+    // fully remove it, as a truncating write does not actually reset ownership
+    // or user permissions (which can lead to needing CAP_FOWNER, as then we
+    // encounter a set_permissions call on a file we may or may not own). We
+    // can just ignore any errors returned here as they either mean a) the file
+    // doesn't exist, in which case great, or b) there is some sort of permission
+    // or path error which will just crop up in the fs::write call anyway
+
+    let _file = fs::remove_file(path);
+
+    let () =
+        fs::write(path, content).with_context(|| format!("could not create {}", path_displayable))?;
     let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
         .with_context(|| format!("could not set permissions on {}", path_displayable))?;
+    let () = unistd::chown(path, Some(user.uid), Some(user.gid))
+        .with_context(|| format!("could not set ownership on {}", path_displayable))?;
 
     Ok(())
 }

@@ -120,7 +120,7 @@ impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
             aziot_tpmd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/tpmd.sock")).into(),
             },
         }
     }
@@ -144,7 +144,11 @@ mod tests {
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into()
+                        socket_path: std::path::Path::new(concat!(
+                            env!("SOCKET_DIR"),
+                            "/tpmd.sock"
+                        ))
+                        .into()
                     },
                 },
             }
@@ -171,7 +175,11 @@ auth_key_index = 0x01_02_03
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into()
+                        socket_path: std::path::Path::new(concat!(
+                            env!("SOCKET_DIR"),
+                            "/tpmd.sock"
+                        ))
+                        .into()
                     },
                 },
             }
@@ -201,7 +209,11 @@ owner = "world"
                 },
                 endpoints: super::Endpoints {
                     aziot_tpmd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/tpmd.sock").into()
+                        socket_path: std::path::Path::new(concat!(
+                            env!("SOCKET_DIR"),
+                            "/tpmd.sock"
+                        ))
+                        .into()
                     },
                 },
             }

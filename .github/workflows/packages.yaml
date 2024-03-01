@@ -92,3 +92,38 @@ jobs:
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'packages'
+
+  snap:
+    strategy:
+      fail-fast: false
+
+      matrix:
+        runner:
+        - arch: amd64
+          pool: iot-identity-1es-hosted-linux-amd64
+          image: agent-aziotedge-ubuntu-22.04-msmoby
+        - arch: aarch64
+          pool: iot-identity-1es-hosted-linux-arm64
+          image: agent-aziotedge-ubuntu-22.04-arm64-msmoby
+
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=${{ matrix.runner.pool }}
+    - 1ES.ImageOverride=${{ matrix.runner.image }}
+
+    steps:
+    - uses: 'actions/checkout@v3'
+      with:
+        submodules: 'recursive'
+
+    - name: 'Run'
+      uses: 'snapcore/action-build@v1'
+      id: 'snapcraft'
+      with:
+        build-info: true
+
+    - name: 'Upload'
+      uses: 'actions/upload-artifact@v3'
+      with:
+        name: 'packages_snap_${{ matrix.runner.arch }}'
+        path: '${{ steps.snapcraft.outputs.snap }}'
