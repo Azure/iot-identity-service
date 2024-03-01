@@ -72,8 +72,8 @@ pub fn write_file(
 
     let _file = fs::remove_file(path);
 
-    let () =
-        fs::write(path, content).with_context(|| format!("could not create {}", path_displayable))?;
+    let () = fs::write(path, content)
+        .with_context(|| format!("could not create {}", path_displayable))?;
     let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
         .with_context(|| format!("could not set permissions on {}", path_displayable))?;
     let () = unistd::chown(path, Some(user.uid), Some(user.gid))
