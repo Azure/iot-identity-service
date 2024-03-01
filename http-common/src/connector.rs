@@ -871,9 +871,10 @@ mod tests {
                 },
             ),
             (
-                "unix:///run/aziot/keyd.sock",
+                concat!("unix://", env!("SOCKET_DIR"), "/keyd.sock"),
                 super::Connector::Unix {
-                    socket_path: std::path::Path::new("/run/aziot/keyd.sock").into(),
+                    socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock"))
+                        .into(),
                 },
             ),
         ] {

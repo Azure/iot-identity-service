@@ -3,11 +3,11 @@ Description=Azure IoT Identity Service API socket
 PartOf=aziot-identityd.service
 
 [Socket]
-ListenStream=/run/aziot/identityd.sock
+ListenStream=@socket_dir@/identityd.sock
 SocketMode=0660
 DirectoryMode=0755
-SocketUser=aziotid
-SocketGroup=aziotid
+SocketUser=@user_aziotid@
+SocketGroup=@user_aziotid@
 
 [Install]
 WantedBy=sockets.target

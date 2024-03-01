@@ -1,0 +1,173 @@
+name: azure-iot-identity
+base: core22 # the base snap is the execution environment for this snap
+version: '1.4.0~dev' # should end with '~dev' on the main branch
+summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
+description: |
+  The Identity Service provisions a device's identity and any modules it runs. The device identity can be based
+  on symmetric keys or X.509 certificates. It supports manual device registrations or individual/group
+  enrollments with the Azure Device Provisioning Service.
+
+license: MIT 
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+
+parts:
+  rust-toolchain:
+    plugin: nil
+    build-packages:
+      - curl
+    build-environment:
+      - BINDGEN_VERSION: '0.60.0'
+      - CBINDGEN_VERSION: '0.24.2'
+      - PATH: "$PATH:$HOME/.cargo/bin"
+    override-build: |
+      mkdir -p $HOME/.cargo/bin
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path --profile minimal -y
+      cargo install bindgen --version "=$BINDGEN_VERSION"
+      cargo install cbindgen --version "=$CBINDGEN_VERSION"
+  iot-identity-services:
+    build-environment:
+      - PATH: "$PATH:$HOME/.cargo/bin"
+      - ARCH: "$CRAFT_ARCH_BUILD_FOR"
+    after: [ rust-toolchain ]
+    plugin: nil
+    source: ./
+    build-packages:
+      - acl
+      - autoconf
+      - autoconf-archive
+      - automake
+      - build-essential
+      - clang
+      - cmake
+      - curl
+      - git
+      - jq
+      - libclang1
+      - libltdl-dev
+      - libssl-dev
+      - libtool
+      - libtss2-dev
+      - llvm-dev
+      - pkg-config
+      - to arm64:
+        - ca-certificates
+        - libcurl4-openssl-dev
+    stage-packages:
+      - libtss2-esys-3.0.2-0
+      - libtss2-mu0
+      - libtss2-rc0
+      - libtss2-sys1
+      - libtss2-tctildr0
+    override-build: |
+      contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
+      make install-deb \
+        ARCH=$CRAFT_ARCH_BUILD_FOR \
+        RELEASE=1 \
+        VENDOR_LIBTSS=0 \
+        PLATFORM_FEATURES=snapd \
+        USER_AZIOTID=root \
+        USER_AZIOTCS=root \
+        USER_AZIOTKS=root \
+        USER_AZIOTTPM=root \
+        SOCKET_DIR=/var/sockets/aziot \
+        DESTDIR=$CRAFT_PART_INSTALL
+    organize:
+      usr/: .
+    stage:
+      - -include
+      # - -lib/systemd
+      - -var
+      - -libexec/aziot-identity-service/aziot-*
+    override-prime: |
+      craftctl default
+      # Recreate expected relative symlinks that were not staged from the install because they link external to the snap
+      # and prevent publishing to snapcraft.
+      ln -vrfs $CRAFT_PRIME/libexec/aziot-identity-service/aziotd $CRAFT_PRIME/libexec/aziot-certd
+      ln -vrfs $CRAFT_PRIME/libexec/aziot-identity-service/aziotd $CRAFT_PRIME/libexec/aziot-identityd
+      ln -vrfs $CRAFT_PRIME/libexec/aziot-identity-service/aziotd $CRAFT_PRIME/libexec/aziot-keyd
+      ln -vrfs $CRAFT_PRIME/libexec/aziot-identity-service/aziotd $CRAFT_PRIME/libexec/aziot-tpmd
+  command-chain:
+    plugin: dump
+    source: ./contrib
+    stage: [ snap/command-chain ]
+
+apps:
+  aziotctl:
+    command: bin/aziotctl
+    plugs:
+      - log-observe
+      - system-observe
+      - network
+  certd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-certd
+    daemon: simple
+    plugs:
+      - network-bind
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/certd.sock
+        socket-mode: 0666
+  identityd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-identityd
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/identityd.sock
+        socket-mode: 0666
+  keyd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-keyd
+    daemon: simple
+    plugs:
+      - network-bind
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/keyd.sock
+        socket-mode: 0666
+  tpmd:
+    command-chain: [ snap/command-chain/launch-wrapper.sh ]
+    command: libexec/aziot-tpmd
+    daemon: simple
+    plugs:
+      - network-bind
+      - tpm
+    sockets:
+      unix:
+        listen-stream: $SNAP_DATA/shared/sockets/aziot/tpmd.sock
+        socket-mode: 0666
+
+hooks:
+  configure:
+    plugs:
+      - hostname-control
+      - log-observe
+      - mount-observe
+
+slots:
+  aziotctl-executables:
+    interface: content
+    content: aziotctl-executables
+    source:
+      read: [ $SNAP/bin ]
+  identity-service:
+    interface: content
+    content: aziot-identity-service
+    source:
+      write: [ $SNAP_DATA/shared ]
+
+layout:
+  /var/lib/aziot:
+    symlink: $SNAP_DATA/var/lib/aziot
+  /var/secrets/aziot:
+    symlink: $SNAP_DATA/shared/secrets/aziot
+  /var/sockets/aziot:
+    symlink: $SNAP_DATA/shared/sockets/aziot
+  /etc/aziot:
+    symlink: $SNAP_DATA/shared/config/aziot

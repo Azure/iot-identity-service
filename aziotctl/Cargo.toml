@@ -53,3 +53,6 @@ openssl-sys2 = { path = "../openssl-sys2" }
 
 [dev-dependencies]
 bytes = "1"
+
+[features]
+snapctl = ["aziotctl-common/snapctl"]

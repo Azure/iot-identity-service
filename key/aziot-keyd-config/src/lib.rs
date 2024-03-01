@@ -49,7 +49,7 @@ impl Default for Endpoints {
     fn default() -> Self {
         Endpoints {
             aziot_keyd: http_common::Connector::Unix {
-                socket_path: std::path::Path::new("/run/aziot/keyd.sock").into(),
+                socket_path: std::path::Path::new(concat!(env!("SOCKET_DIR"), "/keyd.sock")).into(),
             },
         }
     }
@@ -113,7 +113,11 @@ keys = ["test"]
 
                 endpoints: super::Endpoints {
                     aziot_keyd: http_common::Connector::Unix {
-                        socket_path: std::path::Path::new("/run/aziot/keyd.sock").into()
+                        socket_path: std::path::Path::new(concat!(
+                            env!("SOCKET_DIR"),
+                            "/keyd.sock"
+                        ))
+                        .into()
                     },
                 },
 

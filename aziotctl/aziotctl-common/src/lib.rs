@@ -139,10 +139,12 @@ pub fn is_rfc_1035_valid(hostname: &str) -> bool {
 }
 
 fn program_name() -> String {
-    std::env::args_os()
-        .next()
-        .and_then(|arg| arg.into_string().ok())
-        .unwrap_or_else(|| "<current program>".to_owned())
+    std::env::current_exe()
+        .expect("Cannot get the exec path")
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("<current program>")
+        .to_owned()
 }
 
 #[cfg(test)]

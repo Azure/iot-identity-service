@@ -28,3 +28,7 @@ openssl2 = { path = "../../openssl2" }
 openssl-sys2 = { path = "../../openssl-sys2" }
 pkcs11 = { path = "../../pkcs11/pkcs11" }
 pkcs11-sys = { path = "../../pkcs11/pkcs11-sys" }
+
+[features]
+# Unused at the moment, but need this so we can present a unified list of features to all packages
+snapctl = []
