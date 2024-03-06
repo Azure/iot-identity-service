@@ -289,8 +289,8 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-BINDGEN_VERSION='0.60.0'
-CBINDGEN_VERSION='0.24.2'
+BINDGEN_VERSION='0.69.4'
+CBINDGEN_VERSION='0.26.0'
 
 case "$ARCH" in
     'amd64')
@@ -311,7 +311,7 @@ esac
 
 # Mariner build installs the following as part of the specfile.
 if [ "${OS#mariner}" = "$OS" ]; then
-    cargo install bindgen --version "=$BINDGEN_VERSION" --locked
+    cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
 

@@ -10,7 +10,7 @@ links = "tss2-mu"
 types-sys = { path = "../types-sys" }
 
 [build-dependencies]
-bindgen = { version = "0.64", features = ["runtime"], default-features = false }
+bindgen = { version = "0.69", features = ["runtime"], default-features = false }
 # NOTE: Version >= 0.3.20 necessary for cross-builds.
 # Ref: https://github.com/rust-lang/pkg-config-rs/blob/master/CHANGELOG.md#0320---2021-09-25
 pkg-config = "0.3.20"

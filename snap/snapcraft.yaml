@@ -18,13 +18,13 @@ parts:
     build-packages:
       - curl
     build-environment:
-      - BINDGEN_VERSION: '0.60.0'
-      - CBINDGEN_VERSION: '0.24.2'
+      - BINDGEN_VERSION: '0.69.4'
+      - CBINDGEN_VERSION: '0.26.0'
       - PATH: "$PATH:$HOME/.cargo/bin"
     override-build: |
       mkdir -p $HOME/.cargo/bin
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path --profile minimal -y
-      cargo install bindgen --version "=$BINDGEN_VERSION"
+      cargo install bindgen-cli --version "=$BINDGEN_VERSION"
       cargo install cbindgen --version "=$CBINDGEN_VERSION"
   iot-identity-services:
     build-environment:

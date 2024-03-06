@@ -72,7 +72,7 @@ pushd ~
 tar xf %{SOURCE1} --no-same-owner
 tar xf %{SOURCE2} --no-same-owner
 popd
-cargo install bindgen --path ~/rust-bindgen-@@BINDGEN_VERSION@@ --offline
+cargo install bindgen-cli --path ~/rust-bindgen-@@BINDGEN_VERSION@@/bindgen-cli --offline
 cargo install cbindgen --path ~/cbindgen-@@CBINDGEN_VERSION@@ --offline
 
 # locate openssl lib directory for Makefile
