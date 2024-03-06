@@ -242,7 +242,10 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*get_key_pair_parameter)(const char *id, AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE type_, unsigned char *value, uintptr_t *value_len);
+    AZIOT_KEYS_RC (*get_key_pair_parameter)(const char *id,
+                                            AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE type_,
+                                            unsigned char *value,
+                                            uintptr_t *value_len);
     /**
      * Create or load a key identified by the specified `id`.
      *
@@ -292,7 +295,10 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len, AZIOT_KEYS_KEY_USAGE usage);
+    AZIOT_KEYS_RC (*import_key)(const char *id,
+                                const uint8_t *bytes,
+                                uintptr_t bytes_len,
+                                AZIOT_KEYS_KEY_USAGE usage);
     /**
      * Derive a key with a given base key using some derivation data, and return the derived key.
      *
@@ -328,7 +334,11 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*derive_key)(const char *base_id, const uint8_t *derivation_data, uintptr_t derivation_data_len, unsigned char *derived_key, uintptr_t *derived_key_len);
+    AZIOT_KEYS_RC (*derive_key)(const char *base_id,
+                                const uint8_t *derivation_data,
+                                uintptr_t derivation_data_len,
+                                unsigned char *derived_key,
+                                uintptr_t *derived_key_len);
     /**
      * Sign the given digest using the key or key pair identified by the specified `id`.
      *
@@ -359,7 +369,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*sign)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
+    AZIOT_KEYS_RC (*sign)(const char *id,
+                          AZIOT_KEYS_SIGN_MECHANISM mechanism,
+                          const void *parameters,
+                          const unsigned char *digest,
+                          uintptr_t digest_len,
+                          unsigned char *signature,
+                          uintptr_t *signature_len);
     /**
      * Verify the signature of the given digest using the key or key pair (but see note below) identified by the specified `id`.
      *
@@ -394,7 +410,14 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*verify)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, const unsigned char *signature, uintptr_t signature_len, int *ok);
+    AZIOT_KEYS_RC (*verify)(const char *id,
+                            AZIOT_KEYS_SIGN_MECHANISM mechanism,
+                            const void *parameters,
+                            const unsigned char *digest,
+                            uintptr_t digest_len,
+                            const unsigned char *signature,
+                            uintptr_t signature_len,
+                            int *ok);
     /**
      * Encrypt the given plaintext using the key or key pair identified by the specified `id`.
      *
@@ -425,7 +448,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*encrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *plaintext, uintptr_t plaintext_len, unsigned char *ciphertext, uintptr_t *ciphertext_len);
+    AZIOT_KEYS_RC (*encrypt)(const char *id,
+                             AZIOT_KEYS_ENCRYPT_MECHANISM mechanism,
+                             const void *parameters,
+                             const unsigned char *plaintext,
+                             uintptr_t plaintext_len,
+                             unsigned char *ciphertext,
+                             uintptr_t *ciphertext_len);
     /**
      * Decrypt the given plaintext using the key or key pair identified by the specified `id`.
      *
@@ -456,7 +485,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*decrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *ciphertext, uintptr_t ciphertext_len, unsigned char *plaintext, uintptr_t *plaintext_len);
+    AZIOT_KEYS_RC (*decrypt)(const char *id,
+                             AZIOT_KEYS_ENCRYPT_MECHANISM mechanism,
+                             const void *parameters,
+                             const unsigned char *ciphertext,
+                             uintptr_t ciphertext_len,
+                             unsigned char *plaintext,
+                             uintptr_t *plaintext_len);
 } AZIOT_KEYS_FUNCTION_LIST_2_0_0_0;
 
 /**
@@ -573,7 +608,10 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*get_key_pair_parameter)(const char *id, AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE type_, unsigned char *value, uintptr_t *value_len);
+    AZIOT_KEYS_RC (*get_key_pair_parameter)(const char *id,
+                                            AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE type_,
+                                            unsigned char *value,
+                                            uintptr_t *value_len);
     /**
      * Delete an existing key pair identified by the specified `id`.
      *
@@ -637,7 +675,10 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*import_key)(const char *id, const uint8_t *bytes, uintptr_t bytes_len, AZIOT_KEYS_KEY_USAGE usage);
+    AZIOT_KEYS_RC (*import_key)(const char *id,
+                                const uint8_t *bytes,
+                                uintptr_t bytes_len,
+                                AZIOT_KEYS_KEY_USAGE usage);
     /**
      * Delete an existing key identified by the specified `id`.
      *
@@ -687,7 +728,11 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*derive_key)(const char *base_id, const uint8_t *derivation_data, uintptr_t derivation_data_len, unsigned char *derived_key, uintptr_t *derived_key_len);
+    AZIOT_KEYS_RC (*derive_key)(const char *base_id,
+                                const uint8_t *derivation_data,
+                                uintptr_t derivation_data_len,
+                                unsigned char *derived_key,
+                                uintptr_t *derived_key_len);
     /**
      * Sign the given digest using the key or key pair identified by the specified `id`.
      *
@@ -718,7 +763,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*sign)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, unsigned char *signature, uintptr_t *signature_len);
+    AZIOT_KEYS_RC (*sign)(const char *id,
+                          AZIOT_KEYS_SIGN_MECHANISM mechanism,
+                          const void *parameters,
+                          const unsigned char *digest,
+                          uintptr_t digest_len,
+                          unsigned char *signature,
+                          uintptr_t *signature_len);
     /**
      * Verify the signature of the given digest using the key or key pair (but see note below) identified by the specified `id`.
      *
@@ -753,7 +804,14 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*verify)(const char *id, AZIOT_KEYS_SIGN_MECHANISM mechanism, const void *parameters, const unsigned char *digest, uintptr_t digest_len, const unsigned char *signature, uintptr_t signature_len, int *ok);
+    AZIOT_KEYS_RC (*verify)(const char *id,
+                            AZIOT_KEYS_SIGN_MECHANISM mechanism,
+                            const void *parameters,
+                            const unsigned char *digest,
+                            uintptr_t digest_len,
+                            const unsigned char *signature,
+                            uintptr_t signature_len,
+                            int *ok);
     /**
      * Encrypt the given plaintext using the key or key pair identified by the specified `id`.
      *
@@ -784,7 +842,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*encrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *plaintext, uintptr_t plaintext_len, unsigned char *ciphertext, uintptr_t *ciphertext_len);
+    AZIOT_KEYS_RC (*encrypt)(const char *id,
+                             AZIOT_KEYS_ENCRYPT_MECHANISM mechanism,
+                             const void *parameters,
+                             const unsigned char *plaintext,
+                             uintptr_t plaintext_len,
+                             unsigned char *ciphertext,
+                             uintptr_t *ciphertext_len);
     /**
      * Decrypt the given plaintext using the key or key pair identified by the specified `id`.
      *
@@ -815,7 +879,13 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * - `AZIOT_KEYS_RC_ERR_EXTERNAL`
      */
-    AZIOT_KEYS_RC (*decrypt)(const char *id, AZIOT_KEYS_ENCRYPT_MECHANISM mechanism, const void *parameters, const unsigned char *ciphertext, uintptr_t ciphertext_len, unsigned char *plaintext, uintptr_t *plaintext_len);
+    AZIOT_KEYS_RC (*decrypt)(const char *id,
+                             AZIOT_KEYS_ENCRYPT_MECHANISM mechanism,
+                             const void *parameters,
+                             const unsigned char *ciphertext,
+                             uintptr_t ciphertext_len,
+                             unsigned char *plaintext,
+                             uintptr_t *plaintext_len);
 } AZIOT_KEYS_FUNCTION_LIST_2_1_0_0;
 
 /**
