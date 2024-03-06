@@ -18,39 +18,39 @@ case "$1" in
 		# For each of CS, IS, KS: create group, create user, create home directory (in case user already exists from a previous install
 		# but the user deleted the directory manually)
 
-		if ! /usr/bin/getent group aziotks >/dev/null; then
-			/usr/sbin/groupadd -r aziotks
+		if ! /usr/bin/getent group @user_aziotks@ >/dev/null; then
+			/usr/sbin/groupadd -r @user_aziotks@
 		fi
-		if ! /usr/bin/getent passwd aziotks >/dev/null; then
-			/usr/sbin/useradd -r -g aziotks -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd aziotks
+		if ! /usr/bin/getent passwd @user_aziotks@ >/dev/null; then
+			/usr/sbin/useradd -r -g @user_aziotks@ -c 'aziot-keyd user' -s /sbin/nologin -d /var/lib/aziot/keyd @user_aziotks@
 		fi
 		mkdir -p /var/lib/aziot/keyd
 
-		if ! /usr/bin/getent group aziottpm >/dev/null; then
-			/usr/sbin/groupadd -r aziottpm
+		if ! /usr/bin/getent group @user_aziottpm@ >/dev/null; then
+			/usr/sbin/groupadd -r @user_aziottpm@
 		fi
-		if ! /usr/bin/getent passwd aziottpm >/dev/null; then
-			/usr/sbin/useradd -r -g aziottpm -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd aziottpm
+		if ! /usr/bin/getent passwd @user_aziottpm@ >/dev/null; then
+			/usr/sbin/useradd -r -g @user_aziottpm@ -c 'aziot-tpmd user' -s /sbin/nologin -d /var/lib/aziot/tpmd @user_aziottpm@
 		fi
 		mkdir -p /var/lib/aziot/tpmd
 
-		if ! /usr/bin/getent group aziotcs >/dev/null; then
-			/usr/sbin/groupadd -r aziotcs
+		if ! /usr/bin/getent group @user_aziotcs@ >/dev/null; then
+			/usr/sbin/groupadd -r @user_aziotcs@
 		fi
-		if ! /usr/bin/getent passwd aziotcs >/dev/null; then
-			/usr/sbin/useradd -r -g aziotcs -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd aziotcs
-			/usr/sbin/usermod -aG aziotks aziotcs
+		if ! /usr/bin/getent passwd @user_aziotcs@ >/dev/null; then
+			/usr/sbin/useradd -r -g @user_aziotcs@ -c 'aziot-certd user' -s /sbin/nologin -d /var/lib/aziot/certd @user_aziotcs@
+			/usr/sbin/usermod -aG @user_aziotks@ @user_aziotcs@
 		fi
 		mkdir -p /var/lib/aziot/certd
 
-		if ! /usr/bin/getent group aziotid >/dev/null; then
-			/usr/sbin/groupadd -r aziotid
+		if ! /usr/bin/getent group @user_aziotid@ >/dev/null; then
+			/usr/sbin/groupadd -r @user_aziotid@
 		fi
-		if ! /usr/bin/getent passwd aziotid >/dev/null; then
-			/usr/sbin/useradd -r -g aziotid -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd aziotid
-			/usr/sbin/usermod -aG aziotcs aziotid
-			/usr/sbin/usermod -aG aziotks aziotid
-			/usr/sbin/usermod -aG aziottpm aziotid
+		if ! /usr/bin/getent passwd @user_aziotid@ >/dev/null; then
+			/usr/sbin/useradd -r -g @user_aziotid@ -c 'aziot-identityd user' -s /sbin/nologin -d /var/lib/aziot/identityd @user_aziotid@
+			/usr/sbin/usermod -aG @user_aziotcs@ @user_aziotid@
+			/usr/sbin/usermod -aG @user_aziotks@ @user_aziotid@
+			/usr/sbin/usermod -aG @user_aziottpm@ @user_aziotid@
 		fi
 		mkdir -p /var/lib/aziot/identityd
 		;;

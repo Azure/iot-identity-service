@@ -2,6 +2,15 @@
 BINDGEN = bindgen
 CBINDGEN = cbindgen
 
+# Default users under which the services will run. Override by specifying on the CLI for make.
+USER_AZIOTID ?= aziotid
+USER_AZIOTCS ?= aziotcs
+USER_AZIOTKS ?= aziotks
+USER_AZIOTTPM ?= aziottpm
+
+# Default socket directory. Override by specifying on the CLI for make.
+SOCKET_DIR ?= /run/aziot
+
 # 0 => false, _ => true
 V = 0
 
@@ -19,6 +28,15 @@ SKIP_TSS_MINIMAL = 0
 ARCH =
 
 INSTALL_PRESET = true
+
+# Enable special features for specific runtime platforms
+# '' => none, 'snapd' => snapd features
+PLATFORM_FEATURES ?=
+CARGO_FEATURES =
+
+ifeq ($(PLATFORM_FEATURES), snapd)
+	CARGO_FEATURES += --features snapctl
+endif
 
 ifeq ($(V), 0)
 	BINDGEN_VERBOSE =
@@ -38,11 +56,11 @@ else
 	CARGO_PROFILE_DIRECTORY = release
 endif
 
-ifeq ($(ARCH), arm32v7)
+ifneq (,$(filter $(ARCH), arm32v7 armhf))
 	CARGO_TARGET = armv7-unknown-linux-gnueabihf
     CROSS_HOST_TRIPLE = arm-linux-gnueabihf
 	DPKG_ARCH_FLAGS = --host-arch armhf
-else ifeq ($(ARCH), aarch64)
+else ifneq (,$(filter $(ARCH), aarch64 arm64))
 	CARGO_TARGET = aarch64-unknown-linux-gnu
     CROSS_HOST_TRIPLE = aarch64-linux-gnu
 	DPKG_ARCH_FLAGS = --host-arch arm64 --host-type aarch64-linux-gnu --target-type aarch64-linux-gnu
@@ -56,7 +74,12 @@ CARGO_OUTPUT_ABSPATH = $(abspath ./target/$(CARGO_TARGET)/$(CARGO_PROFILE_DIRECT
 VENDOR_PREFIX = $(CARGO_OUTPUT_ABSPATH)/fakeroot
 VENDOR_PKGCONFIG = $(VENDOR_PREFIX)$(AZIOT_PRIVATE_LIBRARIES)/pkgconfig
 
-CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" cargo
+CARGO = VENDOR_PREFIX="$(VENDOR_PREFIX)" VENDOR_PKGCONFIG="$(VENDOR_PKGCONFIG)" \
+		USER_AZIOTID="$(USER_AZIOTID)" \
+		USER_AZIOTCS="$(USER_AZIOTCS)" \
+		USER_AZIOTKS="$(USER_AZIOTKS)" \
+		USER_AZIOTTPM="$(USER_AZIOTTPM)" \
+		SOCKET_DIR="$(SOCKET_DIR)" cargo
 
 # Some of the targets use bash-isms like `set -o pipefail`
 SHELL = /bin/bash
@@ -96,7 +119,7 @@ default:
 	# incorrect assumption of /usr/local.  There is probably a better
 	# way to do this...
 	set -euo pipefail; \
-	if [ -d third-party/tpm2-tss ]; then \
+	if [ $(VENDOR_LIBTSS) != 0 -a -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
 		./bootstrap; \
 		./configure \
@@ -120,13 +143,13 @@ default:
 	# See the doc header of the aziot-keys-common crate for more info.
 	$(CARGO) build \
 		-p aziot-keys \
-		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+		$(CARGO_PROFILE) $(CARGO_FEATURES) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 	$(CARGO) build \
 		-p aziotctl \
 		-p aziotd \
 		-p aziot-key-openssl-engine-shared \
-		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
+		$(CARGO_PROFILE) $(CARGO_FEATURES) --target $(CARGO_TARGET) $(CARGO_VERBOSE)
 
 clean:
 	$(CARGO) clean $(CARGO_VERBOSE)
@@ -309,6 +332,9 @@ deb: dist
 	# Copy package files
 	cp -R contrib/debian /tmp/aziot-identity-service-$(PACKAGE_VERSION)/
 	sed -i -e 's/@version@/$(PACKAGE_VERSION)/g; s/@release@/$(PACKAGE_RELEASE)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/changelog
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postinst
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g; s|@socket_dir@|$(SOCKET_DIR)|g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/postrm
+	sed -i -e 's/@user_aziotid@/$(USER_AZIOTID)/g; s/@user_aziotks@/$(USER_AZIOTKS)/g; s/@user_aziotcs@/$(USER_AZIOTCS)/g; s/@user_aziottpm@/$(USER_AZIOTTPM)/g' /tmp/aziot-identity-service-$(PACKAGE_VERSION)/debian/preinst
 
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && dpkg-buildpackage -us -uc $(DPKG_ARCH_FLAGS)
 
@@ -359,6 +385,10 @@ rpm:
 		-e "s|@devtoolset@|$$DEVTOOLSET|g" \
 		-e "s|@llvm_toolset@|$$LLVM_TOOLSET|g" \
 		-e "s|@openssl_engine_filename@|$$OPENSSL_ENGINE_FILENAME|g" \
+		-e "s/@user_aziotid@/$(USER_AZIOTID)/g" \
+		-e "s/@user_aziotks@/$(USER_AZIOTKS)/g" \
+		-e "s/@user_aziotcs@/$(USER_AZIOTCS)/g" \
+		-e "s/@user_aziottpm@/$(USER_AZIOTTPM)/g" \
 		>$(RPMBUILDDIR)/SPECS/aziot-identity-service.spec
 
 	# Copy preset file to be included in the package
@@ -427,7 +457,7 @@ install-common:
 	# tpm2-tss
 	# See comment above regarding environment bleedover on RPM
 	# builds.
-	if [ -d third-party/tpm2-tss ]; then \
+	if [ $(VENDOR_LIBTSS) != 0 -a -d third-party/tpm2-tss ]; then \
 		cd third-party/tpm2-tss; \
 		$(MAKE) libdir=$(AZIOT_PRIVATE_LIBRARIES) install-exec; \
 	fi
@@ -457,15 +487,28 @@ install-common:
 	$(INSTALL) -d -m 0700 $(DESTDIR)$(localstatedir)/lib/aziot/tpmd
 
 	# Systemd services and sockets
+	$(INSTALL) -d $(DESTDIR)$(unitdir)
 	# NOTE: We do not use "install -D ... -t ..." since it is broken on
 	# RHEL 7 derivatives and will not be fixed.
 	# Ref: https://bugzilla.redhat.com/show_bug.cgi?format=multiple&id=1758488
 	for i in cert identity key tpm; do \
+		OUTPUT_SOCKET="$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
+		<"$$i/aziot-$${i}d/aziot-$${i}d.socket.in" sed \
+			-e 's|@user_aziotid@|$(USER_AZIOTID)|' \
+			-e 's|@user_aziotks@|$(USER_AZIOTKS)|' \
+			-e 's|@user_aziotcs@|$(USER_AZIOTCS)|' \
+			-e 's|@user_aziottpm@|$(USER_AZIOTTPM)|' \
+			-e 's|@socket_dir@|$(SOCKET_DIR)|' \
+			>"$$OUTPUT_SOCKET"; \
+		chmod 0644 "$$OUTPUT_SOCKET"; \
 		OUTPUT_SERVICE="$(DESTDIR)$(unitdir)/aziot-$${i}d.service"; \
-		$(INSTALL_DATA) -D "$$i/aziot-$${i}d/aziot-$${i}d.socket" "$(DESTDIR)$(unitdir)/aziot-$${i}d.socket"; \
 		<"$$i/aziot-$${i}d/aziot-$${i}d.service.in" sed \
 			-e 's|@private-libs@|$(AZIOT_PRIVATE_LIBRARIES)|' \
 			-e 's|@libexecdir@|$(libexecdir)|' \
+			-e 's|@user_aziotid@|$(USER_AZIOTID)|' \
+			-e 's|@user_aziotks@|$(USER_AZIOTKS)|' \
+			-e 's|@user_aziotcs@|$(USER_AZIOTCS)|' \
+			-e 's|@user_aziottpm@|$(USER_AZIOTTPM)|' \
 			>"$$OUTPUT_SERVICE"; \
 		chmod 0644 "$$OUTPUT_SERVICE"; \
 	done

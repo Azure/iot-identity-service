@@ -9,7 +9,7 @@ ExecStart=@libexecdir@/aziot-identity-service/aziot-keyd
 KillMode=process
 Restart=on-failure
 RestartSec=5s
-User=aziotks
+User=@user_aziotks@
 
 [Install]
 WantedBy=multi-user.target

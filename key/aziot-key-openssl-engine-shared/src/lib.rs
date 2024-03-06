@@ -27,9 +27,10 @@ unsafe extern "C" fn aziot_key_openssl_engine_shared_bind(
 
 unsafe extern "C" fn engine_init(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int {
     let result = r#catch(Some(|| Error::ENGINE_INIT), || {
-        let key_connector: http_common::Connector = "unix:///run/aziot/keyd.sock"
-            .parse()
-            .expect("hard-coded URI must parse successfully");
+        let key_connector: http_common::Connector =
+            concat!("unix://", env!("SOCKET_DIR"), "/keyd.sock")
+                .parse()
+                .expect("hard-coded URI must parse successfully");
         let key_client = aziot_key_client::Client::new(
             aziot_key_common_http::ApiVersion::V2021_05_01,
             key_connector,

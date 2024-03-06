@@ -23,4 +23,4 @@ if [ "$SKIP_TSS_MINIMAL" = 0 ]; then
     trap "kill '$SWTPM_PID'; rm -rf '$TPM_STATE';" EXIT
 fi
 
-make SKIP_TSS_MINIMAL="$SKIP_TSS_MINIMAL" V=1 test-release
+make SKIP_TSS_MINIMAL="$SKIP_TSS_MINIMAL" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 test-release

@@ -10,11 +10,11 @@ case "$ARCH" in
         platform='x86_64-unknown-linux-gnu'
         ;;
 
-    'arm32v7')
+    'arm32v7'|'armhf')
         platform='armv7-unknown-linux-gnueabihf'
         ;;
 
-    'aarch64')
+    'aarch64'|'arm64')
         platform='aarch64-unknown-linux-gnu'
         ;;
 
