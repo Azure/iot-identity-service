@@ -110,7 +110,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'mariner:1' | 'mariner:2')
+    'mariner:2')
         case "$ARCH" in
             'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -137,18 +137,9 @@ case "$OS" in
         tar xzvf toolkit.tar.gz
         popd
 
-        case "$OS" in
-            'mariner:1')
-                UsePreview=n
-                TARGET_DIR="mariner1/$ARCH"
-                PackageExtension="cm1"
-                ;;
-            'mariner:2')
-                UsePreview=n
-                TARGET_DIR="mariner2/$ARCH"
-                PackageExtension="cm2"
-                ;;
-        esac
+        UsePreview=n
+        TARGET_DIR="mariner2/$ARCH"
+        PackageExtension="cm2"
 
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$MarinerSourceDir"

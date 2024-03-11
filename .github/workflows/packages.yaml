@@ -46,9 +46,6 @@ jobs:
         include:
         - container_os: 'ubuntu:20.04'
           arch: 'amd64'
-          os: 'mariner:1'
-        - container_os: 'ubuntu:20.04'
-          arch: 'amd64'
           os: 'mariner:2'
 
     steps:
@@ -73,7 +70,7 @@ jobs:
         ARCH: "${{ matrix.arch }}"
         OS: "${{ matrix.os }}"
         # PACKAGE_VERSION should end with '~dev' on the main branch.
-        PACKAGE_VERSION: '1.4.7'
+        PACKAGE_VERSION: '1.4.8'
         # PACKAGE_RELEASE should always be '1'.
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
