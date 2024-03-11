@@ -1,6 +1,6 @@
 [package]
 name = "aziotctl"
-version = "1.4.7"
+version = "1.4.8"
 authors = ["Azure IoT Edge Devs"]
 edition = "2021"
 homepage = "https://azure.github.io/iot-identity-service/"
