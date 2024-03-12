@@ -197,7 +197,7 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'mariner:1:amd64' | 'mariner:2:amd64' | 'mariner:1:aarch64' | 'mariner:2:aarch64')
+    'mariner:2:amd64' | 'mariner:2:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -217,15 +217,7 @@ case "$OS:$ARCH" in
             mv /.dockerenv /.dockerenv.old
         fi
 
-        case "$OS" in
-            'mariner:1')
-                BranchTag='1.0-stable'
-                ;;
-            'mariner:2')
-                BranchTag='2.0-stable'
-                ;;
-        esac
-
+        BranchTag='2.0-stable'
         MarinerToolkitDir='/tmp/CBL-Mariner'
         if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
             rm -rf "$MarinerToolkitDir"
