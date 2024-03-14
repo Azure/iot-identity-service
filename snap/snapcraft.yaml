@@ -9,8 +9,8 @@ description: |
 
 license: MIT 
 
-grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: strict
+adopt-info: iot-identity-services
 
 parts:
   rust-toolchain:
@@ -61,6 +61,13 @@ parts:
       - libtss2-sys1
       - libtss2-tctildr0
     override-build: |
+      # if version contains substring "dev" set grade to devel, else stable
+      SC_VERSION="$(craftctl get version)"
+      if test "${SC_VERSION#*dev}" != "$SC_VERSION" ; then
+        craftctl set grade=devel
+      else
+        craftctl set grade=stable
+      fi
       contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
       make install-deb \
         ARCH=$CRAFT_ARCH_BUILD_FOR \
