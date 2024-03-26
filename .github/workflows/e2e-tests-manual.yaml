@@ -17,7 +17,10 @@ on:
 
 jobs:
   suite-setup:
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
     - uses: 'actions/checkout@v3'
@@ -39,7 +42,10 @@ jobs:
   test-run:
     needs: 'suite-setup'
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     strategy:
       fail-fast: false
@@ -104,7 +110,10 @@ jobs:
     needs: 'test-run'
     if: "${{ success() }}"
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
     - uses: 'actions/checkout@v3'
@@ -127,7 +136,10 @@ jobs:
     needs: 'test-run'
     if: "${{ failure() }}"
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
     - uses: 'actions/checkout@v3'
