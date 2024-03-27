@@ -19,7 +19,10 @@ jobs:
   suite-setup:
     if: "github.repository == 'Azure/iot-identity-service'"
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     strategy:
       fail-fast: false
@@ -52,7 +55,10 @@ jobs:
     if: "github.repository == 'Azure/iot-identity-service'"
     needs: 'suite-setup'
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     strategy:
       fail-fast: false
@@ -120,7 +126,10 @@ jobs:
     if: "${{ github.repository == 'Azure/iot-identity-service' && success() }}"
     needs: 'test-run'
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     strategy:
       fail-fast: false
@@ -153,7 +162,10 @@ jobs:
     needs: 'test-run'
     if: "${{ failure() }}"
 
-    runs-on: 'ubuntu-22.04'
+    runs-on:
+    - self-hosted
+    - 1ES.Pool=iot-identity-1es-hosted-linux-amd64
+    - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     strategy:
       fail-fast: false
