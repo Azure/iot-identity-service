@@ -21,6 +21,24 @@ GITHUB_WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
 source "$GITHUB_WORKSPACE/ci/e2e-tests/helper-functions.sh"
 
 
+echo 'Creating NSG...' >&2
+az network nsg create \
+    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+    --name "$suite_common_resource_name" \
+    --tags "suite_id=$suite_id"
+echo 'Created NSG' >&2
+
+
+echo 'Creating VNET...' >&2
+az network vnet create \
+    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+    --name "$suite_common_resource_name" \
+    --subnet-name "$suite_common_resource_name" \
+    --nsg "$suite_common_resource_name" \
+    --tags "suite_id=$suite_id"
+echo 'Created VNET' >&2
+
+
 createHub "$suite_common_resource_name"
 
 echo 'Creating DPS...' >&2

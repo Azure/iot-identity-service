@@ -508,32 +508,6 @@ EOF
 echo 'Generated config files' >&2
 
 
-echo 'Creating NSG...' >&2
-nsg_id="$(
-    az network nsg create \
-        --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-        --name "$test_common_resource_name" \
-        --tags "suite_id=$suite_id" "test_id=$test_id" \
-        --query 'NewNSG.id' --output tsv
-)"
-echo 'Created NSG' >&2
-
-echo 'Querying public IP...' >&2
-self_ip="$(wget -qO- https://ipecho.net/plain ; echo)"
-echo 'Queried public IP' >&2
-
-echo 'Creating allow-ssh rule in NSG...' >&2
->/dev/null az network nsg rule create \
-    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
-    --nsg-name "$test_common_resource_name" \
-    --name 'ssh' \
-    --priority 1000 \
-    --access 'Allow' --direction 'Inbound' --protocol 'Tcp' \
-    --destination-port-ranges '22' \
-    --source-address-prefixes "$self_ip/32"
-echo 'Created allow-ssh rule in NSG' >&2
-
-
 echo 'Creating VM...' >&2
 
 # VM image as taken by `az vm create` is specified as the URN, which is `$publisher:$offer:$sku:$version`.
@@ -632,6 +606,7 @@ ssh-keygen -t rsa -b 4096 -f vm-ssh-key -N ''
 echo 'Generated ssh key' >&2
 
 
+# Pass the empty --nsg option to 'az vm create' so it will not create another NSG attached to the NIC.
 vm_id="$(
     </dev/null az vm create \
         --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
@@ -641,9 +616,10 @@ vm_id="$(
         --admin-username 'aziot' \
         --authentication-type 'ssh' \
         --ssh-key-values "$PWD/vm-ssh-key.pub" \
-        --nsg "$nsg_id" \
-        --vnet-name "$test_common_resource_name" \
-        --public-ip-sku 'Basic' \
+        --vnet-name "$suite_common_resource_name" \
+        --subnet "$suite_common_resource_name" \
+        --nsg '' \
+        --public-ip-sku 'Standard' \
         --enable-agent 'false' \
         --security-type 'Standard' \
         --tags "suite_id=$suite_id" "test_id=$test_id" \
