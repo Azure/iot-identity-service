@@ -30,6 +30,7 @@ parts:
     build-environment:
       - PATH: "$PATH:$HOME/.cargo/bin"
       - ARCH: "$CRAFT_ARCH_BUILD_FOR"
+      - CARGO_PROFILE_RELEASE_DEBUG: 0
     after: [ rust-toolchain ]
     plugin: nil
     source: ./
