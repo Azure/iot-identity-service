@@ -208,11 +208,6 @@ sleep 1
 
 # Connect with `curl` and print the response.
 case "$OS" in
-    'centos:7')
-        # CentOS 7's curl doesn't support openssl engines.
-        # So, skip the curl check.
-        ;;
-
     *)
         curl \
             -D /dev/stderr \

@@ -13,7 +13,6 @@ jobs:
 
       matrix:
         container_os:
-        - 'centos:7'
         - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
@@ -27,12 +26,6 @@ jobs:
         os:
         - ''
         exclude:
-        # CentOS 7 does not have functioning cross compilers. The Azure/iotedge repo builds CentOS 7 arm32v7 and aarch64 packages
-        # by running the arm32v7 / aarch64 containers under qemu. For now we don't care to replicate that here.
-        - container_os: 'centos:7'
-          arch: 'arm32v7'
-        - container_os: 'centos:7'
-          arch: 'aarch64'
         # More investigation needed for RHEL 8 and 9. Excluding for now.
         - container_os: 'redhat/ubi8:latest'
           arch: 'arm32v7'

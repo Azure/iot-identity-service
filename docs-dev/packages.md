@@ -12,10 +12,6 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 </thead>
 <tbody>
 <tr>
-<td>CentOS 7</td>
-<td><code>centos:7</code></td>
-</tr>
-<tr>
 <td>RHEL 8 compatible</td>
 <td><code>redhat/ubi8:latest</code></td>
 </tr>
@@ -93,7 +89,7 @@ el8/amd64/aziot-identity-service-devel-1.4.0-0.x86_64.rpm
 
 These files in order are:
 
-1. The source package. This contains the contents of this repository but pre-processed for CentOS 7-specific customizations. The other packages were built from this package.
+1. The source package. This contains the contents of this repository but pre-processed for RHEL 8/9-specific customizations. The other packages were built from this package.
 1. The binary package. This is the package a user would install on their device.
 1. The debug symbols package. A developer would need this package to debug coredumps generated from services in the corresponding binary package.
 1. A devel package containing the `aziot-keys.h` C header, which contains the API definitions of `libaziot_keys.so`. A user would install this package if they wanted to make their own implementation of `libaziot_keys.so`. It's not needed for a production device.
@@ -121,7 +117,7 @@ debian11/arm32v7/aziot-identity-service_1.4.0.orig.tar.gz
 debian11/arm32v7/aziot-identity-service-dbgsym_1.4.0-0_armhf.deb
 ```
 
-The first file is the binary package, the second through fourth file together constitute the source package, and the fifth is the debug symbols package. The meanings are the same as the CentOS example. Note that there is no `-dev` package equivalent of the CentOS `-devel` package; the C header is included in the binary package.
+The first file is the binary package, the second through fourth file together constitute the source package, and the fifth is the debug symbols package. The meanings are the same as the RHEL example. Note that there is no `-dev` package equivalent of the RHEL `-devel` package; the C header is included in the binary package.
 
 
 ## Miscellaneous
@@ -129,8 +125,6 @@ The first file is the binary package, the second through fourth file together co
 1. Make sure to run the script in a Docker container instead of directly on your machine, even if your machine happens to be the same distro as the one you want to build the package for. The script installs dependencies and modifies system files like `/etc/apt`, so you don't want these to be done to your host machine.
 
 1. The script must be run on an `x86_64` host, even for building ARM32 and ARM64 packages. The ARM32 and ARM64 packages are built via cross-compilation.
-
-1. Building ARM32 and ARM64 packages for CentOS 7 is currently not supported, because CentOS 7 does do not have functional cross compilers for those architectures. (It has the `gcc` cross compiler itself but not a cross `glibc` for the compiled binary to link to, because the cross compiler is only intended for cross-compiling the kernel.)
 
 1. Building ARM32 and ARM64 packages for RHEL 8 is currently not supported. More investigation would be required to determine feasibility.
 
