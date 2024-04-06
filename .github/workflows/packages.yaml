@@ -13,7 +13,6 @@ jobs:
 
       matrix:
         container_os:
-        - 'debian:10-slim'
         - 'debian:11-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'

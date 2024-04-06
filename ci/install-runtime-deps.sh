@@ -42,8 +42,8 @@ case "$OS" in
         esac
         ;;
 
-    'debian:10'|'debian:11'|'ubuntu:20.04'|'ubuntu:22.04')
-        # openssl 1.1.1 for Debian 10/11, Ubuntu 20.04, RHEL 8
+    'debian:11'|'ubuntu:20.04'|'ubuntu:22.04')
+        # openssl 1.1.1 for Debian 11, Ubuntu 20.04, RHEL 8
         # openssl 3.0 for Ubuntu 22.04, RHEL 9
 
         apt-get update -y

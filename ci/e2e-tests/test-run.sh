@@ -85,10 +85,6 @@ get_package() {
     echo "Artifacts URL: $artifacts_url" >&2
 
     case "$OS" in
-        'debian:10')
-            artifact_name='debian-10-slim'
-            ;;
-
         'debian:11')
             artifact_name='debian-11-slim'
             ;;
@@ -171,11 +167,6 @@ get_package() {
 
     echo 'Extracting package...' >&2
     case "$OS" in
-        'debian:10')
-            unzip -j package.zip 'debian10/amd64/aziot-identity-service_*_amd64.deb' >&2
-            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
-            ;;
-
         'debian:11')
             unzip -j package.zip 'debian11/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
@@ -540,15 +531,6 @@ echo 'Creating VM...' >&2
 # Choice of publisher is determined by
 # https://docs.microsoft.com/en-us/troubleshoot/azure/cloud-services/support-linux-open-source-technology
 case "$OS" in
-    'debian:10')
-        # Not listed on the docs.microsoft.com page, but credativ doesn't publish Debian 10+ images.
-        #
-        # az vm image list --all \
-        #     --publisher 'Debian' --offer 'debian-10' --sku '10' \
-        #     --query "[?publisher == 'Debian' && offer == 'debian-10'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Debian:debian-10:10-gen2:latest'
-        ;;
-
     'debian:11')
         # Not listed on the docs.microsoft.com page, but credativ doesn't publish Debian 10+ images.
         #
