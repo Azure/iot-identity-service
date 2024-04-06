@@ -711,7 +711,7 @@ fi
 
 echo 'Installing package...' >&2
 case "$OS" in
-    |platform:el*)
+    platform:el*)
         scp -i "$PWD/vm-ssh-key" "$package" "aziot@$vm_public_ip:/home/aziot/aziot-identity-service.rpm"
 
         ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" '
