@@ -10,8 +10,7 @@
 # Also set the KEY_TYPE env var to one of "ec-p256", "rsa-2048" and "rsa-4096" to evaluate that kind of asymmetric key pair.
 #
 # Lastly, ensure that libaziot_key_openssl_engine_shared.so has been installed in the openssl engines directory
-# as printed by `openssl version -e` (`/usr/lib64/openssl/engines` for CentOS 7),
-# with the name "aziot_keys.so" ("libaziot_keys.so" for CentOS 7).
+# as printed by `openssl version -e`, with the name "aziot_keys.so".
 #
 # The web server test requires an open TCP port to bind to. The default is 8443. Set the PORT env var to override it.
 #
@@ -208,11 +207,6 @@ sleep 1
 
 # Connect with `curl` and print the response.
 case "$OS" in
-    'centos:7')
-        # CentOS 7's curl doesn't support openssl engines.
-        # So, skip the curl check.
-        ;;
-
     *)
         curl \
             -D /dev/stderr \
