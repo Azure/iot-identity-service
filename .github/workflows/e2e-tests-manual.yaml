@@ -71,6 +71,7 @@ jobs:
             branch: 'main'
           - os: 'debian:10'
             branch: 'main'
+
       max-parallel: 10
 
     steps:
