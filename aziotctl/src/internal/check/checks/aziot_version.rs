@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use anyhow::{anyhow, Context, Result};
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -33,6 +34,7 @@ impl AziotVersion {
         shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
+        let actual_version = env!("CARGO_PKG_VERSION");
         let expected_version = if let Some(expected_aziot_version) =
             &shared.cfg.expected_aziot_version
         {
@@ -53,12 +55,10 @@ impl AziotVersion {
                     .context("could not initialize HTTP connector")?;
             let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
 
-            let mut uri: hyper::Uri = "https://aka.ms/latest-aziot-identity-service"
+            let mut uri: hyper::Uri = "https://aka.ms/azure-iotedge-latest-versions"
                 .parse()
                 .expect("hard-coded URI cannot fail to parse");
-            let LatestVersions {
-                aziot_identity_service,
-            } = loop {
+            let latest_versions = loop {
                 let req = {
                     let mut req = hyper::Request::new(Default::default());
                     *req.uri_mut() = uri.clone();
@@ -88,8 +88,9 @@ impl AziotVersion {
                         let body = hyper::body::aggregate(res.into_body())
                             .await
                             .context("could not read HTTP response")?;
-                        let body = serde_json::from_reader(hyper::body::Buf::reader(body))
-                            .context("could not read HTTP response")?;
+                        let body: LatestVersions =
+                            serde_json::from_reader(hyper::body::Buf::reader(body))
+                                .context("could not read HTTP response")?;
                         break body;
                     }
 
@@ -98,11 +99,43 @@ impl AziotVersion {
                     }
                 }
             };
-            aziot_identity_service
-        };
-        self.expected_version = Some(expected_version.clone());
+            let versions: Vec<String> = latest_versions
+                .channels
+                .iter()
+                // TODO: filter on product with id "aziot-edge"
+                .flat_map(|channel| channel.products.iter())
+                .flat_map(|product| product.components.iter())
+                .filter_map(|component| {
+                    if component.name == "aziot-identity-service" {
+                        component.version.clone().into()
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-        let actual_version = env!("CARGO_PKG_VERSION");
+            let actual_channel = Version::parse(actual_version)
+                .context("could not parse actual version as semver")?;
+            let expected_version = versions
+                .iter()
+                .find(|version| {
+                    let expected_channel = Version::parse(version)
+                        .context("could not parse expected version as semver")
+                        .unwrap(); // TODO: What's the right error handling here?
+                    expected_channel.major == actual_channel.major
+                        && expected_channel.minor == actual_channel.minor
+                })
+                .ok_or_else(|| {
+                    anyhow!(
+                        "could not find aziot-identity-service version {}.{}.x in product-versions.json",
+                        actual_channel.major,
+                        actual_channel.minor
+                    )
+                })?;
+            expected_version.clone()
+        };
+
+        self.expected_version = Some(expected_version.clone());
         self.actual_version = Some(actual_version.to_owned());
 
         if expected_version != actual_version {
@@ -120,7 +153,31 @@ impl AziotVersion {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct LatestVersions {
-    #[serde(rename = "aziot-identity-service")]
-    aziot_identity_service: String,
+    // schema_version: String,
+    channels: Vec<Channel>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Channel {
+    // name: String,
+    products: Vec<Product>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Product {
+    // name: String,
+    // id: String,
+    // version: String,
+    components: Vec<Component>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Component {
+    name: String,
+    version: String,
 }

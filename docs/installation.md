@@ -19,9 +19,19 @@ Using Ubuntu 22.04 amd64 as an example:
 
 ```bash
 # query GitHub for the latest versions of IoT Edge and IoT Identity Service
-wget -qO- https://raw.githubusercontent.com/Azure/azure-iotedge/main/latest-aziot-edge.json | jq -r '."aziot-edge"'
+wget -qO- https://raw.githubusercontent.com/Azure/azure-iotedge/main/product-versions.json | jq -r '
+  .channels[]
+  | select(.name == "stable").products[]
+  | select(.id == "aziot-edge").components[]
+  | select(.name == "aziot-edge").version
+'
 # example output: 1.4.20
-wget -qO- https://raw.githubusercontent.com/Azure/azure-iotedge/main/latest-aziot-identity-service.json | jq -r '."aziot-identity-service"'
+wget -qO- https://raw.githubusercontent.com/Azure/azure-iotedge/main/product-versions.json | jq -r '
+  .channels[]
+  | select(.name == "stable").products[]
+  | select(.id == "aziot-edge").components[]
+  | select(.name == "aziot-identity-service").version
+'
 # example output: 1.4.6
 
 # download and install
