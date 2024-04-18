@@ -55,9 +55,8 @@ impl AziotVersion {
                     .context("could not initialize HTTP connector")?;
             let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
 
-            let mut uri: hyper::Uri = "https://aka.ms/azure-iotedge-latest-versions"
-                .parse()
-                .expect("hard-coded URI cannot fail to parse");
+            const URI: &str = "https://aka.ms/azure-iotedge-latest-versions";
+            let mut uri: hyper::Uri = URI.parse().expect("hard-coded URI cannot fail to parse");
             let latest_versions = loop {
                 let req = {
                     let mut req = hyper::Request::new(Default::default());
@@ -66,8 +65,9 @@ impl AziotVersion {
                 };
 
                 let res = client.request(req).await.with_context(|| {
-                    format!("could not query {uri} for latest available version")
+                    format!("could not query {URI} for latest available version")
                 })?;
+
                 match res.status() {
                     status_code if status_code.is_redirection() => {
                         uri = res
@@ -99,19 +99,15 @@ impl AziotVersion {
                     }
                 }
             };
+
             let versions: Vec<String> = latest_versions
                 .channels
                 .iter()
-                // TODO: filter on product with id "aziot-edge"
                 .flat_map(|channel| channel.products.iter())
+                .filter(|product| product.id == "aziot-edge")
                 .flat_map(|product| product.components.iter())
-                .filter_map(|component| {
-                    if component.name == "aziot-identity-service" {
-                        component.version.clone().into()
-                    } else {
-                        None
-                    }
-                })
+                .filter(|component| component.name == "aziot-identity-service")
+                .map(|component| component.version.clone())
                 .collect();
 
             let actual_channel = Version::parse(actual_version)
@@ -127,9 +123,10 @@ impl AziotVersion {
                 })
                 .ok_or_else(|| {
                     anyhow!(
-                        "could not find aziot-identity-service version {}.{}.x in product-versions.json",
+                        "could not find aziot-identity-service version {}.{}.x in list of supported products at {}",
                         actual_channel.major,
-                        actual_channel.minor
+                        actual_channel.minor,
+                        URI
                     )
                 })?;
             expected_version.clone()
@@ -153,30 +150,22 @@ impl AziotVersion {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct LatestVersions {
-    // schema_version: String,
     channels: Vec<Channel>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct Channel {
-    // name: String,
     products: Vec<Product>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct Product {
-    // name: String,
-    // id: String,
-    // version: String,
+    id: String,
     components: Vec<Component>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct Component {
     name: String,
     version: String,
