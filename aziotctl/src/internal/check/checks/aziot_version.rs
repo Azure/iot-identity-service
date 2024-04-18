@@ -34,6 +34,7 @@ impl AziotVersion {
         shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
+        const URI: &str = "https://aka.ms/azure-iotedge-latest-versions";
         let actual_version = env!("CARGO_PKG_VERSION");
         let expected_version = if let Some(expected_aziot_version) =
             &shared.cfg.expected_aziot_version
@@ -54,8 +55,6 @@ impl AziotVersion {
                 http_common::MaybeProxyConnector::new(shared.cfg.proxy_uri.clone(), None, &[])
                     .context("could not initialize HTTP connector")?;
             let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
-
-            const URI: &str = "https://aka.ms/azure-iotedge-latest-versions";
             let mut uri: hyper::Uri = URI.parse().expect("hard-coded URI cannot fail to parse");
             let latest_versions = loop {
                 let req = {
