@@ -23,7 +23,7 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'debian:11:arm32v7'|'debian:12:arm32v7')
+    'debian:11:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -38,7 +38,22 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'debian:11:aarch64'|'debian:12:aarch64')
+    'debian:12:arm32v7')
+        export DEBIAN_FRONTEND=noninteractive
+        export TZ=UTC
+
+        dpkg --add-architecture armhf
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y --no-install-recommends \
+            acl autoconf autoconf-archive automake build-essential ca-certificates \
+            clang cmake crossbuild-essential-armhf curl git jq \
+            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+            libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
+            llvm-dev pkg-config:armhf
+        ;;
+
+    'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -51,6 +66,22 @@ case "$OS:$ARCH" in
             libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
             llvm-dev pkg-config
+        ;;
+    
+    'debian:12:aarch64')
+    'debian:11:aarch64')
+        export DEBIAN_FRONTEND=noninteractive
+        export TZ=UTC
+
+        dpkg --add-architecture arm64
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y --no-install-recommends \
+            acl autoconf autoconf-archive automake build-essential ca-certificates \
+            clang cmake crossbuild-essential-arm64 curl git jq \
+            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
+            llvm-dev pkg-config:arm64
         ;;
 
     'platform:el8:amd64')
