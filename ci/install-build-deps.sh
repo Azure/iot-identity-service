@@ -69,7 +69,6 @@ case "$OS:$ARCH" in
         ;;
     
     'debian:12:aarch64')
-    'debian:11:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
