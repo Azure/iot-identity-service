@@ -99,6 +99,9 @@ impl AziotVersion {
                 }
             };
 
+            let actual_semver = Version::parse(actual_version)
+                .context("could not parse actual version as semver")?;
+
             let versions: Vec<String> = latest_versions
                 .channels
                 .iter()
@@ -109,26 +112,26 @@ impl AziotVersion {
                 .map(|component| component.version.clone())
                 .collect();
 
-            let actual_channel = Version::parse(actual_version)
-                .context("could not parse actual version as semver")?;
-            let expected_version = versions
+            let parsed_versions = versions
                 .iter()
-                .find(|version| {
-                    let expected_channel = Version::parse(version)
-                        .context("could not parse expected version as semver")
-                        .unwrap(); // TODO: What's the right error handling here?
-                    expected_channel.major == actual_channel.major
-                        && expected_channel.minor == actual_channel.minor
+                .map(|version| {
+                    Ok(Version::parse(version)
+                        .context("could not parse expected version as semver")?)
                 })
+                .collect::<Result<Vec<_>>>()?;
+
+            let expected_version = parsed_versions
+                .iter()
+                .find(|semver| semver.major == actual_semver.major && semver.minor == actual_semver.minor)
                 .ok_or_else(|| {
                     anyhow!(
                         "could not find aziot-identity-service version {}.{}.x in list of supported products at {}",
-                        actual_channel.major,
-                        actual_channel.minor,
+                        actual_semver.major,
+                        actual_semver.minor,
                         URI
                     )
                 })?;
-            expected_version.clone()
+            expected_version.to_string()
         };
 
         self.expected_version = Some(expected_version.clone());
