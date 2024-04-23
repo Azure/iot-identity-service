@@ -115,8 +115,7 @@ impl AziotVersion {
             let parsed_versions = versions
                 .iter()
                 .map(|version| {
-                    Ok(Version::parse(version)
-                        .context("could not parse expected version as semver")?)
+                    Version::parse(version).context("could not parse expected version as semver")
                 })
                 .collect::<Result<Vec<_>>>()?;
 
