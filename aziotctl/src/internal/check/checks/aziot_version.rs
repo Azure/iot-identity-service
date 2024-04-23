@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use anyhow::{anyhow, Context, Result};
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -33,6 +34,8 @@ impl AziotVersion {
         shared: &CheckerShared,
         cache: &mut CheckerCache,
     ) -> Result<CheckResult> {
+        const URI: &str = "https://aka.ms/azure-iotedge-latest-versions";
+        let actual_version = env!("CARGO_PKG_VERSION");
         let expected_version = if let Some(expected_aziot_version) =
             &shared.cfg.expected_aziot_version
         {
@@ -52,13 +55,8 @@ impl AziotVersion {
                 http_common::MaybeProxyConnector::new(shared.cfg.proxy_uri.clone(), None, &[])
                     .context("could not initialize HTTP connector")?;
             let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
-
-            let mut uri: hyper::Uri = "https://aka.ms/latest-aziot-identity-service"
-                .parse()
-                .expect("hard-coded URI cannot fail to parse");
-            let LatestVersions {
-                aziot_identity_service,
-            } = loop {
+            let mut uri: hyper::Uri = URI.parse().expect("hard-coded URI cannot fail to parse");
+            let latest_versions = loop {
                 let req = {
                     let mut req = hyper::Request::new(Default::default());
                     *req.uri_mut() = uri.clone();
@@ -66,8 +64,9 @@ impl AziotVersion {
                 };
 
                 let res = client.request(req).await.with_context(|| {
-                    format!("could not query {uri} for latest available version")
+                    format!("could not query {URI} for latest available version")
                 })?;
+
                 match res.status() {
                     status_code if status_code.is_redirection() => {
                         uri = res
@@ -88,8 +87,9 @@ impl AziotVersion {
                         let body = hyper::body::aggregate(res.into_body())
                             .await
                             .context("could not read HTTP response")?;
-                        let body = serde_json::from_reader(hyper::body::Buf::reader(body))
-                            .context("could not read HTTP response")?;
+                        let body: LatestVersions =
+                            serde_json::from_reader(hyper::body::Buf::reader(body))
+                                .context("could not read HTTP response")?;
                         break body;
                     }
 
@@ -98,11 +98,42 @@ impl AziotVersion {
                     }
                 }
             };
-            aziot_identity_service
-        };
-        self.expected_version = Some(expected_version.clone());
 
-        let actual_version = env!("CARGO_PKG_VERSION");
+            let actual_semver = Version::parse(actual_version)
+                .context("could not parse actual version as semver")?;
+
+            let versions: Vec<String> = latest_versions
+                .channels
+                .iter()
+                .flat_map(|channel| channel.products.iter())
+                .filter(|product| product.id == "aziot-edge")
+                .flat_map(|product| product.components.iter())
+                .filter(|component| component.name == "aziot-identity-service")
+                .map(|component| component.version.clone())
+                .collect();
+
+            let parsed_versions = versions
+                .iter()
+                .map(|version| {
+                    Version::parse(version).context("could not parse expected version as semver")
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            let expected_version = parsed_versions
+                .iter()
+                .find(|semver| semver.major == actual_semver.major && semver.minor == actual_semver.minor)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "could not find aziot-identity-service version {}.{}.x in list of supported products at {}",
+                        actual_semver.major,
+                        actual_semver.minor,
+                        URI
+                    )
+                })?;
+            expected_version.to_string()
+        };
+
+        self.expected_version = Some(expected_version.clone());
         self.actual_version = Some(actual_version.to_owned());
 
         if expected_version != actual_version {
@@ -121,6 +152,22 @@ impl AziotVersion {
 
 #[derive(Debug, Deserialize)]
 struct LatestVersions {
-    #[serde(rename = "aziot-identity-service")]
-    aziot_identity_service: String,
+    channels: Vec<Channel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Channel {
+    products: Vec<Product>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Product {
+    id: String,
+    components: Vec<Component>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Component {
+    name: String,
+    version: String,
 }

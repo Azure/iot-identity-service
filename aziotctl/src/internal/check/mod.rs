@@ -32,7 +32,7 @@ pub struct CheckerCfg {
     pub proxy_uri: Option<hyper::Uri>,
 
     /// If set, the check compares the installed package version to this string.
-    /// Otherwise, the version is fetched from <http://aka.ms/latest-aziot-identity-service>
+    /// Otherwise, the version is fetched from <http://aka.ms/azure-iotedge-latest-versions>
     #[arg(long, value_name = "VERSION")]
     pub expected_aziot_version: Option<String>,
 }
