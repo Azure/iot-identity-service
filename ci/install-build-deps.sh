@@ -11,7 +11,7 @@ fi
 # OS packages
 
 case "$OS:$ARCH" in
-    'debian:11:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
+    'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -23,7 +23,7 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'debian:11:arm32v7')
+    'debian:11:arm32v7'|'debian:12:arm32v7')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -38,7 +38,7 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'debian:11:aarch64')
+    'debian:11:aarch64'|'debian:12:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 

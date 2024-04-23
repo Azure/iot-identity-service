@@ -14,6 +14,7 @@ jobs:
       matrix:
         container_os:
         - 'debian:11-slim'
+        - 'debian:12-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
         - 'ubuntu:20.04'
