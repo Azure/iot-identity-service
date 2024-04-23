@@ -89,6 +89,10 @@ get_package() {
             artifact_name='debian-11-slim'
             ;;
 
+        'debian:12')
+            artifact_name='debian-12-slim'
+            ;;
+
         'platform:el8')
             artifact_name='redhat-ubi8-latest'
             ;;
@@ -169,6 +173,11 @@ get_package() {
     case "$OS" in
         'debian:11')
             unzip -j package.zip 'debian11/amd64/aziot-identity-service_*_amd64.deb' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'debian:12')
+            unzip -j package.zip 'debian12/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
@@ -538,6 +547,15 @@ case "$OS" in
         #     --publisher 'Debian' --offer 'debian-11' --sku '11-gen2' \
         #     --query "[?publisher == 'Debian' && offer == 'debian-11'].{ sku: sku, version: version, urn: urn }" --output table
         vm_image='Debian:debian-11:11-gen2:latest'
+        ;;
+
+    'debian:12')
+        # Not listed on the docs.microsoft.com page, but credativ doesn't publish Debian 10+ images.
+        #
+        # az vm image list --all \
+        #     --publisher 'Debian' --offer 'debian-12' --sku '12-gen2' \
+        #     --query "[?publisher == 'Debian' && offer == 'debian-12'].{ sku: sku, version: version, urn: urn }" --output table
+        vm_image='Debian:debian-12:12-gen2:latest'
         ;;
 
     'platform:el8')
