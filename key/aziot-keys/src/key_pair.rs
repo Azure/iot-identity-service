@@ -26,9 +26,9 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        if load_inner(&locations)?.is_none() {
+        if load_inner(&locations, true)?.is_none() {
             create_inner(&locations, &preferred_algorithms)?;
-            if load_inner(&locations)?.is_none() {
+            if load_inner(&locations, false)?.is_none() {
                 return Err(crate::implementation::err_external(
                     "key created successfully but could not be found",
                 ));
@@ -98,7 +98,7 @@ pub(crate) unsafe extern "C" fn load_key_pair(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        if load_inner(&locations)?.is_none() {
+        if load_inner(&locations, false)?.is_none() {
             return Err(crate::implementation::err_invalid_parameter(
                 "id",
                 "not found",
@@ -136,7 +136,7 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        let key_pair = load_inner(&locations)?
+        let key_pair = load_inner(&locations, false)?
             .ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
         match r#type {
@@ -347,7 +347,7 @@ pub(crate) unsafe fn sign(
     _parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let key_pair = load_inner(locations)?
+    let key_pair = load_inner(locations, false)?
         .ok_or_else(|| crate::implementation::err_invalid_parameter("id", "not found"))?;
 
     let result = match key_pair {
@@ -432,7 +432,7 @@ pub(crate) unsafe fn encrypt(
     _parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let Some(key_pair) = load_inner(locations)? else {
+    let Some(key_pair) = load_inner(locations, false)? else {
         return Err(crate::implementation::err_invalid_parameter(
             "id",
             "key not found",
@@ -577,12 +577,18 @@ impl KeyPair {
 
 fn load_inner(
     locations: &[crate::implementation::Location],
+    treat_malformed_as_missing: bool,
 ) -> Result<Option<KeyPair>, crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
                 Ok(private_key_pem) => {
-                    let private_key = openssl::pkey::PKey::private_key_from_pem(&private_key_pem)?;
+                    let private_key =
+                        match openssl::pkey::PKey::private_key_from_pem(&private_key_pem) {
+                            Ok(private_key) => private_key,
+                            Err(_) if treat_malformed_as_missing => continue,
+                            Err(err) => return Err(err.into()),
+                        };
 
                     // Copy private_key's public parameters into a new public key
                     let public_key_der = private_key.public_key_to_der()?;
