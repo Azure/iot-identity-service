@@ -25,9 +25,9 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 
         let locations = crate::implementation::Location::of(id)?;
 
-        if load_inner(&locations)?.is_none() {
+        if load_inner(&locations, true)?.is_none() {
             create_inner(&locations, CreateMethod::Generate, usage)?;
-            if load_inner(&locations)?.is_none() {
+            if load_inner(&locations, false)?.is_none() {
                 return Err(crate::implementation::err_external(
                     "key created successfully but could not be found",
                 ));
@@ -56,7 +56,7 @@ pub(crate) unsafe extern "C" fn load_key(id: *const std::os::raw::c_char) -> cra
 
         let locations = crate::implementation::Location::of(id)?;
 
-        if load_inner(&locations)?.is_none() {
+        if load_inner(&locations, false)?.is_none() {
             return Err(crate::implementation::err_invalid_parameter(
                 "id",
                 "not found",
@@ -100,7 +100,7 @@ pub(crate) unsafe extern "C" fn import_key(
         let locations = crate::implementation::Location::of(id)?;
 
         create_inner(&locations, CreateMethod::Import(bytes), usage)?;
-        if load_inner(&locations)?.is_none() {
+        if load_inner(&locations, false)?.is_none() {
             return Err(crate::implementation::err_external(
                 "key created successfully but could not be found",
             ));
@@ -164,7 +164,7 @@ pub(crate) unsafe extern "C" fn derive_key(
 
         let locations = crate::implementation::Location::of(base_id)?;
 
-        let Some(base_key) = load_inner(&locations)? else {
+        let Some(base_key) = load_inner(&locations, false)? else {
             return Err(crate::implementation::err_invalid_parameter(
                 "base_id",
                 "key not found",
@@ -206,7 +206,7 @@ pub(crate) unsafe fn sign(
     parameters: *const std::ffi::c_void,
     digest: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let Some(key) = load_inner(locations)? else {
+    let Some(key) = load_inner(locations, false)? else {
         return Err(crate::implementation::err_invalid_parameter(
             "id",
             "key not found",
@@ -255,7 +255,7 @@ pub(crate) unsafe fn verify(
     digest: &[u8],
     signature: &[u8],
 ) -> Result<bool, crate::AZIOT_KEYS_RC> {
-    let Some(key) = load_inner(locations)? else {
+    let Some(key) = load_inner(locations, false)? else {
         return Err(crate::implementation::err_invalid_parameter(
             "id",
             "key not found",
@@ -336,7 +336,7 @@ pub(crate) unsafe fn encrypt(
     parameters: *const std::ffi::c_void,
     plaintext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let Some(key) = load_inner(locations)? else {
+    let Some(key) = load_inner(locations, false)? else {
         return Err(crate::implementation::err_invalid_parameter(
             "id",
             "key not found",
@@ -409,7 +409,7 @@ pub(crate) unsafe fn decrypt(
     parameters: *const std::ffi::c_void,
     ciphertext: &[u8],
 ) -> Result<(usize, Vec<u8>), crate::AZIOT_KEYS_RC> {
-    let Some(key) = load_inner(locations)? else {
+    let Some(key) = load_inner(locations, false)? else {
         return Err(crate::implementation::err_invalid_parameter(
             "id",
             "key not found",
@@ -510,11 +510,18 @@ enum Key {
 
 fn load_inner(
     locations: &[crate::implementation::Location],
+    treat_malformed_as_missing: bool,
 ) -> Result<Option<Key>, crate::AZIOT_KEYS_RC> {
     for location in locations {
         match location {
             crate::implementation::Location::Filesystem(path) => match std::fs::read(path) {
-                Ok(key_bytes) => return Ok(Some(Key::FileSystem(key_bytes))),
+                Ok(key_bytes) => {
+                    if !key_bytes.is_empty() {
+                        return Ok(Some(Key::FileSystem(key_bytes)));
+                    } else if !treat_malformed_as_missing {
+                        return Err(crate::implementation::err_external("key file is empty"));
+                    }
+                }
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
                 Err(err) => return Err(crate::implementation::err_external(err)),
             },
