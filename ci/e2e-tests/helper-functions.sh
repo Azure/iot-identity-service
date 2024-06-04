@@ -148,11 +148,7 @@ installTestTools() {
     local os="${distributor_id,,}"
     case "$os" in
         debian|ubuntu)
-            release="$(lsb_release -rs)"
-            wget "https://packages.microsoft.com/config/$os/$release/packages-microsoft-prod.deb" \
-                -O packages-microsoft-prod.deb
-            sudo dpkg -i packages-microsoft-prod.deb
-            rm packages-microsoft-prod.deb
+            # these next commands assume that packages.microsoft.com has already been added to the apt sources list
             set +e
             for retry in {0..3}; do
                 if [ "$retry" != "0" ]; then
