@@ -8,7 +8,7 @@ echo 'Installed and updated azure-iot extension' >&2
 
 
 echo 'Logging in to Azure...' >&2
->/dev/null az login --service-principal --identity
+>/dev/null az login --identity
 echo 'Logged in to Azure' >&2
 
 if [ -n "${AZURE_LOCATION:-}" ]; then
