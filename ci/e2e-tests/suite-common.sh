@@ -1,21 +1,6 @@
 #!/bin/bash
 
 
-# Test required variables early to avoid downloading the artifact unnecessarily.
-if [ -z "${AZURE_TENANT_ID:-}" ]; then
-    echo 'AZURE_TENANT_ID not set' >&2
-    exit 1
-fi
-if [ -z "${AZURE_USERNAME:-}" ]; then
-    echo 'AZURE_USERNAME not set' >&2
-    exit 1
-fi
-if [ -z "${AZURE_PASSWORD:-}" ]; then
-    echo 'AZURE_PASSWORD not set' >&2
-    exit 1
-fi
-
-
 # Suite ID. Used as resource tag for all Azure resources created in this suite.
 suite_id="${BRANCH:-unknown}:$GITHUB_RUN_ID:$GITHUB_RUN_NUMBER"
 echo "suite_id: $suite_id" >&2

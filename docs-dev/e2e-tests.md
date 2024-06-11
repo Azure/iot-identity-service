@@ -15,27 +15,25 @@ Put all together, there are three ways to run the script:
 
 ### `e2e-tests-scheduled.yaml` and `e2e-tests-manual.yaml`
 
-The workflows use an Azure service principal and an Azure resource group that the principal must be able to create resources under.
+The workflows use an Azure managed identity and an Azure resource group that the identity must be able to create resources under.
 
 ```sh
 AZURE_ACCOUNT="$(az account show)"
 AZURE_SUBSCRIPTION_ID="$(<<< "$AZURE_ACCOUNT" jq --raw-output '.id')"
 
 AZURE_RESOURCE_GROUP_NAME='iot-identity-service-e2e-tests'
-AZURE_SP_NAME="http://iot-identity-service-e2e-tests"
+AZURE_SP_NAME='iot-identity-service-e2e-tests'
 
 # The location of the resource group as well as resources created in the group.
 AZURE_LOCATION='...'
 
 az group create --name "$AZURE_RESOURCE_GROUP_NAME" --location "$AZURE_LOCATION"
 
-AZURE_SP=$(az ad sp create-for-rbac --name "$AZURE_SP_NAME" --skip-assignment)
-
-# Save the output of this command. It contains the password for the SP
-# which cannot be obtained later.
-echo "$AZURE_SP"
-
-AZURE_SP_ID="$(<<< "$AZURE_SP" jq --raw-output '.appId')"
+# The GitHub runner used in the workflows must be assigned the managed identity created in this step
+AZURE_SP_ID=$(az identity create \
+    --name "$AZURE_SP_NAME" \
+    --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+    --location "$AZURE_LOCATION" | jq --raw-output '.principalId')
 
 az role assignment create \
     --assignee "$AZURE_SP_ID" \
@@ -43,11 +41,8 @@ az role assignment create \
     --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP_NAME"
 ```
 
-Next, the identity of this SP and the name of this resource group must be set in GitHub secrets on the repo:
+Next, the name of this resource group must be set in GitHub secrets on the repo:
 
-- `AZURE_TENANT_ID`: The `tenant` property from the `az ad sp create-for-rbac` output.
-- `AZURE_USERNAME`: The `appId` property from the `az ad sp create-for-rbac` output.
-- `AZURE_PASSWORD`: The `password` property from the `az ad sp create-for-rbac` output.
 - `AZURE_RESOURCE_GROUP_NAME`: The `AZURE_RESOURCE_GROUP_NAME` variable in the script.
 - `AZURE_LOCATION`: The `AZURE_LOCATION` variable in the script. Note that this can be changed afterwards to start putting the resources in a different location instead of the resource group's location. (The location of a resource group is just a default for new resources.)
 
@@ -58,7 +53,7 @@ Note that the `e2e-tests-scheduled.yaml` workflow only runs in the main `Azure/i
 
 ### Running the script locally
 
-This requires you to have your own Azure subscription. Follow the same steps as the section above to create a resource group and service principal, except for creating GitHub secrets.
+This requires you to have your own Azure subscription and an Azure VM to run the tests from. Follow the same steps as the section above to create a resource group and managed identity, except for creating GitHub secrets. Assign the managed identity to the VM.
 
 If you've never created an IoT Hub under your subscription, you'll need to register the `Microsoft.Devices` Resource Provider. (Make sure to do this while logged in as yourself, not when logged in as the SP, because the SP won't have permissions to do this.)
 
@@ -78,15 +73,6 @@ Set some more env vars for the parameters of the tests, then run the script.
 
 ```sh
 cd ~/src/iot-identity-service
-
-# The `tenant` property from the `az ad sp create-for-rbac` output.
-export AZURE_TENANT_ID='...'
-
-# The `appId` property from the `az ad sp create-for-rbac` output.
-export AZURE_USERNAME='...'
-
-# The `password` property from the `az ad sp create-for-rbac` output.
-export AZURE_PASSWORD='...'
 
 # Already defined in the setup script.
 export AZURE_RESOURCE_GROUP_NAME
