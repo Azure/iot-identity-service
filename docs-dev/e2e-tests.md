@@ -53,7 +53,7 @@ Note that the `e2e-tests-scheduled.yaml` workflow only runs in the main `Azure/i
 
 ### Running the script locally
 
-This requires you to have your own Azure subscription. Follow the same steps as the section above to create a resource group and managed identity, except for creating GitHub secrets.
+This requires you to have your own Azure subscription and an Azure VM to run the tests from. Follow the same steps as the section above to create a resource group and managed identity, except for creating GitHub secrets. Assign the managed identity to the VM.
 
 If you've never created an IoT Hub under your subscription, you'll need to register the `Microsoft.Devices` Resource Provider. (Make sure to do this while logged in as yourself, not when logged in as the SP, because the SP won't have permissions to do this.)
 
