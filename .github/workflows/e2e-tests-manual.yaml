@@ -33,9 +33,6 @@ jobs:
       env:
         BRANCH: "${{ github.event.inputs.branch }}"
 
-        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
-        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
         AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
 
@@ -82,9 +79,6 @@ jobs:
 
         OS: "${{ matrix.os }}"
 
-        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
-        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
         AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
 
@@ -100,9 +94,6 @@ jobs:
 
         OS: "${{ matrix.os }}"
 
-        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
-        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
         AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
 
@@ -126,9 +117,6 @@ jobs:
       env:
         BRANCH: "${{ github.event.inputs.branch }}"
 
-        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
-        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
         AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
 
@@ -153,8 +141,5 @@ jobs:
       env:
         BRANCH: "${{ github.event.inputs.branch }}"
 
-        AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
-        AZURE_USERNAME: "${{ secrets.AZURE_USERNAME }}"
-        AZURE_PASSWORD: "${{ secrets.AZURE_PASSWORD }}"
         AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
