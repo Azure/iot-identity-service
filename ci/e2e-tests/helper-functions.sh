@@ -100,7 +100,8 @@ setupCustomAllocationPolicy() {
             --location $AZURE_LOCATION \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
             --sku Standard_LRS \
-            --tags "suite_id=$suite_id"
+            --tags "suite_id=$suite_id" \
+            --allow-shared-key-access false
 
         # Create function app
         az functionapp create \
