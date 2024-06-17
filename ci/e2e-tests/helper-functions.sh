@@ -113,7 +113,8 @@ setupCustomAllocationPolicy() {
             --name "$dps_allocation_functionapp_name" \
             --disable-app-insights \
             --storage-account "$dps_allocation_storage_account" \
-            --tags "suite_id=$suite_id"
+            --tags "suite_id=$suite_id" \
+            --assign-identity "$AZURE_MANAGED_IDENTITY"
 
         # Publishing the app sometimes fails, so retry up to 3 times
         for retry in {0..3}; do
