@@ -33,8 +33,9 @@ jobs:
       env:
         BRANCH: "${{ github.event.inputs.branch }}"
 
-        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
+        AZURE_MANAGED_IDENTITY: "${{ vars.AZURE_MANAGED_IDENTITY }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
 
   test-run:
     needs: 'suite-setup'
