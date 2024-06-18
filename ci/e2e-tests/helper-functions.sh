@@ -103,6 +103,19 @@ setupCustomAllocationPolicy() {
             --tags "suite_id=$suite_id" \
             --allow-shared-key-access false
 
+        # Give managed identity Storage Blob Data Contributor access to the storage account
+        object_id="$(az identity show --ids "$AZURE_MANAGED_IDENTITY" --query principalId --output tsv)"
+
+        scope_id="$(
+            az storage account show \
+                --name "$dps_allocation_storage_account" \
+                --resource-group $AZURE_RESOURCE_GROUP_NAME \
+                --query id \
+                --output tsv
+        )"
+
+        az role assignment create --assignee "$object_id" --role "Storage Blob Data Contributor" --scope "$scope_id"
+
         # Create function app
         az functionapp create \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
