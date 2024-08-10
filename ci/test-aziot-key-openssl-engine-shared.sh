@@ -7,7 +7,7 @@ cd /src
 . ./ci/install-runtime-deps.sh
 
 case "$OS" in
-    'debian:10'|'debian:11'|'platform:el8'|'platform:el9'|'ubuntu:20.04'|'ubuntu:22.04')
+    'debian:11'|'platform:el8'|'platform:el9'|'ubuntu:20.04'|'ubuntu:22.04')
         cp \
             ./target/debug/libaziot_key_openssl_engine_shared.so \
             "$(openssl version -e | sed -E 's/^ENGINESDIR: "(.*)"$/\1/')/aziot_keys.so"
