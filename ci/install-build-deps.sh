@@ -11,25 +11,6 @@ fi
 # OS packages
 
 case "$OS:$ARCH" in
-    'centos:7:amd64')
-        export VENDOR_LIBTSS=1
-
-        yum install -y centos-release-scl epel-release
-        yum install -y \
-            autoconf autoconf-archive automake curl devtoolset-9-gcc devtoolset-9-gcc-c++ \
-            git jq libcurl-devel libtool llvm-toolset-7-clang llvm-toolset-7-llvm-devel \
-            make openssl openssl-devel pkgconfig
-
-        set +eu # scl_source fails with -eu
-        . scl_source enable devtoolset-9 llvm-toolset-7
-        set -eu
-        ;;
-
-    'centos:7:arm32v7'|'centos:7:aarch64')
-        echo "Cross-compilation on $OS $ARCH is not supported" >&2
-        exit 1
-        ;;
-
     'debian:10:amd64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC

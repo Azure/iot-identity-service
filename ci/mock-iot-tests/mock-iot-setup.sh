@@ -10,7 +10,7 @@ case "$CONTAINER_OS" in
         cp "$ROOT_CERT" /usr/local/share/ca-certificates/dps_root_cert.crt
         update-ca-certificates
         ;;
-    'centos:7' | 'redhat/ubi8:latest' | 'redhat/ubi9:latest')
+    'redhat/ubi8:latest' | 'redhat/ubi9:latest')
         mkdir -p /etc/pki/ca-trust/source/anchors
         cp "$ROOT_CERT" /etc/pki/ca-trust/source/anchors/dps_root_cert.crt
         update-ca-trust

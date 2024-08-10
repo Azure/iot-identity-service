@@ -11,7 +11,7 @@ mkdir -p packages
 
 
 case "$OS" in
-    'centos:7'|'platform:el8'|'platform:el9')
+    'platform:el8'|'platform:el9')
         case "$ARCH" in
             'arm32v7'|'aarch64')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -20,11 +20,6 @@ case "$OS" in
         esac
 
         case "$OS" in
-            'centos:7')
-                TARGET_DIR="centos7/$ARCH"
-                PACKAGE_DIST="el7"
-                ;;
-
             'platform:el8')
                 TARGET_DIR="el8/$ARCH"
                 PACKAGE_DIST="el8"
