@@ -42,9 +42,9 @@ case "$OS" in
         esac
         ;;
 
-    'debian:11'|'debian:12'|'ubuntu:20.04'|'ubuntu:22.04')
+    'debian:11'|'debian:12'|'ubuntu:20.04'|'ubuntu:22.04'|'ubuntu:24.04')
         # openssl 1.1.1 for Debian 11, Ubuntu 20.04, RHEL 8
-        # openssl 3.0 for Debian 12, Ubuntu 22.04, RHEL 9
+        # openssl 3.0 for Debian 12, Ubuntu 22.04/24.04, RHEL 9
 
         apt-get update -y
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y curl jq openssl ca-certificates libtss2-dev

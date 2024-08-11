@@ -122,4 +122,4 @@ For example, if you have a module process, the process needs to interact with th
 
 ## Package dependencies
 
-The binaries and libraries shipped in this package only depend on OpenSSL (v3.0 on Ubuntu 22.04 and RHEL 9, v1.1 on other supported distributions).
+The binaries and libraries shipped in this package only depend on OpenSSL (v3.0 on Ubuntu 22.04/24.04 and RHEL 9, v1.1 on other supported distributions).

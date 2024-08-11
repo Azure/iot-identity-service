@@ -22,9 +22,9 @@ case "$OS" in
             expect gawk libjson-glib-dev libtasn1-6-dev net-tools python3 socat
         ;;
 
-    # On 22.04 we use the provided swtpm + libtpms0 packages instead of building them ourselves.
+    # On 22.04/24.04 we use the provided swtpm + libtpms0 packages instead of building them ourselves.
     # The libtss2-dev package includes a TCTI module for swtpm.
-    'ubuntu:22.04')
+    'ubuntu:22.04'|'ubuntu:24.04')
         export SKIP_TSS_MINIMAL=0
         export USE_SWTPM_PKG=1
 

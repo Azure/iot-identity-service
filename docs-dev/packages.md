@@ -35,6 +35,10 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <td>Ubuntu 22.04</td>
 <td><code>ubuntu:22.04</code></td>
 </tr>
+<tr>
+<td>Ubuntu 24.04</td>
+<td><code>ubuntu:24.04</code></td>
+</tr>
 </tbody>
 </table>
 
