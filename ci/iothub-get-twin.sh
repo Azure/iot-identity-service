@@ -22,8 +22,7 @@ uri_encode() {
 
 # This is a tiny Azure IoT MQTT implementation that just authenticates as a device or module and fetches its twin.
 #
-# It would be nice to use mosquitto_rr instead of this, but https://github.com/eclipse/mosquitto/issues/1881
-# Also, Debian 9's moquitto-clients package is old enough that it doesn't have mosquitto_rr anyway.
+# It would be nice to use mosquitto_rr instead of this, but https://github.com/eclipse/mosquitto/issues/1881.
 # For SAS identities we could work around that by generating the SAS token on the VM and then sending it back to
 # the workflow runner, but that doesn't work for X.509 identities where the client must be able to talk to the KS
 # via the aziot-keys openssl engine.

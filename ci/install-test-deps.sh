@@ -10,13 +10,6 @@
 # OS packages
 
 case "$OS" in
-    'centos:7')
-        export SKIP_TSS_MINIMAL=0
-        export USE_SWTPM_PKG=0
-
-        yum install -y expect json-glib-devel libtasn1-devel net-tools python3 socat
-        ;;
-
     # NOTE: ubuntu:20.04 uses libtss2-dev provided through the package
     # repositories, but the available version does not provide a TCTI
     # module for swtpm.  So, we skip testing tss-minimal on

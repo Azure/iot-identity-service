@@ -6,9 +6,7 @@
 OS="$(. /etc/os-release; echo "${PLATFORM_ID:-$ID:$VERSION_ID}")"
 
 case "$OS" in
-    'centos:7'|'platform:el8'|'platform:el9')
-        # openssl 1.0
-
+    'platform:el8'|'platform:el9')
         # If using RHEL 8/9 UBI images without a subscription then they only have access to a
         # subset of packages. Workaround to enable EPEL.
         if [ "$OS" = 'platform:el8' ] && [ "$(. /etc/os-release; echo "$ID")" = 'rhel' ]; then
@@ -20,9 +18,6 @@ case "$OS" in
 
             # curl is already installed on el9
             yum install -y jq openssl ca-certificates
-        else
-            yum install -y epel-release
-            yum install -y curl jq openssl ca-certificates
         fi
 
         case "${PKCS11_BACKEND:-}" in
@@ -44,8 +39,8 @@ case "$OS" in
         esac
         ;;
 
-    'debian:10'|'debian:11'|'ubuntu:20.04'|'ubuntu:22.04')
-        # openssl 1.1.1 for Debian 10/11 and Ubuntu 20.04
+    'debian:11'|'ubuntu:20.04'|'ubuntu:22.04')
+        # openssl 1.1.1 for Debian 11 and Ubuntu 20.04
         # openssl 3.0 for Ubuntu 22.04
 
         apt-get update -y

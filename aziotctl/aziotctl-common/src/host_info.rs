@@ -47,8 +47,7 @@ impl Default for DmiInfo {
 /// ```ignore
 ///  OS                  | id                  | version_id
 /// ---------------------+---------------------+------------
-///  CentOS 7            | centos              | 7
-///  Debian 9            | debian              | 9
+///  Debian 12           | debian              | 12
 ///  openSUSE Tumbleweed | opensuse-tumbleweed | 20190325
 ///  Ubuntu 22.04        | ubuntu              | 22.04
 /// ```
