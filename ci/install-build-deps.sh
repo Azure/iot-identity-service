@@ -135,7 +135,7 @@ case "$OS:$ARCH" in
             llvm-dev pkg-config
         ;;
 
-    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64'|'ubuntu:24.04:aarch64')
+    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
         export DEBIAN_FRONTEND=noninteractive
         export TZ=UTC
 
@@ -161,6 +161,32 @@ case "$OS:$ARCH" in
             libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
             libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
             llvm-dev pkg-config
+        ;;
+
+    'ubuntu:24.04:aarch64')
+        export DEBIAN_FRONTEND=noninteractive
+        export TZ=UTC
+
+        # Update existing repos to be specifically for amd64
+        sed -ie '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+        sed -ie '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+
+        # Add arm64 repos
+        </etc/apt/sources.list.d/ubuntu.sources sed \
+            -e 's/^Architectures: amd64/Architectures: arm64/g' \
+            -e 's|URIs: http://archive.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+            -e 's|URIs: http://security.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+            >/etc/apt/sources.list.d/ubuntu.ports.sources
+
+        dpkg --add-architecture arm64
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y --no-install-recommends \
+            acl autoconf autoconf-archive automake build-essential ca-certificates \
+            clang cmake crossbuild-essential-arm64 curl git jq \
+            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+            libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
+            llvm-dev pkg-config:arm64
         ;;
 
     'mariner:2:amd64' | 'mariner:2:aarch64')
