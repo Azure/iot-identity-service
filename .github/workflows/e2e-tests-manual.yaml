@@ -49,8 +49,6 @@ jobs:
 
       matrix:
         os:
-        - 'centos:7'
-        - 'debian:10'
         - 'debian:11'
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
         # - 'platform:el8'

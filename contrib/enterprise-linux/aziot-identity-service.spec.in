@@ -23,7 +23,7 @@ BuildRequires: pkgconfig
 BuildRequires: systemd
 
 
-# Since we vendor tpm2-tss (VENDOR_LIBTSS=1 for all CentOS and EL packages), we need to tell rpm that
+# Since we vendor tpm2-tss (VENDOR_LIBTSS=1 for all EL packages), we need to tell rpm that
 # we do not want it showing up in the package's Requires or Provides lists.
 # If it shows up in the Provides list it will force the distro tpm2-tss package to be uninstalled,
 # and if it's removed from the Provides list but not the Requires list it will force
