@@ -51,7 +51,7 @@ case "$OS" in
 
         case "${PKCS11_BACKEND:-}" in
             'softhsm')
-                DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y softhsm
+                DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y softhsm2
 
                 export PKCS11_LIB_PATH='/usr/lib/softhsm/libsofthsm2.so'
 
