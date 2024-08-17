@@ -1,5 +1,5 @@
 name: azure-iot-identity
-base: core22 # the base snap is the execution environment for this snap
+base: core24 # the base snap is the execution environment for this snap
 version: '1.5.1'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
