@@ -1,6 +1,5 @@
 #!/bin/sh
 
-
 toml_kvp() {
 	printf "%s = \"%s\"\n" "$1" "$2"
 }
@@ -11,9 +10,5 @@ toml_new_section() {
 }
 
 snapctl get raw-config > /etc/aziot/config.toml
-
-{
-	toml_kvp "hostname" "$(hostnamectl hostname)"
-} | tee /etc/aziot/keyd/config.d/01-snap.toml /etc/aziot/certd/config.d/01-snap.toml /etc/aziot/identityd/config.d/01-snap.toml /etc/aziot/tpmd/config.d/01-snap.toml
 
 $SNAP/bin/aziotctl config apply
