@@ -1,6 +1,6 @@
 name: azure-iot-identity
 base: core24 # the base snap is the execution environment for this snap
-version: '1.5.1'
+version: '1.5.2'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
   The Identity Service provisions a device's identity and any modules it runs. The device identity can be based

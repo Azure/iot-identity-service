@@ -62,7 +62,7 @@ jobs:
       env:
         ARCH: "${{ matrix.arch }}"
         OS: "${{ matrix.os }}"
-        PACKAGE_VERSION: '1.5.1'
+        PACKAGE_VERSION: '1.5.2'
         # PACKAGE_RELEASE should always be '1'.
         PACKAGE_RELEASE: '1'
     - name: 'Generate artifact properties'
