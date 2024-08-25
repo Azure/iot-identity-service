@@ -247,9 +247,6 @@ rustup self update
 # Ref: https://github.com/rust-lang/rustup/issues/2579
 rustup set profile minimal
 
-command -v bindgen
-bindgen --version
-
 BINDGEN_VERSION='0.69.4'
 CBINDGEN_VERSION='0.26.0'
 
