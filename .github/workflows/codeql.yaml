@@ -37,6 +37,9 @@ jobs:
         languages: ${{ matrix.language }}
 
     - run: |
+        sudo apt-get update
+        sudo apt-get install -y libtss2-dev
+
         rustup set profile minimal
 
         BINDGEN_VERSION='0.69.4'
