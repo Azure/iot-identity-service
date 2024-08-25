@@ -40,9 +40,9 @@ jobs:
         sudo ARCH=amd64 bash -c '
           . ci/install-build-deps.sh
           rm -r third-party/tpm2-tss
-          echo -n '>>>> BINDGEN: '
+          echo -n ">>>> BINDGEN: "
           command -v bindgen
-          echo -n '>>>> CBINDGEN: '
+          echo -n ">>>> CBINDGEN: "
           command -v cbindgen;
           echo ">>>> PATH: $PATH"
           make
