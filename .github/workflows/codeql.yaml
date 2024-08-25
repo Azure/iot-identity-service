@@ -37,16 +37,27 @@ jobs:
         languages: ${{ matrix.language }}
 
     - run: |
-        sudo ARCH=amd64 bash -c '
-          . ci/install-build-deps.sh
-          rm -r third-party/tpm2-tss
-          echo -n ">>>> BINDGEN: "
-          command -v bindgen
-          echo -n ">>>> CBINDGEN: "
-          command -v cbindgen;
-          echo ">>>> PATH: $PATH"
-          make
-        '
+        rustup set profile minimal
+
+        BINDGEN_VERSION='0.69.4'
+        CBINDGEN_VERSION='0.26.0'
+
+        cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
+        cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
+
+        export CARGO_INCREMENTAL=0
+
+        rm -r third-party/tpm2-tss
+
+        echo -n '>>>> BINDGEN: '
+        command -v bindgen
+        bindgen --version
+        echo -n '>>>> CBINDGEN: '
+        command -v cbindgen
+        cbindgen --version
+        echo ">>>> PATH: $PATH"
+
+        make
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
