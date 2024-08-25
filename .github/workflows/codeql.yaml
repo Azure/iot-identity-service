@@ -36,22 +36,12 @@ jobs:
       with:
         languages: ${{ matrix.language }}
 
-    - run: |
+    - name: 'Build'
+      run: |
         sudo apt-get update
         sudo apt-get install -y libtss2-dev
-
-        rustup set profile minimal
-
-        BINDGEN_VERSION='0.69.4'
-        CBINDGEN_VERSION='0.26.0'
-
-        cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
-        cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
-
-        export CARGO_INCREMENTAL=0
-
+        NO_OS_PACKAGES=1 . ci/install-build-deps.sh
         rm -r third-party/tpm2-tss
-
         make
 
     - name: Perform CodeQL Analysis
