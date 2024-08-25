@@ -52,14 +52,6 @@ jobs:
 
         rm -r third-party/tpm2-tss
 
-        echo -n '>>>> BINDGEN: '
-        command -v bindgen
-        bindgen --version
-        echo -n '>>>> CBINDGEN: '
-        command -v cbindgen
-        cbindgen --version
-        echo ">>>> PATH: $PATH"
-
         make
 
     - name: Perform CodeQL Analysis
