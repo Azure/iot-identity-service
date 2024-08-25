@@ -90,7 +90,6 @@ SHELL = /bin/bash
 default:
 	# Re-generate aziot-keys.h if necessary
 	set -euo pipefail; \
-	command -v bindgen; bindgen --version \
 	aziot_keys_h_new="$$(mktemp --tmpdir 'aziot-keys.h.new.XXXXXXXXXX')"; \
 	trap "$(RM) '$$aziot_keys_h_new'" EXIT; \
 	cp key/aziot-keys/cbindgen.prelude.h "$$aziot_keys_h_new"; \
