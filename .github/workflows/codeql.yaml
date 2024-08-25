@@ -37,17 +37,16 @@ jobs:
         languages: ${{ matrix.language }}
 
     - run: |
-        sudo ARCH=amd64 bash -c '. ci/install-build-deps.sh'
-        rm -r third-party/tpm2-tss
-
-        echo -n '>>>> BINDGEN: '
-        command -v bindgen
-        echo -n '>>>> CBINDGEN: '
-        command -v cbindgen;
-        echo -n '>>>> PATH: '
-        echo "$PATH"
-
-        sudo make
+        sudo ARCH=amd64 bash -c '
+          . ci/install-build-deps.sh
+          rm -r third-party/tpm2-tss
+          echo -n '>>>> BINDGEN: '
+          command -v bindgen
+          echo -n '>>>> CBINDGEN: '
+          command -v cbindgen;
+          echo ">>>> PATH: $PATH"
+          make
+        '
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
