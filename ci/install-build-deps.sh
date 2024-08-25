@@ -215,7 +215,7 @@ third-party/generate_cgmanifest.sh \
 
 mkdir -p ~/.cargo/bin
 CARGO_BIN=$(readlink -f ~/.cargo/bin)
-export PATH="$CARGO_BIN:$PATH"
+export PATH="$PATH:$CARGO_BIN"
 
 if ! [ -f ~/.cargo/bin/rustup ]; then
     baseArch="$(uname -m)"
