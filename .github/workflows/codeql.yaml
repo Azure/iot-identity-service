@@ -12,7 +12,7 @@ on:
 jobs:
   analyze:
     name: Analyze
-    runs-on: 'ubuntu-latest'
+    runs-on: 'ubuntu-22.04'
     timeout-minutes: 360
     permissions:
       actions: read
@@ -36,8 +36,11 @@ jobs:
       with:
         languages: ${{ matrix.language }}
 
-    - run: |
-        sudo ARCH=amd64 bash -c '. ci/install-build-deps.sh'
+    - name: 'Build'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libtss2-dev
+        DISABLE_FOR_CODEQL=1 . ci/install-build-deps.sh
         rm -r third-party/tpm2-tss
         make
 
