@@ -10,246 +10,250 @@ fi
 
 # OS packages
 
-case "$OS:$ARCH" in
-    'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64'|'ubuntu:24.04:amd64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
+    case "$OS:$ARCH" in
+        'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64'|'ubuntu:24.04:amd64')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y \
-            acl autoconf autoconf-archive automake build-essential clang cmake \
-            curl git jq libclang1 libltdl-dev libssl-dev libtss2-dev libtool \
-            llvm-dev pkg-config
-        ;;
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y \
+                acl autoconf autoconf-archive automake build-essential clang cmake \
+                curl git jq libclang1 libltdl-dev libssl-dev libtss2-dev libtool \
+                llvm-dev pkg-config
+            ;;
 
-    'debian:11:arm32v7')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        'debian:11:arm32v7')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        dpkg --add-architecture armhf
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-armhf curl git jq \
-            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
-            llvm-dev pkg-config
-        ;;
+            dpkg --add-architecture armhf
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-armhf curl git jq \
+                libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+                libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
+                llvm-dev pkg-config
+            ;;
 
-    'debian:12:arm32v7')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        'debian:12:arm32v7')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        dpkg --add-architecture armhf
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-armhf curl git jq \
-            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
-            llvm-dev pkg-config:armhf
-        ;;
+            dpkg --add-architecture armhf
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-armhf curl git jq \
+                libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+                libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
+                llvm-dev pkg-config:armhf
+            ;;
 
-    'debian:11:aarch64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        'debian:11:aarch64')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        dpkg --add-architecture arm64
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-arm64 curl git jq \
-            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
-            llvm-dev pkg-config
-        ;;
-    
-    'debian:12:aarch64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+            dpkg --add-architecture arm64
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-arm64 curl git jq \
+                libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+                libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
+                llvm-dev pkg-config
+            ;;
+        
+        'debian:12:aarch64')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        dpkg --add-architecture arm64
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-arm64 curl git jq \
-            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
-            llvm-dev pkg-config:arm64
-        ;;
+            dpkg --add-architecture arm64
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-arm64 curl git jq \
+                libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+                libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
+                llvm-dev pkg-config:arm64
+            ;;
 
-    'platform:el8:amd64')
-        export VENDOR_LIBTSS=1
+        'platform:el8:amd64')
+            export VENDOR_LIBTSS=1
 
-        dnf install -y \
-            autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
-            git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
-            pkgconfig
-        ;;
+            dnf install -y \
+                autoconf autoconf-archive automake clang cmake curl gcc gcc-c++ \
+                git jq make libcurl-devel libtool llvm-devel openssl openssl-devel \
+                pkgconfig
+            ;;
 
-    'platform:el9:amd64')
-        export VENDOR_LIBTSS=1
+        'platform:el9:amd64')
+            export VENDOR_LIBTSS=1
 
-        dnf install -y \
-            autoconf autoconf-archive automake clang cmake diffutils gcc gcc-c++ \
-            git jq make libcurl-devel libtool llvm-devel openssl-devel \
-            pkgconfig
-        ;;
+            dnf install -y \
+                autoconf autoconf-archive automake clang cmake diffutils gcc gcc-c++ \
+                git jq make libcurl-devel libtool llvm-devel openssl-devel \
+                pkgconfig
+            ;;
 
-    'platform:el8:aarch64'|'platform:el8:arm32v7'|'platform:el9:aarch64'|'platform:el9:arm32v7')
-        echo "Cross-compilation on $OS $ARCH is not supported" >&2
-        exit 1
-        ;;
+        'platform:el8:aarch64'|'platform:el8:arm32v7'|'platform:el9:aarch64'|'platform:el9:arm32v7')
+            echo "Cross-compilation on $OS $ARCH is not supported" >&2
+            exit 1
+            ;;
 
 
-    'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        'ubuntu:20.04:arm32v7'|'ubuntu:22.04:arm32v7')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
-        if [ -n "$sources" ]; then
+            sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
+            if [ -n "$sources" ]; then
+                # Update existing repos to be specifically for amd64
+                sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+            fi
+
+            # Add armhf repos
+            </etc/apt/sources.list sed \
+                -e 's/^deb \[arch=amd64\] /deb [arch=armhf] /g' \
+                -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
+                -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
+                >/etc/apt/sources.list.d/ports.list
+
+            dpkg --add-architecture armhf
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-armhf curl git jq \
+                libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
+                libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
+                llvm-dev pkg-config
+            ;;
+
+        'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
+
+            sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
+            if [ -n "$sources" ]; then
+                # Update existing repos to be specifically for amd64
+                sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+            fi
+
+            # Add arm64 repos
+            </etc/apt/sources.list sed \
+                -e 's/^deb \[arch=amd64\] /deb [arch=arm64] /g' \
+                -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
+                -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
+                >/etc/apt/sources.list.d/ports.list
+
+            dpkg --add-architecture arm64
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-arm64 curl git jq \
+                libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
+                libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
+                llvm-dev pkg-config
+            ;;
+
+        # Ubuntu 24.04 uses DEB822 format for sources.list, so we have to handle it differently
+        'ubuntu:24.04:aarch64'|'ubuntu:24.04:arm32v7')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
+
+            case "$ARCH" in
+                'aarch64')
+                    arch_alias='arm64'
+                    ;;
+                'arm32v7')
+                    arch_alias='armhf'
+                    ;;
+                *)
+                    echo "Unexpected ARCH $ARCH" >&2
+                    exit 1
+                    ;;
+            esac
+
             # Update existing repos to be specifically for amd64
-            sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-        fi
+            sed -ie '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+            sed -ie '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
 
-        # Add armhf repos
-        </etc/apt/sources.list sed \
-            -e 's/^deb \[arch=amd64\] /deb [arch=armhf] /g' \
-            -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            >/etc/apt/sources.list.d/ports.list
+            # Add arch-specific repos
+            </etc/apt/sources.list.d/ubuntu.sources sed \
+                -e "s/^Architectures: amd64/Architectures: $arch_alias/g" \
+                -e 's|URIs: http://archive.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+                -e 's|URIs: http://security.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+                >/etc/apt/sources.list.d/ubuntu.ports.sources
 
-        dpkg --add-architecture armhf
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-armhf curl git jq \
-            libc-dev:armhf libclang1 libcurl4-openssl-dev:armhf \
-            libltdl-dev:armhf libssl-dev:armhf libtool libtss2-dev:armhf \
-            llvm-dev pkg-config
-        ;;
+            dpkg --add-architecture $arch_alias
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-$arch_alias curl git jq \
+                libc-dev:$arch_alias libclang1 libcurl4-openssl-dev:$arch_alias \
+                libltdl-dev:$arch_alias libssl-dev:$arch_alias libtool libtss2-dev:$arch_alias \
+                llvm-dev pkg-config:$arch_alias
+            ;;
 
-    'ubuntu:20.04:aarch64'|'ubuntu:22.04:aarch64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        'mariner:2:amd64' | 'mariner:2:aarch64')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
 
-        sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
-        if [ -n "$sources" ]; then
-            # Update existing repos to be specifically for amd64
-            sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
-        fi
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y software-properties-common
+            add-apt-repository -y ppa:longsleep/golang-backports
+            apt-get update
+            apt-get install -y \
+                cmake curl gcc g++ git jq make pkg-config \
+                libclang1 libssl-dev llvm-dev \
+                cpio genisoimage golang-1.20-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
 
-        # Add arm64 repos
-        </etc/apt/sources.list sed \
-            -e 's/^deb \[arch=amd64\] /deb [arch=arm64] /g' \
-            -e 's| http://archive.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            -e 's| http://security.ubuntu.com/ubuntu/ | http://ports.ubuntu.com/ubuntu-ports/ |g' \
-            >/etc/apt/sources.list.d/ports.list
+            rm -f /usr/bin/go
+            ln -vs /usr/lib/go-1.20/bin/go /usr/bin/go
+            if [ -f /.dockerenv ]; then
+                mv /.dockerenv /.dockerenv.old
+            fi
 
-        dpkg --add-architecture arm64
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-arm64 curl git jq \
-            libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
-            libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
-            llvm-dev pkg-config
-        ;;
+            BranchTag='2.0-stable'
+            MarinerToolkitDir='/tmp/CBL-Mariner'
+            if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
+                rm -rf "$MarinerToolkitDir"
+                git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
+                pushd "$MarinerToolkitDir/toolkit/" || exit
+                make REBUILD_TOOLS=y package-toolkit
+                popd || exit
+                cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
+            fi
+            ;;
 
-    # Ubuntu 24.04 uses DEB822 format for sources.list, so we have to handle it differently
-    'ubuntu:24.04:aarch64'|'ubuntu:24.04:arm32v7')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
+        *)
+            echo "Unsupported OS:ARCH $OS:$ARCH" >&2
+            exit 1
+            ;;
+    esac
+fi
 
-        case "$ARCH" in
-            'aarch64')
-                arch_alias='arm64'
-                ;;
-            'arm32v7')
-                arch_alias='armhf'
-                ;;
-            *)
-                echo "Unexpected ARCH $ARCH" >&2
-                exit 1
-                ;;
-        esac
-
-        # Update existing repos to be specifically for amd64
-        sed -ie '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
-        sed -ie '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
-
-        # Add arch-specific repos
-        </etc/apt/sources.list.d/ubuntu.sources sed \
-            -e "s/^Architectures: amd64/Architectures: $arch_alias/g" \
-            -e 's|URIs: http://archive.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
-            -e 's|URIs: http://security.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
-            >/etc/apt/sources.list.d/ubuntu.ports.sources
-
-        dpkg --add-architecture $arch_alias
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y --no-install-recommends \
-            acl autoconf autoconf-archive automake build-essential ca-certificates \
-            clang cmake crossbuild-essential-$arch_alias curl git jq \
-            libc-dev:$arch_alias libclang1 libcurl4-openssl-dev:$arch_alias \
-            libltdl-dev:$arch_alias libssl-dev:$arch_alias libtool libtss2-dev:$arch_alias \
-            llvm-dev pkg-config:$arch_alias
-        ;;
-
-    'mariner:2:amd64' | 'mariner:2:aarch64')
-        export DEBIAN_FRONTEND=noninteractive
-        export TZ=UTC
-
-        apt-get update
-        apt-get upgrade -y
-        apt-get install -y software-properties-common
-        add-apt-repository -y ppa:longsleep/golang-backports
-        apt-get update
-        apt-get install -y \
-            cmake curl gcc g++ git jq make pkg-config \
-            libclang1 libssl-dev llvm-dev \
-            cpio genisoimage golang-1.20-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
-
-        rm -f /usr/bin/go
-        ln -vs /usr/lib/go-1.20/bin/go /usr/bin/go
-        if [ -f /.dockerenv ]; then
-            mv /.dockerenv /.dockerenv.old
-        fi
-
-        BranchTag='2.0-stable'
-        MarinerToolkitDir='/tmp/CBL-Mariner'
-        if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
-            rm -rf "$MarinerToolkitDir"
-            git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
-            pushd "$MarinerToolkitDir/toolkit/" || exit
-            make REBUILD_TOOLS=y package-toolkit
-            popd || exit
-            cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
-        fi
-        ;;
-
-    *)
-        echo "Unsupported OS:ARCH $OS:$ARCH" >&2
-        exit 1
-        ;;
-esac
-
-echo "Verifying that third-party/cgmanifest.json is current"
-# SAFETY:
-# The build was started from a fresh image and we are the sole user. The
-# only other way the environment could acquire a rogue ".git" directory
-# is if one of the pipeline steps or dependencies was compromised, in
-# which case the attacker could have run arbitrary commands anyway.
-git config --global safe.directory "*"
-third-party/generate_cgmanifest.sh \
-| diff third-party/cgmanifest.json -
+if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
+    echo "Verifying that third-party/cgmanifest.json is current"
+    # SAFETY:
+    # The build was started from a fresh image and we are the sole user. The
+    # only other way the environment could acquire a rogue ".git" directory
+    # is if one of the pipeline steps or dependencies was compromised, in
+    # which case the attacker could have run arbitrary commands anyway.
+    git config --global safe.directory "*"
+    third-party/generate_cgmanifest.sh \
+    | diff third-party/cgmanifest.json -
+fi
 
 # Rust
 
