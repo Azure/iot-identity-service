@@ -10,7 +10,7 @@ fi
 
 # OS packages
 
-if [ -z "${NO_OS_PACKAGES:-}" ]; then
+if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
     case "$OS:$ARCH" in
         'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
             export DEBIAN_FRONTEND=noninteractive
@@ -203,15 +203,17 @@ if [ -z "${NO_OS_PACKAGES:-}" ]; then
     esac
 fi
 
-echo "Verifying that third-party/cgmanifest.json is current"
-# SAFETY:
-# The build was started from a fresh image and we are the sole user. The
-# only other way the environment could acquire a rogue ".git" directory
-# is if one of the pipeline steps or dependencies was compromised, in
-# which case the attacker could have run arbitrary commands anyway.
-git config --global safe.directory "*"
-third-party/generate_cgmanifest.sh \
-| diff third-party/cgmanifest.json -
+if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
+    echo "Verifying that third-party/cgmanifest.json is current"
+    # SAFETY:
+    # The build was started from a fresh image and we are the sole user. The
+    # only other way the environment could acquire a rogue ".git" directory
+    # is if one of the pipeline steps or dependencies was compromised, in
+    # which case the attacker could have run arbitrary commands anyway.
+    git config --global safe.directory "*"
+    third-party/generate_cgmanifest.sh \
+    | diff third-party/cgmanifest.json -
+fi
 
 # Rust
 

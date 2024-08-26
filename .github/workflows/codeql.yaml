@@ -40,9 +40,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libtss2-dev
-        set +e -x
-        NO_OS_PACKAGES=1 . ci/install-build-deps.sh
-        set -e +x
+        DISABLE_FOR_CODEQL=1 . ci/install-build-deps.sh
         rm -r third-party/tpm2-tss
         make
 
