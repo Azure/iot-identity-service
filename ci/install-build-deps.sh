@@ -12,7 +12,7 @@ fi
 
 if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
     case "$OS:$ARCH" in
-        'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
+        'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64'|'ubuntu:24.04:amd64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
@@ -162,6 +162,46 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 libc-dev:arm64 libclang1 libcurl4-openssl-dev:arm64 \
                 libltdl-dev:arm64 libssl-dev:arm64 libtool libtss2-dev:arm64 \
                 llvm-dev pkg-config
+            ;;
+
+        # Ubuntu 24.04 uses DEB822 format for sources.list, so we have to handle it differently
+        'ubuntu:24.04:aarch64'|'ubuntu:24.04:arm32v7')
+            export DEBIAN_FRONTEND=noninteractive
+            export TZ=UTC
+
+            case "$ARCH" in
+                'aarch64')
+                    arch_alias='arm64'
+                    ;;
+                'arm32v7')
+                    arch_alias='armhf'
+                    ;;
+                *)
+                    echo "Unexpected ARCH $ARCH" >&2
+                    exit 1
+                    ;;
+            esac
+
+            # Update existing repos to be specifically for amd64
+            sed -ie '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+            sed -ie '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+
+            # Add arch-specific repos
+            </etc/apt/sources.list.d/ubuntu.sources sed \
+                -e "s/^Architectures: amd64/Architectures: $arch_alias/g" \
+                -e 's|URIs: http://archive.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+                -e 's|URIs: http://security.ubuntu.com/ubuntu/|URIs: http://ports.ubuntu.com/ubuntu-ports/|g' \
+                >/etc/apt/sources.list.d/ubuntu.ports.sources
+
+            dpkg --add-architecture $arch_alias
+            apt-get update
+            apt-get upgrade -y
+            apt-get install -y --no-install-recommends \
+                acl autoconf autoconf-archive automake build-essential ca-certificates \
+                clang cmake crossbuild-essential-$arch_alias curl git jq \
+                libc-dev:$arch_alias libclang1 libcurl4-openssl-dev:$arch_alias \
+                libltdl-dev:$arch_alias libssl-dev:$arch_alias libtool libtss2-dev:$arch_alias \
+                llvm-dev pkg-config:$arch_alias
             ;;
 
         'mariner:2:amd64' | 'mariner:2:aarch64')

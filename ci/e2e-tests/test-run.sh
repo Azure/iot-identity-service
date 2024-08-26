@@ -109,6 +109,10 @@ get_package() {
             artifact_name='ubuntu-22.04'
             ;;
 
+        'ubuntu:24.04')
+            artifact_name='ubuntu-24.04'
+            ;;
+
         *)
             echo "Unsupported OS $OS" >&2
             exit 1
@@ -198,6 +202,11 @@ get_package() {
 
         'ubuntu:22.04')
             unzip -j package.zip 'ubuntu2204/amd64/aziot-identity-service_*_amd64.deb' >&2
+            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
+            ;;
+
+        'ubuntu:24.04')
+            unzip -j package.zip 'ubuntu2404/amd64/aziot-identity-service_*_amd64.deb' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
@@ -603,6 +612,13 @@ case "$OS" in
         vm_image='Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:latest'
         ;;
 
+    'ubuntu:24.04')
+        # az vm image list --all \
+        #     --publisher 'Canonical' --offer 'ubuntu-24_04-lts' --sku 'minimal' \
+        #     --query "[?publisher == 'Canonical' && offer == 'ubuntu-24_04-lts' && sku == 'minimal'].{ sku: sku, version: version, urn: urn }" --output table
+        vm_image='Canonical:ubuntu-24_04-lts:minimal:latest'
+        ;;
+
      *)
         echo "Unsupported OS $OS" >&2
         exit 1
@@ -862,7 +878,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'ubuntu:24.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
         device_twin=\"\$(~/iothub-get-twin.sh \"\$device_identity\")\"
         printf 'Device twin: %s\n' \"\$device_twin\" >&2
     fi
@@ -888,7 +904,7 @@ ssh -i "$PWD/vm-ssh-key" "aziot@$vm_public_ip" "
         exit 1
     fi
 
-    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
+    if [[ (\"$OS\" != 'ubuntu:22.04' && \"$OS\" != 'ubuntu:24.04' && \"$OS\" != 'platform:el9') ||  \"$test_name\" != *'-x509'* ]]; then
         module_twin=\"\$(~/iothub-get-twin.sh \"\$module_identity\")\"
         printf 'Module twin: %s\n' \"\$module_twin\" >&2
     fi

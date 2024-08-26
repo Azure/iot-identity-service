@@ -23,6 +23,7 @@ jobs:
         - 'redhat/ubi9:latest'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
+        - 'ubuntu:24.04'
         arch:
         - 'amd64'
 
@@ -80,6 +81,7 @@ jobs:
         - 'redhat/ubi9:latest'
         - 'ubuntu:20.04'
         - 'ubuntu:22.04'
+        - 'ubuntu:24.04'
         pkcs11_backend:
         - '' # filesystem keys
         - 'softhsm'
