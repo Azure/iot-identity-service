@@ -1,5 +1,5 @@
 name: azure-iot-identity
-base: core22 # the base snap is the execution environment for this snap
+base: core24 # the base snap is the execution environment for this snap
 version: '1.4.9'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
@@ -57,7 +57,6 @@ parts:
         - libcurl4-openssl-dev
     stage-packages:
       - libtss2-esys-3.0.2-0
-      - libtss2-mu0
       - libtss2-rc0
       - libtss2-sys1
       - libtss2-tctildr0
