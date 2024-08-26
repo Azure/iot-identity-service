@@ -10,7 +10,7 @@ fi
 
 # OS packages
 
-if [ -z "$NO_OS_PACKAGES" ]; then
+if [ -z "${NO_OS_PACKAGES:-}" ]; then
     case "$OS:$ARCH" in
         'debian:11:amd64'|'debian:12:amd64'|'ubuntu:20.04:amd64'|'ubuntu:22.04:amd64')
             export DEBIAN_FRONTEND=noninteractive
