@@ -40,9 +40,9 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libtss2-dev
-        set +e
+        set +e -x
         NO_OS_PACKAGES=1 . ci/install-build-deps.sh
-        set -e
+        set -e +x
         rm -r third-party/tpm2-tss
         make
 
