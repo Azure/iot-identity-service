@@ -44,6 +44,7 @@ async fn main() {
 }
 
 #[derive(Parser)]
+#[command(version)]
 enum Options {
     /// Work with the configuration of the Azure IoT Identity Service and related services.
     #[command(subcommand)]
