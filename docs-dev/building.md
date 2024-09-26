@@ -87,4 +87,11 @@ curl -sSL --max-time 5 --header "$auth_header" --write-out '%{http_code}\n' "$ur
 
 Once you've added/updated the package in the feed, the build should proceed normally.
 
-Outside contributors who need to add/update packages can temporarily comment out the changes in .cargo/config.toml during development, then open a PR (with config.toml restored to its original state) for review. Someone with access to the feed will need to update the feed before the PR can be tested and merged.
+Contributors who need to add/update packages, but who do not have write access to the feed, can temporarily comment out the `replace-with` line in .cargo/config.toml during development:
+
+```toml
+[source.crates-io]
+# replace-with = "iotedge_PublicPackages"
+```
+
+Restore the line to its original state before opening a PR for review. Someone with access to the feed will need to update the feed before the PR can be tested and merged.
