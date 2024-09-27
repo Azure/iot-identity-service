@@ -4,12 +4,3 @@ USER_AZIOTKS = "aziotks"
 USER_AZIOTCS = "aziotcs"
 USER_AZIOTTPM = "aziottpm"
 SOCKET_DIR = "/run/aziot"
-
-[registries]
-iotedge_PublicPackages = { index = "sparse+https://pkgs.dev.azure.com/iotedge/iotedge/_packaging/iotedge_PublicPackages/Cargo/index/" }
-
-[registry]
-global-credential-providers = ["cargo:token", "cargo:libsecret"]
-
-[source.crates-io]
-replace-with = "iotedge_PublicPackages"

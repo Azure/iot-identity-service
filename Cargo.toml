@@ -8,7 +8,6 @@ members = [
 	"cert/aziot-cert-client-async",
 	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",
-	"cert/aziot-certd-config",
 	"cert/aziot-certd",
 	"cert/cert-renewal",
 
@@ -20,7 +19,6 @@ members = [
 	"identity/aziot-identity-client-async",
 	"identity/aziot-identity-common",
 	"identity/aziot-identity-common-http",
-	"identity/aziot-identityd-config",
 	"identity/aziot-identityd",
 	"identity/mock-iot-server",
 
@@ -28,15 +26,12 @@ members = [
 	"key/aziot-key-client-async",
 	"key/aziot-key-common",
 	"key/aziot-key-common-http",
-	"key/aziot-keyd-config",
 	"key/aziot-keyd",
 	"key/aziot-key-openssl-engine",
 	"key/aziot-key-openssl-engine-shared",
 	"key/aziot-key-openssl-engine-shared-test",
 	"key/aziot-keys",
 	"key/aziot-keys-common",
-
-	"logger",
 
 	"mini-sntp",
 
@@ -52,7 +47,6 @@ members = [
 	"tpm/aziot-tpm-client-async",
 	"tpm/aziot-tpm-common-http",
 	"tpm/aziot-tpm-common",
-	"tpm/aziot-tpmd-config",
 	"tpm/aziot-tpmd",
 	"tpm/tss-minimal",
 ]
