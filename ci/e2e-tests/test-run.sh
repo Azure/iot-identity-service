@@ -31,13 +31,17 @@ get_package() {
         return
     fi
 
-    # The download-artifact action does not have a way to download artifacts from other workflows.
+    # The download-artifact@v3 action does not have a way to download artifacts from other workflows.
     # Ref: https://github.com/actions/download-artifact/issues/3
     #
     # So instead we use the GitHub API ourselves.
     #
     # It would be nice to use the v4 graphql API and get the artifact URL in one shot,
     # but it doesn't appear to support artifacts.
+    #
+    # The download-artifact@v4 action now supports downloading artifacts from other workflows, but
+    # we'd need to evaluate it. See
+    # https://github.com/actions/download-artifact#download-artifacts-from-other-workflow-runs-or-repositories
 
     github_curl() {
         if [ -n "${GITHUB_PAT:-}" ]; then

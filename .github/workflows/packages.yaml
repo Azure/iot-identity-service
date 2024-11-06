@@ -78,7 +78,7 @@ jobs:
         os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         echo "artifact-name=packages_${os_package}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v3'
+      uses: 'actions/upload-artifact@v4'
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'packages'
@@ -113,7 +113,7 @@ jobs:
         build-info: true
 
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v3'
+      uses: 'actions/upload-artifact@v4'
       with:
         name: 'packages_snap_${{ matrix.runner.arch }}'
         path: '${{ steps.snapcraft.outputs.snap }}'
