@@ -134,6 +134,7 @@ apps:
     daemon: simple
     plugs:
       - network-bind
+      - pkcs11
     sockets:
       unix:
         listen-stream: $SNAP_DATA/shared/sockets/aziot/keyd.sock
