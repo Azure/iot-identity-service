@@ -355,10 +355,7 @@ rpm:
 	# Engine needs to be installed to what openssl considers the enginesdir, which we can get from
 	# openssl 1.1 and 3.0 with `openssl version -e`.
 	command -v openssl # Assert that openssl exists
-	case "$$(openssl version)" in \
-		'OpenSSL 1.1.'* | 'OpenSSL 3.0.'*) OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so" ;; \
-		*) echo "Unknown openssl version [$$(openssl version)]"; exit 1 ;; \
-	esac; \
+	OPENSSL_ENGINE_FILENAME="$$(openssl version -e | sed 's/^ENGINESDIR: "\(.*\)"$$/\1/')/aziot_keys.so"; \
 	case "$$PACKAGE_DIST" in \
 		'el7') \
 			DEVTOOLSET=devtoolset-9-; \
