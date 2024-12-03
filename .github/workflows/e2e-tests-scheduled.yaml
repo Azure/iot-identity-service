@@ -27,10 +27,15 @@ jobs:
     strategy:
       fail-fast: false
 
+      # The end-to-end tests run against all shipping/supported versions of the service. Usually
+      # only one version is supported at any given time, but when a new major/minor version is
+      # released there's a six-month transition period where both the new and previous versions
+      # are supported. The main branch is the latest version (e.g., 1.n), and the release/1.x branch
+      # is the previous version (where x == n-1).
       matrix:
         branch:
         - 'main'
-        - 'release/1.4'
+        # - 'release/1.4'
 
       max-parallel: 10
 
@@ -63,10 +68,8 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.4'
+        # - 'release/1.4'
         os:
-        - 'centos:7'
-        - 'debian:10'
         - 'debian:11'
         - 'debian:12'
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
@@ -80,15 +83,6 @@ jobs:
         - 'manual-x509'
         - 'dps-symmetric-key'
         - 'dps-x509'
-        exclude:
-          # centos:7 and debian:10 are supported in 1.4, not 1.5
-          - os: 'centos:7'
-            branch: 'main'
-          - os: 'debian:10'
-            branch: 'main'
-          # The scheduled E2E test in the release/1.x branch would fail until the changes are merged. Excluding for now.
-          - os: 'ubuntu:24.04'
-            branch: 'release/1.4'
 
       max-parallel: 10
 
@@ -139,7 +133,7 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.4'
+        # - 'release/1.4'
 
       max-parallel: 10
 
@@ -172,7 +166,7 @@ jobs:
       matrix:
         branch:
         - 'main'
-        - 'release/1.4'
+        # - 'release/1.4'
 
       max-parallel: 10
 
