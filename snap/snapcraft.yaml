@@ -164,6 +164,11 @@ slots:
     content: aziotctl-executables
     source:
       read: [ $SNAP/bin ]
+  aziot-keys-library:
+    interface: content
+    content: aziot-keys-library
+    source:
+      read: [ $SNAP/lib/engines-1.1 ]
   identity-service:
     interface: content
     content: aziot-identity-service
