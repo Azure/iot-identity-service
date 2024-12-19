@@ -220,9 +220,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
 
             rm -f /usr/bin/go
             ln -vs /usr/lib/go-1.21/bin/go /usr/bin/go
-            if [ -f /.dockerenv ]; then
-                mv /.dockerenv /.dockerenv.old
-            fi
+            touch /.mariner-toolkit-ignore-dockerenv
 
             BranchTag='2.0-stable'
             MarinerToolkitDir='/tmp/CBL-Mariner'
