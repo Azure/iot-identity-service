@@ -73,7 +73,7 @@ parts:
         ARCH=$CRAFT_ARCH_BUILD_FOR \
         RELEASE=1 \
         VENDOR_LIBTSS=0 \
-        OPENSSL_ENGINES_DIR="$SNAP/lib/engines-3" \
+        OPENSSL_ENGINES_DIR=/usr/lib/$ARCH-linux-gnu/engines-3 \
         PLATFORM_FEATURES=snapd \
         USER_AZIOTID=root \
         USER_AZIOTCS=root \
@@ -185,3 +185,5 @@ layout:
     symlink: $SNAP_DATA/shared/sockets/aziot
   /etc/aziot:
     symlink: $SNAP_DATA/shared/config/aziot
+  /usr/lib/$CRAFT_ARCH_BUILD_FOR-linux-gnu/engines-3:
+    symlink: $SNAP/lib/$CRAFT_ARCH_BUILD_FOR-linux-gnu/engines-3
