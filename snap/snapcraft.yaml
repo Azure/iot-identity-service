@@ -169,7 +169,7 @@ slots:
     interface: content
     content: aziot-keys-openssl-engine
     source:
-      read: [ $SNAP/lib/engines-1.1 ]
+      read: [ $SNAP/lib/engines-3 ]
   identity-service:
     interface: content
     content: aziot-identity-service
