@@ -73,7 +73,7 @@ parts:
         ARCH=$CRAFT_ARCH_BUILD_FOR \
         RELEASE=1 \
         VENDOR_LIBTSS=0 \
-        OPENSSL_ENGINES_DIR="$SNAP/lib/engines-3" \
+        OPENSSL_ENGINES_DIR="/lib/engines-3" \
         PLATFORM_FEATURES=snapd \
         USER_AZIOTID=root \
         USER_AZIOTCS=root \
