@@ -73,6 +73,7 @@ parts:
         ARCH=$CRAFT_ARCH_BUILD_FOR \
         RELEASE=1 \
         VENDOR_LIBTSS=0 \
+        OPENSSL_ENGINES_DIR="/lib/engines-3" \
         PLATFORM_FEATURES=snapd \
         USER_AZIOTID=root \
         USER_AZIOTCS=root \
@@ -164,6 +165,11 @@ slots:
     content: aziotctl-executables
     source:
       read: [ $SNAP/bin ]
+  aziot-keys-openssl-engine:
+    interface: content
+    content: aziot-keys-openssl-engine
+    source:
+      read: [ $SNAP/lib/engines-3 ]
   identity-service:
     interface: content
     content: aziot-identity-service
