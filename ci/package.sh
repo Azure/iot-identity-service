@@ -110,30 +110,30 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'mariner:2')
+    'azurelinux:2')
         case "$ARCH" in
             'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
                 exit 1
                 ;;
             'aarch64')
-                MarinerArch=aarch64
+                AzureLinuxArch=aarch64
                 ;;
             'amd64')
-                MarinerArch=x86_64
+                AzureLinuxArch=x86_64
                 ;;
         esac
 
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
-        MarinerRPMBUILDDIR="/src/Mariner-Build"
-        MarinerSpecsDir="$MarinerRPMBUILDDIR/SPECS/aziot-identity-service"
-        MarinerSourceDir="$MarinerSpecsDir/SOURCES"
+        AzureLinuxRPMBUILDDIR="/src/AzureLinux-Build"
+        AzureLinuxSpecsDir="$AzureLinuxRPMBUILDDIR/SPECS/aziot-identity-service"
+        AzureLinuxSourceDir="$AzureLinuxSpecsDir/SOURCES"
 
         # Extract built toolkit in building directory
-        mkdir -p "$MarinerRPMBUILDDIR"
-        cp "$MarinerToolkitDir/toolkit.tar.gz" "$MarinerRPMBUILDDIR/toolkit.tar.gz"
-        pushd "$MarinerRPMBUILDDIR"
+        mkdir -p "$AzureLinuxRPMBUILDDIR"
+        cp "$AzureLinuxToolkitDir/toolkit.tar.gz" "$AzureLinuxRPMBUILDDIR/toolkit.tar.gz"
+        pushd "$AzureLinuxRPMBUILDDIR"
         tar xzvf toolkit.tar.gz
         popd
 
@@ -142,15 +142,15 @@ case "$OS" in
         PackageExtension="cm2"
 
         # move tarballed iot-identity-service source to building directory
-        mkdir -p "$MarinerSourceDir"
-        mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$MarinerSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
+        mkdir -p "$AzureLinuxSourceDir"
+        mv "/tmp/aziot-identity-service-$PACKAGE_VERSION.tar.gz" "$AzureLinuxSourceDir/aziot-identity-service-$PACKAGE_VERSION.tar.gz"
 
         tmp_dir=$(mktemp -d)
         pushd $tmp_dir
         mkdir "rust"
         cp -r ~/.cargo "rust"
         cp -r ~/.rustup "rust"
-        tar cf "$MarinerSourceDir/rust.tar.gz" "rust"
+        tar cf "$AzureLinuxSourceDir/rust.tar.gz" "rust"
         popd
 
         curl -Lo "/tmp/cbindgen-$CBINDGEN_VERSION.tar.gz" "https://github.com/eqrion/cbindgen/archive/refs/tags/v$CBINDGEN_VERSION.tar.gz"
@@ -167,7 +167,7 @@ replace-with = "vendored-sources"
 directory = "vendor"
 EOF
         popd
-        tar cf "$MarinerSourceDir/cbindgen-$CBINDGEN_VERSION.tar.gz" "cbindgen-$CBINDGEN_VERSION/"
+        tar cf "$AzureLinuxSourceDir/cbindgen-$CBINDGEN_VERSION.tar.gz" "cbindgen-$CBINDGEN_VERSION/"
         popd
 
 
@@ -185,11 +185,11 @@ replace-with = "vendored-sources"
 directory = "vendor"
 EOF
         popd
-        tar cf "$MarinerSourceDir/rust-bindgen-$BINDGEN_VERSION.tar.gz" "rust-bindgen-$BINDGEN_VERSION/"
+        tar cf "$AzureLinuxSourceDir/rust-bindgen-$BINDGEN_VERSION.tar.gz" "rust-bindgen-$BINDGEN_VERSION/"
         popd
 
         # Copy spec file to rpmbuild specs directory
-        pushd "$MarinerSpecsDir"
+        pushd "$AzureLinuxSpecsDir"
         </src/contrib/mariner/aziot-identity-service.signatures.json sed \
             -e "s/@@VERSION@@/$PACKAGE_VERSION/g" \
             -e "s/@@BINDGEN_VERSION@@/$BINDGEN_VERSION/g" \
@@ -203,16 +203,16 @@ EOF
             >aziot-identity-service.spec
 
         # Build package
-        pushd "$MarinerRPMBUILDDIR/toolkit"
+        pushd "$AzureLinuxRPMBUILDDIR/toolkit"
         make build-packages LOG_LEVEL=debug PACKAGE_BUILD_LIST="aziot-identity-service" SRPM_FILE_SIGNATURE_HANDLING=update USE_PREVIEW_REPO=$UsePreview CONFIG_FILE= -j "$(nproc)"
         popd
 
         rm -rf "/src/packages/$TARGET_DIR"
         mkdir -p "/src/packages/$TARGET_DIR"
         cp \
-            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
-            "$MarinerRPMBUILDDIR/out/RPMS/$MarinerArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$MarinerArch.rpm" \
+            "$AzureLinuxRPMBUILDDIR/out/RPMS/$AzureLinuxArch/aziot-identity-service-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$AzureLinuxArch.rpm" \
+            "$AzureLinuxRPMBUILDDIR/out/RPMS/$AzureLinuxArch/aziot-identity-service-debuginfo-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$AzureLinuxArch.rpm" \
+            "$AzureLinuxRPMBUILDDIR/out/RPMS/$AzureLinuxArch/aziot-identity-service-devel-$PACKAGE_VERSION-$PACKAGE_RELEASE.$PackageExtension.$AzureLinuxArch.rpm" \
             "/src/packages/$TARGET_DIR"
         ;;
 

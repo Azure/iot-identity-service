@@ -204,7 +204,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 llvm-dev pkg-config:$arch_alias
             ;;
 
-        'mariner:2:amd64' | 'mariner:2:aarch64')
+        'azurelinux:2:amd64' | 'azurelinux:2:aarch64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
@@ -223,14 +223,14 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             touch /.mariner-toolkit-ignore-dockerenv
 
             BranchTag='2.0-stable'
-            MarinerToolkitDir='/tmp/CBL-Mariner'
-            if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
-                rm -rf "$MarinerToolkitDir"
-                git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
-                pushd "$MarinerToolkitDir/toolkit/" || exit
+            AzureLinuxToolkitDir='/tmp/azurelinux'
+            if ! [ -f "$AzureLinuxToolkitDir/toolkit.tar.gz" ]; then
+                rm -rf "$AzureLinuxToolkitDir"
+                git clone 'https://github.com/microsoft/azurelinux.git' --branch "$BranchTag" --depth 1 "$AzureLinuxToolkitDir"
+                pushd "$AzureLinuxToolkitDir/toolkit/" || exit
                 make REBUILD_TOOLS=y package-toolkit
                 popd || exit
-                cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
+                cp "$AzureLinuxToolkitDir"/out/toolkit-*.tar.gz "$AzureLinuxToolkitDir/toolkit.tar.gz"
             fi
             ;;
 
@@ -309,8 +309,8 @@ case "$ARCH" in
         ;;
 esac
 
-# Mariner build installs the following as part of the specfile.
-if [ "${OS#mariner}" = "$OS" ]; then
+# Azure Linux build installs the following as part of the specfile.
+if [ "${OS#azurelinux}" = "$OS" ]; then
     cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked
