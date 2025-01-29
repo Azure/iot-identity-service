@@ -110,7 +110,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'azurelinux:2'|'azurelinux:3')
+    'mariner:2'|'azurelinux:3')
         case "$ARCH" in
             'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2

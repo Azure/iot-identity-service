@@ -204,7 +204,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 llvm-dev pkg-config:$arch_alias
             ;;
 
-        'azurelinux:2:amd64'|'azurelinux:2:aarch64'|'azurelinux:3:amd64'|'azurelinux:3:aarch64')
+        'mariner:2:amd64'|'mariner:2:aarch64'|'azurelinux:3:amd64'|'azurelinux:3:aarch64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
@@ -324,7 +324,7 @@ case "$ARCH" in
 esac
 
 # Skip for Azure Linux because it installs the following as part of the specfile.
-if [ "${OS#azurelinux}" = "$OS" ]; then
+if [[ "${OS#mariner}" == "$OS" && "${OS#azurelinux}" == "$OS" ]]; then
     cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked

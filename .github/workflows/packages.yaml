@@ -40,7 +40,7 @@ jobs:
         include:
         - container_os: 'ubuntu:20.04'
           arch: 'amd64'
-          os: 'azurelinux:2'
+          os: 'mariner:2'
         - container_os: 'ubuntu:22.04'
           arch: 'amd64'
           os: 'azurelinux:3'
