@@ -138,7 +138,7 @@ case "$OS" in
         popd
 
         case "$OS" in
-            'azurelinux:2')
+            'mariner:2')
                 UsePreview=n
                 TARGET_DIR="mariner2/$ARCH"
                 PackageExtension="cm2"

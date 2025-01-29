@@ -211,7 +211,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             apt-get update
             apt-get upgrade -y
 
-            if [ "$OS" = 'azurelinux:2' ]; then
+            if [ "$OS" = 'mariner:2' ]; then
                 apt-get install -y software-properties-common
                 add-apt-repository -y ppa:longsleep/golang-backports
                 apt-get update
@@ -228,7 +228,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             touch /.mariner-toolkit-ignore-dockerenv
 
             case "$OS" in
-                'azurelinux:2')
+                'mariner:2')
                     BranchTag='2.0-stable'
                     ;;
 
