@@ -41,6 +41,9 @@ jobs:
         - container_os: 'ubuntu:20.04'
           arch: 'amd64'
           os: 'azurelinux:2'
+        - container_os: 'ubuntu:22.04'
+          arch: 'amd64'
+          os: 'azurelinux:3'
 
     steps:
     - uses: 'actions/checkout@v3'

@@ -204,15 +204,19 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 llvm-dev pkg-config:$arch_alias
             ;;
 
-        'azurelinux:2:amd64' | 'azurelinux:2:aarch64')
+        'azurelinux:2:amd64'|'azurelinux:2:aarch64'|'azurelinux:3:amd64'|'azurelinux:3:aarch64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
             apt-get update
             apt-get upgrade -y
-            apt-get install -y software-properties-common
-            add-apt-repository -y ppa:longsleep/golang-backports
-            apt-get update
+
+            if [ "$OS" = 'azurelinux:2' ]; then
+                apt-get install -y software-properties-common
+                add-apt-repository -y ppa:longsleep/golang-backports
+                apt-get update
+            fi
+
             apt-get install -y \
                 cmake curl gcc g++ git jq make pkg-config \
                 libclang1 libssl-dev llvm-dev \
@@ -220,9 +224,19 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
 
             rm -f /usr/bin/go
             ln -vs /usr/lib/go-1.21/bin/go /usr/bin/go
+
             touch /.mariner-toolkit-ignore-dockerenv
 
-            BranchTag='2.0-stable'
+            case "$OS" in
+                'azurelinux:2')
+                    BranchTag='2.0-stable'
+                    ;;
+
+                'azurelinux:3')
+                    BranchTag='3.0-stable'
+                    ;;
+            esac
+
             AzureLinuxToolkitDir='/tmp/azurelinux'
             if ! [ -f "$AzureLinuxToolkitDir/toolkit.tar.gz" ]; then
                 rm -rf "$AzureLinuxToolkitDir"
@@ -309,7 +323,7 @@ case "$ARCH" in
         ;;
 esac
 
-# Azure Linux build installs the following as part of the specfile.
+# Skip for Azure Linux because it installs the following as part of the specfile.
 if [ "${OS#azurelinux}" = "$OS" ]; then
     cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
 

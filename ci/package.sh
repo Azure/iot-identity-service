@@ -110,7 +110,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'azurelinux:2')
+    'azurelinux:2'|'azurelinux:3')
         case "$ARCH" in
             'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -137,9 +137,18 @@ case "$OS" in
         tar xzvf toolkit.tar.gz
         popd
 
-        UsePreview=n
-        TARGET_DIR="mariner2/$ARCH"
-        PackageExtension="cm2"
+        case "$OS" in
+            'azurelinux:2')
+                UsePreview=n
+                TARGET_DIR="mariner2/$ARCH"
+                PackageExtension="cm2"
+                ;;
+            'azurelinux:3')
+                UsePreview=n
+                TARGET_DIR="azurelinux3/$ARCH"
+                PackageExtension="azl3"
+                ;;
+        esac
 
         # move tarballed iot-identity-service source to building directory
         mkdir -p "$AzureLinuxSourceDir"
