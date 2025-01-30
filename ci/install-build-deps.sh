@@ -204,33 +204,47 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 llvm-dev pkg-config:$arch_alias
             ;;
 
-        'mariner:2:amd64' | 'mariner:2:aarch64')
+        'mariner:2:amd64'|'mariner:2:aarch64'|'azurelinux:3:amd64'|'azurelinux:3:aarch64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
             apt-get update
             apt-get upgrade -y
-            apt-get install -y software-properties-common
-            add-apt-repository -y ppa:longsleep/golang-backports
-            apt-get update
+
+            if [ "$OS" = 'mariner:2' ]; then
+                apt-get install -y software-properties-common
+                add-apt-repository -y ppa:longsleep/golang-backports
+                apt-get update
+            fi
+
             apt-get install -y \
-                cmake curl gcc g++ git jq make pkg-config \
-                libclang1 libssl-dev llvm-dev \
-                cpio genisoimage golang-1.21-go qemu-utils pigz python3-pip python3-distutils rpm tar wget
+                cmake cpio curl g++ gcc genisoimage git golang-1.21-go jq libclang1 libssl-dev \
+                llvm-dev make pigz pkg-config python3-distutils python3-pip qemu-utils rpm tar \
+                wget zstd
 
             rm -f /usr/bin/go
             ln -vs /usr/lib/go-1.21/bin/go /usr/bin/go
+
             touch /.mariner-toolkit-ignore-dockerenv
 
-            BranchTag='2.0-stable'
-            MarinerToolkitDir='/tmp/CBL-Mariner'
-            if ! [ -f "$MarinerToolkitDir/toolkit.tar.gz" ]; then
-                rm -rf "$MarinerToolkitDir"
-                git clone 'https://github.com/microsoft/CBL-Mariner.git' --branch "$BranchTag" --depth 1 "$MarinerToolkitDir"
-                pushd "$MarinerToolkitDir/toolkit/" || exit
+            case "$OS" in
+                'mariner:2')
+                    BranchTag='2.0-stable'
+                    ;;
+
+                'azurelinux:3')
+                    BranchTag='3.0-stable'
+                    ;;
+            esac
+
+            AzureLinuxToolkitDir='/tmp/azurelinux'
+            if ! [ -f "$AzureLinuxToolkitDir/toolkit.tar.gz" ]; then
+                rm -rf "$AzureLinuxToolkitDir"
+                git clone 'https://github.com/microsoft/azurelinux.git' --branch "$BranchTag" --depth 1 "$AzureLinuxToolkitDir"
+                pushd "$AzureLinuxToolkitDir/toolkit/" || exit
                 make REBUILD_TOOLS=y package-toolkit
                 popd || exit
-                cp "$MarinerToolkitDir"/out/toolkit-*.tar.gz "$MarinerToolkitDir/toolkit.tar.gz"
+                cp "$AzureLinuxToolkitDir"/out/toolkit-*.tar.gz "$AzureLinuxToolkitDir/toolkit.tar.gz"
             fi
             ;;
 
@@ -309,8 +323,8 @@ case "$ARCH" in
         ;;
 esac
 
-# Mariner build installs the following as part of the specfile.
-if [ "${OS#mariner}" = "$OS" ]; then
+# Skip for Azure Linux because it installs the following as part of the specfile.
+if [[ "${OS#mariner}" == "$OS" && "${OS#azurelinux}" == "$OS" ]]; then
     cargo install bindgen-cli --version "=$BINDGEN_VERSION" --locked
 
     cargo install cbindgen --version "=$CBINDGEN_VERSION" --locked

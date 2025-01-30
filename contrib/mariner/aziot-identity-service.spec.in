@@ -67,7 +67,7 @@ export PATH=$PATH:$CARGO_HOME/bin
 export RUSTUP_HOME=~/.rustup
 
 # build and install required rust packages needed for during aziot-identity-service build
-# since Mariner Toolkit builds packages offline
+# since Azure Linux Toolkit builds packages offline
 pushd ~
 tar xf %{SOURCE1} --no-same-owner
 tar xf %{SOURCE2} --no-same-owner
