@@ -115,7 +115,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
             if [ -n "$sources" ]; then
                 # Update existing repos to be specifically for amd64
-                sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+                sed -i -e 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
             fi
 
             # Add armhf repos
@@ -143,7 +143,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             sources="$(</etc/apt/sources.list grep . | grep -v '^#' | grep -v '^deb \[arch=amd64\]' || :)"
             if [ -n "$sources" ]; then
                 # Update existing repos to be specifically for amd64
-                sed -ie 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+                sed -i -e 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
             fi
 
             # Add arm64 repos
@@ -183,8 +183,8 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             esac
 
             # Update existing repos to be specifically for amd64
-            sed -ie '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
-            sed -ie '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+            sed -i -e '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+            sed -i -e '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
 
             # Add arch-specific repos
             </etc/apt/sources.list.d/ubuntu.sources sed \
