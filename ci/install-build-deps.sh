@@ -218,7 +218,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             fi
 
             apt-get install -y \
-                cmake cpio curl g++ gcc genisoimage git golang-1.21-go jq libclang1 libssl-dev \
+                acl cmake cpio curl g++ gcc genisoimage git golang-1.21-go jq libclang1 libssl-dev \
                 llvm-dev make pigz pkg-config python3-distutils python3-pip qemu-utils rpm tar \
                 wget zstd
 
