@@ -120,7 +120,7 @@ where
         } else {
             Err(Error::new(
                 ErrorKind::Other,
-                format!("unexpected HTTP status code: {}", response_status),
+                format!("unexpected HTTP status code: {response_status}"),
             ))
         }
     }
