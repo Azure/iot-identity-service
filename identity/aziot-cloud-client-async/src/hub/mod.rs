@@ -10,7 +10,7 @@ const API_VERSION: &str = "api-version=2017-11-08-preview";
 
 #[derive(Debug, serde::Deserialize)]
 struct HubError {
-    #[serde(rename = "Message")]
+    #[serde(rename = "Message", alias = "errorMessage")]
     pub message: String,
 }
 
