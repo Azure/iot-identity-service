@@ -16,13 +16,13 @@ struct HubError {
     // In nested mode, identity service will not be able to detect network errors between
     // the parent and IoT Hub. The parent edgeHub must detect network errors and propogate
     // them here.
-    #[serde(rename = "parentNetworkError")]
-    pub parent_network_error: Option<bool>,
+    #[serde(rename = "networkError")]
+    pub network_error: Option<bool>,
 }
 
 impl std::convert::From<HubError> for Error {
     fn from(err: HubError) -> Error {
-        let error_kind = if err.parent_network_error == Some(true) {
+        let error_kind = if err.network_error == Some(true) {
             ErrorKind::NotConnected
         } else {
             ErrorKind::Other
