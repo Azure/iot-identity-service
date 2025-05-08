@@ -506,7 +506,7 @@ mod tests {
 
     #[derive(Debug, serde::Deserialize)]
     struct HubError {
-        #[serde(rename = "Message", alias = "errorMessage")]
+        #[serde(rename = "Message")]
         pub message: String,
     }
 

@@ -12,11 +12,23 @@ const API_VERSION: &str = "api-version=2017-11-08-preview";
 struct HubError {
     #[serde(rename = "Message", alias = "errorMessage")]
     pub message: String,
+
+    // In nested mode, identity service will not be able to detect network errors between
+    // the parent and IoT Hub. The parent edgeHub must detect network errors and propogate
+    // them here.
+    #[serde(rename = "parentNetworkError")]
+    pub parent_network_error: Option<bool>,
 }
 
 impl std::convert::From<HubError> for Error {
     fn from(err: HubError) -> Error {
-        Error::new(ErrorKind::Other, err.message)
+        let error_kind = if err.parent_network_error == Some(true) {
+            ErrorKind::NotConnected
+        } else {
+            ErrorKind::Other
+        };
+
+        Error::new(error_kind, err.message)
     }
 }
 
