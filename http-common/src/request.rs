@@ -293,6 +293,10 @@ pub struct HttpResponse {
 }
 
 impl HttpResponse {
+    pub fn status(&self) -> hyper::StatusCode {
+        self.status
+    }
+
     pub fn into_parts(self) -> (hyper::StatusCode, hyper::body::Bytes) {
         (self.status, self.body)
     }

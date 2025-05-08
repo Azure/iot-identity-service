@@ -4,7 +4,7 @@ use std::io::{Error, ErrorKind};
 
 use aziot_identity_common::hub::{AuthMechanism, Module};
 
-use http_common::HttpRequest;
+use http_common::{HttpRequest, HttpResponse};
 
 const API_VERSION: &str = "api-version=2017-11-08-preview";
 
@@ -101,7 +101,7 @@ impl Client {
             .await?;
 
         let response = request.json_response().await?;
-        response.parse_expect_ok::<Module, HubError>()
+        parse_hub_response(response)
     }
 
     pub async fn update_module(
@@ -124,7 +124,7 @@ impl Client {
         request.add_header(hyper::header::IF_MATCH, "*")?;
 
         let response = request.json_response().await?;
-        response.parse_expect_ok::<Module, HubError>()
+        parse_hub_response(response)
     }
 
     pub async fn get_module(&self, module_id: &str) -> Result<Module, Error> {
@@ -133,7 +133,7 @@ impl Client {
             .await?;
 
         let response = request.json_response().await?;
-        response.parse_expect_ok::<Module, HubError>()
+        parse_hub_response(response)
     }
 
     pub async fn list_modules(&self) -> Result<Vec<Module>, Error> {
@@ -141,7 +141,7 @@ impl Client {
             self.build_request(hyper::Method::GET, None, None).await?;
         let response = request.json_response().await?;
 
-        response.parse_expect_ok::<Vec<Module>, HubError>()
+        parse_hub_response(response)
     }
 
     pub async fn delete_module(&self, module_id: &str) -> Result<(), Error> {
@@ -218,5 +218,21 @@ impl Client {
         }
 
         Ok(request)
+    }
+}
+
+fn parse_hub_response<T>(response: HttpResponse) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    // 500 Internal Server Error is used by parent edgeHub modules to propagate network
+    // Treat it as a network error by setting ErrorKind to NotConnected.
+    if response.status() == hyper::StatusCode::INTERNAL_SERVER_ERROR {
+        let hub_error =
+            response.parse::<HubError, HubError>(&[hyper::StatusCode::INTERNAL_SERVER_ERROR])?;
+
+        Err(Error::new(ErrorKind::NotConnected, hub_error.message))
+    } else {
+        response.parse_expect_ok::<T, HubError>()
     }
 }

@@ -27,7 +27,7 @@ mod proxy;
 pub use proxy::{get_proxy_uri, MaybeProxyConnector};
 
 mod request;
-pub use request::HttpRequest;
+pub use request::{HttpRequest, HttpResponse};
 
 pub mod server;
 
