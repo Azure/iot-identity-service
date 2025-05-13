@@ -118,29 +118,32 @@ where
         if response_status == hyper::StatusCode::NO_CONTENT {
             Ok(())
         } else {
-            Err(Error::new(ErrorKind::Other, "invalid HTTP status code"))
+            Err(Error::new(
+                ErrorKind::Other,
+                format!("unexpected HTTP status code: {response_status}"),
+            ))
         }
     }
 
     pub async fn json_response(self) -> Result<HttpResponse, Error> {
         let (status, headers, body) = self.process_request(true).await?;
 
-        let is_json_response = if let Some(content_type) = headers.get(hyper::header::CONTENT_TYPE)
-        {
+        // Some servers will return JSON responses without setting "content-type: application/json",
+        // so just check that the content-type header is not something else.
+        if let Some(content_type) = headers.get(hyper::header::CONTENT_TYPE) {
             let content_type = content_type
                 .to_str()
-                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
+                .to_lowercase();
 
-            content_type.contains(CONTENT_TYPE_JSON)
-        } else {
-            false
-        };
-
-        if !is_json_response {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "invalid Content-Type; expected JSON",
-            ));
+            // Some response headers will contain charset in addition to content-type, so use .contains
+            // rather an an exact match.
+            if !content_type.contains(CONTENT_TYPE_JSON) {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "invalid Content-Type; expected JSON",
+                ));
+            }
         }
 
         Ok(HttpResponse {
@@ -290,6 +293,10 @@ pub struct HttpResponse {
 }
 
 impl HttpResponse {
+    pub fn status(&self) -> hyper::StatusCode {
+        self.status
+    }
+
     pub fn into_parts(self) -> (hyper::StatusCode, hyper::body::Bytes) {
         (self.status, self.body)
     }
@@ -316,10 +323,17 @@ impl HttpResponse {
 
             Ok(response)
         } else if self.status.is_client_error() || self.status.is_server_error() {
-            let error: TError = serde_json::from_slice(&self.body)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+            if self.body.is_empty() {
+                Err(Error::new(
+                    ErrorKind::Other,
+                    format!("HTTP error {}", self.status),
+                ))
+            } else {
+                let error: TError = serde_json::from_slice(&self.body)
+                    .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
 
-            Err(error.into())
+                Err(error.into())
+            }
         } else {
             Err(Error::new(
                 ErrorKind::Other,
