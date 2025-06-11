@@ -164,7 +164,7 @@ echo "Client key: $client_key_handle"
 # Otherwise, all keys would've been created with PKCS#11, except for the handle validation key
 # which would've been created on the filesystem.
 #
-# softhsm supports CKM_GENERIC_SECRET_KEY_GEN starting from v2.5. Only ubuntu:20.04, RHEL8, and Debian 11 have this version.
+# softhsm supports CKM_GENERIC_SECRET_KEY_GEN starting from v2.5. Only RHEL8, and Debian 11 have this version.
 if [ -z "${PKCS11_LIB_PATH:-}" ]; then
     expected_num_keys=4
 elif [ "$(printf '%s\n' "2.5.0" "$(softhsm2-util -v)" | sort -V | head -n1)" = "2.5.0" ]; then

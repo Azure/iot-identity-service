@@ -21,7 +21,6 @@ jobs:
         - 'debian:12-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         - 'ubuntu:24.04'
         arch:
@@ -79,7 +78,6 @@ jobs:
         - 'debian:12-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         - 'ubuntu:24.04'
         pkcs11_backend:

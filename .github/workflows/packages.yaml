@@ -17,7 +17,6 @@ jobs:
         - 'debian:12-slim'
         - 'redhat/ubi8:latest'
         - 'redhat/ubi9:latest'
-        - 'ubuntu:20.04'
         - 'ubuntu:22.04'
         - 'ubuntu:24.04'
         arch:
@@ -38,7 +37,7 @@ jobs:
           arch: 'aarch64'
         # Azure Linux cannot be built on its own OS so we need an Ubuntu container.
         include:
-        - container_os: 'ubuntu:20.04'
+        - container_os: 'ubuntu:22.04'
           arch: 'amd64'
           os: 'mariner:2'
         - container_os: 'ubuntu:22.04'
