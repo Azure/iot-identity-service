@@ -105,10 +105,6 @@ get_package() {
             artifact_name='redhat-ubi9-latest'
             ;;
 
-        'ubuntu:20.04')
-            artifact_name='ubuntu-20.04'
-            ;;
-
         'ubuntu:22.04')
             artifact_name='ubuntu-22.04'
             ;;
@@ -197,11 +193,6 @@ get_package() {
         'platform:el9')
             unzip -j package.zip 'el9/amd64/aziot-identity-service-*.x86_64.rpm' -x '*-debuginfo-*.rpm' '*-devel-*.rpm' >&2
             printf '%s/%s\n' "$PWD" aziot-identity-service-*.x86_64.rpm
-            ;;
-
-        'ubuntu:20.04')
-            unzip -j package.zip 'ubuntu2004/amd64/aziot-identity-service_*_amd64.deb' >&2
-            printf '%s/%s\n' "$PWD" aziot-identity-service_*_amd64.deb
             ;;
 
         'ubuntu:22.04')
@@ -595,18 +586,6 @@ case "$OS" in
         #
         # The Azure SP does not have permissions to do this. Use your regular Azure account.
         vm_image='RedHat:RHEL:9-lvm-gen2:latest'
-        ;;
-
-    'ubuntu:20.04')
-        # Canonical switched to a different offer for 20.04 and above.
-        #
-        # Ref: https://github.com/Azure/azure-cli/issues/13320#issuecomment-649867249
-        # Ref: https://github.com/Azure/azure-cli/issues/13320#issuecomment-756360943
-        #
-        # az vm image list --all \
-        #     --publisher 'Canonical' --offer '0001-com-ubuntu-server-focal' --sku '20' \
-        #     --query "[?publisher == 'Canonical' && offer == '0001-com-ubuntu-server-focal'].{ sku: sku, version: version, urn: urn }" --output table
-        vm_image='Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:latest'
         ;;
 
     'ubuntu:22.04')
