@@ -93,11 +93,11 @@ make -j \
     localstatedir=%{_localstatedir} \
     sysconfdir=%{_sysconfdir} \
     unitdir=%{_unitdir} \
+    presetdir=%{_presetdir} \
     OPENSSL_ENGINE_FILENAME=%{_enginesdir}/aziot_keys.so \
     RELEASE=1 \
     V=1 \
     ARCH=%{_arch} \
-    INSTALL_PRESET=false \
     install-rpm
 
 %pre
@@ -206,6 +206,8 @@ fi
 %{_unitdir}/aziot-keyd.socket
 %{_unitdir}/aziot-tpmd.service
 %{_unitdir}/aziot-tpmd.socket
+
+%{_presetdir}/00-aziot.preset
 
 %doc README.md
 # %doc THIRD-PARTY-NOTICES
