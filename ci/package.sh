@@ -193,7 +193,7 @@ EOF
         popd
 
         # Copy preset file to be included in the package
-	    cp contrib/mariner/00-aziot.preset $(RPMBUILDDIR)/SOURCES
+	    cp contrib/mariner/00-aziot.preset "$AzureLinuxSourceDir/"
 
         # Copy spec file to rpmbuild specs directory
         pushd "$AzureLinuxSpecsDir"
