@@ -522,6 +522,7 @@ install-rpm: install-common
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
 	if [ $(INSTALL_PRESET) == "true" ]; then \
+		pwd
 		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
 	fi
 
