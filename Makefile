@@ -527,7 +527,7 @@ install-rpm: install-common
 		echo "====== environment ======="; \
 		env; \
 		echo "====== find preset file ======="; \
-		sudo find / -name '00-aziot.preset'; \
+		find / -name '00-aziot.preset'; \
 		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
 	fi
 
