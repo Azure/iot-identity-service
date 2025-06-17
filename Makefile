@@ -523,6 +523,7 @@ install-rpm: install-common
 
 	if [ $(INSTALL_PRESET) == "true" ]; then \
 		pwd; \
+		env; \
 		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
 	fi
 
