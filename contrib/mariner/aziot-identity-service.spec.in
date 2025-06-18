@@ -13,7 +13,7 @@ Source:  %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
 Source3: rust.tar.gz
-Source4: 00.aziot.preset
+Source4: 00-aziot.preset
 
 Conflicts: iotedge, libiothsm-std
 
