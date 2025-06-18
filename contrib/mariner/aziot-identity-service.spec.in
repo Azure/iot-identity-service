@@ -13,6 +13,7 @@ Source:  %{name}-%{version}.tar.gz
 Source1: rust-bindgen-@@BINDGEN_VERSION@@.tar.gz
 Source2: cbindgen-@@CBINDGEN_VERSION@@.tar.gz
 Source3: rust.tar.gz
+Source4: 00.aziot.preset
 
 Conflicts: iotedge, libiothsm-std
 
@@ -75,6 +76,9 @@ popd
 cargo install bindgen-cli --path ~/rust-bindgen-@@BINDGEN_VERSION@@/bindgen-cli --offline
 cargo install cbindgen --path ~/cbindgen-@@CBINDGEN_VERSION@@ --offline
 
+# install the preset file
+install -m 644 %{SOURCE4} %{_presetdir}/00-aziot.preset
+
 # locate openssl lib directory for Makefile
 %define _enginesdir %(openssl version -e | sed 's/ENGINESDIR: //' | sed 's/"//g')
 
@@ -98,6 +102,7 @@ make -j \
     RELEASE=1 \
     V=1 \
     ARCH=%{_arch} \
+    INSTALL_PRESET=false \
     install-rpm
 
 %pre
