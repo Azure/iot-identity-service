@@ -77,7 +77,7 @@ cargo install bindgen-cli --path ~/rust-bindgen-@@BINDGEN_VERSION@@/bindgen-cli 
 cargo install cbindgen --path ~/cbindgen-@@CBINDGEN_VERSION@@ --offline
 
 # install the preset file
-install -m 644 %{SOURCE4} %{_presetdir}/00-aziot.preset
+install -m 644 %{SOURCE4} %{buildroot}%{_libdir}/systemd/system-preset/00-aziot.preset
 
 # locate openssl lib directory for Makefile
 %define _enginesdir %(openssl version -e | sed 's/ENGINESDIR: //' | sed 's/"//g')
