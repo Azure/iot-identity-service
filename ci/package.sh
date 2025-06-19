@@ -192,6 +192,9 @@ EOF
         tar cf "$AzureLinuxSourceDir/rust-bindgen-$BINDGEN_VERSION.tar.gz" "rust-bindgen-$BINDGEN_VERSION/"
         popd
 
+        # Copy preset file to be included in the package
+        cp contrib/mariner/00-aziot.preset "$AzureLinuxSourceDir/"
+
         # Copy spec file to rpmbuild specs directory
         pushd "$AzureLinuxSpecsDir"
         </src/contrib/mariner/aziot-identity-service.signatures.json sed \
