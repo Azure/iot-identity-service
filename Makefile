@@ -522,12 +522,6 @@ install-rpm: install-common
 		$(DESTDIR)$(OPENSSL_ENGINE_FILENAME)
 
 	if [ $(INSTALL_PRESET) == "true" ]; then \
-		echo "====== working directory ======="; \
-		pwd; \
-		echo "====== environment ======="; \
-		env; \
-		echo "====== find preset file ======="; \
-		find / -name '00-aziot.preset'; \
 		$(INSTALL_DATA) -D ../../SOURCES/00-aziot.preset $(DESTDIR)$(presetdir)/00-aziot.preset; \
 	fi
 
