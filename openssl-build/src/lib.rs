@@ -10,6 +10,9 @@ pub fn define_version_number_cfg() {
         .expect("DEP_OPENSSL_VERSION_NUMBER must have been set by openssl-sys");
     let openssl_version = u64::from_str_radix(&openssl_version, 16)
         .expect("DEP_OPENSSL_VERSION_NUMBER must have been set to a valid integer");
+
+    println!("cargo:rustc-check-cfg=cfg(ossl110, ossl300)");
+
     #[allow(clippy::unusual_byte_groupings)]
     {
         if openssl_version >= 0x03_00_00_00_0 {

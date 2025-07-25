@@ -10,9 +10,6 @@ pub use asn1::*;
 mod ec;
 pub use ec::*;
 
-mod ecdsa;
-pub use ecdsa::*;
-
 mod engine;
 pub use engine::*;
 

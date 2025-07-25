@@ -7,12 +7,12 @@ use std::io::{self, BufRead};
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
+#[cfg(target_pointer_width = "16")]
+const BITNESS: usize = 16;
 #[cfg(target_pointer_width = "32")]
 const BITNESS: usize = 32;
 #[cfg(target_pointer_width = "64")]
 const BITNESS: usize = 64;
-#[cfg(target_pointer_width = "128")]
-const BITNESS: usize = 128;
 
 /// A subset of the DMI variables exposed through /sys/devices/virtual/dmi/id.
 ///
@@ -98,7 +98,7 @@ impl Default for OsInfo {
                             result.build_id = Some(value.to_owned());
                         }
                         _ => (),
-                    };
+                    }
                 } else {
                     break;
                 }

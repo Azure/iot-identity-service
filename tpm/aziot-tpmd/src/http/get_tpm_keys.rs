@@ -42,9 +42,7 @@ impl http_common::server::Route for Route {
             .map_err(|e| super::to_http_error(&Error::Internal(InternalError::GetTpmKeys(e))))?;
 
         let res = aziot_tpm_common_http::get_tpm_keys::Response {
-            /// The TPM's Endorsement Key
             endorsement_key: http_common::ByteString(endorsement_key),
-            /// The TPM's Storage Root Key
             storage_root_key: http_common::ByteString(storage_root_key),
         };
 

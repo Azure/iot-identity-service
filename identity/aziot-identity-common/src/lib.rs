@@ -98,8 +98,6 @@ impl std::fmt::Display for AuthenticationType {
     }
 }
 
-pub struct Uid(u32);
-
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum IdType {
