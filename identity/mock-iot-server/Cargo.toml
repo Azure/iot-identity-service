@@ -9,7 +9,6 @@ chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 http = "0.2"
 hyper = { version = "0.14", features = ["http1", "server"] }
-lazy_static = "1.4"
 openssl = "0.10"
 percent-encoding = "2"
 regex = "1"
@@ -21,4 +20,5 @@ uuid = { version = "1", features = ["v4"] }
 
 aziot-cloud-client-async = { path = "../aziot-cloud-client-async" }
 aziot-identity-common = { path = "../aziot-identity-common" }
+http-common = { path = "../../http-common" }
 test-common = { path = "../../test-common" }

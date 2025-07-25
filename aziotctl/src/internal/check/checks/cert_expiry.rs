@@ -73,7 +73,7 @@ impl IdentityCert {
             ProvisioningType::Dps { .. } => self.provisioning_mode = Some("dps-other"),
             ProvisioningType::Manual { .. } => self.provisioning_mode = Some("manual-other"),
             ProvisioningType::None => self.provisioning_mode = Some("none"),
-        };
+        }
 
         if let Some((identity_cert, identity_cert_name)) = cert {
             let certd_config = unwrap_or_skip!(&cache.cfg.certd);

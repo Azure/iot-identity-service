@@ -8,7 +8,6 @@ edition = "2021"
 
 [dependencies]
 foreign-types-shared = "0.1"
-lazy_static = "1"
 libc = "0.2"
 openssl = "0.10"
 openssl-sys = "0.9"

@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-lazy_static::lazy_static! {
-    static ref URI_REGEX: regex::Regex =
-        regex::Regex::new("^/(?P<type>(key|keypair))/(?P<keyId>[^/]+)$")
-        .expect("hard-coded regex must compile");
-}
+static URI_REGEX: http_common::EndpointRegex = http_common::EndpointRegex::new(|| {
+    regex::Regex::new("^/(?P<type>(key|keypair))/(?P<keyId>[^/]+)$")
+        .expect("hard-coded regex must compile")
+});
 
 pub(super) struct Route {
     api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,

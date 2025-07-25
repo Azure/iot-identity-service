@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-lazy_static::lazy_static! {
-    static ref URI_REGEX: regex::Regex =
-        regex::Regex::new("^/certificates/(?P<certId>[^/]+)$")
-        .expect("hard-coded regex must compile");
-}
+static URI_REGEX: http_common::EndpointRegex = http_common::EndpointRegex::new(|| {
+    regex::Regex::new("^/certificates/(?P<certId>[^/]+)$").expect("hard-coded regex must compile")
+});
 
 pub(super) struct Route {
     api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
@@ -81,7 +79,7 @@ impl http_common::server::Route for Route {
         match api.import_cert(&self.cert_id, &body.pem.0, self.user) {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
-        };
+        }
 
         let res = aziot_cert_common_http::import_cert::Response { pem: body.pem };
         let res = http_common::server::response::json(hyper::StatusCode::CREATED, &res);

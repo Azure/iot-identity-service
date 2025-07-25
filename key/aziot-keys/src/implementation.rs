@@ -1,17 +1,20 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::sync::{LazyLock, Mutex, RwLock};
+
 use aziot_keys_common::PreloadedKeyLocation;
 
-lazy_static::lazy_static! {
-    static ref HOMEDIR_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
+static HOMEDIR_PATH: LazyLock<RwLock<Option<std::path::PathBuf>>> = LazyLock::new(Default::default);
 
-    static ref PKCS11_LIB_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
-    static ref PKCS11_BASE_SLOT: std::sync::RwLock<Option<pkcs11::Uri>> = Default::default();
+static PKCS11_LIB_PATH: LazyLock<RwLock<Option<std::path::PathBuf>>> =
+    LazyLock::new(Default::default);
+static PKCS11_BASE_SLOT: LazyLock<RwLock<Option<pkcs11::Uri>>> = LazyLock::new(Default::default);
 
-    static ref PRELOADED_KEYS: std::sync::RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>> = Default::default();
+static PRELOADED_KEYS: LazyLock<RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>>> =
+    LazyLock::new(Default::default);
 
-    static ref PKCS11_BASE_SLOT_SESSION: std::sync::Mutex<Option<std::sync::Arc<pkcs11::Session>>> = Default::default();
-}
+static PKCS11_BASE_SLOT_SESSION: LazyLock<Mutex<Option<std::sync::Arc<pkcs11::Session>>>> =
+    LazyLock::new(Default::default);
 
 pub(crate) unsafe fn get_function_list(
     version: crate::AZIOT_KEYS_VERSION,

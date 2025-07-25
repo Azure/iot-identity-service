@@ -35,15 +35,13 @@ pub(crate) fn process_request(
     req: &crate::server::ParsedRequest,
     context: &mut crate::server::Context,
 ) -> Option<Response> {
-    lazy_static::lazy_static! {
-        static ref DEVICES_REGEX: regex::Regex = regex::Regex::new(
-            "/devices/(?P<deviceId>[^/]+)/(?P<action>.+)\\?api-version="
-        ).unwrap();
+    static DEVICES_REGEX: http_common::EndpointRegex = http_common::EndpointRegex::new(|| {
+        regex::Regex::new("/devices/(?P<deviceId>[^/]+)/(?P<action>.+)\\?api-version=").unwrap()
+    });
 
-        static ref MODULE_REGEX: regex::Regex = regex::Regex::new(
-            "modules/(?P<moduleId>[^/]+)$"
-        ).unwrap();
-    }
+    static MODULE_REGEX: http_common::EndpointRegex = http_common::EndpointRegex::new(|| {
+        regex::Regex::new("modules/(?P<moduleId>[^/]+)$").unwrap()
+    });
 
     if !DEVICES_REGEX.is_match(&req.uri) {
         return None;

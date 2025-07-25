@@ -106,15 +106,16 @@ pub(crate) fn process_request(
     req: &crate::server::ParsedRequest,
     context: &mut crate::server::Context,
 ) -> Option<Response> {
-    lazy_static::lazy_static! {
-        static ref DPS_REGEX: regex::Regex = regex::Regex::new(
+    static DPS_REGEX: http_common::EndpointRegex = http_common::EndpointRegex::new(|| {
+        regex::Regex::new(
             "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version="
-        ).unwrap();
+        ).unwrap()
+    });
 
-        static ref OPERATION_STATUS_REGEX: regex::Regex = regex::Regex::new(
-            "operations/(?P<operationId>[^/]+)$"
-        ).unwrap();
-    }
+    static OPERATION_STATUS_REGEX: http_common::EndpointRegex =
+        http_common::EndpointRegex::new(|| {
+            regex::Regex::new("operations/(?P<operationId>[^/]+)$").unwrap()
+        });
 
     if !DPS_REGEX.is_match(&req.uri) {
         return None;

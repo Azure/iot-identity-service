@@ -15,7 +15,6 @@ crate-type = ["cdylib"]
 foreign-types-shared = "0.1"
 hex = "0.4"
 hmac = "0.12"
-lazy_static = "1"
 log = "0.4"
 openssl = "0.10"
 openssl-sys = "0.9"

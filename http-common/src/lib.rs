@@ -35,6 +35,8 @@ mod backoff;
 
 mod uid;
 
+pub type EndpointRegex = std::sync::LazyLock<regex::Regex>;
+
 /// Ref <https://url.spec.whatwg.org/#path-percent-encode-set>
 pub const PATH_SEGMENT_ENCODE_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTROLS
     .add(b' ')
@@ -57,7 +59,7 @@ impl<'de> serde::Deserialize<'de> for ByteString {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = ByteString;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -98,6 +100,6 @@ pub struct ErrorBody<'a> {
 
 impl std::convert::From<ErrorBody<'_>> for std::io::Error {
     fn from(err: ErrorBody<'_>) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Other, err.message)
+        std::io::Error::other(err.message)
     }
 }

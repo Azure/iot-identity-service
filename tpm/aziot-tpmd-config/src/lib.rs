@@ -130,8 +130,7 @@ impl Default for Endpoints {
 mod tests {
     #[test]
     fn parse_config() {
-        let actual = r#""#;
-        let actual: super::Config = toml::from_str(actual).unwrap();
+        let actual: super::Config = toml::from_str("").unwrap();
 
         assert_eq!(
             actual,
@@ -222,9 +221,7 @@ owner = "world"
 
     #[test]
     fn reject_config_with_out_of_bounds_auth_key_index() {
-        let actual = r#"
-auth_key_index = 0x80_00_00
-"#;
+        let actual = "auth_key_index = 0x80_00_00";
 
         assert!(toml::from_str::<super::Config>(actual)
             .unwrap_err()

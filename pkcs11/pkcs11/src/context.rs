@@ -1,22 +1,22 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-lazy_static::lazy_static! {
-    /// Used to memoize [`Context`]s to PKCS#11 libraries.
-    ///
-    /// The PKCS#11 spec allows implementations to reject multiple successive calls to C_Initialize by returning CKR_CRYPTOKI_ALREADY_INITIALIZED.
-    /// We can't just ignore the error and create a Context anyway (*), because each Context's Drop impl will call C_Finalize
-    /// and we'll have the equivalent of a double-free.
-    ///
-    /// But we don't want users to keep track of this, so we memoize Contexts based on the library path and returns the same Context for
-    /// multiple requests to load the same library.
-    ///
-    /// However if the memoizing map were to hold a strong reference to the Context, then the Context would never be released even after the user dropped theirs,
-    /// so we need the map to specifically hold a weak reference instead.
-    ///
-    /// (*): libp11 *does* actually do this, by ignoring CKR_CRYPTOKI_ALREADY_INITIALIZED and treating it as success.
-    ///      It can do this because it never calls C_Finalize anyway and leaves it to the user.
-    static ref CONTEXTS: std::sync::Mutex<std::collections::BTreeMap<std::path::PathBuf, std::sync::Weak<Context>>> = Default::default();
-}
+/// Used to memoize [`Context`]s to PKCS#11 libraries.
+///
+/// The PKCS#11 spec allows implementations to reject multiple successive calls to `C_Initialize` by returning `CKR_CRYPTOKI_ALREADY_INITIALIZED`.
+/// We can't just ignore the error and create a Context anyway (*), because each Context's Drop impl will call `C_Finalize`
+/// and we'll have the equivalent of a double-free.
+///
+/// But we don't want users to keep track of this, so we memoize Contexts based on the library path and returns the same Context for
+/// multiple requests to load the same library.
+///
+/// However if the memoizing map were to hold a strong reference to the Context, then the Context would never be released even after the user dropped theirs,
+/// so we need the map to specifically hold a weak reference instead.
+///
+/// (*): libp11 *does* actually do this, by ignoring `CKR_CRYPTOKI_ALREADY_INITIALIZED` and treating it as success.
+///      It can do this because it never calls `C_Finalize` anyway and leaves it to the user.
+static CONTEXTS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::BTreeMap<std::path::PathBuf, std::sync::Weak<Context>>>,
+> = std::sync::LazyLock::new(Default::default);
 
 /// A context to a PKCS#11 library.
 pub struct Context {

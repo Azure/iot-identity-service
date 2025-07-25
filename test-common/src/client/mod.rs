@@ -12,5 +12,5 @@ pub use key::KeyEngine;
 /// Generic client error. Current tests don't act on the error other
 /// than passing it up the call stack, so it's fine to return any error.
 fn client_error() -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, "test error")
+    std::io::Error::other("test error")
 }
