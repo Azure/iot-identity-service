@@ -9,7 +9,7 @@ use serde_json::Value;
 
 const API_VERSION: &str = "api-version=2021-06-01";
 
-pub struct Client {
+pub struct DpsClient {
     endpoint: url::Url,
     auth: aziot_identity_common::Credentials,
 
@@ -22,7 +22,7 @@ pub struct Client {
     proxy: Option<hyper::Uri>,
 }
 
-impl Client {
+impl DpsClient {
     #[must_use]
     pub fn new(
         credentials: aziot_identity_common::Credentials,
@@ -33,7 +33,7 @@ impl Client {
         let endpoint = url::Url::parse("https://global.azure-devices-provisioning.net")
             .expect("hardcoded uri should parse");
 
-        Client {
+        DpsClient {
             endpoint,
             auth: credentials,
             key_client,

@@ -124,7 +124,7 @@ impl std::fmt::Display for LocalIdAttr {
         match self {
             LocalIdAttr::Client => write!(f, "client")?,
             LocalIdAttr::Server => write!(f, "server")?,
-        };
+        }
 
         Ok(())
     }
@@ -135,7 +135,7 @@ pub enum ProvisioningStatus {
     /// Returned when provisioning type is set to "none".
     Unprovisioned,
 
-    /// Returned when provisioning is successful with IoT Hub.
+    /// Returned when provisioning is successful with Hub.
     Provisioned(IoTHubDevice),
 }
 

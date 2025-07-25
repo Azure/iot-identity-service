@@ -22,12 +22,12 @@ pub struct CheckerCfg {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Sets the hostname of the Azure IoT Hub that this device would connect to.
+    /// Sets the hostname of the Hub that this device would connect to.
     /// If using manual provisioning, this does not need to be specified.
     #[arg(long, value_name = "IOTHUB_HOSTNAME")]
     pub iothub_hostname: Option<String>,
 
-    /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
+    /// Sets the proxy URI that this device would use to connect to Azure DPS and Hub endpoints.
     #[arg(long, value_name = "PROXY_URI")]
     pub proxy_uri: Option<hyper::Uri>,
 

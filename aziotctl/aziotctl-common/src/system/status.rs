@@ -176,7 +176,7 @@ struct ServiceStatus<'a> {
     sockets: Vec<SocketStatus<'a>>,
 }
 
-impl<'a> ServiceStatus<'a> {
+impl ServiceStatus<'_> {
     fn state(&self) -> State {
         if matches!(self.state, State::Active)
             && !self

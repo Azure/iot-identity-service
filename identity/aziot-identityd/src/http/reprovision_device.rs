@@ -49,7 +49,7 @@ impl http_common::server::Route for Route {
         {
             Ok(()) => (),
             Err(err) => return Err(super::to_http_error(&err)),
-        };
+        }
 
         Ok(http_common::server::response::no_content())
     }

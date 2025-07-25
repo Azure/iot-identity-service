@@ -5,7 +5,7 @@ mod mp;
 
 #[derive(clap::Subcommand)]
 pub(crate) enum Options {
-    /// Apply the configuration to the Azure IoT Identity Service and related services.
+    /// Apply the configuration to Identity Service and related services.
     Apply(apply::Options),
 
     /// Quick-create a new configuration for manual provisioning with a connection string.

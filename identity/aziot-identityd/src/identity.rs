@@ -853,69 +853,68 @@ impl IdentityManager {
         let (_, mut current_module_set, _) =
             crate::configext::prepare_authorized_principals(&settings.principal);
 
-        match &self.iot_hub_device {
-            Some(device) => {
-                // Encapsulate the device_info update along with "module_info" for offline store
-                // Make sure module_info is wiped when device_info is wiped
+        if let Some(device) = &self.iot_hub_device {
+            // Encapsulate the device_info update along with "module_info" for offline store
+            // Make sure module_info is wiped when device_info is wiped
 
-                let curr_hub_device_info = HubDeviceInfo {
-                    hub_name: device.iothub_hostname.clone(),
-                    local_gateway_hostname: device.local_gateway_hostname.clone(),
-                    device_id: device.device_id.clone(),
-                };
+            let curr_hub_device_info = HubDeviceInfo {
+                hub_name: device.iothub_hostname.clone(),
+                local_gateway_hostname: device.local_gateway_hostname.clone(),
+                device_id: device.device_id.clone(),
+            };
 
-                let device_status = toml::to_string(&curr_hub_device_info)
-                    .map_err(|err| Error::Internal(InternalError::SerializeDeviceInfo(err)))?;
+            let device_status = toml::to_string(&curr_hub_device_info)
+                .map_err(|err| Error::Internal(InternalError::SerializeDeviceInfo(err)))?;
 
-                let mut prev_settings_path = self.homedir_path.clone();
-                prev_settings_path.push("prev_state");
+            let mut prev_settings_path = self.homedir_path.clone();
+            prev_settings_path.push("prev_state");
 
-                let mut prev_device_info_path = self.homedir_path.clone();
-                prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
+            let mut prev_device_info_path = self.homedir_path.clone();
+            prev_device_info_path.push(DEVICE_BACKUP_LOCATION);
 
-                let prev_module_set = get_prev_modules(
-                    &prev_settings_path,
-                    &prev_device_info_path,
-                    curr_hub_device_info,
-                );
+            let prev_module_set = get_prev_modules(
+                &prev_settings_path,
+                &prev_device_info_path,
+                curr_hub_device_info,
+            );
 
-                let hub_module_ids = self.get_module_identities(false).await?;
+            let hub_module_ids = self.get_module_identities(false).await?;
 
-                for m in hub_module_ids {
-                    if let Identity::Aziot(m) = m {
-                        if let Some(m) = m.module_id {
-                            if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+            for m in hub_module_ids {
+                if let Identity::Aziot(m) = m {
+                    if let Some(m) = m.module_id {
+                        if !current_module_set.contains(&m) && prev_module_set.contains(&m) {
+                            self.delete_module_identity(&m.0).await?;
+                            log::info!("Hub identity {:?} removed", &m.0);
+                        } else if current_module_set.contains(&m) {
+                            if prev_module_set.contains(&m) {
+                                current_module_set.remove(&m);
+                                log::info!("Hub identity {:?} already exists", &m.0);
+                            } else {
                                 self.delete_module_identity(&m.0).await?;
-                                log::info!("Hub identity {:?} removed", &m.0);
-                            } else if current_module_set.contains(&m) {
-                                if prev_module_set.contains(&m) {
-                                    current_module_set.remove(&m);
-                                    log::info!("Hub identity {:?} already exists", &m.0);
-                                } else {
-                                    self.delete_module_identity(&m.0).await?;
-                                    log::info!("Hub identity {:?} will be recreated", &m.0);
-                                }
+                                log::info!("Hub identity {:?} will be recreated", &m.0);
                             }
-                        } else {
-                            log::warn!("invalid identity type returned by get_module_identities");
                         }
+                    } else {
+                        log::warn!("invalid identity type returned by get_module_identities");
                     }
                 }
-
-                for m in current_module_set {
-                    self.create_module_identity(&m.0).await?;
-                    log::info!("Hub identity {:?} added", &m.0);
-                }
-
-                // Write out device state and settings.
-                // This overwrites any existing device state and settings backup.
-                std::fs::write(prev_device_info_path, device_status)
-                    .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
-
-                std::fs::write(prev_settings_path, settings_serialized)
-                    .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
             }
-            None => log::info!("reconcilation skipped since device is not provisioned"),
+
+            for m in current_module_set {
+                self.create_module_identity(&m.0).await?;
+                log::info!("Hub identity {:?} added", &m.0);
+            }
+
+            // Write out device state and settings.
+            // This overwrites any existing device state and settings backup.
+            std::fs::write(prev_device_info_path, device_status)
+                .map_err(|err| Error::Internal(InternalError::SaveDeviceInfo(err)))?;
+
+            std::fs::write(prev_settings_path, settings_serialized)
+                .map_err(|err| Error::Internal(InternalError::SaveSettings(err)))?;
+        } else {
+            log::info!("reconcilation skipped since device is not provisioned");
         }
 
         Ok(())

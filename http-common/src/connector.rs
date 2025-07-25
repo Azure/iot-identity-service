@@ -287,8 +287,7 @@ impl Connector {
         socket_name: Option<String>,
     ) -> std::io::Result<Incoming> {
         // Check for systemd sockets.
-        let systemd_socket = get_systemd_socket(socket_name)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+        let systemd_socket = get_systemd_socket(socket_name).map_err(std::io::Error::other)?;
 
         match (systemd_socket, self) {
             // Prefer use of systemd sockets.
@@ -326,8 +325,7 @@ impl Connector {
                     let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
                     Ok(Incoming::Tcp { listener })
                 } else {
-                    Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    Err(std::io::Error::other(
                         "servers can only use `unix://` connectors, not `http://` connectors",
                     ))
                 }
@@ -462,7 +460,7 @@ impl<'de> serde::Deserialize<'de> for Connector {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = Connector;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -626,8 +624,8 @@ impl std::error::Error for ConnectorError {
 /// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
 /// so this function returns an Err for release builds using a TCP socket.
 fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
-    let sock_addr = nix::sys::socket::getsockname::<SockaddrStorage>(fd)
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+    let sock_addr =
+        nix::sys::socket::getsockname::<SockaddrStorage>(fd).map_err(std::io::Error::other)?;
 
     match sock_addr.family() {
         Some(AddressFamily::Unix) => Ok(true),
@@ -635,10 +633,9 @@ fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
         // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
         Some(AddressFamily::Inet | AddressFamily::Inet6) if cfg!(debug_assertions) => Ok(false),
 
-        family => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("systemd socket has unsupported address family {family:?}"),
-        )),
+        family => Err(std::io::Error::other(format!(
+            "systemd socket has unsupported address family {family:?}"
+        ))),
     }
 }
 

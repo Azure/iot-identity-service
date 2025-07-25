@@ -91,7 +91,7 @@ pub fn start_watcher<TApi>(
                         | notify::DebouncedEvent::Rename(_, _) => {
                             let _ = file_changed_tx.blocking_send(());
                         }
-                    };
+                    }
                 }
             }
         }

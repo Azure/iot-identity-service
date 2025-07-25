@@ -183,9 +183,9 @@ fn make_tls_connector(
 
     if let Some((certs, private_key)) = identity {
         let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
-        let client_cert = device_id_certs.next().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::Other, "device identity cert not found")
-        })?;
+        let client_cert = device_id_certs
+            .next()
+            .ok_or_else(|| io::Error::other("device identity cert not found"))?;
 
         tls_connector.set_certificate(&client_cert)?;
 
@@ -213,9 +213,7 @@ where
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self {
-            MaybeProxyConnector::NoProxy(c) => c
-                .poll_ready(cx)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
+            MaybeProxyConnector::NoProxy(c) => c.poll_ready(cx).map_err(std::io::Error::other),
             MaybeProxyConnector::Proxy(c) => c.poll_ready(cx),
         }
     }
@@ -225,9 +223,7 @@ where
             MaybeProxyConnector::NoProxy(c) => {
                 let stream = c.call(req);
                 Box::pin(async {
-                    let stream = stream
-                        .await
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    let stream = stream.await.map_err(std::io::Error::other)?;
 
                     Ok(MaybeProxyStream::NoProxy(stream))
                 })
@@ -245,19 +241,18 @@ where
 }
 
 fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
-    let proxy_url =
-        url::Url::parse(&uri.to_string()).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let proxy_url = url::Url::parse(&uri.to_string()).map_err(std::io::Error::other)?;
     let mut proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, uri);
 
     if !proxy_url.username().is_empty() {
         let username = percent_encoding::percent_decode_str(proxy_url.username())
             .decode_utf8()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
         let credentials = match proxy_url.password() {
             Some(password) => {
                 let password = percent_encoding::percent_decode_str(password)
                     .decode_utf8()
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(std::io::Error::other)?;
 
                 headers::Authorization::basic(&username, &password)
             }
@@ -276,18 +271,16 @@ pub fn get_proxy_uri(https_proxy: Option<String>) -> io::Result<Option<hyper::Ur
     let proxy_uri = match proxy_uri {
         None => None,
         Some(s) => {
-            let proxy = s
-                .parse::<hyper::Uri>()
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+            let proxy = s.parse::<hyper::Uri>().map_err(std::io::Error::other)?;
 
             // Mask the password in the proxy URI before logging it
-            let mut sanitized_proxy = url::Url::parse(&proxy.to_string())
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+            let mut sanitized_proxy =
+                url::Url::parse(&proxy.to_string()).map_err(std::io::Error::other)?;
 
             if sanitized_proxy.password().is_some() {
-                sanitized_proxy.set_password(Some("******")).map_err(|()| {
-                    io::Error::new(io::ErrorKind::Other, "set proxy password failed")
-                })?;
+                sanitized_proxy
+                    .set_password(Some("******"))
+                    .map_err(|()| io::Error::other("set proxy password failed"))?;
             }
             log::info!("Detected HTTPS proxy server {}", sanitized_proxy);
 

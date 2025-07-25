@@ -61,7 +61,7 @@ impl CertificateValidity {
 
         let cert = openssl::x509::X509::stack_from_pem(&pem)?;
         let cert = cert
-            .get(0)
+            .first()
             .ok_or_else(|| anyhow!("could not parse {} as a valid .pem", cert_path.display()))?;
 
         let not_after = parse_openssl_time(cert.not_after())?;

@@ -127,7 +127,7 @@ fn create_client_request() -> ([u8; 48], chrono::DateTime<chrono::Utc>) {
     duration_since_sntp_epoch =
         duration_since_sntp_epoch - chrono::Duration::seconds(integral_part);
 
-    assert!(integral_part >= 0 && integral_part < i64::from(u32::max_value()));
+    assert!(integral_part >= 0 && integral_part < i64::from(u32::MAX));
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let integral_part = (integral_part as u32).to_be_bytes();
     buf[40..44].copy_from_slice(&integral_part[..]);
@@ -136,7 +136,7 @@ fn create_client_request() -> ([u8; 48], chrono::DateTime<chrono::Utc>) {
         .num_nanoseconds()
         .expect("can't overflow nanoseconds");
     let fractional_part = (fractional_part << 32) / 1_000_000_000;
-    assert!(fractional_part >= 0 && fractional_part < i64::from(u32::max_value()));
+    assert!(fractional_part >= 0 && fractional_part < i64::from(u32::MAX));
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let fractional_part = (fractional_part as u32).to_be_bytes();
     buf[44..48].copy_from_slice(&fractional_part[..]);
@@ -174,7 +174,7 @@ fn parse_server_response(
                 BadServerResponseReason::LeapIndicator(leap_indicator),
             ));
         }
-    };
+    }
 
     // RFC 2030 says:
     //

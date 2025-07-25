@@ -104,7 +104,7 @@ pub enum ProvisioningType {
         payload: Option<Payload>,
     },
 
-    /// Disables provisioning with IoT Hub for devices that use local identities only.
+    /// Disables provisioning with Hub for devices that use local identities only.
     None,
 }
 #[derive(Debug, Deserialize, Serialize)]
@@ -150,7 +150,7 @@ impl<'de> Deserialize<'de> for ConnectionString {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = ConnectionString;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -342,18 +342,16 @@ where
     D: serde::Deserializer<'de>,
 {
     let opt = Option::<Url>::deserialize(de)?;
-    match &opt {
-        Some(url) => {
-            if url.scheme() == "http" {
-                eprintln!(
+    if let Some(url) = &opt {
+        if url.scheme() == "http" {
+            eprintln!(
                     "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks. \
                     To clear this warning, configure HTTPS for your EST server and update the URL.",
                     url.as_str()
                 );
-            }
         }
-        None => (),
     }
+
     Ok(opt)
 }
 
@@ -389,7 +387,7 @@ mod base64 {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = Vec<u8>;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

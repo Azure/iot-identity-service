@@ -137,7 +137,7 @@ where
         Some("aziotd") => process_name_from_args(args),
 
         _ => Err(ErrorKind::GetProcessName(
-            format!("unrecognized process name {process_name:?}").into(),
+            format!("unrecognized process name '{}'", process_name.display()).into(),
         )
         .into()),
     }

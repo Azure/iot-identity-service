@@ -71,66 +71,65 @@ impl HostConnectIotHub {
 
         let identityd_config = unwrap_or_skip!(&cache.cfg.identityd);
 
-        let (iothub_hostname, nested) = match &shared.cfg.iothub_hostname {
-            Some(s) => (s, false),
-            None => {
-                let (iothub_hostname, nested) = match &identityd_config.provisioning.provisioning {
-                    ProvisioningType::Manual {
-                        iothub_hostname, ..
-                    } => {
-                        // use `local_gateway_hostname` if available
-                        (
-                            identityd_config
-                                .provisioning
-                                .local_gateway_hostname
-                                .as_ref()
-                                .unwrap_or(iothub_hostname),
-                            identityd_config
-                                .provisioning
-                                .local_gateway_hostname
-                                .is_some(),
-                        )
-                    }
-                    ProvisioningType::Dps { .. } => {
-                        if identityd_config
+        let (iothub_hostname, nested) = if let Some(s) = &shared.cfg.iothub_hostname {
+            (s, false)
+        } else {
+            let (iothub_hostname, nested) = match &identityd_config.provisioning.provisioning {
+                ProvisioningType::Manual {
+                    iothub_hostname, ..
+                } => {
+                    // use `local_gateway_hostname` if available
+                    (
+                        identityd_config
                             .provisioning
                             .local_gateway_hostname
-                            .is_some()
-                        {
-                            // not supported in nested scenarios
-                            return Ok(CheckResult::Ignored);
-                        }
+                            .as_ref()
+                            .unwrap_or(iothub_hostname),
+                        identityd_config
+                            .provisioning
+                            .local_gateway_hostname
+                            .is_some(),
+                    )
+                }
+                ProvisioningType::Dps { .. } => {
+                    if identityd_config
+                        .provisioning
+                        .local_gateway_hostname
+                        .is_some()
+                    {
+                        // not supported in nested scenarios
+                        return Ok(CheckResult::Ignored);
+                    }
 
-                        // It's fine if the prev config doesn't exist, so `unwrap_or_skip` isn't
-                        // appropriate here
-                        let backup_hostname = match &cache.cfg.identityd_prev {
-                            None => None,
-                            // check if the backup config includes the iothub_hostname
-                            Some(cfg) => match &cfg.provisioning.provisioning {
-                                ProvisioningType::Manual {
-                                    iothub_hostname, ..
-                                } => Some(iothub_hostname),
-                                _ => None,
-                            },
-                        };
+                    // It's fine if the prev config doesn't exist, so `unwrap_or_skip` isn't
+                    // appropriate here
+                    let backup_hostname = match &cache.cfg.identityd_prev {
+                        None => None,
+                        // check if the backup config includes the iothub_hostname
+                        Some(cfg) => match &cfg.provisioning.provisioning {
+                            ProvisioningType::Manual {
+                                iothub_hostname, ..
+                            } => Some(iothub_hostname),
+                            _ => None,
+                        },
+                    };
 
-                        if let Some(backup_hostname) = backup_hostname {
-                            (backup_hostname, false)
-                        } else {
-                            // the user never manually provisioned, nor have they passed
-                            // the `iothub-hostname` flag.
-                            let reason = "Could not retrieve iothub_hostname from provisioning file.\n\
+                    if let Some(backup_hostname) = backup_hostname {
+                        (backup_hostname, false)
+                    } else {
+                        // the user never manually provisioned, nor have they passed
+                        // the `iothub-hostname` flag.
+                        let reason = "Could not retrieve iothub_hostname from provisioning file.\n\
                             Please specify the backing IoT Hub name using --iothub-hostname switch if you have that information.\n\
                             Since no hostname is provided, all hub connectivity tests will be skipped.";
-                            return Ok(CheckResult::Warning(anyhow::Error::msg(reason)));
-                        }
+                        return Ok(CheckResult::Warning(anyhow::Error::msg(reason)));
                     }
-                    ProvisioningType::None => return Ok(CheckResult::Ignored),
-                };
+                }
+                ProvisioningType::None => return Ok(CheckResult::Ignored),
+            };
 
-                self.iothub_hostname = Some(iothub_hostname.clone());
-                (iothub_hostname, nested)
-            }
+            self.iothub_hostname = Some(iothub_hostname.clone());
+            (iothub_hostname, nested)
         };
 
         let iothub_hostname_url = format!("https://{}:{}", iothub_hostname, self.port_number)

@@ -305,7 +305,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
 
         if let Some(device) = &mut api.id_manager.iot_hub_device {
             device.credentials = credentials;
-        };
+        }
 
         Ok(())
     }

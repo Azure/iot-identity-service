@@ -32,7 +32,7 @@ impl std::convert::From<HubError> for Error {
     }
 }
 
-pub struct Client {
+pub struct HubClient {
     device: aziot_identity_common::IoTHubDevice,
 
     key_client: crate::KeyClient,
@@ -44,14 +44,14 @@ pub struct Client {
     proxy: Option<hyper::Uri>,
 }
 
-impl Client {
+impl HubClient {
     #[must_use]
     pub fn new(
         device: &aziot_identity_common::IoTHubDevice,
         key_client: crate::KeyClient,
         tpm_client: crate::TpmClient,
     ) -> Self {
-        Client {
+        HubClient {
             device: device.clone(),
             key_client,
             tpm_client,

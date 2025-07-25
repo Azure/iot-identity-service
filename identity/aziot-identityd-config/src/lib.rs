@@ -244,7 +244,7 @@ pub enum ProvisioningType {
         #[serde(skip_serializing_if = "Option::is_none")]
         payload: Option<Payload>,
     },
-    /// Disables provisioning with IoT Hub for devices that use local identities only.
+    /// Disables provisioning with Hub for devices that use local identities only.
     None,
 }
 
@@ -267,7 +267,7 @@ impl Payload {
         let content = std::fs::read_to_string(url.to_file_path().map_err(|()| {
             std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
         })?)
-        .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;
+        .map_err(std::io::Error::other)?;
 
         serde_json::from_str::<serde_json::Value>(content.as_str())
             .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))

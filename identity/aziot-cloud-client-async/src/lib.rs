@@ -9,10 +9,10 @@ mod connector;
 pub mod dps;
 pub use dps::schema::request as DpsRequest;
 pub use dps::schema::response as DpsResponse;
-pub use dps::Client as DpsClient;
+pub use dps::DpsClient;
 
 pub mod hub;
-pub use hub::Client as HubClient;
+pub use hub::HubClient;
 
 type KeyClient = std::sync::Arc<aziot_key_client_async::Client>;
 type TpmClient = std::sync::Arc<aziot_tpm_client_async::Client>;

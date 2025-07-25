@@ -118,10 +118,9 @@ where
         if response_status == hyper::StatusCode::NO_CONTENT {
             Ok(())
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                format!("unexpected HTTP status code: {response_status}"),
-            ))
+            Err(Error::other(format!(
+                "unexpected HTTP status code: {response_status}"
+            )))
         }
     }
 
@@ -207,7 +206,7 @@ where
                         let response_body = if has_response_body {
                             let response_body = hyper::body::to_bytes(response_body)
                                 .await
-                                .map_err(|err| Error::new(ErrorKind::Other, err))?;
+                                .map_err(std::io::Error::other)?;
 
                             Some(response_body)
                         } else {
@@ -217,10 +216,7 @@ where
                         // if response throttled, go into exponential backoff
                         if response_status == http::StatusCode::TOO_MANY_REQUESTS {
                             is_throttled = true;
-                            Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "429: Too many requests",
-                            ))
+                            Err(std::io::Error::other("429: Too many requests"))
                         } else {
                             // Return results
                             Ok((response_status, response_headers, response_body))
@@ -231,7 +227,7 @@ where
                             // Network error.
                             Err(std::io::Error::new(std::io::ErrorKind::NotConnected, err))
                         } else {
-                            Err(std::io::Error::new(std::io::ErrorKind::Other, err))
+                            Err(std::io::Error::other(err))
                         }
                     }
                 }
@@ -324,10 +320,7 @@ impl HttpResponse {
             Ok(response)
         } else if self.status.is_client_error() || self.status.is_server_error() {
             if self.body.is_empty() {
-                Err(Error::new(
-                    ErrorKind::Other,
-                    format!("HTTP error {}", self.status),
-                ))
+                Err(Error::other(format!("HTTP error {}", self.status)))
             } else {
                 let error: TError = serde_json::from_slice(&self.body)
                     .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
@@ -335,13 +328,10 @@ impl HttpResponse {
                 Err(error.into())
             }
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "Expected one of {:?}, got {}",
-                    expected_statuses, self.status
-                ),
-            ))
+            Err(Error::other(format!(
+                "Expected one of {:?}, got {}",
+                expected_statuses, self.status
+            )))
         }
     }
 }
@@ -452,7 +442,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "manual test"]
     async fn test_backoff_manual() {
         if HUB_HOSTNAME == "your-hubname-here.azurecr.io" {
             return;
@@ -516,7 +506,7 @@ mod tests {
 
     impl std::convert::From<HubError> for Error {
         fn from(err: HubError) -> Error {
-            Error::new(ErrorKind::Other, err.message)
+            Error::other(err.message)
         }
     }
 }

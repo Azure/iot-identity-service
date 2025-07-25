@@ -34,6 +34,6 @@ impl std::convert::From<Error> for std::io::Error {
             Error::Fatal(message) | Error::Retryable(message) => message,
         };
 
-        std::io::Error::new(std::io::ErrorKind::Other, message)
+        std::io::Error::other(message)
     }
 }

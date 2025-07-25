@@ -155,7 +155,7 @@ impl Checker for WellFormedIdentitydConfig {
                 }
             }
             Ok(DaemonCfg::PermissionDenied(_)) | Err(_) => {}
-        };
+        }
 
         CheckResult::Ok
     }

@@ -459,8 +459,7 @@ impl Api {
             ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id).await },
             ID_TYPE_LOCAL => {
                 if self.local_identities
-                    .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
-                    .is_some() {
+                    .contains_key(&aziot_identity_common::ModuleId(module_id.to_owned())) {
                     // Don't create a local identity for a module in the principals list.
                     Err(Error::invalid_parameter(
                         "moduleId",
