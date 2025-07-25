@@ -12,7 +12,7 @@ mod cert_interface;
 pub use cert_interface::CertInterface;
 
 #[cfg(test)]
-use cert_interface::TestInterface;
+use cert_interface::test_interface::TestInterface;
 
 mod credential;
 use credential::{Credential, CredentialHeap};
