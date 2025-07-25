@@ -28,8 +28,7 @@ fn to_http_error(err: &crate::Error) -> http_common::server::Error {
             match err {
                 crate::Error::Internal(_) => log::Level::Error,
             },
-            "!!! {}",
-            line,
+            "!!! {line}"
         );
     }
 

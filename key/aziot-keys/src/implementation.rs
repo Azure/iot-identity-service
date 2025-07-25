@@ -571,7 +571,7 @@ pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_RC
 where
     E: std::fmt::Display,
 {
-    log::error!("{}", err);
+    log::error!("{err}");
     crate::AZIOT_KEYS_RC_ERR_EXTERNAL
 }
 
@@ -579,6 +579,6 @@ pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_
 where
     E: std::fmt::Display,
 {
-    log::error!("invalid parameter {:?}: {}", name, err);
+    log::error!("invalid parameter {name:?}: {err}");
     crate::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER
 }

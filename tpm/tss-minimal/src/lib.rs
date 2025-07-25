@@ -437,7 +437,7 @@ impl Drop for EsysContext {
     fn drop(&mut self) {
         let mut tcti = ptr::null_mut();
         if let Err(e) = wrap_rc!(esys_sys::Esys_GetTcti(**self, &raw mut tcti)) {
-            log::error!("could not get inner TCTI context: {}", e);
+            log::error!("could not get inner TCTI context: {e}");
         }
 
         unsafe {

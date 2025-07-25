@@ -89,7 +89,7 @@ impl Incoming {
                                 .serve_connection(tcp_stream, server)
                                 .await
                             {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
+                                log::info!("Error while serving HTTP connection: {http_err}");
                             }
 
                             server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
@@ -140,7 +140,7 @@ impl Incoming {
                                     .serve_connection(unix_stream, server)
                                     .await
                                 {
-                                    log::info!("Error while serving HTTP connection: {}", http_err);
+                                    log::info!("Error while serving HTTP connection: {http_err}");
                                 }
 
                                 servers_available.fetch_add(1, atomic::Ordering::AcqRel);

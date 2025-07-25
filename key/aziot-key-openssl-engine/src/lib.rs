@@ -111,7 +111,7 @@ fn r#catch<T>(
             if let Some(function) = function {
                 openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
             } else {
-                log::error!("[aziot-key-openssl-engine] error: {}", err);
+                log::error!("[aziot-key-openssl-engine] error: {err}");
             }
 
             let mut source = err.source();
@@ -119,7 +119,7 @@ fn r#catch<T>(
                 if let Some(function) = function {
                     openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
                 } else {
-                    log::error!("[aziot-key-openssl-engine] caused by: {}", err);
+                    log::error!("[aziot-key-openssl-engine] caused by: {err}");
                 }
 
                 source = err.source();

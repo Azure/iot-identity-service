@@ -124,8 +124,7 @@ fn create_client_request() -> ([u8; 48], chrono::DateTime<chrono::Utc>) {
     let mut duration_since_sntp_epoch = transmit_timestamp - sntp_epoch;
 
     let integral_part = duration_since_sntp_epoch.num_seconds();
-    duration_since_sntp_epoch =
-        duration_since_sntp_epoch - chrono::Duration::seconds(integral_part);
+    duration_since_sntp_epoch -= chrono::Duration::seconds(integral_part);
 
     assert!(integral_part >= 0 && integral_part < i64::from(u32::MAX));
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
@@ -218,7 +217,7 @@ fn parse_server_response(
 }
 
 fn sntp_epoch() -> chrono::DateTime<chrono::Utc> {
-    chrono::DateTime::<chrono::Utc>::from_utc(
+    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
         chrono::NaiveDate::from_ymd_opt(1900, 1, 1)
             .expect("hardcoded date should parse")
             .and_time(

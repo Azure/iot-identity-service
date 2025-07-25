@@ -27,7 +27,7 @@ async fn main() {
 
         let mut source = std::error::Error::source(&err.0);
         while let Some(err) = source {
-            log::error!("caused by: {}", err);
+            log::error!("caused by: {err}");
             source = std::error::Error::source(err);
         }
 

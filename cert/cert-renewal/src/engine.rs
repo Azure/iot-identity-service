@@ -314,27 +314,21 @@ where
                     }
                     Err(crate::Error::Retryable(message)) => {
                         log::warn!(
-                            "Tried to renew {}, but failed to write new cert: {}.",
-                            cert_id,
-                            message
+                            "Tried to renew {cert_id}, but failed to write new cert: {message}."
                         );
                     }
                     Err(crate::Error::Fatal(message)) => {
-                        log::error!("Failed to write new cert {}: {}.", cert_id, message);
+                        log::error!("Failed to write new cert {cert_id}: {message}.");
 
                         return Err(crate::Error::fatal_error(message));
                     }
                 }
             }
             Err(crate::Error::Retryable(message)) => {
-                log::warn!("Tried to renew {}, but {}.", cert_id, message);
+                log::warn!("Tried to renew {cert_id}, but {message}.");
             }
             Err(crate::Error::Fatal(message)) => {
-                log::error!(
-                    "Failed to initialize cert renewal for {}: {}.",
-                    cert_id,
-                    message
-                );
+                log::error!("Failed to initialize cert renewal for {cert_id}: {message}.");
 
                 return Err(crate::Error::fatal_error(message));
             }

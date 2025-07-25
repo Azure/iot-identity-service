@@ -70,7 +70,7 @@ pub async fn main(
 
     if !homedir_path.exists() {
         if let Err(err) = std::fs::create_dir_all(homedir_path) {
-            log::error!("Failed to create home directory: {}", err);
+            log::error!("Failed to create home directory: {err}");
 
             return Err(error::InternalError::CreateHomeDir(err).into());
         }
@@ -80,7 +80,7 @@ pub async fn main(
     {
         match openssl::provider::Provider::try_load(None, "default", true) {
             Ok(_provider) => log::info!("Loaded openssl'd Default provider"),
-            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why),
+            Err(why) => log::info!("Failed to load openssl's Default provider: {why:?}"),
         }
     }
 
@@ -147,8 +147,7 @@ pub async fn main(
             .await
         {
             log::error!(
-                "Failed to provision with IoT Hub, and no valid device backup was found: {}",
-                err
+                "Failed to provision with IoT Hub, and no valid device backup was found: {err}"
             );
 
             return Err(err.into());
@@ -548,7 +547,7 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        log::info!("Provisioning starting. Reason: {:?}", trigger);
+        log::info!("Provisioning starting. Reason: {trigger:?}");
 
         match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
@@ -583,7 +582,7 @@ impl Api {
 
         log::info!("Provisioning complete.");
 
-        log::info!("Identity reconciliation started. Reason: {:?}", trigger);
+        log::info!("Identity reconciliation started. Reason: {trigger:?}");
 
         if let Err(err) = self
             .id_manager
@@ -754,8 +753,7 @@ impl UpdateConfig for Api {
             .await
         {
             log::warn!(
-                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
-                err
+                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {err}."
             );
         }
 
@@ -908,15 +906,13 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
         .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
-    let expiration = chrono::NaiveDateTime::from_timestamp_opt(diff, 0).ok_or_else(|| {
+    let expiration = chrono::DateTime::from_timestamp(diff, 0).ok_or_else(|| {
         Error::Internal(InternalError::CreateCertificate(
             "failed to convert timestamp".into(),
         ))
     })?;
-    let expiration =
-        chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
 
-    Ok(expiration)
+    Ok(expiration.to_rfc3339())
 }
 
 /// Loads the payload from a `Payload` config object, returning it as a `serde_json::Value`
@@ -927,7 +923,7 @@ pub(crate) fn load_dps_request_payload(
         .map(aziot_identityd_config::Payload::serde_json_value)
         .transpose()
         .map_err(|err| {
-            log::error!("Error loading DPS payload: {:?}", payload);
+            log::error!("Error loading DPS payload: {payload:?}");
             Error::InvalidParameter("provisioning.payload", err.into())
         })
 }

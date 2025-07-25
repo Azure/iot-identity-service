@@ -195,10 +195,7 @@ impl cert_renewal::CertInterface for IdentityCertRenewal {
             .map_err(|_| cert_renewal::Error::retryable_error("failed to create new cert"))?;
 
         if let Err(err) = self.cert_client.delete_cert(&self.temp_cert).await {
-            log::warn!(
-                "Failed to delete temporary certificate created by cert renewal: {}",
-                err
-            );
+            log::warn!("Failed to delete temporary certificate created by cert renewal: {err}");
         }
 
         let new_cert_chain = openssl::x509::X509::stack_from_pem(&new_cert)

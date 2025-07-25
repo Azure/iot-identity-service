@@ -34,7 +34,10 @@ impl CertificateValidity {
             // into a chrono::DateTime<chrono::Utc>
             let time = time.to_string();
             let time = chrono::NaiveDateTime::parse_from_str(&time, "%b %e %H:%M:%S %Y GMT")?;
-            Ok(chrono::DateTime::<chrono::Utc>::from_utc(time, chrono::Utc))
+            Ok(chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                time,
+                chrono::Utc,
+            ))
         }
 
         let cert_path = cert_path.as_ref();

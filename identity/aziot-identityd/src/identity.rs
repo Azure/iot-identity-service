@@ -77,10 +77,7 @@ impl IdentityManager {
 
         if let Err(err) = std::fs::remove_file(backup_file) {
             if err.kind() != std::io::ErrorKind::NotFound {
-                log::warn!(
-                    "Failed to clear device state before reprovisioning: {}",
-                    err
-                );
+                log::warn!("Failed to clear device state before reprovisioning: {err}");
             }
         }
 
@@ -95,10 +92,7 @@ impl IdentityManager {
 
             if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
                 if err.kind() != std::io::ErrorKind::NotFound {
-                    log::warn!(
-                        "Failed to clear module identities before reprovisioning: {}",
-                        err
-                    );
+                    log::warn!("Failed to clear module identities before reprovisioning: {err}");
                 }
             }
         }
@@ -746,11 +740,11 @@ impl IdentityManager {
                 None => None,
             },
             Err(err) => {
-                log::warn!("Ignoring invalid device info backup: {}", err);
+                log::warn!("Ignoring invalid device info backup: {err}");
 
                 // Remove the invalid device info so it's not checked when reconciling identities.
                 if let Err(err) = std::fs::remove_file(&prev_device_info_path) {
-                    log::warn!("Failed to delete invalid device info backup: {}", err);
+                    log::warn!("Failed to delete invalid device info backup: {err}");
                 }
 
                 None
@@ -1046,7 +1040,7 @@ fn get_prev_modules(
     let prev_hub_device_info = match HubDeviceInfo::new(prev_device_info_path) {
         Ok(device_info) => device_info,
         Err(err) => {
-            log::warn!("Ignoring invalid device info backup: {}", err);
+            log::warn!("Ignoring invalid device info backup: {err}");
 
             return Default::default();
         }
@@ -1061,7 +1055,7 @@ fn get_prev_modules(
         match crate::configext::load_file(prev_settings_path).map_err(Error::Internal) {
             Ok(settings) => settings,
             Err(err) => {
-                log::warn!("Ignoring invalid device settings backup: {}", err);
+                log::warn!("Ignoring invalid device settings backup: {err}");
 
                 return Default::default();
             }
@@ -1115,7 +1109,7 @@ impl ModuleBackup {
                     // explictly on filesystem to prevent removal
                     if let Err(err) = std::fs::remove_dir_all(old_modules_path) {
                         if err.kind() != std::io::ErrorKind::NotFound {
-                            log::warn!("Failed to clear old module backup state: {}", err);
+                            log::warn!("Failed to clear old module backup state: {err}");
                         }
                     }
 
@@ -1129,10 +1123,7 @@ impl ModuleBackup {
 
         // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
         if let Err(err) = result {
-            log::warn!(
-                "Failed to create module information backup state folder: {}",
-                err
-            );
+            log::warn!("Failed to create module information backup state folder: {err}");
         }
     }
 
@@ -1164,7 +1155,7 @@ impl ModuleBackup {
 
         // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
         if let Err(err) = result {
-            log::warn!("Failed to save module information backup state: {}", err);
+            log::warn!("Failed to save module information backup state: {err}");
         }
     }
 
@@ -1179,21 +1170,18 @@ impl ModuleBackup {
                 Ok(module) => match serde_json::from_slice(&module) {
                     Ok(s) => Some(s),
                     Err(err) => {
-                        log::error!("Invalid input from backup file. Failure reason: {}", err);
+                        log::error!("Invalid input from backup file. Failure reason: {err}");
                         None
                     }
                 },
                 Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => None,
                 Err(err) => {
-                    log::warn!("Could not read module backup file. Failure reason: {}", err);
+                    log::warn!("Could not read module backup file. Failure reason: {err}");
                     None
                 }
             },
             Err(err) => {
-                log::warn!(
-                    "Could not get module backup file path. Failure reason: {}",
-                    err
-                );
+                log::warn!("Could not get module backup file path. Failure reason: {err}");
                 None
             }
         }

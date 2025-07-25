@@ -36,8 +36,7 @@ pub fn start_watcher<TApi>(
                     Ok(config) => config,
                     Err(err) => {
                         log::warn!(
-                        "Detected config file update, but new config failed to parse. Error: {}",
-                        err
+                        "Detected config file update, but new config failed to parse. Error: {err}"
                     );
                         continue;
                     }
@@ -46,7 +45,7 @@ pub fn start_watcher<TApi>(
             let mut api = api.lock().await;
 
             if let Err(err) = api.update_config(new_config).await {
-                log::warn!("Config update failed. Error: {}", err);
+                log::warn!("Config update failed. Error: {err}");
             }
         }
     });

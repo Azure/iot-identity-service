@@ -184,7 +184,7 @@ impl Api {
             if let Err(e) = res {
                 // NOTE: It is likely that another process interacting with the
                 // TPM evicted the key.
-                log::warn!("could not evict previous auth key: {}", e);
+                log::warn!("could not evict previous auth key: {e}");
             }
         }
 

@@ -86,7 +86,7 @@ impl Drop for Transient<'_> {
     fn drop(&mut self) {
         let handle = std::mem::replace(&mut self.index, esys_sys::ESYS_TR_NONE);
         if let Err(e) = self.context.flush(handle) {
-            log::error!("could not flush Transient(0x{:08X}): {}", handle, e);
+            log::error!("could not flush Transient(0x{handle:08X}): {e}");
         }
     }
 }

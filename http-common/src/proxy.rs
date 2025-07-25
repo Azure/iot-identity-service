@@ -282,7 +282,7 @@ pub fn get_proxy_uri(https_proxy: Option<String>) -> io::Result<Option<hyper::Ur
                     .set_password(Some("******"))
                     .map_err(|()| io::Error::other("set proxy password failed"))?;
             }
-            log::info!("Detected HTTPS proxy server {}", sanitized_proxy);
+            log::info!("Detected HTTPS proxy server {sanitized_proxy}");
 
             Some(proxy)
         }

@@ -7,7 +7,7 @@ pub(crate) struct Time(i64);
 /// Logs a message and aborts the process. This function is called if the process encounters
 /// a fatal clock error.
 fn abort(message: impl std::fmt::Display) -> ! {
-    log::error!("{}", message);
+    log::error!("{message}");
 
     std::process::abort();
 }
@@ -70,9 +70,7 @@ impl std::fmt::Display for Time {
         if self == &Time::forever() {
             write!(f, "the end of time")
         } else {
-            let date_time =
-                chrono::NaiveDateTime::from_timestamp_opt(self.0, 0).ok_or(std::fmt::Error)?;
-            let date_time = chrono::DateTime::<chrono::Utc>::from_utc(date_time, chrono::Utc);
+            let date_time = chrono::DateTime::from_timestamp(self.0, 0).ok_or(std::fmt::Error)?;
 
             write!(f, "{}", date_time.to_rfc3339())
         }

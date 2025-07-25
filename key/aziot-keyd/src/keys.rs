@@ -350,7 +350,7 @@ impl Keys {
                 api_version => return Err(LoadLibraryError::UnsupportedApiVersion(api_version)),
             };
 
-            log::info!("Loaded libaziot-keys with version 0x{:08x}", api_version);
+            log::info!("Loaded libaziot-keys with version 0x{api_version:08x}");
 
             Ok(result)
         }
