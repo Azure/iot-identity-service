@@ -68,11 +68,11 @@ impl Context {
                 crate::dl::Library::load(lib_path).map_err(LoadContextError::LoadLibrary)?;
 
             let C_GetFunctionList: pkcs11_sys::CK_C_GetFunctionList = *library
-                .symbol(std::ffi::CStr::from_bytes_with_nul(b"C_GetFunctionList\0").unwrap())
+                .symbol(c"C_GetFunctionList")
                 .map_err(LoadContextError::LoadGetFunctionListSymbol)?;
 
             let mut function_list = std::ptr::null();
-            let result = C_GetFunctionList(&mut function_list);
+            let result = C_GetFunctionList(&raw mut function_list);
             if result != pkcs11_sys::CKR_OK {
                 return Err(LoadContextError::GetFunctionListFailed(
                     format!("C_GetFunctionList failed with {result}").into(),
@@ -201,7 +201,7 @@ impl Context {
                     | pkcs11_sys::CKF_OS_LOCKING_OK,
                 pReserved: std::ptr::null_mut(),
             };
-            let result = C_Initialize(&initialize_args);
+            let result = C_Initialize(&raw const initialize_args);
             if result != pkcs11_sys::CKR_OK {
                 return Err(LoadContextError::InitializeFailed(result));
             }
@@ -344,7 +344,7 @@ impl Context {
                 let result = (self.C_GetSlotList)(
                     pkcs11_sys::CK_TRUE,
                     slot_ids.as_mut_ptr(),
-                    &mut actual_len,
+                    &raw mut actual_len,
                 );
                 match result {
                     pkcs11_sys::CKR_OK => {
@@ -537,7 +537,7 @@ impl Context {
                 pkcs11_sys::CKF_SERIAL_SESSION | pkcs11_sys::CKF_RW_SESSION,
                 std::ptr::null_mut(),
                 None,
-                &mut handle,
+                &raw mut handle,
             );
             if result != pkcs11_sys::CKR_OK {
                 return Err(OpenSessionError::OpenSessionFailed(

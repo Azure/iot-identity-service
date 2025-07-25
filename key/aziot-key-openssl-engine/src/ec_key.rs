@@ -71,7 +71,7 @@ pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::EC_KEY_ME
         let mut openssl_ec_key_sign = None;
         openssl_sys2::EC_KEY_METHOD_get_sign(
             aziot_key_ec_key_method,
-            &mut openssl_ec_key_sign,
+            &raw mut openssl_ec_key_sign,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
         );

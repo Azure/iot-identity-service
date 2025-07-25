@@ -203,12 +203,12 @@ impl Keys {
             let mut function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST = std::ptr::null_mut();
             keys_ok(sys::aziot_keys_get_function_list(
                 sys::AZIOT_KEYS_VERSION_2_1_0_0,
-                &mut function_list,
+                &raw mut function_list,
             ))
             .or_else(|_| {
                 keys_ok(sys::aziot_keys_get_function_list(
                     sys::AZIOT_KEYS_VERSION_2_0_0_0,
-                    &mut function_list,
+                    &raw mut function_list,
                 ))
             })
             .map_err(LoadLibraryError::GetFunctionList)?;
@@ -518,7 +518,7 @@ impl Keys {
                                 id.as_ptr(),
                                 sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
                                 std::ptr::addr_of_mut!(algorithm).cast(),
-                                &mut algorithm_len,
+                                &raw mut algorithm_len,
                             ))
                             .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
 
@@ -838,7 +838,7 @@ impl Keys {
                         derivation_data.as_ptr(),
                         derivation_data.len(),
                         std::ptr::null_mut(),
-                        &mut derived_key_len,
+                        &raw mut derived_key_len,
                     ))
                     .map_err(|err| DeriveKeyError { err })?;
 
@@ -849,7 +849,7 @@ impl Keys {
                         derivation_data.as_ptr(),
                         derivation_data.len(),
                         derived_key.as_mut_ptr(),
-                        &mut derived_key_len,
+                        &raw mut derived_key_len,
                     ))
                     .map_err(|err| DeriveKeyError { err })?;
 
@@ -900,7 +900,7 @@ impl Keys {
                         digest.as_ptr(),
                         digest.len(),
                         std::ptr::null_mut(),
-                        &mut signature_len,
+                        &raw mut signature_len,
                     ))
                     .map_err(|err| SignError { err })?;
 
@@ -913,7 +913,7 @@ impl Keys {
                         digest.as_ptr(),
                         digest.len(),
                         signature.as_mut_ptr(),
-                        &mut signature_len,
+                        &raw mut signature_len,
                     ))
                     .map_err(|err| SignError { err })?;
 
@@ -966,7 +966,7 @@ impl Keys {
                         digest.len(),
                         signature.as_ptr(),
                         signature.len(),
-                        &mut ok,
+                        &raw mut ok,
                     ))
                     .map_err(|err| VerifyError { err })?;
 
@@ -1011,7 +1011,7 @@ impl Keys {
                         plaintext.as_ptr(),
                         plaintext.len(),
                         std::ptr::null_mut(),
-                        &mut ciphertext_len,
+                        &raw mut ciphertext_len,
                     ))
                     .map_err(|err| EncryptError { err })?;
 
@@ -1024,7 +1024,7 @@ impl Keys {
                         plaintext.as_ptr(),
                         plaintext.len(),
                         ciphertext.as_mut_ptr(),
-                        &mut ciphertext_len,
+                        &raw mut ciphertext_len,
                     ))
                     .map_err(|err| EncryptError { err })?;
 
@@ -1075,7 +1075,7 @@ impl Keys {
                         ciphertext.as_ptr(),
                         ciphertext.len(),
                         std::ptr::null_mut(),
-                        &mut plaintext_len,
+                        &raw mut plaintext_len,
                     ))
                     .map_err(|err| DecryptError { err })?;
 
@@ -1088,7 +1088,7 @@ impl Keys {
                         ciphertext.as_ptr(),
                         ciphertext.len(),
                         plaintext.as_mut_ptr(),
-                        &mut plaintext_len,
+                        &raw mut plaintext_len,
                     ))
                     .map_err(|err| DecryptError { err })?;
 
@@ -1142,7 +1142,7 @@ unsafe fn get_key_pair_parameter_byte_buf(
         id.as_ptr(),
         r#type,
         std::ptr::null_mut(),
-        &mut value_len,
+        &raw mut value_len,
     ))?;
 
     let mut value = vec![0_u8; value_len];
@@ -1151,7 +1151,7 @@ unsafe fn get_key_pair_parameter_byte_buf(
         id.as_ptr(),
         r#type,
         value.as_mut_ptr(),
-        &mut value_len,
+        &raw mut value_len,
     ))?;
 
     if value_len > value.len() {

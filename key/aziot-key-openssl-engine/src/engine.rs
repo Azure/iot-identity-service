@@ -53,11 +53,7 @@ impl Engine {
         ))?;
         openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_name(
             e,
-            std::ffi::CStr::from_bytes_with_nul(
-                b"An openssl engine that talks to the Azure IoT Keys Service\0",
-            )
-            .expect("hard-coded engine name is valid CStr")
-            .as_ptr(),
+            c"An openssl engine that talks to the Azure IoT Keys Service".as_ptr(),
         ))?;
 
         if let Some((init, destroy)) = init_and_destroy {

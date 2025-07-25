@@ -38,11 +38,15 @@ impl EsysContext {
         let mut tcti = ptr::null_mut();
         wrap_rc!(tcti_sys::Tss2_TctiLdr_Initialize(
             tcti_conf.as_ptr(),
-            &mut tcti
+            &raw mut tcti
         ))?;
 
         let mut esys = ptr::null_mut();
-        wrap_rc!(esys_sys::Esys_Initialize(&mut esys, tcti, ptr::null_mut()))?;
+        wrap_rc!(esys_sys::Esys_Initialize(
+            &raw mut esys,
+            tcti,
+            ptr::null_mut()
+        ))?;
 
         Ok(Self(esys))
     }
@@ -74,7 +78,7 @@ impl EsysContext {
             ESYS_TR_NONE,
             blob,
             secret,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(EsysBox(unsafe { NonNull::new_unchecked(out) }))
@@ -92,7 +96,7 @@ impl EsysContext {
             ESYS_TR_NONE,
             ESYS_TR_NONE,
             ESYS_TR_NONE,
-            &mut out,
+            &raw mut out,
             ptr::null_mut(),
             ptr::null_mut()
         ))?;
@@ -130,9 +134,9 @@ impl EsysContext {
             sensitive,
             public,
             data.map_or_else(ptr::null, |x| x),
-            &pcrs,
-            &mut priv_out,
-            &mut pub_out,
+            &raw const pcrs,
+            &raw mut priv_out,
+            &raw mut pub_out,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut()
@@ -168,7 +172,7 @@ impl EsysContext {
             dup,
             seed,
             alg,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(EsysBox(unsafe { NonNull::new_unchecked(out) }))
@@ -186,7 +190,7 @@ impl EsysContext {
             ESYS_TR_NONE,
             ESYS_TR_NONE,
             ESYS_TR_NONE,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(EsysBox(unsafe { NonNull::new_unchecked(out) }))
@@ -218,7 +222,7 @@ impl EsysContext {
             session_type,
             sym,
             auth_hash,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(Transient::new(out, self))
@@ -241,7 +245,7 @@ impl EsysContext {
             ESYS_TR_NONE,
             private,
             public,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(Transient::new(out, self))
@@ -273,8 +277,8 @@ impl EsysContext {
             sensitive,
             public,
             data.map_or_else(ptr::null, |x| x),
-            &pcrs,
-            &mut out,
+            &raw const pcrs,
+            &raw mut out,
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
@@ -297,7 +301,7 @@ impl EsysContext {
             auth.map_or(ESYS_TR_NONE, EsysResource::tr),
             ESYS_TR_NONE,
             ESYS_TR_NONE,
-            &mut out
+            &raw mut out
         ))?;
 
         // SAFETY: Handles created by FromTPMPublic do not count as transient
@@ -338,9 +342,9 @@ impl EsysContext {
                 auth.tr(),
                 ESYS_TR_NONE,
                 ESYS_TR_NONE,
-                &payload,
+                &raw const payload,
                 alg,
-                &mut out
+                &raw mut out
             ))?;
         } else {
             wrap_rc!(esys_sys::Esys_HMAC_Start(
@@ -351,7 +355,7 @@ impl EsysContext {
                 ESYS_TR_NONE,
                 ptr::null(),
                 alg,
-                &mut seq
+                &raw mut seq
             ))?;
 
             let seq = Transient::new(seq, self);
@@ -368,7 +372,7 @@ impl EsysContext {
                     auth.tr(),
                     ESYS_TR_NONE,
                     ESYS_TR_NONE,
-                    &payload
+                    &raw const payload
                 ))?;
             }
 
@@ -380,9 +384,9 @@ impl EsysContext {
                 auth.tr(),
                 ESYS_TR_NONE,
                 ESYS_TR_NONE,
-                &payload,
+                &raw const payload,
                 Persistent::NULL_HIERARCHY.tr(),
-                &mut out,
+                &raw mut out,
                 ptr::null_mut()
             ))?;
             // SequenceComplete flushes the transient handle for seq, so we do
@@ -410,7 +414,7 @@ impl EsysContext {
             ESYS_TR_NONE,
             ESYS_TR_NONE,
             persist,
-            &mut out
+            &raw mut out
         ))?;
 
         Ok(if out == ESYS_TR_NONE {
@@ -432,13 +436,13 @@ impl Deref for EsysContext {
 impl Drop for EsysContext {
     fn drop(&mut self) {
         let mut tcti = ptr::null_mut();
-        if let Err(e) = wrap_rc!(esys_sys::Esys_GetTcti(**self, &mut tcti)) {
+        if let Err(e) = wrap_rc!(esys_sys::Esys_GetTcti(**self, &raw mut tcti)) {
             log::error!("could not get inner TCTI context: {}", e);
         }
 
         unsafe {
-            esys_sys::Esys_Finalize(&mut self.0);
-            tcti_sys::Tss2_TctiLdr_Finalize(&mut tcti);
+            esys_sys::Esys_Finalize(&raw mut self.0);
+            tcti_sys::Tss2_TctiLdr_Finalize(&raw mut tcti);
         };
     }
 }

@@ -145,7 +145,8 @@ impl Session {
             pValue: std::ptr::addr_of_mut!(key_type).cast(),
             ulValueLen: key_type_size,
         };
-        let result = (self.context.C_GetAttributeValue)(self.handle, key_handle, &mut attribute, 1);
+        let result =
+            (self.context.C_GetAttributeValue)(self.handle, key_handle, &raw mut attribute, 1);
         if result != pkcs11_sys::CKR_OK {
             return Err(GetKeyError::GetKeyTypeFailed(result));
         }
@@ -245,8 +246,12 @@ impl Session {
                     .get_key_inner(class, Some(from))
                     .map_err(|_| RenameKeyError::SourceNotFound)?;
 
-                let result =
-                    (self.context.C_SetAttributeValue)(self.handle, key_handle, &attribute, 1);
+                let result = (self.context.C_SetAttributeValue)(
+                    self.handle,
+                    key_handle,
+                    &raw const attribute,
+                    1,
+                );
 
                 if result != pkcs11_sys::CKR_OK {
                     return Err(RenameKeyError::ChangeLabelFailed(result));
@@ -280,7 +285,7 @@ impl<'session> FindObjects<'session> {
     }
 }
 
-impl<'session> Iterator for FindObjects<'session> {
+impl Iterator for FindObjects<'_> {
     type Item = Result<pkcs11_sys::CK_OBJECT_HANDLE, FindObjectsError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -289,9 +294,9 @@ impl<'session> Iterator for FindObjects<'session> {
             let mut num_objects = 0;
             let result = (self.session.context.C_FindObjects)(
                 self.session.handle,
-                &mut object_handle,
+                &raw mut object_handle,
                 1,
-                &mut num_objects,
+                &raw mut num_objects,
             );
             if result != pkcs11_sys::CKR_OK {
                 return Some(Err(FindObjectsError::FindObjectsFailed(
@@ -463,10 +468,10 @@ impl Session {
                     let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
                     let result = (self.context.C_GenerateKey)(
                         self.handle,
-                        &mechanism,
+                        &raw const mechanism,
                         key_template.as_ptr().cast(),
                         key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
+                        &raw mut key_handle,
                     );
                     if result == pkcs11_sys::CKR_OK
                         && key_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE
@@ -487,10 +492,10 @@ impl Session {
                     let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
                     let result = (self.context.C_GenerateKey)(
                         self.handle,
-                        &mechanism,
+                        &raw const mechanism,
                         key_template.as_ptr().cast(),
                         key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
+                        &raw mut key_handle,
                     );
                     if result != pkcs11_sys::CKR_OK {
                         return Err(GenerateKeyError::GenerateKeyFailed(result));
@@ -539,10 +544,10 @@ impl Session {
                     let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
                     let result = (self.context.C_GenerateKey)(
                         self.handle,
-                        &mechanism,
+                        &raw const mechanism,
                         key_template.as_ptr().cast(),
                         key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
+                        &raw mut key_handle,
                     );
                     if result != pkcs11_sys::CKR_OK {
                         return Err(GenerateKeyError::GenerateKeyFailed(result));
@@ -713,7 +718,7 @@ impl Session {
                 self.handle,
                 key_template.as_ptr().cast(),
                 key_template.len().try_into().expect("usize -> CK_ULONG"),
-                &mut key_handle,
+                &raw mut key_handle,
             );
             if result != pkcs11_sys::CKR_OK {
                 return Err(ImportKeyError::CreateObjectFailed(result));
@@ -953,7 +958,7 @@ impl Session {
 
         let result = (self.context.C_GenerateKeyPair)(
             self.handle,
-            &mechanism,
+            &raw const mechanism,
             public_key_template.as_ptr().cast(),
             public_key_template
                 .len()
@@ -964,8 +969,8 @@ impl Session {
                 .len()
                 .try_into()
                 .expect("usize -> CK_ULONG"),
-            &mut public_key_handle,
-            &mut private_key_handle,
+            &raw mut public_key_handle,
+            &raw mut private_key_handle,
         );
         if result != pkcs11_sys::CKR_OK {
             return Err(GenerateKeyPairError::GenerateKeyPairFailed(result));

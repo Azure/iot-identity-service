@@ -365,7 +365,7 @@ unsafe fn sign_inner(
         pParameter: std::ptr::null(),
         ulParameterLen: 0,
     };
-    let result = (session.context.C_SignInit)(session.handle, &mechanism, handle);
+    let result = (session.context.C_SignInit)(session.handle, &raw const mechanism, handle);
     if result != pkcs11_sys::CKR_OK {
         return Err(SignError::SignInitFailed(result));
     }
@@ -378,7 +378,7 @@ unsafe fn sign_inner(
         digest.as_ptr(),
         digest.len().try_into().expect("usize -> CK_ULONG"),
         signature.as_mut_ptr(),
-        &mut signature_len,
+        &raw mut signature_len,
     );
     if result != pkcs11_sys::CKR_OK {
         return Err(SignError::SignFailed(result));
@@ -428,7 +428,7 @@ unsafe fn verify_inner(
         pParameter: std::ptr::null(),
         ulParameterLen: 0,
     };
-    let result = (session.context.C_VerifyInit)(session.handle, &mechanism, handle);
+    let result = (session.context.C_VerifyInit)(session.handle, &raw const mechanism, handle);
     if result != pkcs11_sys::CKR_OK {
         return Err(VerifyError::VerifyInitFailed(result));
     }
@@ -497,7 +497,7 @@ unsafe fn encrypt_inner(
         plaintext.as_ptr(),
         plaintext.len().try_into().expect("usize -> CK_ULONG"),
         ciphertext.as_mut_ptr(),
-        &mut ciphertext_len,
+        &raw mut ciphertext_len,
     );
     if result != pkcs11_sys::CKR_OK {
         return Err(EncryptError::EncryptFailed(result));
@@ -548,7 +548,7 @@ unsafe fn decrypt_inner(
         ciphertext.as_ptr(),
         ciphertext.len().try_into().expect("usize -> CK_ULONG"),
         plaintext.as_mut_ptr(),
-        &mut plaintext_len,
+        &raw mut plaintext_len,
     );
     if result != pkcs11_sys::CKR_OK {
         return Err(DecryptError::DecryptFailed(result));
@@ -595,7 +595,7 @@ unsafe fn get_attribute_value_byte_buf<T>(
         ulValueLen: 0,
     };
 
-    let result = C_GetAttributeValue(session.handle, object.handle, &mut attribute, 1);
+    let result = C_GetAttributeValue(session.handle, object.handle, &raw mut attribute, 1);
     if result != pkcs11_sys::CKR_OK {
         return Err(GetKeyParametersError::GetAttributeValueFailed(result));
     }
@@ -603,7 +603,7 @@ unsafe fn get_attribute_value_byte_buf<T>(
     let mut buf = vec![0_u8; attribute.ulValueLen.try_into().expect("CK_ULONG -> usize")];
     attribute.pValue = buf.as_mut_ptr().cast();
 
-    let result = C_GetAttributeValue(session.handle, object.handle, &mut attribute, 1);
+    let result = C_GetAttributeValue(session.handle, object.handle, &raw mut attribute, 1);
     if result != pkcs11_sys::CKR_OK {
         return Err(GetKeyParametersError::GetAttributeValueFailed(result));
     }
