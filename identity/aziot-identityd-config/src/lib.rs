@@ -348,7 +348,7 @@ mod tests {
     }
 
     // Checks for successful parsing of a config file containing a 'payload' in the 'provisioning' table
-    fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
+    fn check_payload(config_filename: &str, expected_payload: Option<&Payload>) {
         let s = load_settings(config_filename).unwrap();
 
         let ProvisioningType::Dps {
@@ -360,7 +360,8 @@ mod tests {
         };
 
         assert_eq!(
-            expected_payload, &actual_payload,
+            expected_payload,
+            actual_payload.as_ref(),
             "unexpected payload uri parsed from config file"
         );
     }
@@ -376,7 +377,7 @@ mod tests {
             uri: url::Url::parse("file:///tmp/simple_payload.json").unwrap(),
         });
 
-        check_payload(config_filename, &expected_payload);
+        check_payload(config_filename, expected_payload.as_ref());
     }
 
     #[test]
@@ -391,7 +392,7 @@ mod tests {
             uri: url::Url::parse("file:///tmp/complex_payload.json").expect("invalid uri"),
         });
 
-        check_payload(config_filename, &expected_payload);
+        check_payload(config_filename, expected_payload.as_ref());
     }
 
     #[test]

@@ -184,7 +184,7 @@ impl Api {
                     "handle is not for a key pair",
                 ))
             }
-        };
+        }
 
         Ok(())
     }
@@ -261,7 +261,7 @@ impl Api {
                     "handle is not for a key",
                 ))
             }
-        };
+        }
 
         Ok(())
     }

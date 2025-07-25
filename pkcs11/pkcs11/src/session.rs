@@ -315,7 +315,7 @@ impl<'session> Iterator for FindObjects<'session> {
     }
 }
 
-impl<'session> Drop for FindObjects<'session> {
+impl Drop for FindObjects<'_> {
     fn drop(&mut self) {
         unsafe {
             let _ = (self.session.context.C_FindObjectsFinal)(self.session.handle);

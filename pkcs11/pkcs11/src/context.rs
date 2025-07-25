@@ -366,8 +366,6 @@ impl Context {
                         let actual_len = actual_len.try_into().expect("CK_ULONG -> usize");
 
                         slot_ids.resize_with(actual_len, Default::default);
-
-                        continue;
                     }
 
                     result => return Err(ListSlotsError::GetSlotList(result)),
@@ -627,7 +625,10 @@ unsafe extern "C" fn lock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::
     let Ok(guard) = mutex.inner.lock() else {
         return pkcs11_sys::CKR_GENERAL_ERROR;
     };
-    let guard = std::mem::transmute(guard);
+    let guard = std::mem::transmute::<
+        std::sync::MutexGuard<'_, ()>,
+        std::option::Option<std::sync::MutexGuard<'_, ()>>,
+    >(guard);
     mutex.guard = guard;
     pkcs11_sys::CKR_OK
 }
