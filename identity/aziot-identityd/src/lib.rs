@@ -349,7 +349,8 @@ impl Api {
                     }
                 };
 
-                let payload: Option<serde_json::Value> = load_dps_request_payload(payload)?;
+                let payload: Option<serde_json::Value> =
+                    load_dps_request_payload(payload.as_ref())?;
 
                 Ok(
                     aziot_identity_common_http::get_provisioning_info::Response::Dps {
@@ -876,14 +877,14 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             crate::auth::AuthId::HostProcess(p) => Ok(match o.op_type {
                 auth::OperationType::GetModule(m) => {
                     p.name.0 == m
-                        && p.id_type.map_or(false, |i| {
+                        && p.id_type.is_some_and(|i| {
                             i.contains(&aziot_identity_common::IdType::Module)
                                 || i.contains(&aziot_identity_common::IdType::Local)
                         })
                 }
                 auth::OperationType::GetDevice => p
                     .id_type
-                    .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device)),
+                    .is_none_or(|i| i.contains(&aziot_identity_common::IdType::Device)),
                 auth::OperationType::GetAllHubModules
                 | auth::OperationType::CreateModule(_)
                 | auth::OperationType::DeleteModule(_)
@@ -920,10 +921,9 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
 
 /// Loads the payload from a `Payload` config object, returning it as a `serde_json::Value`
 pub(crate) fn load_dps_request_payload(
-    payload: &Option<Payload>,
+    payload: Option<&Payload>,
 ) -> Result<Option<serde_json::Value>, Error> {
     payload
-        .as_ref()
         .map(aziot_identityd_config::Payload::serde_json_value)
         .transpose()
         .map_err(|err| {

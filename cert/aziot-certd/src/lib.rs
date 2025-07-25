@@ -394,7 +394,7 @@ async fn create_cert_inner<'a>(
         }
 
         let (subject_name, expiry, issuer_ref) =
-            stack.get(0).map_or((subject_name, expiry, None), |x509| {
+            stack.first().map_or((subject_name, expiry, None), |x509| {
                 let issuer_expiry = x509.not_after();
 
                 (

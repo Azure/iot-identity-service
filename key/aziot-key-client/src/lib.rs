@@ -410,23 +410,17 @@ where
 
     let res: TResponse = match res_status_code {
         Some(200 | 201) => {
-            let res = serde_json::from_slice(body)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            let res = serde_json::from_slice(body).map_err(std::io::Error::other)?;
             res
         }
 
-        Some(400..=499 | 500..=599) => {
-            let res: http_common::ErrorBody<'static> = serde_json::from_slice(body)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, res.message));
+        Some(400..=599) => {
+            let res: http_common::ErrorBody<'static> =
+                serde_json::from_slice(body).map_err(std::io::Error::other)?;
+            return Err(std::io::Error::other(res.message));
         }
 
-        Some(_) | None => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "malformed HTTP response",
-            ))
-        }
+        Some(_) | None => return Err(std::io::Error::other("malformed HTTP response")),
     };
     Ok(res)
 }
@@ -488,16 +482,13 @@ where
     match res_status_code {
         Some(204) => Ok(()),
 
-        Some(400..=499 | 500..=599) => {
-            let res: http_common::ErrorBody<'static> = serde_json::from_slice(body)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            Err(std::io::Error::new(std::io::ErrorKind::Other, res.message))
+        Some(400..=599) => {
+            let res: http_common::ErrorBody<'static> =
+                serde_json::from_slice(body).map_err(std::io::Error::other)?;
+            Err(std::io::Error::other(res.message))
         }
 
-        Some(_) | None => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "malformed HTTP response",
-        )),
+        Some(_) | None => Err(std::io::Error::other("malformed HTTP response")),
     }
 }
 
@@ -513,7 +504,7 @@ fn try_parse_response(
         Ok(httparse::Status::Complete(body_start_pos)) => body_start_pos,
         Ok(httparse::Status::Partial) if new_read == 0 => return Ok(None),
         Ok(httparse::Status::Partial) => return Err(std::io::ErrorKind::UnexpectedEof.into()),
-        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+        Err(err) => return Err(std::io::Error::other(err)),
     };
 
     let res_status_code = res.code;
@@ -522,15 +513,11 @@ fn try_parse_response(
     let mut is_json = false;
     for header in &headers {
         if header.name.eq_ignore_ascii_case("content-length") {
-            let value = std::str::from_utf8(header.value)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
-            let value: usize = value
-                .parse()
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            let value = std::str::from_utf8(header.value).map_err(std::io::Error::other)?;
+            let value: usize = value.parse().map_err(std::io::Error::other)?;
             content_length = Some(value);
         } else if header.name.eq_ignore_ascii_case("content-type") {
-            let value = std::str::from_utf8(header.value)
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            let value = std::str::from_utf8(header.value).map_err(std::io::Error::other)?;
             if value == "application/json" {
                 is_json = true;
             }
@@ -540,10 +527,7 @@ fn try_parse_response(
     if (res_status_code == Some(204) && content_length.unwrap_or_default() != 0)
         || (res_status_code != Some(204) && !is_json)
     {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "malformed HTTP response",
-        ));
+        return Err(std::io::Error::other("malformed HTTP response"));
     }
 
     let body = &buf[body_start_pos..];

@@ -206,7 +206,7 @@ pub struct CertIssuanceOptions {
     #[serde(flatten)]
     pub method: CertIssuanceMethod,
 
-    /// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
+    /// Number of days between cert issuance and expiry. Applies to `local_ca` and `self_signed` issuance methods.
     /// If not provided, defaults to 30.
     #[serde(default, deserialize_with = "deserialize_expiry_days")]
     pub expiry_days: Option<u32>,

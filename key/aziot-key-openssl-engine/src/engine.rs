@@ -381,8 +381,6 @@ unsafe extern "C" fn engine_pkey_meths(
             }
         }
     });
-    match result {
-        Ok(result) => result,
-        Err(()) => 0,
-    }
+
+    result.unwrap_or_default()
 }

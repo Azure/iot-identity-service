@@ -704,7 +704,7 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
-        let payload: Option<serde_json::Value> = load_dps_request_payload(&payload)?;
+        let payload: Option<serde_json::Value> = load_dps_request_payload(payload.as_ref())?;
 
         let response = dps_request
             .register(scope_id, registration_id, payload)

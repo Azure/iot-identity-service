@@ -122,10 +122,8 @@ unsafe extern "C" fn aziot_key_rsa_method_priv_enc(
 
         Ok(signature_len)
     });
-    match result {
-        Ok(signature_len) => signature_len,
-        Err(()) => -1,
-    }
+
+    result.unwrap_or(-1)
 }
 
 unsafe extern "C" fn aziot_key_rsa_method_priv_dec(
