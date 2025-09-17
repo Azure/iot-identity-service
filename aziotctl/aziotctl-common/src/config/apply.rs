@@ -329,6 +329,7 @@ pub fn run(
 
         aziot_identityd_config::Provisioning {
             provisioning,
+            retry_seconds: None,
             local_gateway_hostname: parent_hostname,
         }
     };

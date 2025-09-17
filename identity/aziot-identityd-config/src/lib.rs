@@ -224,6 +224,9 @@ pub enum DpsAttestationMethod {
 pub struct Provisioning {
     pub local_gateway_hostname: Option<String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_seconds: Option<u64>,
+
     #[serde(flatten)]
     pub provisioning: ProvisioningType,
 }
