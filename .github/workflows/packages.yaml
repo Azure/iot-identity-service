@@ -93,10 +93,10 @@ jobs:
         runner:
         - arch: amd64
           pool: iot-identity-1es-hosted-linux-amd64
-          image: agent-aziotedge-ubuntu-22.04-msmoby
+          image: agent-aziotedge-ubuntu-22.04
         - arch: aarch64
           pool: iot-identity-1es-hosted-linux-arm64
-          image: agent-aziotedge-ubuntu-22.04-arm64-msmoby
+          image: agent-aziotedge-ubuntu-22.04-arm64
 
     runs-on:
     - self-hosted
