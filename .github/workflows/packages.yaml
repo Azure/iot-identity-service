@@ -109,7 +109,7 @@ jobs:
         submodules: 'recursive'
 
     - name: 'Run'
-      uses: 'canonical/action-build@v1'
+      uses: 'canonical/action-build@v1' 
       id: 'snapcraft'
       with:
         build-info: true
