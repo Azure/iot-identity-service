@@ -118,6 +118,7 @@ jobs:
         echo "XDG_STATE_HOME: $XDG_STATE_HOME"
         echo "Contents of $XDG_RUNTIME_DIR:"
         ls -al $XDG_RUNTIME_DIR
+        echo '==============================='
         echo "Contents of /run/user/$(id -u):"
         ls -al /run/user/$(id -u)
 
