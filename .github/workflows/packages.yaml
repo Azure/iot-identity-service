@@ -108,6 +108,19 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: 'Dump XDG info'
+      run: |
+        set -x
+        echo "XDG_CACHE_HOME: $XDG_CACHE_HOME"
+        echo "XDG_CONFIG_HOME: $XDG_CONFIG_HOME"
+        echo "XDG_DATA_HOME: $XDG_DATA_HOME"
+        echo "XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+        echo "XDG_STATE_HOME: $XDG_STATE_HOME"
+        echo "Contents of $XDG_RUNTIME_DIR:"
+        ls -al $XDG_RUNTIME_DIR
+        echo "Contents of /run/user/$(id -u):"
+        ls -al /run/user/$(id -u)
+
     - name: 'Run'
       uses: 'snapcore/action-build@v1'
       id: 'snapcraft'
