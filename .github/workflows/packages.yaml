@@ -108,6 +108,12 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: 'Configure runner for snapcraft'
+      run: |
+        # Create a runtime directory for this user.
+        sudo mkdir -p /run/user/$(id -u)
+        sudo chown $(id -u):$(id -g) /run/user/$(id -u)
+
     - name: 'Run'
       uses: 'snapcore/action-build@v1'
       id: 'snapcraft'
