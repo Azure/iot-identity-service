@@ -210,12 +210,10 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
 
             apt-get update
             apt-get upgrade -y
-
             apt-get install -y \
                 acl cmake cpio curl g++ gcc genisoimage git jq libclang1 libssl-dev llvm-dev make \
                 pigz pkg-config python3-distutils python3-pip qemu-utils rpm tar wget zstd
 
-            # Install Go 1.23
             GO_VERSION=1.23.0
             [ "$ARCH" == 'aarch64' ] && GO_ARCH='arm64' || GO_ARCH='amd64'
             mkdir -p /usr/local/go

@@ -93,10 +93,10 @@ jobs:
         runner:
         - arch: amd64
           pool: iot-identity-1es-hosted-linux-amd64
-          image: agent-aziotedge-ubuntu-22.04-msmoby
+          image: agent-aziotedge-ubuntu-22.04
         - arch: aarch64
           pool: iot-identity-1es-hosted-linux-arm64
-          image: agent-aziotedge-ubuntu-22.04-arm64-msmoby
+          image: agent-aziotedge-ubuntu-22.04-arm64
 
     runs-on:
     - self-hosted
@@ -115,7 +115,7 @@ jobs:
         sudo chown $(id -u):$(id -g) /run/user/$(id -u)
 
     - name: 'Run'
-      uses: 'snapcore/action-build@v1'
+      uses: 'canonical/action-build@v1'
       id: 'snapcraft'
       with:
         build-info: true
