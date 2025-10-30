@@ -105,7 +105,7 @@ case "$OS" in
             "packages/$TARGET_DIR/"
         ;;
 
-    'mariner:2'|'azurelinux:3')
+    'azurelinux:3')
         case "$ARCH" in
             'arm32v7')
                 echo "Cross-compilation on $OS is not supported" >&2
@@ -133,11 +133,6 @@ case "$OS" in
         popd
 
         case "$OS" in
-            'mariner:2')
-                UsePreview=n
-                TARGET_DIR="mariner2/$ARCH"
-                PackageExtension="cm2"
-                ;;
             'azurelinux:3')
                 UsePreview=n
                 TARGET_DIR="azurelinux3/$ARCH"
