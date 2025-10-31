@@ -138,20 +138,31 @@ pub async fn main(
     }
 
     // Attempt to reprovision the device. Failure to reprovision on startup means that provisioning
-    // with IoT Hub failed and no valid backup could be loaded. Treat this as a fatal error.
+    // with IoT Hub failed and no valid backup could be loaded.
     {
         let mut api = api.lock().await;
-
-        if let Err(err) = api
-            .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup, None)
-            .await
-        {
-            log::error!(
-                "Failed to provision with IoT Hub, and no valid device backup was found: {}",
-                err
-            );
-
-            return Err(err.into());
+        let retry_secs = api.settings.provisioning.retry_seconds.unwrap_or(0);
+        loop {
+            match api
+                .reprovision_device(auth::AuthId::LocalRoot, ReprovisionTrigger::Startup, None)
+                .await
+            {
+                Ok(_) => break,
+                Err(err) => {
+                    let retry_msg = if retry_secs == 0 {
+                        String::new()
+                    } else {
+                        format!(" Retrying in {retry_secs} seconds.")
+                    };
+                    log::error!(
+                        "Failed to provision with IoT Hub, and no valid device backup was found: {err}.{retry_msg}"
+                    );
+                    if retry_secs == 0 {
+                        return Err(err.into());
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(retry_secs)).await;
+                }
+            }
         }
     }
 
