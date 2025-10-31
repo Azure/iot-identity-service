@@ -204,7 +204,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 llvm-dev pkg-config:$arch_alias
             ;;
 
-        'mariner:2:amd64'|'mariner:2:aarch64'|'azurelinux:3:amd64'|'azurelinux:3:aarch64')
+        'azurelinux:3:amd64'|'azurelinux:3:aarch64')
             export DEBIAN_FRONTEND=noninteractive
             export TZ=UTC
 
@@ -224,10 +224,6 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
             touch /.mariner-toolkit-ignore-dockerenv
 
             case "$OS" in
-                'mariner:2')
-                    BranchTag='2.0-stable'
-                    ;;
-
                 'azurelinux:3')
                     BranchTag='3.0-stable'
                     ;;
