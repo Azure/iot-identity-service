@@ -1,8 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 /// URI query parameter that identifies module identity type.
 pub const ID_TYPE_AZIOT: &str = "aziot";
 
@@ -98,8 +95,6 @@ impl std::fmt::Display for AuthenticationType {
     }
 }
 
-pub struct Uid(u32);
-
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum IdType {
@@ -126,7 +121,7 @@ impl std::fmt::Display for LocalIdAttr {
         match self {
             LocalIdAttr::Client => write!(f, "client")?,
             LocalIdAttr::Server => write!(f, "server")?,
-        };
+        }
 
         Ok(())
     }

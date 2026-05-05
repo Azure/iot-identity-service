@@ -1,17 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 fn main() {
-    println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-env-changed=VENDOR_PREFIX");
-    println!("cargo:rerun-if-env-changed=VENDOR_PKGCONFIG");
+    println!("cargo::rerun-if-changed=wrapper.h");
+    println!("cargo::rerun-if-env-changed=VENDOR_PREFIX");
+    println!("cargo::rerun-if-env-changed=VENDOR_PKGCONFIG");
 
     if let Some((fakeroot, pkgconfig)) =
         std::env::var_os("VENDOR_PREFIX").zip(std::env::var_os("VENDOR_PKGCONFIG"))
+        && std::path::Path::new(&fakeroot).exists()
     {
-        if std::path::Path::new(&fakeroot).exists() {
+        unsafe {
             std::env::set_var("PKG_CONFIG_SYSROOT_DIR", fakeroot);
             std::env::set_var("PKG_CONFIG_PATH", pkgconfig);
         }
@@ -23,11 +21,11 @@ fn main() {
         .unwrap();
 
     for lib in lib_cfg.libs {
-        println!("cargo:rustc-link-lib={lib}");
+        println!("cargo::rustc-link-lib={lib}");
     }
 
     for path in lib_cfg.link_paths {
-        println!("cargo:rustc-link-search={}", path.to_str().unwrap());
+        println!("cargo::rustc-link-search={}", path.to_str().unwrap());
     }
 
     let bindings = bindgen::Builder::default()

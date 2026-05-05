@@ -2,23 +2,27 @@
 name = "mock-iot-server"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
+
 
 [dependencies]
-chrono = "0.4"
-clap = { version = "4", features = ["derive"] }
-http = "0.2"
-hyper = { version = "0.14", features = ["http1", "server"] }
-lazy_static = "1.4"
-openssl = "0.10"
-percent-encoding = "2"
-regex = "1"
-serde = "1"
-serde_json = "1"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
-tokio-openssl = "0.6"
-uuid = { version = "1", features = ["v4"] }
+bytes = { workspace = true }
+clap = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+openssl = { workspace = true }
+percent-encoding = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
 
 aziot-cloud-client-async = { path = "../aziot-cloud-client-async" }
 aziot-identity-common = { path = "../aziot-identity-common" }
 test-common = { path = "../../test-common" }
+
+
+[lints]
+workspace = true

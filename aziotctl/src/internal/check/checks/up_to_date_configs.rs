@@ -3,7 +3,7 @@
 use anyhow::anyhow;
 use serde::Serialize;
 
-use aziotctl_common::check_last_modified::{check_last_modified, LastModifiedError};
+use aziotctl_common::check_last_modified::{LastModifiedError, check_last_modified};
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 

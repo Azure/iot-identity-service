@@ -20,7 +20,7 @@ pub fn get_path(
     path.push("certs");
 
     if !path.exists() && create_dir_if_not_exist {
-        let () = std::fs::create_dir_all(&path)?;
+        () = std::fs::create_dir_all(&path)?;
     }
 
     let id_sanitized: String = cert_id

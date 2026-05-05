@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::sync::LazyLock;
+
 impl crate::ex_data::HasExData<crate::ex_data::KeyExData> for openssl_sys::EC_KEY {
     unsafe fn index() -> openssl::ex_data::Index<Self, crate::ex_data::KeyExData> {
         crate::ex_data::ex_indices().ec_key
@@ -7,7 +9,7 @@ impl crate::ex_data::HasExData<crate::ex_data::KeyExData> for openssl_sys::EC_KE
 }
 
 #[cfg(ossl300)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
     _to: *mut openssl_sys::CRYPTO_EX_DATA,
@@ -17,12 +19,14 @@ unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) -> std::os::raw::c_int {
-    crate::ex_data::dup::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(from_d, idx);
+    unsafe {
+        crate::ex_data::dup::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(from_d, idx);
+    }
     1
 }
 
 #[cfg(not(ossl300))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
     _to: *mut openssl_sys::CRYPTO_EX_DATA,
@@ -32,11 +36,13 @@ unsafe extern "C" fn aziot_key_dupf_ec_key_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) -> std::os::raw::c_int {
-    crate::ex_data::dup::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(from_d, idx);
+    unsafe {
+        crate::ex_data::dup::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(from_d, idx);
+    }
     1
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_freef_ec_key_ex_data(
     _parent: *mut std::ffi::c_void,
@@ -46,66 +52,67 @@ unsafe extern "C" fn aziot_key_freef_ec_key_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) {
-    crate::ex_data::free::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(ptr, idx);
+    unsafe {
+        crate::ex_data::free::<openssl_sys::EC_KEY, crate::ex_data::KeyExData>(ptr, idx);
+    }
 }
 
 #[cfg(ossl110)]
-pub(super) unsafe fn get_evp_ec_method(
-) -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
+pub(super) fn get_evp_ec_method() -> Result<*const openssl_sys2::EVP_PKEY_METHOD, openssl2::Error> {
     // The default EC method is good enough.
-    let openssl_method = openssl2::openssl_returns_nonnull_const(
-        openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_EC),
-    )?;
+    let openssl_method = openssl2::openssl_returns_nonnull_const(unsafe {
+        openssl_sys2::EVP_PKEY_meth_find(openssl_sys::EVP_PKEY_EC)
+    })?;
     Ok(openssl_method)
 }
 
 #[cfg(ossl110)]
-pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::EC_KEY_METHOD {
-    static mut RESULT: *const openssl_sys2::EC_KEY_METHOD = std::ptr::null();
-    static RESULT_INIT: std::sync::Once = std::sync::Once::new();
-
-    RESULT_INIT.call_once(|| {
-        let openssl_ec_key_method = openssl_sys2::EC_KEY_OpenSSL();
-        let aziot_key_ec_key_method = openssl_sys2::EC_KEY_METHOD_new(openssl_ec_key_method);
+pub(super) fn aziot_key_ec_key_method() -> &'static openssl_sys2::EC_KEY_METHOD {
+    static RESULT: LazyLock<&'static openssl_sys2::EC_KEY_METHOD> = LazyLock::new(|| {
+        let openssl_ec_key_method = unsafe { openssl_sys2::EC_KEY_OpenSSL() };
+        let aziot_key_ec_key_method =
+            unsafe { openssl_sys2::EC_KEY_METHOD_new(openssl_ec_key_method) };
 
         let mut openssl_ec_key_sign = None;
-        openssl_sys2::EC_KEY_METHOD_get_sign(
-            aziot_key_ec_key_method,
-            &mut openssl_ec_key_sign,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        );
-        openssl_sys2::EC_KEY_METHOD_set_sign(
-            aziot_key_ec_key_method,
-            openssl_ec_key_sign, // Reuse openssl's function to compute the digest
-            None, // Disable sign_setup because aziot_key_ec_key_sign_sig doesn't need the pre-computed kinv and rp
-            Some(aziot_key_ec_key_sign_sig),
-        );
+        unsafe {
+            openssl_sys2::EC_KEY_METHOD_get_sign(
+                aziot_key_ec_key_method,
+                &raw mut openssl_ec_key_sign,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            );
+            openssl_sys2::EC_KEY_METHOD_set_sign(
+                aziot_key_ec_key_method,
+                openssl_ec_key_sign, // Reuse openssl's function to compute the digest
+                None, // Disable sign_setup because aziot_key_ec_key_sign_sig doesn't need the pre-computed kinv and rp
+                Some(aziot_key_ec_key_sign_sig),
+            );
+        }
 
-        RESULT = aziot_key_ec_key_method.cast_const();
+        unsafe { &*aziot_key_ec_key_method }
     });
 
-    RESULT
+    *RESULT
 }
 
 #[cfg(not(ossl110))]
-pub(super) unsafe fn aziot_key_ec_key_method() -> *const openssl_sys2::ECDSA_METHOD {
-    static mut RESULT: *const openssl_sys2::ECDSA_METHOD = std::ptr::null();
-    static RESULT_INIT: std::sync::Once = std::sync::Once::new();
+pub(super) fn aziot_key_ec_key_method() -> *const openssl_sys2::ECDSA_METHOD {
+    static RESULT: LazyLock<*const openssl_sys2::EC_KEY_METHOD> = LazyLock::new(|| {
+        let openssl_ec_key_method = unsafe { openssl_sys2::ECDSA_OpenSSL() };
+        let aziot_key_ec_key_method =
+            unsafe { openssl_sys2::ECDSA_METHOD_new(openssl_ec_key_method) };
 
-    RESULT_INIT.call_once(|| {
-        let openssl_ec_key_method = openssl_sys2::ECDSA_OpenSSL();
-        let aziot_key_ec_key_method = openssl_sys2::ECDSA_METHOD_new(openssl_ec_key_method);
+        unsafe {
+            openssl_sys2::ECDSA_METHOD_set_sign(
+                aziot_key_ec_key_method,
+                Some(aziot_key_ec_key_sign_sig),
+            );
+        }
 
-        openssl_sys2::ECDSA_METHOD_set_sign(
-            aziot_key_ec_key_method,
-            Some(aziot_key_ec_key_sign_sig),
-        );
-
-        RESULT = aziot_key_ec_key_method.cast_const();
+        aziot_key_ec_key_method.cast_const()
     });
 
-    RESULT
+    *RESULT
 }
 
 unsafe extern "C" fn aziot_key_ec_key_sign_sig(
@@ -116,7 +123,7 @@ unsafe extern "C" fn aziot_key_ec_key_sign_sig(
     eckey: *mut openssl_sys::EC_KEY,
 ) -> *mut openssl_sys::ECDSA_SIG {
     let result = super::r#catch(Some(|| super::Error::AZIOT_KEY_EC_SIGN), || {
-        let crate::ex_data::KeyExData { client, handle } = crate::ex_data::get(&*eckey)?;
+        let crate::ex_data::KeyExData { client, handle } = unsafe { crate::ex_data::get(&*eckey)? };
 
         let mechanism = aziot_key_common::SignMechanism::Ecdsa;
 
@@ -126,7 +133,7 @@ unsafe extern "C" fn aziot_key_ec_key_sign_sig(
         // So we need to truncate the digest ourselves.
         let dlen = {
             let eckey: &openssl::ec::EcKeyRef<openssl::pkey::Private> =
-                foreign_types_shared::ForeignTypeRef::from_ptr(eckey);
+                unsafe { foreign_types_shared::ForeignTypeRef::from_ptr(eckey) };
             let group = eckey.group();
             let mut order = openssl::bn::BigNum::new()?;
             let mut big_num_context = openssl::bn::BigNumContext::new()?;
@@ -145,7 +152,8 @@ unsafe extern "C" fn aziot_key_ec_key_sign_sig(
             }
         };
 
-        let digest = std::slice::from_raw_parts(dgst, dlen.try_into().expect("c_int -> usize"));
+        let digest =
+            unsafe { std::slice::from_raw_parts(dgst, dlen.try_into().expect("c_int -> usize")) };
 
         let signature = client.sign(handle, mechanism, digest)?;
         let signature = openssl::ecdsa::EcdsaSig::from_der(&signature)?;

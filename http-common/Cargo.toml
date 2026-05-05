@@ -2,35 +2,52 @@
 name = "http-common"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
+
 
 [dependencies]
-async-trait = "0.1"
-base64 = "0.21"
-futures-util = "0.3"
-headers = { version = "0.3" }
-http = "0.2"
-hyper = { version = "0.14", features = ["client", "http1", "server", "stream", "tcp"] }
-hyper-openssl = { version = "0.9" }
-hyper-proxy = { version = "0.9", features = ["openssl-tls"], default-features = false }
-libc = "0.2"
-log = "0.4"
-nix = "0.26"
-openssl = { version = "0.10" }
-openssl-sys = { version = "0.9" }
-percent-encoding = "2"
-rand = "0.8.5"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", features = ["net", "rt-multi-thread", "sync", "time"] }
-tracing = { version = "0.1", features = ["log"] }
-url = { version = "2", features = ["serde"] }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+bytes = { workspace = true }
+futures-core = { workspace = true }
+futures-util = { workspace = true }
+headers = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-openssl = { workspace = true }
+hyper-proxy2 = { workspace = true }
+hyper-util = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true, features = [
+	"fs",
+	"process",
+	"socket",
+] }
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
+percent-encoding = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tower-service = { workspace = true }
+url = { workspace = true }
+
 
 [dev-dependencies]
+env_logger = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
 aziot-identity-common = { path = "../identity/aziot-identity-common" }
-env_logger = "0.10"
-serde_json = "1"
-tokio = { version = "1", features = ["net", "rt", "sync", "time", "macros"] }
+
 
 [features]
 no-socket-throttle = []
+
+
+[lints]
+workspace = true

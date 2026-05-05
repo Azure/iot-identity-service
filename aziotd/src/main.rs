@@ -5,16 +5,12 @@
 //! this one aziotd binary. The aziotd binary looks at its command-line args to figure out
 //! which service it's being invoked as, and runs the code of that service accordingly.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    let_underscore_drop,
-    clippy::let_unit_value
-)]
+use std::error::Error as StdError;
+
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
 
 mod error;
-
 use error::{Error, ErrorKind};
 
 #[tokio::main]
@@ -27,7 +23,7 @@ async fn main() {
 
         let mut source = std::error::Error::source(&err.0);
         while let Some(err) = source {
-            log::error!("caused by: {}", err);
+            log::error!("caused by: {err}");
             source = std::error::Error::source(err);
         }
 
@@ -137,7 +133,7 @@ where
         Some("aziotd") => process_name_from_args(args),
 
         _ => Err(ErrorKind::GetProcessName(
-            format!("unrecognized process name {process_name:?}").into(),
+            format!("unrecognized process name {}", process_name.display()).into(),
         )
         .into()),
     }
@@ -171,16 +167,16 @@ async fn run<TConfig, TFuture, TServer>(
 where
     TConfig: serde::de::DeserializeOwned,
     TFuture: std::future::Future<
-        Output = Result<(http_common::Incoming, TServer), Box<dyn std::error::Error>>,
-    >,
+            Output = Result<(http_common::Incoming, TServer), Box<dyn std::error::Error>>,
+        >,
     TServer: hyper::service::Service<
-            hyper::Request<hyper::Body>,
-            Response = hyper::Response<hyper::Body>,
+            hyper::Request<hyper::body::Incoming>,
+            Response = hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>,
             Error = std::convert::Infallible,
         > + Clone
         + Send
         + 'static,
-    <TServer as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+    <TServer as hyper::service::Service<hyper::Request<hyper::body::Incoming>>>::Future: Send,
 {
     log::info!("Starting service...");
     log::info!(
@@ -206,7 +202,7 @@ where
     // Channel to gracefully shut down the server. It's currently not used.
     let (_shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
-    let () = incoming
+    () = incoming
         .serve(server, shutdown_rx)
         .await
         .map_err(|err| ErrorKind::Service(Box::new(err)))?;
@@ -291,7 +287,7 @@ mod tests {
             &["/usr/libexec/aziot/aziotd", "foo"][..],
         ] {
             let mut input = input.iter().copied().map(std::ffi::OsStr::new);
-            let _ = super::process_name_from_args(&mut input).unwrap_err();
+            _ = super::process_name_from_args(&mut input).unwrap_err();
         }
     }
 }

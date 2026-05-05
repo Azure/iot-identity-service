@@ -6,7 +6,6 @@ members = [
 	"aziotd",
 
 	"cert/aziot-cert-client-async",
-	"cert/aziot-cert-common",
 	"cert/aziot-cert-common-http",
 	"cert/aziot-certd-config",
 	"cert/aziot-certd",
@@ -57,6 +56,125 @@ members = [
 	"tpm/tss-minimal",
 ]
 resolver = "2"
+
+
+[workspace.dependencies]
+anyhow = "1.0.34"
+async-recursion = "1"
+async-trait = "0.1.42"
+
+backtrace = "0.3"
+base64 = "0.22"
+bindgen = { version = "0.72", features = ["runtime"], default-features = false }
+byte-unit = "5"
+bytes = "1"
+
+cc = "1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+colored = "3"
+
+env_logger = "0.11"
+erased-serde = "0.4"
+
+foreign-types = "0.3"
+foreign-types-shared = "0.1"
+futures-core = "0.3"
+futures-util = "0.3"
+
+headers = "0.4"
+hex = "0.4"
+hmac = "0.13"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
+httparse = "1"
+hyper = { version = "1", features = [
+	"client",
+	"http1",
+	"server",
+] }
+hyper-openssl = { version = "0.10", features = [
+	"client-legacy",
+	"tokio",
+] }
+hyper-proxy2 = { version = "0.1", features = ["openssl-tls"], default-features = false }
+hyper-util = { version = "0.1", features = [
+	"client",
+	"client-legacy",
+	"http1",
+	"service",
+	"tokio",
+] }
+
+itertools = "0.14"
+
+libc = "0.2"
+log = { version = "0.4", features = ["std"] }
+
+nix = "0.31"
+notify-debouncer-mini = "0.7"
+
+openssl = "0.10"
+openssl-errors = "0.2"
+openssl-sys = "0.9.86" # for openssl_sys::PKCS7
+
+paste = "1"
+percent-encoding = "2"
+# NOTE: Version >= 0.3.20 necessary for cross-builds.
+# Ref: https://github.com/rust-lang/pkg-config-rs/blob/master/CHANGELOG.md#0320---2021-09-25
+pkg-config = "0.3.20"
+
+rand = "0.10"
+regex = "1"
+
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.59"
+serde_with = "3"
+serial_test = "3"
+sha2 = "0.11"
+sysinfo = "0.38"
+
+tokio = { version = "1", features = [
+	"fs",
+	"io-util",
+	"macros",
+	"net",
+	"parking_lot",
+	"rt",
+	"rt-multi-thread",
+	"sync",
+	"time",
+] }
+tokio-openssl = "0.6"
+toml = "1"
+tower-service = "0.3"
+tracing = { version = "0.1", features = ["log"] }
+
+url = { version = "2", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+
+wildmatch = "2"
+
+
+[workspace.lints.rust]
+rust_2018_idioms = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+default_trait_access = "allow"
+let_and_return = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+similar_names = "allow"
+struct_field_names = "allow"
+too_many_arguments = "allow"
+too_many_lines = "allow"
+type_complexity = "allow"
+
 
 # Don't let panics from callbacks cross FFI boundary
 

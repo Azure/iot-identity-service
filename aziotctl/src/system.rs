@@ -2,11 +2,11 @@
 
 use std::ffi::{OsStr, OsString};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 
 use aziotctl_common::system::{
-    get_status, get_system_logs, restart, set_log_level, stop, SERVICE_DEFINITIONS,
+    SERVICE_DEFINITIONS, get_status, get_system_logs, restart, set_log_level, stop,
 };
 
 #[derive(clap::Subcommand)]
@@ -89,7 +89,7 @@ fn logs(options: &LogsOptions) -> Result<()> {
 
 async fn reprovision(uri: &url::Url) -> Result<()> {
     let connector =
-        http_common::Connector::new(uri).map_err(|err| anyhow!("Invalid URI {}: {}", uri, err))?;
+        http_common::Connector::new(uri).map_err(|err| anyhow!("Invalid URI {uri}: {err}"))?;
     let client = aziot_identity_client_async::Client::new(
         aziot_identity_common_http::ApiVersion::V2021_12_01,
         connector,
@@ -102,6 +102,6 @@ async fn reprovision(uri: &url::Url) -> Result<()> {
             Ok(())
         }
 
-        Err(err) => Err(anyhow!("Failed to reprovision: {}", err)),
+        Err(err) => Err(anyhow!("Failed to reprovision: {err}")),
     }
 }

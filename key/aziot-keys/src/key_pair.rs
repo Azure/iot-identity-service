@@ -6,21 +6,18 @@ pub(crate) unsafe extern "C" fn create_key_pair_if_not_exists(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
             id
         };
 
-        let preferred_algorithms =
-            PreferredAlgorithm::from_str(preferred_algorithms).map_err(|err| {
+        let preferred_algorithms = (unsafe { PreferredAlgorithm::from_str(preferred_algorithms) })
+            .map_err(|err| {
                 crate::implementation::err_invalid_parameter("preferred_algorithms", err)
             })?;
 
@@ -45,13 +42,10 @@ pub(crate) unsafe extern "C" fn move_key_pair(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let from = {
-            if from.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "from",
-                    "expected non-NULL",
-                ));
-            }
-            let from = std::ffi::CStr::from_ptr(from);
+            let from = (unsafe { from.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("from", "expected non-NULL")
+            })?;
+            let from = unsafe { std::ffi::CStr::from_ptr(from) };
             let from = from
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("from", err))?;
@@ -60,13 +54,10 @@ pub(crate) unsafe extern "C" fn move_key_pair(
         };
 
         let to = {
-            if to.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "to",
-                    "expected non-NULL",
-                ));
-            }
-            let to = std::ffi::CStr::from_ptr(to);
+            let to = (unsafe { to.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("to", "expected non-NULL")
+            })?;
+            let to = unsafe { std::ffi::CStr::from_ptr(to) };
             let to = to
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("to", err))?;
@@ -83,13 +74,10 @@ pub(crate) unsafe extern "C" fn load_key_pair(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -117,13 +105,10 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -143,9 +128,11 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
             crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM => {
                 let expected_value_len =
                     std::mem::size_of::<crate::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM>();
-                let actual_value_len = *value_len_out.as_ref();
+                let actual_value_len = unsafe { *value_len_out.as_ref() };
 
-                *value_len_out.as_mut() = expected_value_len;
+                unsafe {
+                    *value_len_out.as_mut() = expected_value_len;
+                }
 
                 if !value.is_null() {
                     if actual_value_len < expected_value_len {
@@ -155,7 +142,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                         ));
                     }
 
-                    let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
+                    let value_out =
+                        unsafe { std::slice::from_raw_parts_mut(value, actual_value_len) };
 
                     let value = match key_pair {
                         KeyPair::FileSystem(public_key, _) => {
@@ -202,9 +190,11 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                 let curve_oid = curve.as_oid_der();
 
                 let expected_value_len = curve_oid.len();
-                let actual_value_len = *value_len_out.as_ref();
+                let actual_value_len = unsafe { *value_len_out.as_ref() };
 
-                *value_len_out.as_mut() = expected_value_len;
+                unsafe {
+                    *value_len_out.as_mut() = expected_value_len;
+                }
 
                 if !value.is_null() {
                     if actual_value_len < expected_value_len {
@@ -214,7 +204,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                         ));
                     }
 
-                    let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
+                    let value_out =
+                        unsafe { std::slice::from_raw_parts_mut(value, actual_value_len) };
 
                     value_out[..expected_value_len].copy_from_slice(curve_oid);
                 }
@@ -235,9 +226,11 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                 )?;
 
                 let expected_value_len = point.len();
-                let actual_value_len = *value_len_out.as_ref();
+                let actual_value_len = unsafe { *value_len_out.as_ref() };
 
-                *value_len_out.as_mut() = expected_value_len;
+                unsafe {
+                    *value_len_out.as_mut() = expected_value_len;
+                }
 
                 if !value.is_null() {
                     if actual_value_len < expected_value_len {
@@ -247,7 +240,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                         ));
                     }
 
-                    let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
+                    let value_out =
+                        unsafe { std::slice::from_raw_parts_mut(value, actual_value_len) };
 
                     value_out[..expected_value_len].copy_from_slice(&point);
                 }
@@ -261,9 +255,11 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                 let modulus = rsa.n().to_vec();
 
                 let expected_value_len = modulus.len();
-                let actual_value_len = *value_len_out.as_ref();
+                let actual_value_len = unsafe { *value_len_out.as_ref() };
 
-                *value_len_out.as_mut() = expected_value_len;
+                unsafe {
+                    *value_len_out.as_mut() = expected_value_len;
+                }
 
                 if !value.is_null() {
                     if actual_value_len < expected_value_len {
@@ -273,7 +269,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                         ));
                     }
 
-                    let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
+                    let value_out =
+                        unsafe { std::slice::from_raw_parts_mut(value, actual_value_len) };
 
                     value_out[..expected_value_len].copy_from_slice(&modulus);
                 }
@@ -287,9 +284,11 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                 let exponent = rsa.e().to_vec();
 
                 let expected_value_len = exponent.len();
-                let actual_value_len = *value_len_out.as_ref();
+                let actual_value_len = unsafe { *value_len_out.as_ref() };
 
-                *value_len_out.as_mut() = expected_value_len;
+                unsafe {
+                    *value_len_out.as_mut() = expected_value_len;
+                }
 
                 if !value.is_null() {
                     if actual_value_len < expected_value_len {
@@ -299,7 +298,8 @@ pub(crate) unsafe extern "C" fn get_key_pair_parameter(
                         ));
                     }
 
-                    let value_out = std::slice::from_raw_parts_mut(value, actual_value_len);
+                    let value_out =
+                        unsafe { std::slice::from_raw_parts_mut(value, actual_value_len) };
 
                     value_out[..expected_value_len].copy_from_slice(&exponent);
                 }
@@ -320,13 +320,10 @@ pub(crate) unsafe extern "C" fn delete_key_pair(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -356,7 +353,7 @@ pub(crate) unsafe fn sign(
                 (crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA, Ok(ec_key), _) => {
                     let signature_len = {
                         let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
-                        let signature_len = openssl_sys2::ECDSA_size(ec_key);
+                        let signature_len = unsafe { openssl_sys2::ECDSA_size(ec_key) };
                         let signature_len = signature_len.try_into().map_err(|err| {
                             crate::implementation::err_external(format!(
                                 "ECDSA_size returned invalid value: {err}"
@@ -388,7 +385,7 @@ pub(crate) unsafe fn sign(
                     })?;
                     let ec_key = foreign_types_shared::ForeignType::as_ptr(&ec_key);
 
-                    let signature_len = openssl_sys2::ECDSA_size(ec_key);
+                    let signature_len = unsafe { openssl_sys2::ECDSA_size(ec_key) };
                     let signature_len = signature_len.try_into().map_err(|err| {
                         crate::implementation::err_external(format!(
                             "ECDSA_size returned invalid value: {err}"
@@ -448,7 +445,7 @@ pub(crate) unsafe fn encrypt(
                     return Err(crate::implementation::err_invalid_parameter(
                         "mechanism",
                         "unrecognized value",
-                    ))
+                    ));
                 }
             };
 
@@ -472,7 +469,7 @@ pub(crate) unsafe fn encrypt(
             return Err(crate::implementation::err_invalid_parameter(
                 "mechanism",
                 "unrecognized value",
-            ))
+            ));
         }
 
         KeyPair::Pkcs11(pkcs11::KeyPair::Rsa(public_key, private_key)) => {
@@ -485,7 +482,7 @@ pub(crate) unsafe fn encrypt(
                     return Err(crate::implementation::err_invalid_parameter(
                         "mechanism",
                         "unrecognized value",
-                    ))
+                    ));
                 }
             };
 
@@ -757,14 +754,13 @@ impl PreferredAlgorithm {
             v.push(element);
         }
 
-        if s.is_null() {
+        let Some(s) = (unsafe { s.as_ref() }) else {
             return Ok(vec![
                 PreferredAlgorithm::NistP256,
                 PreferredAlgorithm::Rsa2048,
             ]);
-        }
-
-        let s = std::ffi::CStr::from_ptr(s);
+        };
+        let s = unsafe { std::ffi::CStr::from_ptr(s) };
         let s = s.to_str()?;
         let mut result = vec![];
         for component in s.split(':') {

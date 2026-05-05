@@ -76,7 +76,7 @@ pub fn run(
             } => {
                 let (iothub_hostname, device_id, device_id_pk_bytes) =
                     super::parse_manual_connection_string(&connection_string.into_string())
-                        .map_err(|err| anyhow!("connection string is invalid: {}", err))?;
+                        .map_err(|err| anyhow!("connection string is invalid: {err}"))?;
 
                 preloaded_device_id_pk = Some(super_config::SymmetricKey::Inline {
                     value: device_id_pk_bytes,
@@ -139,7 +139,7 @@ pub fn run(
                                             cn: device_id.clone(),
                                             rest: entries
                                                 .iter()
-                                                .filter(|&(k, _v)| (!k.eq_ignore_ascii_case("cn")))
+                                                .filter(|&(k, _v)| !k.eq_ignore_ascii_case("cn"))
                                                 .map(|(k, v)| (k.to_uppercase(), v.clone()))
                                                 .collect(),
                                         })

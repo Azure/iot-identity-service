@@ -1,20 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 use std::io::Write;
 
 fn main() {
-    println!("cargo:rerun-if-changed=wrapper.h.in");
-    println!("cargo:rerun-if-changed=const_define.sh");
-    println!("cargo:rerun-if-env-changed=VENDOR_PREFIX");
-    println!("cargo:rerun-if-env-changed=VENDOR_PKGCONFIG");
+    println!("cargo::rerun-if-changed=wrapper.h.in");
+    println!("cargo::rerun-if-changed=const_define.sh");
+    println!("cargo::rerun-if-env-changed=VENDOR_PREFIX");
+    println!("cargo::rerun-if-env-changed=VENDOR_PKGCONFIG");
 
     if let Some((fakeroot, pkgconfig)) =
         std::env::var_os("VENDOR_PREFIX").zip(std::env::var_os("VENDOR_PKGCONFIG"))
+        && std::path::Path::new(&fakeroot).exists()
     {
-        if std::path::Path::new(&fakeroot).exists() {
+        unsafe {
             std::env::set_var("PKG_CONFIG_SYSROOT_DIR", fakeroot);
             std::env::set_var("PKG_CONFIG_PATH", pkgconfig);
         }

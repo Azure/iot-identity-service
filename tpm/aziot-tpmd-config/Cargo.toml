@@ -2,14 +2,18 @@
 name = "aziot-tpmd-config"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
 
 http-common = { path = "../../http-common" }
 
 
 [dev-dependencies]
-toml = "0.7"
+toml = { workspace = true }
+
+
+[lints]
+workspace = true

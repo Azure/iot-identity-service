@@ -1,11 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_panics_doc, clippy::must_use_candidate)]
-
 /// Emits `ossl110` and `ossl330` cfg based on the version of openssl.
 pub fn define_version_number_cfg() {
+    println!("cargo::rustc-check-cfg=cfg(ossl110)");
+    println!("cargo::rustc-check-cfg=cfg(ossl300)");
+
     let openssl_version = std::env::var("DEP_OPENSSL_VERSION_NUMBER")
         .expect("DEP_OPENSSL_VERSION_NUMBER must have been set by openssl-sys");
     let openssl_version = u64::from_str_radix(&openssl_version, 16)
@@ -13,11 +12,11 @@ pub fn define_version_number_cfg() {
     #[allow(clippy::unusual_byte_groupings)]
     {
         if openssl_version >= 0x03_00_00_00_0 {
-            println!("cargo:rustc-cfg=ossl300");
+            println!("cargo::rustc-cfg=ossl300");
         }
 
         if openssl_version >= 0x01_01_00_00_0 {
-            println!("cargo:rustc-cfg=ossl110");
+            println!("cargo::rustc-cfg=ossl110");
         }
     }
 }

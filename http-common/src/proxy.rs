@@ -6,21 +6,25 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{io, io::IoSlice};
 
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use hyper::rt::{Read, ReadBufCursor, Write};
+use hyper_openssl::client::legacy::HttpsConnector;
+use hyper_proxy2::{Intercept, Proxy, ProxyConnector, ProxyStream};
+use hyper_util::client::legacy::connect::{Connected, Connection, HttpConnector};
+use tower_service::Service;
 
 pub enum MaybeProxyStream<S> {
     NoProxy(S),
-    Proxy(hyper_proxy::ProxyStream<S>),
+    Proxy(ProxyStream<S>),
 }
 
-impl<S> AsyncRead for MaybeProxyStream<S>
+impl<S> Read for MaybeProxyStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: Read + Write + Unpin,
 {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
+        buf: ReadBufCursor<'_>,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
             MaybeProxyStream::NoProxy(s) => Pin::new(s).poll_read(cx, buf),
@@ -29,9 +33,9 @@ where
     }
 }
 
-impl<S> AsyncWrite for MaybeProxyStream<S>
+impl<S> Write for MaybeProxyStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: Read + Write + Unpin,
 {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -77,12 +81,12 @@ where
     }
 }
 
-impl<S> hyper::client::connect::Connection for MaybeProxyStream<S>
+impl<S> Connection for MaybeProxyStream<S>
 where
-    S: hyper::client::connect::Connection,
-    hyper_proxy::ProxyStream<S>: hyper::client::connect::Connection,
+    S: Connection,
+    ProxyStream<S>: Connection,
 {
-    fn connected(&self) -> hyper::client::connect::Connected {
+    fn connected(&self) -> Connected {
         match self {
             MaybeProxyStream::NoProxy(stream) => stream.connected(),
             MaybeProxyStream::Proxy(stream) => stream.connected(),
@@ -93,28 +97,26 @@ where
 #[derive(Clone)]
 pub enum MaybeProxyConnector<C> {
     NoProxy(C),
-    Proxy(hyper_proxy::ProxyConnector<C>),
+    Proxy(ProxyConnector<C>),
 }
 
-impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>> {
+impl MaybeProxyConnector<HttpsConnector<HttpConnector>> {
     pub fn new(
         proxy_uri: Option<hyper::Uri>,
         identity: Option<(&[u8], &openssl::pkey::PKeyRef<openssl::pkey::Private>)>,
         trusted_certs: &[openssl::x509::X509],
     ) -> io::Result<Self> {
-        let mut http_connector = hyper::client::HttpConnector::new();
+        let mut http_connector = HttpConnector::new();
         http_connector.enforce_http(false);
 
         let tls_connector = make_tls_connector(identity, trusted_certs)?;
 
-        let https_connector =
-            hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
+        let https_connector = HttpsConnector::with_connector(http_connector, tls_connector)?;
 
         if let Some(proxy_uri) = proxy_uri {
             let proxy = uri_to_proxy(proxy_uri)?;
 
-            let mut proxy_connector =
-                hyper_proxy::ProxyConnector::from_proxy(https_connector, proxy)?;
+            let mut proxy_connector = ProxyConnector::from_proxy(https_connector, proxy)?;
 
             // There are two TLS connectors involved with a proxy:
             //
@@ -125,7 +127,7 @@ impl MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnec
             // so we apply the same config to both. Therefore, we create a new `openssl::ssl::SslConnectorBuilder`
             // identical to the original `tls_connector` and use that with `proxy_connector.set_tls`
             //
-            // `tls_connector` was already consumed by `hyper_openssl::HttpsConnector::with_connector`
+            // `tls_connector` was already consumed by `HttpsConnector::with_connector`
             // and doesn't impl `Clone`, so the new one has to be built from scratch via `make_tls_connector`
             let proxy_tls_connector = make_tls_connector(identity, trusted_certs)?;
             proxy_connector.set_tls(Some(proxy_tls_connector.build()));
@@ -183,9 +185,9 @@ fn make_tls_connector(
 
     if let Some((certs, private_key)) = identity {
         let mut device_id_certs = openssl::x509::X509::stack_from_pem(certs)?.into_iter();
-        let client_cert = device_id_certs.next().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::Other, "device identity cert not found")
-        })?;
+        let client_cert = device_id_certs
+            .next()
+            .ok_or_else(|| io::Error::other("device identity cert not found"))?;
 
         tls_connector.set_certificate(&client_cert)?;
 
@@ -199,11 +201,10 @@ fn make_tls_connector(
     Ok(tls_connector)
 }
 
-impl<C> hyper::service::Service<http::uri::Uri> for MaybeProxyConnector<C>
+impl<C> Service<http::uri::Uri> for MaybeProxyConnector<C>
 where
-    C: hyper::service::Service<http::uri::Uri> + Send + Unpin + Clone + 'static,
-    C::Response:
-        AsyncRead + AsyncWrite + hyper::client::connect::Connection + Send + Unpin + 'static,
+    C: Service<http::uri::Uri> + Send + Unpin + Clone + 'static,
+    C::Response: Read + Write + Connection + Send + Unpin + 'static,
     C::Future: Send + 'static,
     C::Error: Into<Box<dyn std::error::Error + Sync + Send>>,
 {
@@ -213,9 +214,7 @@ where
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self {
-            MaybeProxyConnector::NoProxy(c) => c
-                .poll_ready(cx)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e)),
+            MaybeProxyConnector::NoProxy(c) => c.poll_ready(cx).map_err(io::Error::other),
             MaybeProxyConnector::Proxy(c) => c.poll_ready(cx),
         }
     }
@@ -225,9 +224,7 @@ where
             MaybeProxyConnector::NoProxy(c) => {
                 let stream = c.call(req);
                 Box::pin(async {
-                    let stream = stream
-                        .await
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    let stream = stream.await.map_err(io::Error::other)?;
 
                     Ok(MaybeProxyStream::NoProxy(stream))
                 })
@@ -244,20 +241,19 @@ where
     }
 }
 
-fn uri_to_proxy(uri: hyper::Uri) -> io::Result<hyper_proxy::Proxy> {
-    let proxy_url =
-        url::Url::parse(&uri.to_string()).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-    let mut proxy = hyper_proxy::Proxy::new(hyper_proxy::Intercept::All, uri);
+fn uri_to_proxy(uri: hyper::Uri) -> io::Result<Proxy> {
+    let proxy_url = url::Url::parse(&uri.to_string()).map_err(io::Error::other)?;
+    let mut proxy = Proxy::new(Intercept::All, uri);
 
     if !proxy_url.username().is_empty() {
         let username = percent_encoding::percent_decode_str(proxy_url.username())
             .decode_utf8()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(io::Error::other)?;
         let credentials = match proxy_url.password() {
             Some(password) => {
                 let password = percent_encoding::percent_decode_str(password)
                     .decode_utf8()
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(io::Error::other)?;
 
                 headers::Authorization::basic(&username, &password)
             }
@@ -276,20 +272,18 @@ pub fn get_proxy_uri(https_proxy: Option<String>) -> io::Result<Option<hyper::Ur
     let proxy_uri = match proxy_uri {
         None => None,
         Some(s) => {
-            let proxy = s
-                .parse::<hyper::Uri>()
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+            let proxy = s.parse::<hyper::Uri>().map_err(io::Error::other)?;
 
             // Mask the password in the proxy URI before logging it
-            let mut sanitized_proxy = url::Url::parse(&proxy.to_string())
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+            let mut sanitized_proxy =
+                url::Url::parse(&proxy.to_string()).map_err(io::Error::other)?;
 
             if sanitized_proxy.password().is_some() {
-                sanitized_proxy.set_password(Some("******")).map_err(|()| {
-                    io::Error::new(io::ErrorKind::Other, "set proxy password failed")
-                })?;
+                sanitized_proxy
+                    .set_password(Some("******"))
+                    .map_err(|()| io::Error::other("set proxy password failed"))?;
             }
-            log::info!("Detected HTTPS proxy server {}", sanitized_proxy);
+            log::info!("Detected HTTPS proxy server {sanitized_proxy}");
 
             Some(proxy)
         }

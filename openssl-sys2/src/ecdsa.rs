@@ -7,7 +7,7 @@
 pub struct ECDSA_METHOD([u8; 0]);
 
 #[cfg(not(ossl110))]
-extern "C" {
+unsafe extern "C" {
     pub fn ECDSA_size(eckey: *const openssl_sys::EC_KEY) -> std::os::raw::c_int;
 
     pub fn ECDSA_get_ex_data(

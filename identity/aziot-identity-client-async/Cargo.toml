@@ -2,14 +2,17 @@
 name = "aziot-identity-client-async"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
+
 
 [dependencies]
-http = "0.2"
-hyper = "0.14"
-percent-encoding = "2"
+percent-encoding = { workspace = true }
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }
 aziot-identity-common-http = { path = "../aziot-identity-common-http" }
 http-common = { path = "../../http-common" }
+
+
+[lints]
+workspace = true

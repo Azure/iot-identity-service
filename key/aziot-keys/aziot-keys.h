@@ -314,7 +314,7 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
      *
      * `derived_key` is an output byte buffer allocated by the caller to store the derived key.
      * The caller sets `derived_key_len` to the address of the length of the buffer.
-     * The implementation populates `derived_key` with the parameter derived_key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
+     * The implementation populates `derived_key` with the derived key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
      *
      * It is allowed for the caller to call the function with `derived_key` set to `NULL`. In this case the implementation calculates
      * an upper bound for how many bytes will be needed to store the derived key, sets that in `derived_key_len` and returns.
@@ -708,7 +708,7 @@ typedef struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
      *
      * `derived_key` is an output byte buffer allocated by the caller to store the derived key.
      * The caller sets `derived_key_len` to the address of the length of the buffer.
-     * The implementation populates `derived_key` with the parameter derived_key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
+     * The implementation populates `derived_key` with the derived key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
      *
      * It is allowed for the caller to call the function with `derived_key` set to `NULL`. In this case the implementation calculates
      * an upper bound for how many bytes will be needed to store the derived key, sets that in `derived_key_len` and returns.
@@ -1054,6 +1054,10 @@ typedef unsigned int AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM;
  * - `AZIOT_KEYS_RC_ERR_INVALID_PARAMETER`:
  *   - `version` is not recognized by this implementation.
  *   - `pfunction_list` is `NULL`.
+ *
+ * # Safety
+ *
+ * `pfunction_list` must point to a valid writable location.
  */
 AZIOT_KEYS_RC aziot_keys_get_function_list(AZIOT_KEYS_VERSION version,
                                            const struct AZIOT_KEYS_FUNCTION_LIST **pfunction_list);

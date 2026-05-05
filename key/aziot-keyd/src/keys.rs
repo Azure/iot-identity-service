@@ -199,161 +199,163 @@ pub(crate) enum Keys {
 
 impl Keys {
     pub(crate) fn new() -> Result<Self, LoadLibraryError> {
-        unsafe {
-            let mut function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST = std::ptr::null_mut();
-            keys_ok(sys::aziot_keys_get_function_list(
+        let mut function_list: *const sys::AZIOT_KEYS_FUNCTION_LIST = std::ptr::null_mut();
+        keys_ok(unsafe {
+            sys::aziot_keys_get_function_list(
                 sys::AZIOT_KEYS_VERSION_2_1_0_0,
-                &mut function_list,
-            ))
-            .or_else(|_| {
-                keys_ok(sys::aziot_keys_get_function_list(
+                &raw mut function_list,
+            )
+        })
+        .or_else(|_| {
+            keys_ok(unsafe {
+                sys::aziot_keys_get_function_list(
                     sys::AZIOT_KEYS_VERSION_2_0_0_0,
-                    &mut function_list,
-                ))
+                    &raw mut function_list,
+                )
             })
-            .map_err(LoadLibraryError::GetFunctionList)?;
+        })
+        .map_err(LoadLibraryError::GetFunctionList)?;
 
-            let api_version = (*function_list).version;
-            let result = match api_version {
-                sys::AZIOT_KEYS_VERSION_2_0_0_0 => {
-                    // AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
-                    // so it will be correctly aligned already.
-                    #[allow(clippy::cast_ptr_alignment)]
-                    let function_list =
-                        function_list.cast::<sys::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0>();
+        let api_version = unsafe { (*function_list).version };
+        let result = match api_version {
+            sys::AZIOT_KEYS_VERSION_2_0_0_0 => {
+                // AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_0_0_0, but the pointer comes from the library itself,
+                // so it will be correctly aligned already.
+                #[allow(clippy::cast_ptr_alignment)]
+                let function_list = function_list.cast::<sys::AZIOT_KEYS_FUNCTION_LIST_2_0_0_0>();
+                let function_list = unsafe { &*function_list };
 
-                    Keys::V2_0_0_0 {
-                        set_parameter: (*function_list)
-                            .set_parameter
-                            .ok_or(LoadLibraryError::MissingFunction("set_parameter"))?,
+                Keys::V2_0_0_0 {
+                    set_parameter: function_list
+                        .set_parameter
+                        .ok_or(LoadLibraryError::MissingFunction("set_parameter"))?,
 
-                        create_key_pair_if_not_exists: (*function_list)
-                            .create_key_pair_if_not_exists
-                            .ok_or(LoadLibraryError::MissingFunction(
-                                "create_key_pair_if_not_exists",
-                            ))?,
+                    create_key_pair_if_not_exists: function_list
+                        .create_key_pair_if_not_exists
+                        .ok_or(LoadLibraryError::MissingFunction(
+                            "create_key_pair_if_not_exists",
+                        ))?,
 
-                        load_key_pair: (*function_list)
-                            .load_key_pair
-                            .ok_or(LoadLibraryError::MissingFunction("load_key_pair"))?,
+                    load_key_pair: function_list
+                        .load_key_pair
+                        .ok_or(LoadLibraryError::MissingFunction("load_key_pair"))?,
 
-                        get_key_pair_parameter: (*function_list)
-                            .get_key_pair_parameter
-                            .ok_or(LoadLibraryError::MissingFunction("get_key_pair_parameter"))?,
+                    get_key_pair_parameter: function_list
+                        .get_key_pair_parameter
+                        .ok_or(LoadLibraryError::MissingFunction("get_key_pair_parameter"))?,
 
-                        create_key_if_not_exists: (*function_list).create_key_if_not_exists.ok_or(
-                            LoadLibraryError::MissingFunction("create_key_if_not_exists"),
-                        )?,
+                    create_key_if_not_exists: function_list.create_key_if_not_exists.ok_or(
+                        LoadLibraryError::MissingFunction("create_key_if_not_exists"),
+                    )?,
 
-                        load_key: (*function_list)
-                            .load_key
-                            .ok_or(LoadLibraryError::MissingFunction("load_key"))?,
+                    load_key: function_list
+                        .load_key
+                        .ok_or(LoadLibraryError::MissingFunction("load_key"))?,
 
-                        import_key: (*function_list)
-                            .import_key
-                            .ok_or(LoadLibraryError::MissingFunction("import_key"))?,
+                    import_key: function_list
+                        .import_key
+                        .ok_or(LoadLibraryError::MissingFunction("import_key"))?,
 
-                        derive_key: (*function_list)
-                            .derive_key
-                            .ok_or(LoadLibraryError::MissingFunction("derive_key"))?,
+                    derive_key: function_list
+                        .derive_key
+                        .ok_or(LoadLibraryError::MissingFunction("derive_key"))?,
 
-                        sign: (*function_list)
-                            .sign
-                            .ok_or(LoadLibraryError::MissingFunction("sign"))?,
+                    sign: function_list
+                        .sign
+                        .ok_or(LoadLibraryError::MissingFunction("sign"))?,
 
-                        verify: (*function_list)
-                            .verify
-                            .ok_or(LoadLibraryError::MissingFunction("verify"))?,
+                    verify: function_list
+                        .verify
+                        .ok_or(LoadLibraryError::MissingFunction("verify"))?,
 
-                        encrypt: (*function_list)
-                            .encrypt
-                            .ok_or(LoadLibraryError::MissingFunction("encrypt"))?,
+                    encrypt: function_list
+                        .encrypt
+                        .ok_or(LoadLibraryError::MissingFunction("encrypt"))?,
 
-                        decrypt: (*function_list)
-                            .decrypt
-                            .ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
-                    }
+                    decrypt: function_list
+                        .decrypt
+                        .ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
                 }
+            }
 
-                sys::AZIOT_KEYS_VERSION_2_1_0_0 => {
-                    // AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_1_0_0, but the pointer comes from the library itself,
-                    // so it will be correctly aligned already.
-                    #[allow(clippy::cast_ptr_alignment)]
-                    let function_list =
-                        function_list.cast::<sys::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0>();
+            sys::AZIOT_KEYS_VERSION_2_1_0_0 => {
+                // AZIOT_KEYS_FUNCTION_LIST has looser alignment than AZIOT_KEYS_FUNCTION_LIST_2_1_0_0, but the pointer comes from the library itself,
+                // so it will be correctly aligned already.
+                #[allow(clippy::cast_ptr_alignment)]
+                let function_list = function_list.cast::<sys::AZIOT_KEYS_FUNCTION_LIST_2_1_0_0>();
+                let function_list = unsafe { &*function_list };
 
-                    Keys::V2_1_0_0 {
-                        set_parameter: (*function_list)
-                            .set_parameter
-                            .ok_or(LoadLibraryError::MissingFunction("set_parameter"))?,
+                Keys::V2_1_0_0 {
+                    set_parameter: function_list
+                        .set_parameter
+                        .ok_or(LoadLibraryError::MissingFunction("set_parameter"))?,
 
-                        create_key_pair_if_not_exists: (*function_list)
-                            .create_key_pair_if_not_exists
-                            .ok_or(LoadLibraryError::MissingFunction(
-                                "create_key_pair_if_not_exists",
-                            ))?,
+                    create_key_pair_if_not_exists: function_list
+                        .create_key_pair_if_not_exists
+                        .ok_or(LoadLibraryError::MissingFunction(
+                            "create_key_pair_if_not_exists",
+                        ))?,
 
-                        move_key_pair: (*function_list)
-                            .move_key_pair
-                            .ok_or(LoadLibraryError::MissingFunction("move_key_pair"))?,
+                    move_key_pair: function_list
+                        .move_key_pair
+                        .ok_or(LoadLibraryError::MissingFunction("move_key_pair"))?,
 
-                        load_key_pair: (*function_list)
-                            .load_key_pair
-                            .ok_or(LoadLibraryError::MissingFunction("load_key_pair"))?,
+                    load_key_pair: function_list
+                        .load_key_pair
+                        .ok_or(LoadLibraryError::MissingFunction("load_key_pair"))?,
 
-                        get_key_pair_parameter: (*function_list)
-                            .get_key_pair_parameter
-                            .ok_or(LoadLibraryError::MissingFunction("get_key_pair_parameter"))?,
+                    get_key_pair_parameter: function_list
+                        .get_key_pair_parameter
+                        .ok_or(LoadLibraryError::MissingFunction("get_key_pair_parameter"))?,
 
-                        delete_key_pair: (*function_list)
-                            .delete_key_pair
-                            .ok_or(LoadLibraryError::MissingFunction("delete_key_pair"))?,
+                    delete_key_pair: function_list
+                        .delete_key_pair
+                        .ok_or(LoadLibraryError::MissingFunction("delete_key_pair"))?,
 
-                        create_key_if_not_exists: (*function_list).create_key_if_not_exists.ok_or(
-                            LoadLibraryError::MissingFunction("create_key_if_not_exists"),
-                        )?,
+                    create_key_if_not_exists: function_list.create_key_if_not_exists.ok_or(
+                        LoadLibraryError::MissingFunction("create_key_if_not_exists"),
+                    )?,
 
-                        load_key: (*function_list)
-                            .load_key
-                            .ok_or(LoadLibraryError::MissingFunction("load_key"))?,
+                    load_key: function_list
+                        .load_key
+                        .ok_or(LoadLibraryError::MissingFunction("load_key"))?,
 
-                        import_key: (*function_list)
-                            .import_key
-                            .ok_or(LoadLibraryError::MissingFunction("import_key"))?,
+                    import_key: function_list
+                        .import_key
+                        .ok_or(LoadLibraryError::MissingFunction("import_key"))?,
 
-                        delete_key: (*function_list)
-                            .delete_key
-                            .ok_or(LoadLibraryError::MissingFunction("delete_key"))?,
+                    delete_key: function_list
+                        .delete_key
+                        .ok_or(LoadLibraryError::MissingFunction("delete_key"))?,
 
-                        derive_key: (*function_list)
-                            .derive_key
-                            .ok_or(LoadLibraryError::MissingFunction("derive_key"))?,
+                    derive_key: function_list
+                        .derive_key
+                        .ok_or(LoadLibraryError::MissingFunction("derive_key"))?,
 
-                        sign: (*function_list)
-                            .sign
-                            .ok_or(LoadLibraryError::MissingFunction("sign"))?,
+                    sign: function_list
+                        .sign
+                        .ok_or(LoadLibraryError::MissingFunction("sign"))?,
 
-                        verify: (*function_list)
-                            .verify
-                            .ok_or(LoadLibraryError::MissingFunction("verify"))?,
+                    verify: function_list
+                        .verify
+                        .ok_or(LoadLibraryError::MissingFunction("verify"))?,
 
-                        encrypt: (*function_list)
-                            .encrypt
-                            .ok_or(LoadLibraryError::MissingFunction("encrypt"))?,
+                    encrypt: function_list
+                        .encrypt
+                        .ok_or(LoadLibraryError::MissingFunction("encrypt"))?,
 
-                        decrypt: (*function_list)
-                            .decrypt
-                            .ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
-                    }
+                    decrypt: function_list
+                        .decrypt
+                        .ok_or(LoadLibraryError::MissingFunction("decrypt"))?,
                 }
+            }
 
-                api_version => return Err(LoadLibraryError::UnsupportedApiVersion(api_version)),
-            };
+            api_version => return Err(LoadLibraryError::UnsupportedApiVersion(api_version)),
+        };
 
-            log::info!("Loaded libaziot-keys with version 0x{:08x}", api_version);
+        log::info!("Loaded libaziot-keys with version 0x{api_version:08x}");
 
-            Ok(result)
-        }
+        Ok(result)
     }
 }
 
@@ -389,18 +391,16 @@ impl Keys {
         name: &std::ffi::CStr,
         value: &std::ffi::CStr,
     ) -> Result<(), SetLibraryParameterError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { set_parameter, .. } | Keys::V2_1_0_0 { set_parameter, .. } => {
-                    keys_ok(set_parameter(name.as_ptr(), value.as_ptr())).map_err(|err| {
-                        SetLibraryParameterError {
-                            name: name.to_string_lossy().into_owned(),
-                            err,
-                        }
-                    })?;
+        match self {
+            Keys::V2_0_0_0 { set_parameter, .. } | Keys::V2_1_0_0 { set_parameter, .. } => {
+                keys_ok(unsafe { set_parameter(name.as_ptr(), value.as_ptr()) }).map_err(
+                    |err| SetLibraryParameterError {
+                        name: name.to_string_lossy().into_owned(),
+                        err,
+                    },
+                )?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -430,24 +430,24 @@ impl Keys {
         id: &std::ffi::CStr,
         preferred_algorithms: Option<&std::ffi::CStr>,
     ) -> Result<(), CreateKeyPairIfNotExistsError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 {
-                    create_key_pair_if_not_exists,
-                    ..
-                }
-                | Keys::V2_1_0_0 {
-                    create_key_pair_if_not_exists,
-                    ..
-                } => {
-                    keys_ok(create_key_pair_if_not_exists(
+        match self {
+            Keys::V2_0_0_0 {
+                create_key_pair_if_not_exists,
+                ..
+            }
+            | Keys::V2_1_0_0 {
+                create_key_pair_if_not_exists,
+                ..
+            } => {
+                keys_ok(unsafe {
+                    create_key_pair_if_not_exists(
                         id.as_ptr(),
                         preferred_algorithms.map_or(std::ptr::null(), std::ffi::CStr::as_ptr),
-                    ))
-                    .map_err(|err| CreateKeyPairIfNotExistsError { err })?;
+                    )
+                })
+                .map_err(|err| CreateKeyPairIfNotExistsError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -468,13 +468,12 @@ impl std::error::Error for CreateKeyPairIfNotExistsError {}
 
 impl Keys {
     pub(crate) fn load_key_pair(&mut self, id: &std::ffi::CStr) -> Result<(), LoadKeyPairError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { load_key_pair, .. } | Keys::V2_1_0_0 { load_key_pair, .. } => {
-                    keys_ok(load_key_pair(id.as_ptr())).map_err(|err| LoadKeyPairError { err })?;
+        match self {
+            Keys::V2_0_0_0 { load_key_pair, .. } | Keys::V2_1_0_0 { load_key_pair, .. } => {
+                keys_ok(unsafe { load_key_pair(id.as_ptr()) })
+                    .map_err(|err| LoadKeyPairError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -499,81 +498,78 @@ impl Keys {
         id: &std::ffi::CStr,
         parameter_name: &str,
     ) -> Result<String, GetKeyPairPublicParameterError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 {
-                    get_key_pair_parameter,
-                    ..
-                }
-                | Keys::V2_1_0_0 {
-                    get_key_pair_parameter,
-                    ..
-                } => {
-                    match parameter_name {
-                        "algorithm" => {
-                            let mut algorithm: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = 0;
-                            let mut algorithm_len = std::mem::size_of_val(&algorithm);
+        match self {
+            Keys::V2_0_0_0 {
+                get_key_pair_parameter,
+                ..
+            }
+            | Keys::V2_1_0_0 {
+                get_key_pair_parameter,
+                ..
+            } => {
+                match parameter_name {
+                    "algorithm" => {
+                        let mut algorithm: sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM = 0;
+                        let mut algorithm_len = std::mem::size_of_val(&algorithm);
 
-                            keys_ok(get_key_pair_parameter(
+                        keys_ok(unsafe {
+                            get_key_pair_parameter(
                                 id.as_ptr(),
                                 sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_ALGORITHM,
                                 std::ptr::addr_of_mut!(algorithm).cast(),
-                                &mut algorithm_len,
-                            ))
-                            .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
+                                &raw mut algorithm_len,
+                            )
+                        })
+                        .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
 
-                            if algorithm_len != std::mem::size_of_val(&algorithm) {
-                                return Err(GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len });
-                            }
-
-                            let algorithm =
-                                match algorithm {
-                                    sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC => {
-                                        "ECDSA".to_owned()
-                                    }
-                                    sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA => {
-                                        "RSA".to_owned()
-                                    }
-                                    algorithm => return Err(
-                                        GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithm {
-                                            algorithm,
-                                        },
-                                    ),
-                                };
-                            Ok(algorithm)
+                        if algorithm_len != std::mem::size_of_val(&algorithm) {
+                            return Err(
+                                GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength {
+                                    algorithm_len,
+                                },
+                            );
                         }
 
-                        parameter_name => {
-                            // These are all byte-buf parameters, so they can be handled identically.
+                        let algorithm = match algorithm {
+                            sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_EC => "ECDSA".to_owned(),
+                            sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_ALGORITHM_RSA => "RSA".to_owned(),
+                            algorithm => {
+                                return Err(
+                                    GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithm {
+                                        algorithm,
+                                    },
+                                );
+                            }
+                        };
+                        Ok(algorithm)
+                    }
 
-                            let parameter_type = match parameter_name {
-                                "ec-curve-oid" => {
-                                    sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID
-                                }
-                                "ec-point" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT,
-                                "rsa-modulus" => {
-                                    sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS
-                                }
-                                "rsa-exponent" => {
-                                    sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT
-                                }
-                                _ => {
-                                    return Err(GetKeyPairPublicParameterError::Api {
-                                        err: KeysRawError(sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER),
-                                    })
-                                }
-                            };
+                    parameter_name => {
+                        // These are all byte-buf parameters, so they can be handled identically.
 
-                            let parameter_value = get_key_pair_parameter_byte_buf(
+                        let parameter_type = match parameter_name {
+                            "ec-curve-oid" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_CURVE_OID,
+                            "ec-point" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_EC_POINT,
+                            "rsa-modulus" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_MODULUS,
+                            "rsa-exponent" => sys::AZIOT_KEYS_KEY_PAIR_PARAMETER_TYPE_RSA_EXPONENT,
+                            _ => {
+                                return Err(GetKeyPairPublicParameterError::Api {
+                                    err: KeysRawError(sys::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER),
+                                });
+                            }
+                        };
+
+                        let parameter_value = (unsafe {
+                            get_key_pair_parameter_byte_buf(
                                 *get_key_pair_parameter,
                                 id,
                                 parameter_type,
                             )
-                            .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
-                            let engine = base64::engine::general_purpose::STANDARD;
-                            let parameter_value = base64::Engine::encode(&engine, parameter_value);
-                            Ok(parameter_value)
-                        }
+                        })
+                        .map_err(|err| GetKeyPairPublicParameterError::Api { err })?;
+                        let engine = base64::engine::general_purpose::STANDARD;
+                        let parameter_value = base64::Engine::encode(&engine, parameter_value);
+                        Ok(parameter_value)
                     }
                 }
             }
@@ -606,9 +602,9 @@ impl std::fmt::Display for GetKeyPairPublicParameterError {
             ),
             GetKeyPairPublicParameterError::UnrecognizedKeyAlgorithmLength { algorithm_len } => {
                 write!(
-                f,
-                "could not get key pair parameter: key has unknown algorithm value of length {algorithm_len}"
-            )
+                    f,
+                    "could not get key pair parameter: key has unknown algorithm value of length {algorithm_len}"
+                )
             }
         }
     }
@@ -622,19 +618,17 @@ impl Keys {
         from: &std::ffi::CStr,
         to: &std::ffi::CStr,
     ) -> Result<(), MoveKeyPairError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { .. } => {
-                    // This version doesn't support moving key pairs, so treat it as a no-op.
-                    Ok(())
-                }
+        match self {
+            Keys::V2_0_0_0 { .. } => {
+                // This version doesn't support moving key pairs, so treat it as a no-op.
+                Ok(())
+            }
 
-                Keys::V2_1_0_0 { move_key_pair, .. } => {
-                    keys_ok(move_key_pair(from.as_ptr(), to.as_ptr()))
-                        .map_err(|err| MoveKeyPairError { err })?;
+            Keys::V2_1_0_0 { move_key_pair, .. } => {
+                keys_ok(unsafe { move_key_pair(from.as_ptr(), to.as_ptr()) })
+                    .map_err(|err| MoveKeyPairError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -658,21 +652,19 @@ impl Keys {
         &mut self,
         id: &std::ffi::CStr,
     ) -> Result<(), DeleteKeyPairError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { .. } => {
-                    // This version doesn't support deleting key pairs, so treat it as a no-op.
-                    Ok(())
-                }
+        match self {
+            Keys::V2_0_0_0 { .. } => {
+                // This version doesn't support deleting key pairs, so treat it as a no-op.
+                Ok(())
+            }
 
-                Keys::V2_1_0_0 {
-                    delete_key_pair, ..
-                } => {
-                    keys_ok(delete_key_pair(id.as_ptr()))
-                        .map_err(|err| DeleteKeyPairError { err })?;
+            Keys::V2_1_0_0 {
+                delete_key_pair, ..
+            } => {
+                keys_ok(unsafe { delete_key_pair(id.as_ptr()) })
+                    .map_err(|err| DeleteKeyPairError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -697,21 +689,19 @@ impl Keys {
         id: &std::ffi::CStr,
         usage: sys::AZIOT_KEYS_KEY_USAGE,
     ) -> Result<(), CreateKeyIfNotExistsError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 {
-                    create_key_if_not_exists,
-                    ..
-                }
-                | Keys::V2_1_0_0 {
-                    create_key_if_not_exists,
-                    ..
-                } => {
-                    keys_ok(create_key_if_not_exists(id.as_ptr(), usage))
-                        .map_err(|err| CreateKeyIfNotExistsError { err })?;
+        match self {
+            Keys::V2_0_0_0 {
+                create_key_if_not_exists,
+                ..
+            }
+            | Keys::V2_1_0_0 {
+                create_key_if_not_exists,
+                ..
+            } => {
+                keys_ok(unsafe { create_key_if_not_exists(id.as_ptr(), usage) })
+                    .map_err(|err| CreateKeyIfNotExistsError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -732,13 +722,11 @@ impl std::error::Error for CreateKeyIfNotExistsError {}
 
 impl Keys {
     pub(crate) fn load_key(&mut self, id: &std::ffi::CStr) -> Result<(), LoadKeyError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { load_key, .. } | Keys::V2_1_0_0 { load_key, .. } => {
-                    keys_ok(load_key(id.as_ptr())).map_err(|err| LoadKeyError { err })?;
+        match self {
+            Keys::V2_0_0_0 { load_key, .. } | Keys::V2_1_0_0 { load_key, .. } => {
+                keys_ok(unsafe { load_key(id.as_ptr()) }).map_err(|err| LoadKeyError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -764,14 +752,12 @@ impl Keys {
         bytes: &[u8],
         usage: sys::AZIOT_KEYS_KEY_USAGE,
     ) -> Result<(), ImportKeyError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { import_key, .. } | Keys::V2_1_0_0 { import_key, .. } => {
-                    keys_ok(import_key(id.as_ptr(), bytes.as_ptr(), bytes.len(), usage))
-                        .map_err(|err| ImportKeyError { err })?;
+        match self {
+            Keys::V2_0_0_0 { import_key, .. } | Keys::V2_1_0_0 { import_key, .. } => {
+                keys_ok(unsafe { import_key(id.as_ptr(), bytes.as_ptr(), bytes.len(), usage) })
+                    .map_err(|err| ImportKeyError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -792,18 +778,17 @@ impl std::error::Error for ImportKeyError {}
 
 impl Keys {
     pub(crate) fn delete_key(&mut self, id: &std::ffi::CStr) -> Result<(), DeleteKeyError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { .. } => {
-                    // This version doesn't support deleting keys, so treat it as a no-op.
-                    Ok(())
-                }
+        match self {
+            Keys::V2_0_0_0 { .. } => {
+                // This version doesn't support deleting keys, so treat it as a no-op.
+                Ok(())
+            }
 
-                Keys::V2_1_0_0 { delete_key, .. } => {
-                    keys_ok(delete_key(id.as_ptr())).map_err(|err| DeleteKeyError { err })?;
+            Keys::V2_1_0_0 { delete_key, .. } => {
+                keys_ok(unsafe { delete_key(id.as_ptr()) })
+                    .map_err(|err| DeleteKeyError { err })?;
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
     }
@@ -828,40 +813,42 @@ impl Keys {
         base_id: &std::ffi::CStr,
         derivation_data: &[u8],
     ) -> Result<Vec<u8>, DeriveKeyError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { derive_key, .. } | Keys::V2_1_0_0 { derive_key, .. } => {
-                    let mut derived_key_len = 0;
+        match self {
+            Keys::V2_0_0_0 { derive_key, .. } | Keys::V2_1_0_0 { derive_key, .. } => {
+                let mut derived_key_len = 0;
 
-                    keys_ok(derive_key(
+                keys_ok(unsafe {
+                    derive_key(
                         base_id.as_ptr(),
                         derivation_data.as_ptr(),
                         derivation_data.len(),
                         std::ptr::null_mut(),
-                        &mut derived_key_len,
-                    ))
-                    .map_err(|err| DeriveKeyError { err })?;
+                        &raw mut derived_key_len,
+                    )
+                })
+                .map_err(|err| DeriveKeyError { err })?;
 
-                    let mut derived_key = vec![0_u8; derived_key_len];
+                let mut derived_key = vec![0_u8; derived_key_len];
 
-                    keys_ok(derive_key(
+                keys_ok(unsafe {
+                    derive_key(
                         base_id.as_ptr(),
                         derivation_data.as_ptr(),
                         derivation_data.len(),
                         derived_key.as_mut_ptr(),
-                        &mut derived_key_len,
-                    ))
-                    .map_err(|err| DeriveKeyError { err })?;
+                        &raw mut derived_key_len,
+                    )
+                })
+                .map_err(|err| DeriveKeyError { err })?;
 
-                    if derived_key_len > derived_key.len() {
-                        // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
-                        std::process::abort();
-                    }
-
-                    derived_key.resize(derived_key_len, 0);
-
-                    Ok(derived_key)
+                if derived_key_len > derived_key.len() {
+                    // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
+                    std::process::abort();
                 }
+
+                derived_key.resize(derived_key_len, 0);
+
+                Ok(derived_key)
             }
         }
     }
@@ -888,44 +875,46 @@ impl Keys {
         parameters: *const std::ffi::c_void,
         digest: &[u8],
     ) -> Result<Vec<u8>, SignError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { sign, .. } | Keys::V2_1_0_0 { sign, .. } => {
-                    let mut signature_len = 0;
+        match self {
+            Keys::V2_0_0_0 { sign, .. } | Keys::V2_1_0_0 { sign, .. } => {
+                let mut signature_len = 0;
 
-                    keys_ok(sign(
+                keys_ok(unsafe {
+                    sign(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         digest.as_ptr(),
                         digest.len(),
                         std::ptr::null_mut(),
-                        &mut signature_len,
-                    ))
-                    .map_err(|err| SignError { err })?;
+                        &raw mut signature_len,
+                    )
+                })
+                .map_err(|err| SignError { err })?;
 
-                    let mut signature = vec![0_u8; signature_len];
+                let mut signature = vec![0_u8; signature_len];
 
-                    keys_ok(sign(
+                keys_ok(unsafe {
+                    sign(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         digest.as_ptr(),
                         digest.len(),
                         signature.as_mut_ptr(),
-                        &mut signature_len,
-                    ))
-                    .map_err(|err| SignError { err })?;
+                        &raw mut signature_len,
+                    )
+                })
+                .map_err(|err| SignError { err })?;
 
-                    if signature_len > signature.len() {
-                        // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
-                        std::process::abort();
-                    }
-
-                    signature.resize(signature_len, 0);
-
-                    Ok(signature)
+                if signature_len > signature.len() {
+                    // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
+                    std::process::abort();
                 }
+
+                signature.resize(signature_len, 0);
+
+                Ok(signature)
             }
         }
     }
@@ -953,12 +942,12 @@ impl Keys {
         digest: &[u8],
         signature: &[u8],
     ) -> Result<bool, VerifyError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { verify, .. } | Keys::V2_1_0_0 { verify, .. } => {
-                    let mut ok = 0;
+        match self {
+            Keys::V2_0_0_0 { verify, .. } | Keys::V2_1_0_0 { verify, .. } => {
+                let mut ok = 0;
 
-                    keys_ok(verify(
+                keys_ok(unsafe {
+                    verify(
                         id.as_ptr(),
                         mechanism,
                         parameters,
@@ -966,13 +955,13 @@ impl Keys {
                         digest.len(),
                         signature.as_ptr(),
                         signature.len(),
-                        &mut ok,
-                    ))
-                    .map_err(|err| VerifyError { err })?;
+                        &raw mut ok,
+                    )
+                })
+                .map_err(|err| VerifyError { err })?;
 
-                    let ok = ok != 0;
-                    Ok(ok)
-                }
+                let ok = ok != 0;
+                Ok(ok)
             }
         }
     }
@@ -999,44 +988,46 @@ impl Keys {
         parameters: *const std::ffi::c_void,
         plaintext: &[u8],
     ) -> Result<Vec<u8>, EncryptError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { encrypt, .. } | Keys::V2_1_0_0 { encrypt, .. } => {
-                    let mut ciphertext_len = 0;
+        match self {
+            Keys::V2_0_0_0 { encrypt, .. } | Keys::V2_1_0_0 { encrypt, .. } => {
+                let mut ciphertext_len = 0;
 
-                    keys_ok(encrypt(
+                keys_ok(unsafe {
+                    encrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         plaintext.as_ptr(),
                         plaintext.len(),
                         std::ptr::null_mut(),
-                        &mut ciphertext_len,
-                    ))
-                    .map_err(|err| EncryptError { err })?;
+                        &raw mut ciphertext_len,
+                    )
+                })
+                .map_err(|err| EncryptError { err })?;
 
-                    let mut ciphertext = vec![0_u8; ciphertext_len];
+                let mut ciphertext = vec![0_u8; ciphertext_len];
 
-                    keys_ok(encrypt(
+                keys_ok(unsafe {
+                    encrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         plaintext.as_ptr(),
                         plaintext.len(),
                         ciphertext.as_mut_ptr(),
-                        &mut ciphertext_len,
-                    ))
-                    .map_err(|err| EncryptError { err })?;
+                        &raw mut ciphertext_len,
+                    )
+                })
+                .map_err(|err| EncryptError { err })?;
 
-                    if ciphertext_len > ciphertext.len() {
-                        // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
-                        std::process::abort();
-                    }
-
-                    ciphertext.resize(ciphertext_len, 0);
-
-                    Ok(ciphertext)
+                if ciphertext_len > ciphertext.len() {
+                    // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
+                    std::process::abort();
                 }
+
+                ciphertext.resize(ciphertext_len, 0);
+
+                Ok(ciphertext)
             }
         }
     }
@@ -1063,44 +1054,46 @@ impl Keys {
         parameters: *const std::ffi::c_void,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, DecryptError> {
-        unsafe {
-            match self {
-                Keys::V2_0_0_0 { decrypt, .. } | Keys::V2_1_0_0 { decrypt, .. } => {
-                    let mut plaintext_len = 0;
+        match self {
+            Keys::V2_0_0_0 { decrypt, .. } | Keys::V2_1_0_0 { decrypt, .. } => {
+                let mut plaintext_len = 0;
 
-                    keys_ok(decrypt(
+                keys_ok(unsafe {
+                    decrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         ciphertext.as_ptr(),
                         ciphertext.len(),
                         std::ptr::null_mut(),
-                        &mut plaintext_len,
-                    ))
-                    .map_err(|err| DecryptError { err })?;
+                        &raw mut plaintext_len,
+                    )
+                })
+                .map_err(|err| DecryptError { err })?;
 
-                    let mut plaintext = vec![0_u8; plaintext_len];
+                let mut plaintext = vec![0_u8; plaintext_len];
 
-                    keys_ok(decrypt(
+                keys_ok(unsafe {
+                    decrypt(
                         id.as_ptr(),
                         mechanism,
                         parameters,
                         ciphertext.as_ptr(),
                         ciphertext.len(),
                         plaintext.as_mut_ptr(),
-                        &mut plaintext_len,
-                    ))
-                    .map_err(|err| DecryptError { err })?;
+                        &raw mut plaintext_len,
+                    )
+                })
+                .map_err(|err| DecryptError { err })?;
 
-                    if plaintext_len > plaintext.len() {
-                        // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
-                        std::process::abort();
-                    }
-
-                    plaintext.resize(plaintext_len, 0);
-
-                    Ok(plaintext)
+                if plaintext_len > plaintext.len() {
+                    // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.
+                    std::process::abort();
                 }
+
+                plaintext.resize(plaintext_len, 0);
+
+                Ok(plaintext)
             }
         }
     }
@@ -1138,21 +1131,20 @@ unsafe fn get_key_pair_parameter_byte_buf(
 ) -> Result<Vec<u8>, KeysRawError> {
     let mut value_len: usize = 0;
 
-    keys_ok(get_key_pair_parameter(
-        id.as_ptr(),
-        r#type,
-        std::ptr::null_mut(),
-        &mut value_len,
-    ))?;
+    keys_ok(unsafe {
+        get_key_pair_parameter(
+            id.as_ptr(),
+            r#type,
+            std::ptr::null_mut(),
+            &raw mut value_len,
+        )
+    })?;
 
     let mut value = vec![0_u8; value_len];
 
-    keys_ok(get_key_pair_parameter(
-        id.as_ptr(),
-        r#type,
-        value.as_mut_ptr(),
-        &mut value_len,
-    ))?;
+    keys_ok(unsafe {
+        get_key_pair_parameter(id.as_ptr(), r#type, value.as_mut_ptr(), &raw mut value_len)
+    })?;
 
     if value_len > value.len() {
         // libaziot-keys scribbled past the end of the buffer. Crash as soon as possible.

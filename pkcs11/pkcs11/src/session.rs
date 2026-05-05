@@ -44,19 +44,13 @@ impl Session {
         self: std::sync::Arc<Self>,
         label: Option<&str>,
     ) -> Result<PublicKey, GetKeyError> {
-        unsafe {
-            let public_key_handle = self.get_key_inner(pkcs11_sys::CKO_PUBLIC_KEY, label)?;
-            let public_key_mechanism_type = self.get_key_mechanism_type(public_key_handle)?;
+        let public_key_handle = self.get_key_inner(pkcs11_sys::CKO_PUBLIC_KEY, label)?;
+        let public_key_mechanism_type = unsafe { self.get_key_mechanism_type(public_key_handle)? };
 
-            match public_key_mechanism_type {
-                pkcs11_sys::CKK_EC => {
-                    Ok(PublicKey::Ec(crate::Object::new(self, public_key_handle)))
-                }
-                pkcs11_sys::CKK_RSA => {
-                    Ok(PublicKey::Rsa(crate::Object::new(self, public_key_handle)))
-                }
-                _ => Err(GetKeyError::MismatchedMechanismType),
-            }
+        match public_key_mechanism_type {
+            pkcs11_sys::CKK_EC => Ok(PublicKey::Ec(crate::Object::new(self, public_key_handle))),
+            pkcs11_sys::CKK_RSA => Ok(PublicKey::Rsa(crate::Object::new(self, public_key_handle))),
+            _ => Err(GetKeyError::MismatchedMechanismType),
         }
     }
 
@@ -65,43 +59,40 @@ impl Session {
         self: std::sync::Arc<Self>,
         label: Option<&str>,
     ) -> Result<KeyPair, GetKeyError> {
-        unsafe {
-            // Private key access needs login
-            self.login().map_err(GetKeyError::LoginFailed)?;
+        // Private key access needs login
+        self.login().map_err(GetKeyError::LoginFailed)?;
 
-            let public_key_handle = self.get_key_inner(pkcs11_sys::CKO_PUBLIC_KEY, label)?;
-            let public_key_mechanism_type = self.get_key_mechanism_type(public_key_handle)?;
-            let private_key_handle = self.get_key_inner(pkcs11_sys::CKO_PRIVATE_KEY, label)?;
-            let private_key_mechanism_type = self.get_key_mechanism_type(private_key_handle)?;
+        let public_key_handle = self.get_key_inner(pkcs11_sys::CKO_PUBLIC_KEY, label)?;
+        let public_key_mechanism_type = unsafe { self.get_key_mechanism_type(public_key_handle)? };
+        let private_key_handle = self.get_key_inner(pkcs11_sys::CKO_PRIVATE_KEY, label)?;
+        let private_key_mechanism_type =
+            unsafe { self.get_key_mechanism_type(private_key_handle)? };
 
-            match (public_key_mechanism_type, private_key_mechanism_type) {
-                (pkcs11_sys::CKK_EC, pkcs11_sys::CKK_EC) => Ok(KeyPair::Ec(
-                    crate::Object::new(self.clone(), public_key_handle),
-                    crate::Object::new(self, private_key_handle),
-                )),
+        match (public_key_mechanism_type, private_key_mechanism_type) {
+            (pkcs11_sys::CKK_EC, pkcs11_sys::CKK_EC) => Ok(KeyPair::Ec(
+                crate::Object::new(self.clone(), public_key_handle),
+                crate::Object::new(self, private_key_handle),
+            )),
 
-                (pkcs11_sys::CKK_RSA, pkcs11_sys::CKK_RSA) => Ok(KeyPair::Rsa(
-                    crate::Object::new(self.clone(), public_key_handle),
-                    crate::Object::new(self, private_key_handle),
-                )),
+            (pkcs11_sys::CKK_RSA, pkcs11_sys::CKK_RSA) => Ok(KeyPair::Rsa(
+                crate::Object::new(self.clone(), public_key_handle),
+                crate::Object::new(self, private_key_handle),
+            )),
 
-                _ => Err(GetKeyError::MismatchedMechanismType),
-            }
+            _ => Err(GetKeyError::MismatchedMechanismType),
         }
     }
 
     /// Get a key in the current session with the given label.
     pub fn get_key(self: std::sync::Arc<Self>, label: Option<&str>) -> Result<Key, GetKeyError> {
-        unsafe {
-            // Private key access needs login
-            self.login().map_err(GetKeyError::LoginFailed)?;
+        // Private key access needs login
+        self.login().map_err(GetKeyError::LoginFailed)?;
 
-            let key_handle = self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, label)?;
-            Ok(crate::Object::new(self, key_handle))
-        }
+        let key_handle = self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, label)?;
+        Ok(crate::Object::new(self, key_handle))
     }
 
-    unsafe fn get_key_inner(
+    fn get_key_inner(
         &self,
         class: pkcs11_sys::CK_OBJECT_CLASS,
         label: Option<&str>,
@@ -121,8 +112,8 @@ impl Session {
             });
         }
         let key_handle = {
-            let mut find_objects =
-                FindObjects::new(self, &templates).map_err(GetKeyError::FindObjectsFailed)?;
+            let mut find_objects = (unsafe { FindObjects::new(self, &templates) })
+                .map_err(GetKeyError::FindObjectsFailed)?;
             match find_objects.next() {
                 Some(key_handle) => key_handle.map_err(GetKeyError::FindObjectsFailed)?,
                 None => return Err(GetKeyError::KeyDoesNotExist),
@@ -145,7 +136,9 @@ impl Session {
             pValue: std::ptr::addr_of_mut!(key_type).cast(),
             ulValueLen: key_type_size,
         };
-        let result = (self.context.C_GetAttributeValue)(self.handle, key_handle, &mut attribute, 1);
+        let result = unsafe {
+            (self.context.C_GetAttributeValue)(self.handle, key_handle, &raw mut attribute, 1)
+        };
         if result != pkcs11_sys::CKR_OK {
             return Err(GetKeyError::GetKeyTypeFailed(result));
         }
@@ -230,27 +223,26 @@ impl Session {
         from: &str,
         to: &str,
     ) -> Result<(), RenameKeyError> {
-        unsafe {
-            // Private key access needs login
-            self.login().map_err(RenameKeyError::LoginFailed)?;
+        // Private key access needs login
+        self.login().map_err(RenameKeyError::LoginFailed)?;
 
-            let attribute = pkcs11_sys::CK_ATTRIBUTE_IN {
-                r#type: pkcs11_sys::CKA_LABEL,
-                pValue: to.as_ptr().cast(),
-                ulValueLen: to.len().try_into().expect("usize -> CK_ULONG"),
+        let attribute = pkcs11_sys::CK_ATTRIBUTE_IN {
+            r#type: pkcs11_sys::CKA_LABEL,
+            pValue: to.as_ptr().cast(),
+            ulValueLen: to.len().try_into().expect("usize -> CK_ULONG"),
+        };
+
+        for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
+            let key_handle = self
+                .get_key_inner(class, Some(from))
+                .map_err(|_| RenameKeyError::SourceNotFound)?;
+
+            let result = unsafe {
+                (self.context.C_SetAttributeValue)(self.handle, key_handle, &raw const attribute, 1)
             };
 
-            for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
-                let key_handle = self
-                    .get_key_inner(class, Some(from))
-                    .map_err(|_| RenameKeyError::SourceNotFound)?;
-
-                let result =
-                    (self.context.C_SetAttributeValue)(self.handle, key_handle, &attribute, 1);
-
-                if result != pkcs11_sys::CKR_OK {
-                    return Err(RenameKeyError::ChangeLabelFailed(result));
-                }
+            if result != pkcs11_sys::CKR_OK {
+                return Err(RenameKeyError::ChangeLabelFailed(result));
             }
         }
 
@@ -267,11 +259,13 @@ impl<'session> FindObjects<'session> {
         session: &'session Session,
         templates: &'session [pkcs11_sys::CK_ATTRIBUTE_IN],
     ) -> Result<Self, FindObjectsError> {
-        let result = (session.context.C_FindObjectsInit)(
-            session.handle,
-            templates.as_ptr(),
-            templates.len().try_into().expect("usize -> CK_ULONG"),
-        );
+        let result = unsafe {
+            (session.context.C_FindObjectsInit)(
+                session.handle,
+                templates.as_ptr(),
+                templates.len().try_into().expect("usize -> CK_ULONG"),
+            )
+        };
         if result != pkcs11_sys::CKR_OK {
             return Err(FindObjectsError::FindObjectsInitFailed(result));
         }
@@ -280,45 +274,42 @@ impl<'session> FindObjects<'session> {
     }
 }
 
-impl<'session> Iterator for FindObjects<'session> {
+impl Iterator for FindObjects<'_> {
     type Item = Result<pkcs11_sys::CK_OBJECT_HANDLE, FindObjectsError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            let mut object_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
-            let mut num_objects = 0;
-            let result = (self.session.context.C_FindObjects)(
+        let mut object_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+        let mut num_objects = 0;
+        let result = unsafe {
+            (self.session.context.C_FindObjects)(
                 self.session.handle,
-                &mut object_handle,
+                &raw mut object_handle,
                 1,
-                &mut num_objects,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Some(Err(FindObjectsError::FindObjectsFailed(
-                    format!("C_FindObjects failed with {result}").into(),
-                )));
-            }
-            match num_objects {
-                0 => None,
-                1 if object_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE => {
-                    Some(Ok(object_handle))
-                }
-                1 => Some(Err(FindObjectsError::FindObjectsFailed(
-                    "C_FindObjects found 1 object but object handle is still CK_INVALID_HANDLE"
-                        .into(),
-                ))),
-                num_objects => Some(Err(FindObjectsError::FindObjectsFailed(
-                    format!("C_FindObjects found {num_objects} objects").into(),
-                ))),
-            }
+                &raw mut num_objects,
+            )
+        };
+        if result != pkcs11_sys::CKR_OK {
+            return Some(Err(FindObjectsError::FindObjectsFailed(
+                format!("C_FindObjects failed with {result}").into(),
+            )));
+        }
+        match num_objects {
+            0 => None,
+            1 if object_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE => Some(Ok(object_handle)),
+            1 => Some(Err(FindObjectsError::FindObjectsFailed(
+                "C_FindObjects found 1 object but object handle is still CK_INVALID_HANDLE".into(),
+            ))),
+            num_objects => Some(Err(FindObjectsError::FindObjectsFailed(
+                format!("C_FindObjects found {num_objects} objects").into(),
+            ))),
         }
     }
 }
 
-impl<'session> Drop for FindObjects<'session> {
+impl Drop for FindObjects<'_> {
     fn drop(&mut self) {
         unsafe {
-            let _ = (self.session.context.C_FindObjectsFinal)(self.session.handle);
+            (self.session.context.C_FindObjectsFinal)(self.session.handle);
         }
     }
 }
@@ -356,203 +347,207 @@ impl Session {
         label: Option<&str>,
         usage: KeyUsage,
     ) -> Result<Key, GenerateKeyError> {
-        unsafe {
-            // Deleting existing keys and generating new ones needs login
-            self.login().map_err(GenerateKeyError::LoginFailed)?;
+        // Deleting existing keys and generating new ones needs login
+        self.login().map_err(GenerateKeyError::LoginFailed)?;
 
-            // If label is set, delete any existing objects with that label first
-            if let Some(label) = label {
-                match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
-                    Ok(key_handle) => {
-                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
-                        if result != pkcs11_sys::CKR_OK {
-                            return Err(GenerateKeyError::DeleteExistingKeyFailed(result));
-                        }
+        // If label is set, delete any existing objects with that label first
+        if let Some(label) = label {
+            match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+                Ok(key_handle) => {
+                    let result = unsafe { (self.context.C_DestroyObject)(self.handle, key_handle) };
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(GenerateKeyError::DeleteExistingKeyFailed(result));
                     }
-                    Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(GenerateKeyError::GetExistingKeyFailed(err)),
                 }
+                Err(GetKeyError::KeyDoesNotExist) => (),
+                Err(err) => return Err(GenerateKeyError::GetExistingKeyFailed(err)),
             }
+        }
 
-            let r#true = pkcs11_sys::CK_TRUE;
-            let true_size = std::mem::size_of_val(&r#true)
-                .try_into()
-                .expect("usize -> CK_ULONG");
-            let r#true = std::ptr::addr_of!(r#true).cast();
+        let r#true = pkcs11_sys::CK_TRUE;
+        let true_size = std::mem::size_of_val(&r#true)
+            .try_into()
+            .expect("usize -> CK_ULONG");
+        let r#true = std::ptr::addr_of!(r#true).cast();
 
-            // Common to all keys
-            let mut key_template = vec![
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_PRIVATE,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_SENSITIVE,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_TOKEN,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_VERIFY,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-            ];
+        // Common to all keys
+        let mut key_template = vec![
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_PRIVATE,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_SENSITIVE,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_TOKEN,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_VERIFY,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+        ];
 
-            if let Some(label) = label {
+        if let Some(label) = label {
+            key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_LABEL,
+                pValue: label.as_ptr().cast(),
+                ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
+            });
+        }
+
+        match usage {
+            KeyUsage::Aes => {
+                // We want to use AES-256-GCM, but fall back to AES-128-GCM if the PKCS#11 implementation
+                // doesn't support AES-256-GCM (eg Cryptoauthlib on ATECC608A).
+                //
+                // Unfortunately PKCS#11 doesn't give us a way to know up-front if the token supports AES-256-GCM or not.
+                // So first try creating a 256-bit key. If that fails, try again with a 128-bit key.
+                // If that also fails, return an error.
+
+                let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                    mechanism: pkcs11_sys::CKM_AES_KEY_GEN,
+                    pParameter: std::ptr::null(),
+                    ulParameterLen: 0,
+                };
+
                 key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_LABEL,
-                    pValue: label.as_ptr().cast(),
-                    ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
+                    r#type: pkcs11_sys::CKA_DECRYPT,
+                    pValue: r#true,
+                    ulValueLen: true_size,
                 });
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_ENCRYPT,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
+
+                let key_type = pkcs11_sys::CKK_AES;
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_KEY_TYPE,
+                    pValue: std::ptr::addr_of!(key_type).cast(),
+                    ulValueLen: std::mem::size_of_val(&key_type)
+                        .try_into()
+                        .expect("usize -> CK_ULONG"),
+                });
+
+                let key_template_except_value_len = key_template.clone();
+
+                let mut len: pkcs11_sys::CK_ULONG = 32;
+                let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
+                    .try_into()
+                    .expect("usize -> CK_ULONG");
+
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VALUE_LEN,
+                    pValue: std::ptr::addr_of!(len).cast(),
+                    ulValueLen: len_size,
+                });
+
+                let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                let result = unsafe {
+                    (self.context.C_GenerateKey)(
+                        self.handle,
+                        &raw const mechanism,
+                        key_template.as_ptr().cast(),
+                        key_template.len().try_into().expect("usize -> CK_ULONG"),
+                        &raw mut key_handle,
+                    )
+                };
+                if result == pkcs11_sys::CKR_OK
+                    && key_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE
+                {
+                    return Ok(crate::Object::new(self, key_handle));
+                }
+
+                // C_GenerateKey failed. Try with a 128-bit key.
+
+                let mut key_template = key_template_except_value_len;
+                len = 16;
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VALUE_LEN,
+                    pValue: std::ptr::addr_of!(len).cast(),
+                    ulValueLen: len_size,
+                });
+
+                let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                let result = unsafe {
+                    (self.context.C_GenerateKey)(
+                        self.handle,
+                        &raw const mechanism,
+                        key_template.as_ptr().cast(),
+                        key_template.len().try_into().expect("usize -> CK_ULONG"),
+                        &raw mut key_handle,
+                    )
+                };
+                if result != pkcs11_sys::CKR_OK {
+                    return Err(GenerateKeyError::GenerateKeyFailed(result));
+                }
+                if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+                    return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
+                }
+
+                Ok(crate::Object::new(self, key_handle))
             }
 
-            match usage {
-                KeyUsage::Aes => {
-                    // We want to use AES-256-GCM, but fall back to AES-128-GCM if the PKCS#11 implementation
-                    // doesn't support AES-256-GCM (eg Cryptoauthlib on ATECC608A).
-                    //
-                    // Unfortunately PKCS#11 doesn't give us a way to know up-front if the token supports AES-256-GCM or not.
-                    // So first try creating a 256-bit key. If that fails, try again with a 128-bit key.
-                    // If that also fails, return an error.
+            KeyUsage::Hmac => {
+                // HMAC-SHA256 uses 256-bit keys
 
-                    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
-                        mechanism: pkcs11_sys::CKM_AES_KEY_GEN,
-                        pParameter: std::ptr::null(),
-                        ulParameterLen: 0,
-                    };
+                let mechanism = pkcs11_sys::CK_MECHANISM_IN {
+                    mechanism: pkcs11_sys::CKM_GENERIC_SECRET_KEY_GEN,
+                    pParameter: std::ptr::null(),
+                    ulParameterLen: 0,
+                };
 
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_DECRYPT,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_ENCRYPT,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
+                let len: pkcs11_sys::CK_ULONG = 32;
+                let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
+                    .try_into()
+                    .expect("usize -> CK_ULONG");
 
-                    let key_type = pkcs11_sys::CKK_AES;
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_KEY_TYPE,
-                        pValue: std::ptr::addr_of!(key_type).cast(),
-                        ulValueLen: std::mem::size_of_val(&key_type)
-                            .try_into()
-                            .expect("usize -> CK_ULONG"),
-                    });
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_SIGN,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VALUE_LEN,
+                    pValue: std::ptr::addr_of!(len).cast(),
+                    ulValueLen: len_size,
+                });
 
-                    let key_template_except_value_len = key_template.clone();
-
-                    let mut len: pkcs11_sys::CK_ULONG = 32;
-                    let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
+                let key_type = pkcs11_sys::CKK_GENERIC_SECRET;
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_KEY_TYPE,
+                    pValue: std::ptr::addr_of!(key_type).cast(),
+                    ulValueLen: std::mem::size_of_val(&key_type)
                         .try_into()
-                        .expect("usize -> CK_ULONG");
+                        .expect("usize -> CK_ULONG"),
+                });
 
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: std::ptr::addr_of!(len).cast(),
-                        ulValueLen: len_size,
-                    });
-
-                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
-                    let result = (self.context.C_GenerateKey)(
+                let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+                let result = unsafe {
+                    (self.context.C_GenerateKey)(
                         self.handle,
-                        &mechanism,
+                        &raw const mechanism,
                         key_template.as_ptr().cast(),
                         key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
-                    );
-                    if result == pkcs11_sys::CKR_OK
-                        && key_handle != pkcs11_sys::CK_INVALID_OBJECT_HANDLE
-                    {
-                        return Ok(crate::Object::new(self, key_handle));
-                    }
-
-                    // C_GenerateKey failed. Try with a 128-bit key.
-
-                    let mut key_template = key_template_except_value_len;
-                    len = 16;
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: std::ptr::addr_of!(len).cast(),
-                        ulValueLen: len_size,
-                    });
-
-                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
-                    let result = (self.context.C_GenerateKey)(
-                        self.handle,
-                        &mechanism,
-                        key_template.as_ptr().cast(),
-                        key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
-                    );
-                    if result != pkcs11_sys::CKR_OK {
-                        return Err(GenerateKeyError::GenerateKeyFailed(result));
-                    }
-                    if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
-                        return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
-                    }
-
-                    Ok(crate::Object::new(self, key_handle))
+                        &raw mut key_handle,
+                    )
+                };
+                if result != pkcs11_sys::CKR_OK {
+                    return Err(GenerateKeyError::GenerateKeyFailed(result));
+                }
+                if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+                    return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
                 }
 
-                KeyUsage::Hmac => {
-                    // HMAC-SHA256 uses 256-bit keys
-
-                    let mechanism = pkcs11_sys::CK_MECHANISM_IN {
-                        mechanism: pkcs11_sys::CKM_GENERIC_SECRET_KEY_GEN,
-                        pParameter: std::ptr::null(),
-                        ulParameterLen: 0,
-                    };
-
-                    let len: pkcs11_sys::CK_ULONG = 32;
-                    let len_size: pkcs11_sys::CK_ULONG = std::mem::size_of_val(&len)
-                        .try_into()
-                        .expect("usize -> CK_ULONG");
-
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_SIGN,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_VALUE_LEN,
-                        pValue: std::ptr::addr_of!(len).cast(),
-                        ulValueLen: len_size,
-                    });
-
-                    let key_type = pkcs11_sys::CKK_GENERIC_SECRET;
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_KEY_TYPE,
-                        pValue: std::ptr::addr_of!(key_type).cast(),
-                        ulValueLen: std::mem::size_of_val(&key_type)
-                            .try_into()
-                            .expect("usize -> CK_ULONG"),
-                    });
-
-                    let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
-                    let result = (self.context.C_GenerateKey)(
-                        self.handle,
-                        &mechanism,
-                        key_template.as_ptr().cast(),
-                        key_template.len().try_into().expect("usize -> CK_ULONG"),
-                        &mut key_handle,
-                    );
-                    if result != pkcs11_sys::CKR_OK {
-                        return Err(GenerateKeyError::GenerateKeyFailed(result));
-                    }
-                    if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
-                        return Err(GenerateKeyError::GenerateKeyDidNotReturnHandle);
-                    }
-
-                    Ok(crate::Object::new(self, key_handle))
-                }
+                Ok(crate::Object::new(self, key_handle))
             }
         }
     }
@@ -602,128 +597,128 @@ impl Session {
         label: Option<&str>,
         usage: KeyUsage,
     ) -> Result<Key, ImportKeyError> {
-        unsafe {
-            // Deleting existing keys and importing new ones needs login
-            self.login().map_err(ImportKeyError::LoginFailed)?;
+        // Deleting existing keys and importing new ones needs login
+        self.login().map_err(ImportKeyError::LoginFailed)?;
 
-            // If label is set, delete any existing objects with that label first
-            if let Some(label) = label {
-                match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
-                    Ok(key_handle) => {
-                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
-                        if result != pkcs11_sys::CKR_OK {
-                            return Err(ImportKeyError::DeleteExistingKeyFailed(result));
-                        }
+        // If label is set, delete any existing objects with that label first
+        if let Some(label) = label {
+            match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+                Ok(key_handle) => {
+                    let result = unsafe { (self.context.C_DestroyObject)(self.handle, key_handle) };
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(ImportKeyError::DeleteExistingKeyFailed(result));
                     }
-                    Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(ImportKeyError::GetExistingKeyFailed(err)),
                 }
+                Err(GetKeyError::KeyDoesNotExist) => (),
+                Err(err) => return Err(ImportKeyError::GetExistingKeyFailed(err)),
             }
+        }
 
-            let class = pkcs11_sys::CKO_SECRET_KEY;
+        let class = pkcs11_sys::CKO_SECRET_KEY;
 
-            let r#true = pkcs11_sys::CK_TRUE;
-            let true_size = std::mem::size_of_val(&r#true)
-                .try_into()
-                .expect("usize -> CK_ULONG");
-            let r#true = std::ptr::addr_of!(r#true).cast();
+        let r#true = pkcs11_sys::CK_TRUE;
+        let true_size = std::mem::size_of_val(&r#true)
+            .try_into()
+            .expect("usize -> CK_ULONG");
+        let r#true = std::ptr::addr_of!(r#true).cast();
 
-            // Common to all keys
-            let mut key_template = vec![
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_CLASS,
-                    pValue: std::ptr::addr_of!(class).cast(),
-                    ulValueLen: std::mem::size_of_val(&class)
-                        .try_into()
-                        .expect("usize -> CK_ULONG"),
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_PRIVATE,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_SENSITIVE,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_TOKEN,
-                    pValue: r#true,
-                    ulValueLen: true_size,
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_VALUE,
-                    pValue: bytes.as_ptr().cast(),
-                    ulValueLen: bytes.len().try_into().expect("usize -> CK_ULONG"),
-                },
-            ];
-
-            if let Some(label) = label {
-                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_LABEL,
-                    pValue: label.as_ptr().cast(),
-                    ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
-                });
-            }
-
-            let key_type = match usage {
-                KeyUsage::Aes => {
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_DECRYPT,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_ENCRYPT,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-
-                    pkcs11_sys::CKK_AES
-                }
-
-                KeyUsage::Hmac => {
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_SIGN,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-                    key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                        r#type: pkcs11_sys::CKA_VERIFY,
-                        pValue: r#true,
-                        ulValueLen: true_size,
-                    });
-
-                    pkcs11_sys::CKK_GENERIC_SECRET
-                }
-            };
-
-            key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
-                r#type: pkcs11_sys::CKA_KEY_TYPE,
-                pValue: std::ptr::addr_of!(key_type).cast(),
-                ulValueLen: std::mem::size_of_val(&key_type)
+        // Common to all keys
+        let mut key_template = vec![
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_CLASS,
+                pValue: std::ptr::addr_of!(class).cast(),
+                ulValueLen: std::mem::size_of_val(&class)
                     .try_into()
                     .expect("usize -> CK_ULONG"),
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_PRIVATE,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_SENSITIVE,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_TOKEN,
+                pValue: r#true,
+                ulValueLen: true_size,
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_VALUE,
+                pValue: bytes.as_ptr().cast(),
+                ulValueLen: bytes.len().try_into().expect("usize -> CK_ULONG"),
+            },
+        ];
+
+        if let Some(label) = label {
+            key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_LABEL,
+                pValue: label.as_ptr().cast(),
+                ulValueLen: label.len().try_into().expect("usize -> CK_ULONG"),
             });
+        }
 
-            let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+        let key_type = match usage {
+            KeyUsage::Aes => {
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_DECRYPT,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_ENCRYPT,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
 
-            let result = (self.context.C_CreateObject)(
+                pkcs11_sys::CKK_AES
+            }
+
+            KeyUsage::Hmac => {
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_SIGN,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
+                key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+                    r#type: pkcs11_sys::CKA_VERIFY,
+                    pValue: r#true,
+                    ulValueLen: true_size,
+                });
+
+                pkcs11_sys::CKK_GENERIC_SECRET
+            }
+        };
+
+        key_template.push(pkcs11_sys::CK_ATTRIBUTE_IN {
+            r#type: pkcs11_sys::CKA_KEY_TYPE,
+            pValue: std::ptr::addr_of!(key_type).cast(),
+            ulValueLen: std::mem::size_of_val(&key_type)
+                .try_into()
+                .expect("usize -> CK_ULONG"),
+        });
+
+        let mut key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
+
+        let result = unsafe {
+            (self.context.C_CreateObject)(
                 self.handle,
                 key_template.as_ptr().cast(),
                 key_template.len().try_into().expect("usize -> CK_ULONG"),
-                &mut key_handle,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Err(ImportKeyError::CreateObjectFailed(result));
-            }
-            if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
-                return Err(ImportKeyError::CreateObjectDidNotReturnHandle);
-            }
-
-            Ok(crate::Object::new(self, key_handle))
+                &raw mut key_handle,
+            )
+        };
+        if result != pkcs11_sys::CKR_OK {
+            return Err(ImportKeyError::CreateObjectFailed(result));
         }
+        if key_handle == pkcs11_sys::CK_INVALID_OBJECT_HANDLE {
+            return Err(ImportKeyError::CreateObjectDidNotReturnHandle);
+        }
+
+        Ok(crate::Object::new(self, key_handle))
     }
 }
 
@@ -776,24 +771,22 @@ impl Session {
         ),
         GenerateKeyPairError,
     > {
-        unsafe {
-            let oid = curve.as_oid_der();
+        let oid = curve.as_oid_der();
 
-            let public_key_template = vec![pkcs11_sys::CK_ATTRIBUTE_IN {
-                r#type: pkcs11_sys::CKA_EC_PARAMS,
-                pValue: oid.as_ptr().cast(),
-                ulValueLen: oid.len().try_into().expect("usize -> CK_ULONG"),
-            }];
+        let public_key_template = vec![pkcs11_sys::CK_ATTRIBUTE_IN {
+            r#type: pkcs11_sys::CKA_EC_PARAMS,
+            pValue: oid.as_ptr().cast(),
+            ulValueLen: oid.len().try_into().expect("usize -> CK_ULONG"),
+        }];
 
-            let private_key_template = vec![];
+        let private_key_template = vec![];
 
-            self.generate_key_pair_inner(
-                pkcs11_sys::CKM_EC_KEY_PAIR_GEN,
-                public_key_template,
-                private_key_template,
-                label,
-            )
-        }
+        self.generate_key_pair_inner(
+            pkcs11_sys::CKM_EC_KEY_PAIR_GEN,
+            public_key_template,
+            private_key_template,
+            label,
+        )
     }
 
     /// Generate an RSA key pair in the current session with the given modulus size, exponent and label.
@@ -809,36 +802,34 @@ impl Session {
         ),
         GenerateKeyPairError,
     > {
-        unsafe {
-            let exponent = exponent.to_vec();
+        let exponent = exponent.to_vec();
 
-            let public_key_template = vec![
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_MODULUS_BITS,
-                    pValue: std::ptr::addr_of!(modulus_bits).cast(),
-                    ulValueLen: std::mem::size_of_val(&modulus_bits)
-                        .try_into()
-                        .expect("usize -> CK_ULONG"),
-                },
-                pkcs11_sys::CK_ATTRIBUTE_IN {
-                    r#type: pkcs11_sys::CKA_PUBLIC_EXPONENT,
-                    pValue: exponent.as_ptr().cast(),
-                    ulValueLen: exponent.len().try_into().expect("usize -> CK_ULONG"),
-                },
-            ];
+        let public_key_template = vec![
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_MODULUS_BITS,
+                pValue: std::ptr::addr_of!(modulus_bits).cast(),
+                ulValueLen: std::mem::size_of_val(&modulus_bits)
+                    .try_into()
+                    .expect("usize -> CK_ULONG"),
+            },
+            pkcs11_sys::CK_ATTRIBUTE_IN {
+                r#type: pkcs11_sys::CKA_PUBLIC_EXPONENT,
+                pValue: exponent.as_ptr().cast(),
+                ulValueLen: exponent.len().try_into().expect("usize -> CK_ULONG"),
+            },
+        ];
 
-            let private_key_template = vec![];
+        let private_key_template = vec![];
 
-            self.generate_key_pair_inner(
-                pkcs11_sys::CKM_RSA_PKCS_KEY_PAIR_GEN,
-                public_key_template,
-                private_key_template,
-                label,
-            )
-        }
+        self.generate_key_pair_inner(
+            pkcs11_sys::CKM_RSA_PKCS_KEY_PAIR_GEN,
+            public_key_template,
+            private_key_template,
+            label,
+        )
     }
 
-    unsafe fn generate_key_pair_inner<TPublic, TPrivate>(
+    fn generate_key_pair_inner<TPublic, TPrivate>(
         self: std::sync::Arc<Self>,
         mechanism: pkcs11_sys::CK_MECHANISM_TYPE,
         mut public_key_template: Vec<pkcs11_sys::CK_ATTRIBUTE_IN>,
@@ -853,7 +844,8 @@ impl Session {
             for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
                 match self.get_key_inner(class, Some(label)) {
                     Ok(key_handle) => {
-                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
+                        let result =
+                            unsafe { (self.context.C_DestroyObject)(self.handle, key_handle) };
                         if result != pkcs11_sys::CKR_OK {
                             return Err(GenerateKeyPairError::DeleteExistingKeyFailed(result));
                         }
@@ -951,22 +943,24 @@ impl Session {
         let mut public_key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
         let mut private_key_handle = pkcs11_sys::CK_INVALID_OBJECT_HANDLE;
 
-        let result = (self.context.C_GenerateKeyPair)(
-            self.handle,
-            &mechanism,
-            public_key_template.as_ptr().cast(),
-            public_key_template
-                .len()
-                .try_into()
-                .expect("usize -> CK_ULONG"),
-            private_key_template.as_ptr().cast(),
-            private_key_template
-                .len()
-                .try_into()
-                .expect("usize -> CK_ULONG"),
-            &mut public_key_handle,
-            &mut private_key_handle,
-        );
+        let result = unsafe {
+            (self.context.C_GenerateKeyPair)(
+                self.handle,
+                &raw const mechanism,
+                public_key_template.as_ptr().cast(),
+                public_key_template
+                    .len()
+                    .try_into()
+                    .expect("usize -> CK_ULONG"),
+                private_key_template.as_ptr().cast(),
+                private_key_template
+                    .len()
+                    .try_into()
+                    .expect("usize -> CK_ULONG"),
+                &raw mut public_key_handle,
+                &raw mut private_key_handle,
+            )
+        };
         if result != pkcs11_sys::CKR_OK {
             return Err(GenerateKeyPairError::GenerateKeyPairFailed(result));
         }
@@ -1001,11 +995,20 @@ pub enum GenerateKeyPairError {
 impl std::fmt::Display for GenerateKeyPairError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GenerateKeyPairError::DeleteExistingKeyFailed(result) => write!(f, "C_DestroyObject failed with {result}"),
-            GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) =>
-                write!(f, "could not generate key pair: C_GenerateKeyPair succeeded but {kind} key handle is still CK_INVALID_HANDLE"),
-            GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(f, "could not generate key pair: C_GenerateKeyPair failed with {result}"),
-            GenerateKeyPairError::GetExistingKeyFailed(_) => write!(f, "could not get existing key object"),
+            GenerateKeyPairError::DeleteExistingKeyFailed(result) => {
+                write!(f, "C_DestroyObject failed with {result}")
+            }
+            GenerateKeyPairError::GenerateKeyPairDidNotReturnHandle(kind) => write!(
+                f,
+                "could not generate key pair: C_GenerateKeyPair succeeded but {kind} key handle is still CK_INVALID_HANDLE"
+            ),
+            GenerateKeyPairError::GenerateKeyPairFailed(result) => write!(
+                f,
+                "could not generate key pair: C_GenerateKeyPair failed with {result}"
+            ),
+            GenerateKeyPairError::GetExistingKeyFailed(_) => {
+                write!(f, "could not get existing key object")
+            }
             GenerateKeyPairError::LoginFailed(_) => f.write_str("could not log in to the token"),
         }
     }
@@ -1027,23 +1030,21 @@ impl std::error::Error for GenerateKeyPairError {
 impl Session {
     /// Delete a symmetric key in the current session with the given label.
     pub fn delete_key(self: std::sync::Arc<Self>, label: &str) -> Result<(), DeleteKeyError> {
-        unsafe {
-            // Deleting existing keys needs login
-            self.login().map_err(DeleteKeyError::LoginFailed)?;
+        // Deleting existing keys needs login
+        self.login().map_err(DeleteKeyError::LoginFailed)?;
 
-            match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
-                Ok(key_handle) => {
-                    let result = (self.context.C_DestroyObject)(self.handle, key_handle);
-                    if result != pkcs11_sys::CKR_OK {
-                        return Err(DeleteKeyError::DeleteExistingKeyFailed(result));
-                    }
+        match self.get_key_inner(pkcs11_sys::CKO_SECRET_KEY, Some(label)) {
+            Ok(key_handle) => {
+                let result = unsafe { (self.context.C_DestroyObject)(self.handle, key_handle) };
+                if result != pkcs11_sys::CKR_OK {
+                    return Err(DeleteKeyError::DeleteExistingKeyFailed(result));
                 }
-                Err(GetKeyError::KeyDoesNotExist) => (),
-                Err(err) => return Err(DeleteKeyError::GetExistingKeyFailed(err)),
             }
-
-            Ok(())
+            Err(GetKeyError::KeyDoesNotExist) => (),
+            Err(err) => return Err(DeleteKeyError::GetExistingKeyFailed(err)),
         }
+
+        Ok(())
     }
 }
 
@@ -1086,25 +1087,23 @@ impl Session {
         self: std::sync::Arc<Self>,
         label: &str,
     ) -> Result<(), DeleteKeyPairError> {
-        unsafe {
-            // Deleting existing keys needs login
-            self.login().map_err(DeleteKeyPairError::LoginFailed)?;
+        // Deleting existing keys needs login
+        self.login().map_err(DeleteKeyPairError::LoginFailed)?;
 
-            for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
-                match self.get_key_inner(class, Some(label)) {
-                    Ok(key_handle) => {
-                        let result = (self.context.C_DestroyObject)(self.handle, key_handle);
-                        if result != pkcs11_sys::CKR_OK {
-                            return Err(DeleteKeyPairError::DeleteExistingKeyFailed(result));
-                        }
+        for &class in &[pkcs11_sys::CKO_PUBLIC_KEY, pkcs11_sys::CKO_PRIVATE_KEY] {
+            match self.get_key_inner(class, Some(label)) {
+                Ok(key_handle) => {
+                    let result = unsafe { (self.context.C_DestroyObject)(self.handle, key_handle) };
+                    if result != pkcs11_sys::CKR_OK {
+                        return Err(DeleteKeyPairError::DeleteExistingKeyFailed(result));
                     }
-                    Err(GetKeyError::KeyDoesNotExist) => (),
-                    Err(err) => return Err(DeleteKeyPairError::GetExistingKeyFailed(err)),
                 }
+                Err(GetKeyError::KeyDoesNotExist) => (),
+                Err(err) => return Err(DeleteKeyPairError::GetExistingKeyFailed(err)),
             }
-
-            Ok(())
         }
+
+        Ok(())
     }
 }
 
@@ -1142,14 +1141,15 @@ impl std::error::Error for DeleteKeyPairError {
 }
 
 impl Session {
-    pub(crate) unsafe fn login(&self) -> Result<(), LoginError> {
+    pub(crate) fn login(&self) -> Result<(), LoginError> {
         let mut session_info = std::mem::MaybeUninit::uninit();
-        let result = (self.context.C_GetSessionInfo)(self.handle, session_info.as_mut_ptr());
+        let result =
+            unsafe { (self.context.C_GetSessionInfo)(self.handle, session_info.as_mut_ptr()) };
         if result != pkcs11_sys::CKR_OK {
             return Err(LoginError::GetSessionInfoFailed(result));
         }
 
-        let session_info = session_info.assume_init();
+        let session_info = unsafe { session_info.assume_init() };
         match session_info.state {
             pkcs11_sys::CKS_RO_USER_FUNCTIONS
             | pkcs11_sys::CKS_RW_USER_FUNCTIONS
@@ -1159,12 +1159,14 @@ impl Session {
         }
 
         if let Some(pin) = &self.pin {
-            let result = (self.context.C_Login)(
-                self.handle,
-                pkcs11_sys::CKU_USER,
-                pin.as_ptr().cast(),
-                pin.len().try_into().expect("usize -> CK_ULONG"),
-            );
+            let result = unsafe {
+                (self.context.C_Login)(
+                    self.handle,
+                    pkcs11_sys::CKU_USER,
+                    pin.as_ptr().cast(),
+                    pin.len().try_into().expect("usize -> CK_ULONG"),
+                )
+            };
             if result != pkcs11_sys::CKR_OK && result != pkcs11_sys::CKR_USER_ALREADY_LOGGED_IN {
                 return Err(LoginError::LoginFailed(result));
             }
@@ -1202,7 +1204,7 @@ impl std::error::Error for LoginError {}
 impl Drop for Session {
     fn drop(&mut self) {
         unsafe {
-            let _ = (self.context.C_CloseSession)(self.handle);
+            (self.context.C_CloseSession)(self.handle);
         }
     }
 }

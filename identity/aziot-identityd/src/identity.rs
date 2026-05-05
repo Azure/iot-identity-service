@@ -4,15 +4,12 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use aziot_identity_common::{hub::Module, Identity, IoTHubDevice};
+use aziot_identity_common::{Identity, IoTHubDevice, hub::Module};
 use aziot_identityd_config as config;
 use config::Payload;
 
 use crate::error::{Error, InternalError};
 use crate::{create_csr, load_dps_request_payload};
-
-const IOTHUB_ENCODE_SET: &percent_encoding::AsciiSet =
-    &http_common::PATH_SEGMENT_ENCODE_SET.add(b'=');
 
 const MODULE_BACKUP_LOCATION: &str = "modules";
 
@@ -75,13 +72,10 @@ impl IdentityManager {
         let mut backup_file = self.homedir_path.clone();
         backup_file.push(DEVICE_BACKUP_LOCATION);
 
-        if let Err(err) = std::fs::remove_file(backup_file) {
-            if err.kind() != std::io::ErrorKind::NotFound {
-                log::warn!(
-                    "Failed to clear device state before reprovisioning: {}",
-                    err
-                );
-            }
+        if let Err(err) = std::fs::remove_file(backup_file)
+            && err.kind() != std::io::ErrorKind::NotFound
+        {
+            log::warn!("Failed to clear device state before reprovisioning: {err}");
         }
 
         // Purge all module identities for this device. These might no longer be valid after reprovision.
@@ -93,13 +87,10 @@ impl IdentityManager {
             )
             .expect("module path for existing device must be valid");
 
-            if let Err(err) = std::fs::remove_dir_all(module_backup_path) {
-                if err.kind() != std::io::ErrorKind::NotFound {
-                    log::warn!(
-                        "Failed to clear module identities before reprovisioning: {}",
-                        err
-                    );
-                }
+            if let Err(err) = std::fs::remove_dir_all(module_backup_path)
+                && err.kind() != std::io::ErrorKind::NotFound
+            {
+                log::warn!("Failed to clear module identities before reprovisioning: {err}");
             }
         }
 
@@ -686,12 +677,10 @@ impl IdentityManager {
     ) -> Result<IoTHubDevice, Error> {
         let backup_device = self.get_backup_provisioning_info(credentials.clone());
 
-        if skip_if_backup_is_valid {
-            if let Some(backup_device) = backup_device {
-                log::info!("Provisioned with backup for {}.", backup_device.device_id);
+        if skip_if_backup_is_valid && let Some(backup_device) = backup_device {
+            log::info!("Provisioned with backup for {}.", backup_device.device_id);
 
-                return Ok(backup_device);
-            }
+            return Ok(backup_device);
         }
 
         let dps_request = aziot_cloud_client_async::DpsClient::new(
@@ -704,7 +693,7 @@ impl IdentityManager {
         .with_timeout(self.req_timeout)
         .with_proxy(self.proxy_uri.clone());
 
-        let payload: Option<serde_json::Value> = load_dps_request_payload(&payload)?;
+        let payload: Option<serde_json::Value> = load_dps_request_payload(payload.as_ref())?;
 
         let response = dps_request
             .register(scope_id, registration_id, payload)
@@ -746,11 +735,11 @@ impl IdentityManager {
                 None => None,
             },
             Err(err) => {
-                log::warn!("Ignoring invalid device info backup: {}", err);
+                log::warn!("Ignoring invalid device info backup: {err}");
 
                 // Remove the invalid device info so it's not checked when reconciling identities.
                 if let Err(err) = std::fs::remove_file(&prev_device_info_path) {
-                    log::warn!("Failed to delete invalid device info backup: {}", err);
+                    log::warn!("Failed to delete invalid device info backup: {err}");
                 }
 
                 None
@@ -1047,7 +1036,7 @@ fn get_prev_modules(
     let prev_hub_device_info = match HubDeviceInfo::new(prev_device_info_path) {
         Ok(device_info) => device_info,
         Err(err) => {
-            log::warn!("Ignoring invalid device info backup: {}", err);
+            log::warn!("Ignoring invalid device info backup: {err}");
 
             return Default::default();
         }
@@ -1062,7 +1051,7 @@ fn get_prev_modules(
         match crate::configext::load_file(prev_settings_path).map_err(Error::Internal) {
             Ok(settings) => settings,
             Err(err) => {
-                log::warn!("Ignoring invalid device settings backup: {}", err);
+                log::warn!("Ignoring invalid device settings backup: {err}");
 
                 return Default::default();
             }
@@ -1114,10 +1103,10 @@ impl ModuleBackup {
 
                     // Best effort to remove old modules backup folder, in case permissions have been set
                     // explictly on filesystem to prevent removal
-                    if let Err(err) = std::fs::remove_dir_all(old_modules_path) {
-                        if err.kind() != std::io::ErrorKind::NotFound {
-                            log::warn!("Failed to clear old module backup state: {}", err);
-                        }
+                    if let Err(err) = std::fs::remove_dir_all(old_modules_path)
+                        && err.kind() != std::io::ErrorKind::NotFound
+                    {
+                        log::warn!("Failed to clear old module backup state: {err}");
                     }
 
                     // Create new device's module backup folder
@@ -1130,10 +1119,7 @@ impl ModuleBackup {
 
         // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
         if let Err(err) = result {
-            log::warn!(
-                "Failed to create module information backup state folder: {}",
-                err
-            );
+            log::warn!("Failed to create module information backup state folder: {err}");
         }
     }
 
@@ -1165,7 +1151,7 @@ impl ModuleBackup {
 
         // Logging a warning is sufficient for per-module backup to keep the service operational for online operations
         if let Err(err) = result {
-            log::warn!("Failed to save module information backup state: {}", err);
+            log::warn!("Failed to save module information backup state: {err}");
         }
     }
 
@@ -1180,21 +1166,18 @@ impl ModuleBackup {
                 Ok(module) => match serde_json::from_slice(&module) {
                     Ok(s) => Some(s),
                     Err(err) => {
-                        log::error!("Invalid input from backup file. Failure reason: {}", err);
+                        log::error!("Invalid input from backup file. Failure reason: {err}");
                         None
                     }
                 },
                 Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => None,
                 Err(err) => {
-                    log::warn!("Could not read module backup file. Failure reason: {}", err);
+                    log::warn!("Could not read module backup file. Failure reason: {err}");
                     None
                 }
             },
             Err(err) => {
-                log::warn!(
-                    "Could not get module backup file path. Failure reason: {}",
-                    err
-                );
+                log::warn!("Could not get module backup file path. Failure reason: {err}");
                 None
             }
         }

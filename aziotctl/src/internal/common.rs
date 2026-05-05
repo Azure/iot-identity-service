@@ -4,11 +4,12 @@
 
 use std::path::Path;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use nix::unistd::{Uid, User};
 use serde::Serialize;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
+use tower_service::Service as _;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct CertificateValidity {
@@ -34,7 +35,7 @@ impl CertificateValidity {
             // into a chrono::DateTime<chrono::Utc>
             let time = time.to_string();
             let time = chrono::NaiveDateTime::parse_from_str(&time, "%b %e %H:%M:%S %Y GMT")?;
-            Ok(chrono::DateTime::<chrono::Utc>::from_utc(time, chrono::Utc))
+            Ok(chrono::TimeZone::from_utc_datetime(&chrono::Utc, &time))
         }
 
         let cert_path = cert_path.as_ref();
@@ -48,7 +49,7 @@ impl CertificateValidity {
             Err(e) => {
                 return Err(e)
                     .context(file_ctx)
-                    .context("Could not open cert file.")
+                    .context("Could not open cert file.");
             }
         };
 
@@ -61,7 +62,7 @@ impl CertificateValidity {
 
         let cert = openssl::x509::X509::stack_from_pem(&pem)?;
         let cert = cert
-            .get(0)
+            .first()
             .ok_or_else(|| anyhow!("could not parse {} as a valid .pem", cert_path.display()))?;
 
         let not_after = parse_openssl_time(cert.not_after())?;
@@ -81,25 +82,17 @@ pub async fn resolve_and_tls_handshake(
     hostname_display: &str,
     proxy_uri: Option<hyper::Uri>,
 ) -> Result<()> {
-    use hyper::service::Service;
-
     // we don't actually care about the stream that gets returned. All we care about
     // is whether or not the TLS handshake was successful
-    let _ = http_common::MaybeProxyConnector::new(proxy_uri, None, &[])
+    _ = http_common::MaybeProxyConnector::new(proxy_uri, None, &[])
         .with_context(|| {
-            anyhow!(
-                "Could not connect to {} : could not create TLS connector",
-                hostname_display,
-            )
+            anyhow!("Could not connect to {hostname_display} : could not create TLS connector")
         })?
         .call(endpoint)
         .await
-        .map_err(|e| anyhow!("{}", e))
+        .map_err(|e| anyhow!("{e}"))
         .with_context(|| {
-            anyhow!(
-                "Could not connect to {} : could not complete TLS handshake",
-                hostname_display,
-            )
+            anyhow!("Could not connect to {hostname_display} : could not complete TLS handshake")
         })?;
 
     Ok(())

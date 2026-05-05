@@ -62,6 +62,7 @@ pub(crate) struct TestInterface {
 type ArcMutex<T> = std::sync::Arc<tokio::sync::Mutex<T>>;
 
 #[cfg(test)]
+#[expect(clippy::items_after_test_module)] // Clippy this this is a mod containing tests, so it wants it to be after all other items in the file.
 pub(crate) mod test_interface {
     use super::{ArcMutex, TestInterface};
 

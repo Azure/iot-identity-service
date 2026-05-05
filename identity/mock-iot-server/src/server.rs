@@ -1,5 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::convert::Infallible;
+
+use bytes::Bytes;
+use http_body_util::{BodyExt as _, Empty, Full, combinators::BoxBody};
+use hyper::body::Incoming;
+
 pub(crate) struct ParsedRequest {
     pub method: hyper::Method,
     pub uri: String,
@@ -7,7 +13,7 @@ pub(crate) struct ParsedRequest {
 }
 
 impl ParsedRequest {
-    async fn from_http(req: hyper::Request<hyper::Body>) -> Result<Self, Response> {
+    async fn from_http(req: hyper::Request<Incoming>) -> Result<Self, Response> {
         println!();
         println!("----");
 
@@ -15,11 +21,12 @@ impl ParsedRequest {
         let uri = req.uri().to_string();
         println!("> {} {} {:?}", method, uri, req.version());
 
-        let body = hyper::body::to_bytes(req.into_body())
+        let body = req
+            .into_body()
+            .collect()
             .await
             .map_err(|_| Response::bad_request("unable to get body"))?
-            .to_vec();
-
+            .to_bytes();
         let body = if body.is_empty() {
             None
         } else {
@@ -78,7 +85,7 @@ impl Response {
     }
 
     #[allow(clippy::wrong_self_convention)] // This function should consume self.
-    pub fn to_http(self) -> hyper::Response<hyper::Body> {
+    pub fn to_http(self) -> hyper::Response<BoxBody<Bytes, Infallible>> {
         let mut response = hyper::Response::builder();
 
         let (status, body, debug_body) = match self {
@@ -86,13 +93,17 @@ impl Response {
                 println!();
                 println!("{message}");
 
-                (status, hyper::Body::empty(), None)
+                (status, BoxBody::new(Empty::new()), None)
             }
 
             Response::Json { status, body } => {
                 response = response.header(hyper::header::CONTENT_TYPE, "application/json");
 
-                (status, hyper::Body::from(body.clone()), Some(body))
+                (
+                    status,
+                    BoxBody::new(Full::new(Bytes::from(body.clone()))),
+                    Some(body),
+                )
             }
         };
 
@@ -102,7 +113,7 @@ impl Response {
         let response = response.status(status).body(body).unwrap();
 
         for (key, value) in response.headers() {
-            println!("< {}: {}", key, value.to_str().unwrap());
+            println!("< {key}: {}", value.to_str().unwrap());
         }
 
         if let Some(body) = debug_body {
@@ -140,8 +151,8 @@ pub(crate) type Context = std::sync::Arc<std::sync::Mutex<ContextInner>>;
 
 pub(crate) async fn serve_request(
     mut context: Context,
-    req: hyper::Request<hyper::Body>,
-) -> Result<hyper::Response<hyper::Body>, std::convert::Infallible> {
+    req: hyper::Request<Incoming>,
+) -> Result<hyper::Response<BoxBody<Bytes, Infallible>>, Infallible> {
     let req = match ParsedRequest::from_http(req).await {
         Ok(req) => req,
         Err(response) => return Ok(response.to_http()),

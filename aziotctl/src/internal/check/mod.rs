@@ -27,7 +27,7 @@ pub struct CheckerCfg {
     #[arg(long, value_name = "IOTHUB_HOSTNAME")]
     pub iothub_hostname: Option<String>,
 
-    /// Sets the proxy URI that this device would use to connect to Azure DPS and IoTHub endpoints.
+    /// Sets the proxy URI that this device would use to connect to Azure DPS and IoT Hub endpoints.
     #[arg(long, value_name = "PROXY_URI")]
     pub proxy_uri: Option<hyper::Uri>,
 
@@ -123,6 +123,7 @@ pub struct DaemonConfigs {
 }
 
 #[derive(Default)]
+#[expect(clippy::struct_excessive_bools)] // Clippy thinks we're trying to implement a state machine.
 struct DaemonsRunning {
     certd: bool,
     identityd: bool,

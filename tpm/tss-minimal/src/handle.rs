@@ -4,7 +4,7 @@ pub use esys_sys::ESYS_TR;
 
 use std::fmt;
 
-use crate::{private, EsysContext};
+use crate::{EsysContext, private};
 
 /// Trusted Platform Module Library Part 1: Architecture: 37.3 Owner and Platform Evict Objects
 pub const PERSISTENT_OBJECT_BASE: u32 = 0x81_00_00_00;
@@ -86,7 +86,7 @@ impl Drop for Transient<'_> {
     fn drop(&mut self) {
         let handle = std::mem::replace(&mut self.index, esys_sys::ESYS_TR_NONE);
         if let Err(e) = self.context.flush(handle) {
-            log::error!("could not flush Transient(0x{:08X}): {}", handle, e);
+            log::error!("could not flush Transient(0x{handle:08X}): {e}");
         }
     }
 }

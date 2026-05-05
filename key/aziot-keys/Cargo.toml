@@ -2,25 +2,24 @@
 name = "aziot-keys"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 homepage = "https://azure.github.io/iot-identity-service/"
 description = "aziot-keys is the default implementation of cryptographic operations used by the Keys Service."
 license = "MIT"
+
 
 [lib]
 crate-type = ["cdylib"]
 
 
 [dependencies]
-foreign-types-shared = "0.1"
-hex = "0.4"
-hmac = "0.12"
-lazy_static = "1"
-log = "0.4"
-openssl = "0.10"
-openssl-sys = "0.9"
-sha2 = "0.10"
-url = "2"
+foreign-types-shared = { workspace = true }
+hex = { workspace = true }
+hmac = { workspace = true }
+log = { workspace = true }
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
+sha2 = { workspace = true }
 
 aziot-keys-common = { path = "../aziot-keys-common" }
 logger = { path = "../../logger" }
@@ -29,6 +28,11 @@ openssl-sys2 = { path = "../../openssl-sys2" }
 pkcs11 = { path = "../../pkcs11/pkcs11" }
 pkcs11-sys = { path = "../../pkcs11/pkcs11-sys" }
 
+
 [features]
 # Unused at the moment, but need this so we can present a unified list of features to all packages
 snapctl = []
+
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::Serialize;
 
 use aziotctl_common::{check_length_for_local_issuer, is_rfc_1035_valid};
@@ -66,10 +66,9 @@ impl Hostname {
                 && !config_hostname.starts_with(&format!("{machine_hostname}."))
             {
                 return Err(anyhow!(
-                    "identityd config has hostname {} but device reports hostname {}.\n\
+                    "identityd config has hostname {config_hostname} but device reports hostname {machine_hostname}.\n\
                     Hostname in identityd config must either be identical to the device hostname \
                     or be a fully-qualified domain name that has the device hostname as the first component.",
-                    config_hostname, machine_hostname,
                 ));
             }
         }
@@ -78,7 +77,7 @@ impl Hostname {
         // For example, the IoT Hub C# SDK cannot connect to a hostname that contains an `_`.
         if !is_rfc_1035_valid(config_hostname) {
             return Ok(CheckResult::Warning(anyhow!(
-                "identityd config has hostname {} which does not comply with RFC 1035.\n\
+                "identityd config has hostname {config_hostname} which does not comply with RFC 1035.\n\
                  \n\
                  - Hostname must be between 1 and 255 octets inclusive.\n\
                  - Each label in the hostname (component separated by \".\") must be between 1 and 63 octets inclusive.\n\
@@ -86,14 +85,12 @@ impl Hostname {
                    and must contain only ASCII alphanumeric characters or hyphens (a-z, A-Z, 0-9, \"-\").\n\
                  \n\
                  Not complying with RFC 1035 may cause errors during the TLS handshake with modules and downstream devices.",
-                config_hostname,
             )));
         }
 
         if !check_length_for_local_issuer(config_hostname) {
             return Ok(CheckResult::Warning(anyhow!(
-                "identityd config hostname {} is too long to be used as a certificate issuer",
-                config_hostname,
+                "identityd config hostname {config_hostname} is too long to be used as a certificate issuer",
             )));
         }
 

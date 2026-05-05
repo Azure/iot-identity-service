@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use hmac::Mac;
+use hmac::{KeyInit as _, Mac as _};
 
 type HmacSha256 = hmac::Hmac<sha2::Sha256>;
 
@@ -10,13 +10,10 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -41,13 +38,10 @@ pub(crate) unsafe extern "C" fn create_key_if_not_exists(
 pub(crate) unsafe extern "C" fn load_key(id: *const std::os::raw::c_char) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -75,13 +69,10 @@ pub(crate) unsafe extern "C" fn import_key(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -95,7 +86,7 @@ pub(crate) unsafe extern "C" fn import_key(
             ));
         }
 
-        let bytes = std::slice::from_raw_parts(bytes, bytes_len);
+        let bytes = unsafe { std::slice::from_raw_parts(bytes, bytes_len) };
 
         let locations = crate::implementation::Location::of(id)?;
 
@@ -115,13 +106,10 @@ pub(crate) unsafe extern "C" fn delete_key(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "id",
-                    "expected non-NULL",
-                ));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("id", "expected non-NULL")
+            })?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("id", err))?;
@@ -145,13 +133,10 @@ pub(crate) unsafe extern "C" fn derive_key(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let base_id = {
-            if base_id.is_null() {
-                return Err(crate::implementation::err_invalid_parameter(
-                    "base_id",
-                    "expected non-NULL",
-                ));
-            }
-            let base_id = std::ffi::CStr::from_ptr(base_id);
+            let base_id = (unsafe { base_id.as_ref() }).ok_or_else(|| {
+                crate::implementation::err_invalid_parameter("base_id", "expected non-NULL")
+            })?;
+            let base_id = unsafe { std::ffi::CStr::from_ptr(base_id) };
             let base_id = base_id
                 .to_str()
                 .map_err(|err| crate::implementation::err_invalid_parameter("base_id", err))?;
@@ -172,12 +157,14 @@ pub(crate) unsafe extern "C" fn derive_key(
         };
 
         let expected_derived_key =
-            derive_key_common(&base_key, derivation_data, derivation_data_len)?;
+            unsafe { derive_key_common(&base_key, derivation_data, derivation_data_len)? };
         let expected_derived_key_len = expected_derived_key.len();
 
-        let actual_derived_key_len = *derived_key_len_out.as_ref();
+        let actual_derived_key_len = unsafe { *derived_key_len_out.as_ref() };
 
-        *derived_key_len_out.as_mut() = expected_derived_key_len;
+        unsafe {
+            *derived_key_len_out.as_mut() = expected_derived_key_len;
+        }
 
         if !derived_key.is_null() {
             let expected_derived_key_len = expected_derived_key.len();
@@ -190,10 +177,12 @@ pub(crate) unsafe extern "C" fn derive_key(
             }
 
             let derived_key_out =
-                std::slice::from_raw_parts_mut(derived_key, actual_derived_key_len);
+                unsafe { std::slice::from_raw_parts_mut(derived_key, actual_derived_key_len) };
 
             derived_key_out[..expected_derived_key_len].copy_from_slice(&expected_derived_key);
-            *derived_key_len_out.as_mut() = expected_derived_key_len;
+            unsafe {
+                *derived_key_len_out.as_mut() = expected_derived_key_len;
+            }
         }
 
         Ok(())
@@ -214,7 +203,7 @@ pub(crate) unsafe fn sign(
     };
 
     let (key, mechanism, _) = if mechanism == crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED {
-        derive_key_for_sign(&key, parameters)?
+        unsafe { derive_key_for_sign(&key, parameters)? }
     } else {
         (key, mechanism, parameters)
     };
@@ -344,7 +333,7 @@ pub(crate) unsafe fn encrypt(
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
-        derive_key_for_encrypt(&key, parameters)?
+        unsafe { derive_key_for_encrypt(&key, parameters)? }
     } else {
         (key, mechanism, parameters)
     };
@@ -357,17 +346,12 @@ pub(crate) unsafe fn encrypt(
     }
 
     let (iv, aad) = {
-        if parameters.is_null() {
-            return Err(crate::implementation::err_invalid_parameter(
-                "parameters",
-                "expected non-NULL",
-            ));
-        }
-
-        let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
-
-        let iv = std::slice::from_raw_parts(parameters.iv, parameters.iv_len);
-        let aad = std::slice::from_raw_parts(parameters.aad, parameters.aad_len);
+        let parameters = parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
+        let parameters = (unsafe { parameters.as_ref() }).ok_or_else(|| {
+            crate::implementation::err_invalid_parameter("parameters", "expected non-NULL")
+        })?;
+        let iv = unsafe { std::slice::from_raw_parts(parameters.iv, parameters.iv_len) };
+        let aad = unsafe { std::slice::from_raw_parts(parameters.aad, parameters.aad_len) };
         (iv, aad)
     };
 
@@ -417,7 +401,7 @@ pub(crate) unsafe fn decrypt(
     };
 
     let (key, mechanism, parameters) = if mechanism == crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED {
-        derive_key_for_encrypt(&key, parameters)?
+        unsafe { derive_key_for_encrypt(&key, parameters)? }
     } else {
         (key, mechanism, parameters)
     };
@@ -430,17 +414,12 @@ pub(crate) unsafe fn decrypt(
     }
 
     let (iv, aad) = {
-        if parameters.is_null() {
-            return Err(crate::implementation::err_invalid_parameter(
-                "parameters",
-                "expected non-NULL",
-            ));
-        }
-
-        let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
-
-        let iv = std::slice::from_raw_parts(parameters.iv, parameters.iv_len);
-        let aad = std::slice::from_raw_parts(parameters.aad, parameters.aad_len);
+        let parameters = parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS>();
+        let parameters = (unsafe { parameters.as_ref() }).ok_or_else(|| {
+            crate::implementation::err_invalid_parameter("parameters", "expected non-NULL")
+        })?;
+        let iv = unsafe { std::slice::from_raw_parts(parameters.iv, parameters.iv_len) };
+        let aad = unsafe { std::slice::from_raw_parts(parameters.aad, parameters.aad_len) };
         (iv, aad)
     };
 
@@ -576,7 +555,7 @@ fn create_inner(
 
                     CreateMethod::Import(bytes) => std::fs::write(path, bytes),
                 };
-                let () = result.map_err(crate::implementation::err_external)?;
+                () = result.map_err(crate::implementation::err_external)?;
                 return Ok(());
             }
 
@@ -591,7 +570,7 @@ fn create_inner(
                         return Err(crate::implementation::err_invalid_parameter(
                             "usage",
                             "unrecognized value",
-                        ))
+                        ));
                     }
                 };
 
@@ -666,7 +645,7 @@ fn create_inner(
 
                     // Delete the object we just created...
                     if let Some(object_label) = &uri.object_label {
-                        let _ = pkcs11_session.clone().delete_key(object_label);
+                        _ = pkcs11_session.clone().delete_key(object_label);
                     }
 
                     // ... and continue to the next location.
@@ -729,20 +708,18 @@ unsafe fn derive_key_for_sign(
     ),
     crate::AZIOT_KEYS_RC,
 > {
-    if parameters.is_null() {
-        return Err(crate::implementation::err_invalid_parameter(
-            "parameters",
-            "expected non-NULL",
-        ));
-    }
+    let parameters = parameters.cast::<crate::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS>();
+    let parameters = (unsafe { parameters.as_ref() }).ok_or_else(|| {
+        crate::implementation::err_invalid_parameter("parameters", "expected non-NULL")
+    })?;
 
-    let parameters = &*parameters.cast::<crate::AZIOT_KEYS_SIGN_DERIVED_PARAMETERS>();
-
-    let signature = derive_key_common(
-        key,
-        parameters.derivation_data,
-        parameters.derivation_data_len,
-    )?;
+    let signature = unsafe {
+        derive_key_common(
+            key,
+            parameters.derivation_data,
+            parameters.derivation_data_len,
+        )?
+    };
 
     let derived_key = Key::FileSystem(signature);
 
@@ -760,20 +737,18 @@ unsafe fn derive_key_for_encrypt(
     ),
     crate::AZIOT_KEYS_RC,
 > {
-    if parameters.is_null() {
-        return Err(crate::implementation::err_invalid_parameter(
-            "parameters",
-            "expected non-NULL",
-        ));
-    }
+    let parameters = parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS>();
+    let parameters = (unsafe { parameters.as_ref() }).ok_or_else(|| {
+        crate::implementation::err_invalid_parameter("parameters", "expected non-NULL")
+    })?;
 
-    let parameters = &*parameters.cast::<crate::AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS>();
-
-    let signature = derive_key_common(
-        key,
-        parameters.derivation_data,
-        parameters.derivation_data_len,
-    )?;
+    let signature = unsafe {
+        derive_key_common(
+            key,
+            parameters.derivation_data,
+            parameters.derivation_data_len,
+        )?
+    };
 
     let derived_key = Key::FileSystem(signature);
 
@@ -792,7 +767,8 @@ unsafe fn derive_key_common(
         ));
     }
 
-    let derivation_data = std::slice::from_raw_parts(derivation_data, derivation_data_len);
+    let derivation_data =
+        unsafe { std::slice::from_raw_parts(derivation_data, derivation_data_len) };
 
     match key {
         Key::FileSystem(key) => {

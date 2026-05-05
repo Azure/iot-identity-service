@@ -3,7 +3,7 @@ name = "aziot-key-openssl-engine-shared"
 version = "0.1.0"
 license = "MIT"
 authors = ["Arnav Singh <arsing@microsoft.com>"]
-edition = "2021"
+edition = "2024"
 build = "build/main.rs"
 
 
@@ -12,16 +12,18 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-openssl-errors = "0.2"
-openssl-sys = "0.9"
-url = "2"
+openssl-errors = { workspace = true }
+openssl-sys = { workspace = true }
 
 aziot-key-client = { path = "../aziot-key-client" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../aziot-key-openssl-engine" }
 http-common = { path = "../../http-common" }
-openssl-sys2 = { path = "../../openssl-sys2" }
 
 
 [build-dependencies]
 openssl-build = { path = "../../openssl-build" }
+
+
+[lints]
+workspace = true

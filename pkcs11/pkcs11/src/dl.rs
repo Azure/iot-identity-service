@@ -13,11 +13,8 @@ impl Library {
         let path = std::os::unix::ffi::OsStrExt::as_bytes(path.as_os_str()).to_owned();
         let path = std::ffi::CString::new(path).map_err(|err| err.to_string())?;
 
-        let handle = NonNull::new(libc::dlopen(
-            path.as_ptr(),
-            libc::RTLD_LAZY | libc::RTLD_LOCAL,
-        ))
-        .ok_or_else(|| dlerror())?;
+        let handle = unsafe { libc::dlopen(path.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL) };
+        let handle = NonNull::new(handle).ok_or_else(dlerror)?;
 
         Ok(Library { handle })
     }
@@ -27,8 +24,8 @@ impl Library {
         &'library mut self,
         name: &std::ffi::CStr,
     ) -> Result<Symbol<'library, F>, String> {
-        let inner = NonNull::new(libc::dlsym(self.handle.as_mut(), name.as_ptr()))
-            .ok_or_else(|| dlerror())?;
+        let inner = unsafe { libc::dlsym(self.handle.as_mut(), name.as_ptr()) };
+        let inner = NonNull::new(inner).ok_or_else(dlerror)?;
 
         Ok(Symbol {
             inner,
@@ -41,7 +38,7 @@ impl Library {
 impl Drop for Library {
     fn drop(&mut self) {
         unsafe {
-            let _ = libc::dlclose(self.handle.as_mut());
+            libc::dlclose(self.handle.as_mut());
         }
     }
 }
@@ -66,9 +63,13 @@ impl<F> std::ops::Deref for Symbol<'_, F> {
     }
 }
 
-unsafe fn dlerror() -> String {
-    let error = libc::dlerror();
-    let error = std::ffi::CStr::from_ptr(error);
-    let error = error.to_string_lossy();
-    error.into_owned()
+fn dlerror() -> String {
+    let error = unsafe { libc::dlerror() };
+    if error.is_null() {
+        Default::default()
+    } else {
+        let error = unsafe { std::ffi::CStr::from_ptr(error) };
+        let error = error.to_string_lossy();
+        error.into_owned()
+    }
 }

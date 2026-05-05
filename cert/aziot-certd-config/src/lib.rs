@@ -1,15 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::too_many_lines,
-    clippy::let_unit_value,
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate
-)]
-
 pub mod util;
 
 use std::collections::BTreeMap;
@@ -206,7 +196,7 @@ pub struct CertIssuanceOptions {
     #[serde(flatten)]
     pub method: CertIssuanceMethod,
 
-    /// Number of days between cert issuance and expiry. Applies to local_ca and self_signed issuance methods.
+    /// Number of days between cert issuance and expiry. Applies to `local_ca` and `self_signed` issuance methods.
     /// If not provided, defaults to 30.
     #[serde(default, deserialize_with = "deserialize_expiry_days")]
     pub expiry_days: Option<u32>,
@@ -238,7 +228,7 @@ impl std::convert::TryFrom<&CertSubject> for openssl::x509::X509Name {
             // NOTE: An option that would allow returning a string reference is
             // ```
             // let mut it = cn.chars();
-            // let _ = it.by_ref().take(CN_MAX_LENGTH).last();
+            // _ = it.by_ref().take(CN_MAX_LENGTH).last();
             // &cn[..usize::try_from(unsafe { it.as_str().as_ptr().offset(cn.as_str().as_ptr()) }).unwrap()]
             // ```
             cn.chars().take(CN_MAX_LENGTH).collect()

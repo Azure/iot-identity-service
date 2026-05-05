@@ -2,12 +2,6 @@
 
 //! Request/Response types used by the TPM Service's HTTP API.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::wildcard_imports)] // to use `super::*`
-
-use serde::{Deserialize, Serialize};
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ApiVersion {
     V2020_09_01,
@@ -33,7 +27,7 @@ impl std::str::FromStr for ApiVersion {
 }
 
 pub mod get_tpm_keys {
-    use super::*;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct Response {
@@ -45,7 +39,7 @@ pub mod get_tpm_keys {
 }
 
 pub mod import_auth_key {
-    use super::*;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct Request {
@@ -58,7 +52,7 @@ pub mod import_auth_key {
 }
 
 pub mod sign_with_auth_key {
-    use super::*;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Deserialize, Serialize)]
     pub struct Request {

@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
+use bytes::Bytes;
+use http_body_util::{BodyExt as _, Empty};
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +57,8 @@ impl AziotVersion {
             let connector =
                 http_common::MaybeProxyConnector::new(shared.cfg.proxy_uri.clone(), None, &[])
                     .context("could not initialize HTTP connector")?;
-            let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(connector);
+            let client: Client<_, Empty<Bytes>> =
+                Client::builder(TokioExecutor::new()).build(connector);
             let mut uri: hyper::Uri = URI.parse().expect("hard-coded URI cannot fail to parse");
             let latest_versions = loop {
                 let req = {
@@ -84,9 +88,12 @@ impl AziotVersion {
                     }
 
                     hyper::StatusCode::OK => {
-                        let body = hyper::body::aggregate(res.into_body())
+                        let body = res
+                            .into_body()
+                            .collect()
                             .await
-                            .context("could not read HTTP response")?;
+                            .context("could not read HTTP response")?
+                            .aggregate();
                         let body: LatestVersions =
                             serde_json::from_reader(hyper::body::Buf::reader(body))
                                 .context("could not read HTTP response")?;
@@ -94,7 +101,7 @@ impl AziotVersion {
                     }
 
                     status_code => {
-                        return Err(anyhow!("received unexpected response {}", status_code))
+                        return Err(anyhow!("received unexpected response {status_code}"));
                     }
                 }
             };
@@ -137,13 +144,10 @@ impl AziotVersion {
         self.actual_version = Some(actual_version.to_owned());
 
         if expected_version != actual_version {
-            return Ok(CheckResult::Warning(
-                anyhow!(
-                    "Installed aziot-identity-service package has version {} but {} is the latest stable version available.\n\
+            return Ok(CheckResult::Warning(anyhow!(
+                "Installed aziot-identity-service package has version {actual_version} but {expected_version} is the latest stable version available.\n\
                     Please see https://aka.ms/aziot-update-runtime for update instructions.",
-                    actual_version, expected_version,
-                ),
-            ));
+            )));
         }
 
         Ok(CheckResult::Ok)

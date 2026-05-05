@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::ffi::CStr;
+
 pub(super) struct Engine {
     client: std::sync::Arc<aziot_key_client::Client>,
 }
 
 impl Engine {
-    const ENGINE_ID: &'static [u8] = b"aziot-key-openssl-engine\0";
+    const ENGINE_ID: &CStr = c"aziot-key-openssl-engine";
 
     pub(super) unsafe fn load(
         client: std::sync::Arc<aziot_key_client::Client>,
@@ -16,24 +18,26 @@ impl Engine {
             // If we can't complete the registration, log the error and swallow it.
             // The caller will get an error when it tries to look up the engine that failed to be created,
             // so there's no worry about propagating the error from here.
-            let _ = super::r#catch(None, || {
-                let e = openssl2::openssl_returns_nonnull(openssl_sys2::ENGINE_new())?;
-                let e: openssl2::StructuralEngine = foreign_types_shared::ForeignType::from_ptr(e);
+            _ = super::r#catch(None, || {
+                let e = openssl2::openssl_returns_nonnull(unsafe { openssl_sys2::ENGINE_new() })?;
+                let e: openssl2::StructuralEngine =
+                    unsafe { foreign_types_shared::ForeignType::from_ptr(e) };
                 let e = foreign_types_shared::ForeignType::as_ptr(&e);
 
-                Self::register(e, None)?;
+                unsafe {
+                    Self::register(e, None)?;
+                }
 
                 Ok(())
             });
         });
 
-        let e = openssl2::StructuralEngine::by_id(
-            std::ffi::CStr::from_bytes_with_nul(Self::ENGINE_ID)
-                .expect("hard-coded engine ID is valid CStr"),
-        )?;
+        let e = openssl2::StructuralEngine::by_id(Self::ENGINE_ID)?;
         let e: openssl2::FunctionalEngine = e.try_into()?;
 
-        Self::init(foreign_types_shared::ForeignType::as_ptr(&e), client)?;
+        unsafe {
+            Self::init(foreign_types_shared::ForeignType::as_ptr(&e), client)?;
+        }
 
         Ok(e)
     }
@@ -45,44 +49,42 @@ impl Engine {
             openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
         )>,
     ) -> Result<(), openssl2::Error> {
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_id(
-            e,
-            std::ffi::CStr::from_bytes_with_nul(Self::ENGINE_ID)
-                .expect("hard-coded engine ID is valid CStr")
-                .as_ptr(),
-        ))?;
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_name(
-            e,
-            std::ffi::CStr::from_bytes_with_nul(
-                b"An openssl engine that talks to the Azure IoT Keys Service\0",
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_id(e, Self::ENGINE_ID.as_ptr())
+        })?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_name(
+                e,
+                c"An openssl engine that talks to the Azure IoT Keys Service".as_ptr(),
             )
-            .expect("hard-coded engine name is valid CStr")
-            .as_ptr(),
-        ))?;
+        })?;
 
         if let Some((init, destroy)) = init_and_destroy {
-            openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_init_function(e, init))?;
-            openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_destroy_function(e, destroy))?;
+            openssl2::openssl_returns_1(unsafe {
+                openssl_sys2::ENGINE_set_init_function(e, init)
+            })?;
+            openssl2::openssl_returns_1(unsafe {
+                openssl_sys2::ENGINE_set_destroy_function(e, destroy)
+            })?;
         }
 
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_privkey_function(
-            e,
-            engine_load_privkey,
-        ))?;
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_load_pubkey_function(
-            e,
-            engine_load_pubkey,
-        ))?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_load_privkey_function(e, engine_load_privkey)
+        })?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_load_pubkey_function(e, engine_load_pubkey)
+        })?;
         #[cfg(ossl110)]
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_pkey_meths(e, engine_pkey_meths))?;
-        openssl2::openssl_returns_1(openssl_sys2::ENGINE_set_flags(
-            e,
-            openssl_sys2::ENGINE_FLAGS_BY_ID_COPY,
-        ))?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_pkey_meths(e, engine_pkey_meths)
+        })?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::ENGINE_set_flags(e, openssl_sys2::ENGINE_FLAGS_BY_ID_COPY)
+        })?;
 
         if init_and_destroy.is_none() {
             // ENGINE_add should not be called for dynamic engines because the dynamic loader does it.
-            openssl2::openssl_returns_1(openssl_sys2::ENGINE_add(e))?;
+            openssl2::openssl_returns_1(unsafe { openssl_sys2::ENGINE_add(e) })?;
         }
 
         Ok(())
@@ -93,20 +95,24 @@ impl Engine {
         client: std::sync::Arc<aziot_key_client::Client>,
     ) -> Result<(), openssl2::Error> {
         let engine = Engine { client };
-        crate::ex_data::set(e, engine)?;
+        unsafe {
+            crate::ex_data::set(e, engine)?;
+        }
         Ok(())
     }
 
     pub(super) unsafe fn destroy(e: *mut openssl_sys::ENGINE) -> Result<(), openssl2::Error> {
-        let ex_index = <openssl_sys::ENGINE as crate::ex_data::HasExData<Engine>>::index().as_raw();
+        let ex_index =
+            (unsafe { <openssl_sys::ENGINE as crate::ex_data::HasExData<Engine>>::index() })
+                .as_raw();
 
-        let ex_data: *const Engine = openssl2::openssl_returns_nonnull(
-            (<openssl_sys::ENGINE as openssl2::ExDataAccessors>::GET_FN)(e, ex_index),
-        )? as _;
+        let ex_data: *const Engine = openssl2::openssl_returns_nonnull(unsafe {
+            (<openssl_sys::ENGINE as openssl2::ExDataAccessors>::GET_FN)(e, ex_index)
+        })? as _;
         if !ex_data.is_null() {
-            // Restore the Arc and then drop it.
-            let ex_data = std::sync::Arc::from_raw(ex_data);
-            drop(ex_data);
+            unsafe {
+                std::sync::Arc::decrement_strong_count(ex_data);
+            }
         }
 
         Ok(())
@@ -120,7 +126,7 @@ impl crate::ex_data::HasExData<Engine> for openssl_sys::ENGINE {
 }
 
 #[cfg(ossl300)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
     _to: *mut openssl_sys::CRYPTO_EX_DATA,
@@ -130,12 +136,14 @@ unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) -> std::os::raw::c_int {
-    crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
+    unsafe {
+        crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
+    }
     1
 }
 
 #[cfg(not(ossl300))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(clippy::similar_names)]
 unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
     _to: *mut openssl_sys::CRYPTO_EX_DATA,
@@ -145,7 +153,9 @@ unsafe extern "C" fn aziot_key_dupf_engine_ex_data(
     _argl: std::os::raw::c_long,
     _argp: *mut std::ffi::c_void,
 ) -> std::os::raw::c_int {
-    crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
+    unsafe {
+        crate::ex_data::dup::<openssl_sys::ENGINE, Engine>(from_d, idx);
+    }
     1
 }
 
@@ -156,11 +166,11 @@ unsafe extern "C" fn engine_load_privkey(
     _callback_data: *mut std::ffi::c_void,
 ) -> *mut openssl_sys::EVP_PKEY {
     let result = super::r#catch(Some(|| super::Error::ENGINE_LOAD_PRIVKEY), || {
-        let engine = crate::ex_data::get(&*e)?;
+        let engine = crate::ex_data::get(unsafe { &*e })?;
 
         let client = engine.client.clone();
 
-        let key_handle = std::ffi::CStr::from_ptr(key_id).to_str()?;
+        let key_handle = (unsafe { std::ffi::CStr::from_ptr(key_id) }).to_str()?;
         let key_handle = aziot_key_common::KeyHandle(key_handle.to_owned());
 
         let key_ex_data = crate::ex_data::KeyExData {
@@ -192,18 +202,22 @@ unsafe extern "C" fn engine_load_privkey(
                 {
                     let parameters = foreign_types_shared::ForeignType::as_ptr(&parameters);
 
-                    crate::ex_data::set(parameters, key_ex_data)?;
+                    unsafe {
+                        crate::ex_data::set(parameters, key_ex_data)?;
+                    }
 
-                    #[cfg(ossl110)]
-                    openssl2::openssl_returns_1(openssl_sys2::EC_KEY_set_method(
-                        parameters,
-                        super::ec_key::aziot_key_ec_key_method(),
-                    ))?;
-                    #[cfg(not(ossl110))]
-                    openssl2::openssl_returns_1(openssl_sys2::ECDSA_set_method(
-                        parameters,
-                        super::ec_key::aziot_key_ec_key_method(),
-                    ))?;
+                    unsafe {
+                        #[cfg(ossl110)]
+                        openssl2::openssl_returns_1(openssl_sys2::EC_KEY_set_method(
+                            parameters,
+                            super::ec_key::aziot_key_ec_key_method(),
+                        ))?;
+                        #[cfg(not(ossl110))]
+                        openssl2::openssl_returns_1(openssl_sys2::ECDSA_set_method(
+                            parameters,
+                            super::ec_key::aziot_key_ec_key_method(),
+                        ))?;
+                    }
                 }
 
                 let openssl_key = openssl::pkey::PKey::from_ec_key(parameters)?;
@@ -229,12 +243,13 @@ unsafe extern "C" fn engine_load_privkey(
                 {
                     let parameters = foreign_types_shared::ForeignType::as_ptr(&parameters);
 
-                    crate::ex_data::set(parameters, key_ex_data)?;
+                    unsafe {
+                        crate::ex_data::set(parameters, key_ex_data)?;
+                    }
 
-                    openssl2::openssl_returns_1(openssl_sys2::RSA_set_method(
-                        parameters,
-                        super::rsa::aziot_key_rsa_method(),
-                    ))?;
+                    openssl2::openssl_returns_1(unsafe {
+                        openssl_sys2::RSA_set_method(parameters, super::rsa::aziot_key_rsa_method())
+                    })?;
                 }
 
                 let openssl_key = openssl::pkey::PKey::from_rsa(parameters)?;
@@ -244,13 +259,15 @@ unsafe extern "C" fn engine_load_privkey(
             }
 
             key_algorithm => {
-                return Err(format!("unrecognized key algorithm {key_algorithm}").into())
+                return Err(format!("unrecognized key algorithm {key_algorithm}").into());
             }
         };
 
         // Needed for openssl 1.1, otherwise the key is not associated with the engine.
         #[cfg(ossl110)]
-        openssl2::openssl_returns_1(openssl_sys2::EVP_PKEY_set1_engine(openssl_key_raw, e))?;
+        openssl2::openssl_returns_1(unsafe {
+            openssl_sys2::EVP_PKEY_set1_engine(openssl_key_raw, e)
+        })?;
 
         Ok(openssl_key_raw)
     });
@@ -267,9 +284,9 @@ unsafe extern "C" fn engine_load_pubkey(
     _callback_data: *mut std::ffi::c_void,
 ) -> *mut openssl_sys::EVP_PKEY {
     let result = super::r#catch(Some(|| super::Error::ENGINE_LOAD_PUBKEY), || {
-        let engine = crate::ex_data::get(&*e)?;
+        let engine = crate::ex_data::get(unsafe { &*e })?;
 
-        let key_handle = std::ffi::CStr::from_ptr(key_id).to_str()?;
+        let key_handle = (unsafe { std::ffi::CStr::from_ptr(key_id) }).to_str()?;
         let key_handle = aziot_key_common::KeyHandle(key_handle.to_owned());
 
         let client = engine.client.clone();
@@ -322,7 +339,7 @@ unsafe extern "C" fn engine_load_pubkey(
             }
 
             key_algorithm => {
-                return Err(format!("unrecognized key algorithm {key_algorithm}").into())
+                return Err(format!("unrecognized key algorithm {key_algorithm}").into());
             }
         };
 
@@ -359,7 +376,9 @@ unsafe extern "C" fn engine_pkey_meths(
             // Mode 1
 
             if !nids.is_null() {
-                *nids = SUPPORTED_NIDS.as_ptr();
+                unsafe {
+                    *nids = SUPPORTED_NIDS.as_ptr();
+                }
             }
 
             Ok(SUPPORTED_NIDS.len().try_into().expect("usize -> c_int"))
@@ -368,12 +387,16 @@ unsafe extern "C" fn engine_pkey_meths(
 
             match nid {
                 openssl_sys::EVP_PKEY_EC => {
-                    *pmeth = super::ec_key::get_evp_ec_method()?;
+                    unsafe {
+                        *pmeth = super::ec_key::get_evp_ec_method()?;
+                    }
                     Ok(1)
                 }
 
                 openssl_sys::EVP_PKEY_RSA => {
-                    *pmeth = super::rsa::get_evp_rsa_method()?;
+                    unsafe {
+                        *pmeth = super::rsa::get_evp_rsa_method()?;
+                    }
                     Ok(1)
                 }
 
@@ -381,8 +404,5 @@ unsafe extern "C" fn engine_pkey_meths(
             }
         }
     });
-    match result {
-        Ok(result) => result,
-        Err(()) => 0,
-    }
+    result.unwrap_or(0)
 }

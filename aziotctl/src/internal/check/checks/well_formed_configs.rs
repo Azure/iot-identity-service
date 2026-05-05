@@ -155,7 +155,7 @@ impl Checker for WellFormedIdentitydConfig {
                 }
             }
             Ok(DaemonCfg::PermissionDenied(_)) | Err(_) => {}
-        };
+        }
 
         CheckResult::Ok
     }
@@ -179,7 +179,7 @@ fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
             Some(err) if err.kind() == io::ErrorKind::PermissionDenied => {
                 if let Some(path) = path {
                     return Ok(DaemonCfg::PermissionDenied(
-                        anyhow::anyhow!("{}", err)
+                        anyhow::anyhow!("{err}")
                             .context(format!("error in file {}", path.display()))
                             .context(
                                 "Could not open file. You might need to run this command as root.",
@@ -188,7 +188,7 @@ fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
                 }
 
                 return Ok(DaemonCfg::PermissionDenied(
-                    anyhow::anyhow!("{}", err).context(
+                    anyhow::anyhow!("{err}").context(
                         "Could not open file. You might need to run this command as root.",
                     ),
                 ));
@@ -205,12 +205,12 @@ fn load_daemon_cfg<T: serde::de::DeserializeOwned>(
                 };
 
                 if let Some(path) = path {
-                    return Err(anyhow::anyhow!("{}", err)
+                    return Err(anyhow::anyhow!("{err}")
                         .context(format!("error in file {}", path.display()))
                         .context(message));
                 }
 
-                return Err(anyhow::anyhow!("{}", err).context(message));
+                return Err(anyhow::anyhow!("{err}").context(message));
             }
         },
     };

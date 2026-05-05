@@ -166,10 +166,11 @@ impl KeyEngine {
     ) {
         let keys = crate::credential::new_keys();
 
-        assert!(self
-            .keys
-            .insert(key_handle.to_string(), keys.clone())
-            .is_none());
+        assert!(
+            self.keys
+                .insert(key_handle.to_string(), keys.clone())
+                .is_none()
+        );
 
         keys
     }

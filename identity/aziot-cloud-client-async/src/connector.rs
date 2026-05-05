@@ -23,9 +23,7 @@ pub(crate) fn from_auth(
             let mut identity_cert_pem = Vec::new();
 
             for cert in &identity_cert.1 {
-                let mut cert = cert
-                    .to_pem()
-                    .map_err(|_| Error::new(ErrorKind::Other, "bad cert"))?;
+                let mut cert = cert.to_pem().map_err(|_| Error::other("bad cert"))?;
 
                 identity_cert_pem.append(&mut cert);
             }

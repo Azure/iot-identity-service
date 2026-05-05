@@ -1,8 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
 
@@ -130,7 +127,7 @@ impl Default for Endpoints {
 mod tests {
     #[test]
     fn parse_config() {
-        let actual = r#""#;
+        let actual = "";
         let actual: super::Config = toml::from_str(actual).unwrap();
 
         assert_eq!(
@@ -222,14 +219,16 @@ owner = "world"
 
     #[test]
     fn reject_config_with_out_of_bounds_auth_key_index() {
-        let actual = r#"
+        let actual = r"
 auth_key_index = 0x80_00_00
-"#;
+";
 
-        assert!(toml::from_str::<super::Config>(actual)
-            .unwrap_err()
-            .to_string()
-            .contains(super::AUTH_KEY_BOUND_MESSAGE));
+        assert!(
+            toml::from_str::<super::Config>(actual)
+                .unwrap_err()
+                .to_string()
+                .contains(super::AUTH_KEY_BOUND_MESSAGE)
+        );
     }
 
     #[cfg(debug_assertions)]

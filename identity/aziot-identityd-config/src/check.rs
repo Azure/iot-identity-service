@@ -32,7 +32,10 @@ impl Settings {
                     if p.localid.is_some() {
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
-                            format!("invalid config for {}: local identity options specified for non-local identity", p.name.0)
+                            format!(
+                                "invalid config for {}: local identity options specified for non-local identity",
+                                p.name.0
+                            ),
                         ));
                     }
                 }
@@ -48,10 +51,12 @@ impl Settings {
 
                 if !provisioning_valid {
                     return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidInput,
-                            format!("invalid config for {}: module or device identity requires provisioning with IoT Hub", p.name.0)
-                        )
-                    );
+                        std::io::ErrorKind::InvalidInput,
+                        format!(
+                            "invalid config for {}: module or device identity requires provisioning with IoT Hub",
+                            p.name.0
+                        ),
+                    ));
                 }
             }
         }

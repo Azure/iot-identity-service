@@ -194,7 +194,7 @@ target/openapi-schema-validated:
 
 	touch target/openapi-schema-validated
 
-test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
+test-release: CLIPPY_FLAGS = -D warnings
 test-release: test
 	$(CARGO) fmt --all -- --check
 
@@ -213,22 +213,6 @@ test:
 		$$MAYBE_EXCLUDE_TSS_MINIMAL \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
-
-	find . -name '*.rs' | \
-		grep -v '^\./target/' | \
-		grep -v '^\./third-party/' | \
-		grep -v '\.generated\.rs$$' | \
-		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
-		while read -r f; do \
-			if ! grep -Eq '^#!\[deny\(rust_2018_idioms\)\]$$' "$$f"; then \
-				echo "missing #![deny(rust_2018_idioms)] in $$f" >&2; \
-				exit 1; \
-			fi; \
-			if ! grep -Eq '^#!\[warn\(clippy::all, clippy::pedantic\)\]$$' "$$f"; then \
-				echo "missing #![warn(clippy::all, clippy::pedantic)] in $$f" >&2; \
-				exit 1; \
-			fi; \
-		done
 
 	$(CARGO) clippy --all \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)

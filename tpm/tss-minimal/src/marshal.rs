@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 use crate::error::wrap_rc;
-use crate::{types, Result};
+use crate::{Result, types};
 
 pub trait Marshal<T> {
     fn marshal(&mut self, data: &T) -> Result<()>;
@@ -44,7 +44,7 @@ macro_rules! marshal {
 
                     let buf = std::mem::take(self);
                     let (_, rest) = buf.split_at_mut(index as _);
-                    let _ = std::mem::replace(self, rest);
+                    *self = rest;
                     Ok(())
                 }
             }
@@ -70,7 +70,7 @@ macro_rules! unmarshal {
                     }
 
                     let (_, rest) = self.split_at(index as _);
-                    let _ = std::mem::replace(self, rest);
+                    *self = rest;
                     Ok(unsafe { out.assume_init() })
                 }
             }

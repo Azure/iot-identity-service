@@ -40,7 +40,7 @@ impl EstIdRenewal {
                 )
                 .map_err(|err| crate::Error::Internal(crate::InternalError::GetPath(err)))?;
 
-                Some((bootstrap_path, bootstrap.pk.to_string()))
+                Some((bootstrap_path, bootstrap.pk.clone()))
             } else {
                 None
             }

@@ -1,22 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::doc_markdown, // clippy wants "IoT" in a code fence
-)]
-
 //! This crate wraps the openssl engine of the aziot-key-openssl-engine crate into a cdylib that can be loaded as a dynamic engine.
 //!
 //! This is not used by the IS or CS since they use the static engine, but is intended for third-party applications like modules.
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn aziot_key_openssl_engine_shared_bind(
     e: *mut openssl_sys::ENGINE,
     _id: *const std::os::raw::c_char,
 ) -> std::os::raw::c_int {
     let result = r#catch(Some(|| Error::ENGINE_BIND), || {
-        aziot_key_openssl_engine::register(e, engine_init, engine_destroy)?;
+        unsafe {
+            aziot_key_openssl_engine::register(e, engine_init, engine_destroy)?;
+        }
         Ok(())
     });
     match result {
@@ -37,7 +33,9 @@ unsafe extern "C" fn engine_init(e: *mut openssl_sys::ENGINE) -> std::os::raw::c
         );
         let key_client = std::sync::Arc::new(key_client);
 
-        aziot_key_openssl_engine::init(e, key_client)?;
+        unsafe {
+            aziot_key_openssl_engine::init(e, key_client)?;
+        }
 
         Ok(())
     });
@@ -49,7 +47,9 @@ unsafe extern "C" fn engine_init(e: *mut openssl_sys::ENGINE) -> std::os::raw::c
 
 unsafe extern "C" fn engine_destroy(e: *mut openssl_sys::ENGINE) -> std::os::raw::c_int {
     let result = r#catch(Some(|| Error::ENGINE_DESTROY), || {
-        aziot_key_openssl_engine::destroy(e)?;
+        unsafe {
+            aziot_key_openssl_engine::destroy(e)?;
+        }
 
         Ok(())
     });
@@ -60,7 +60,6 @@ unsafe extern "C" fn engine_destroy(e: *mut openssl_sys::ENGINE) -> std::os::raw
 }
 
 openssl_errors::openssl_errors! {
-    #[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
     library Error("aziot_key_openssl_engine_shared") {
         functions {
             ENGINE_BIND("aziot_key_engine_shared_bind");

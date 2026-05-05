@@ -1,14 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc
-)]
-
 mod error;
 mod http;
 
@@ -86,10 +77,11 @@ impl Api {
                         tss_minimal::handle::ENDORSEMENT_KEY,
                         e
                     );
+                    let sensitive = unsafe { std::mem::zeroed() };
                     let handle = context.create_primary(
                         &Persistent::PASSWORD_SESSION,
                         Persistent::ENDORSEMENT_HIERARCHY,
-                        unsafe { &std::mem::zeroed() },
+                        &sensitive,
                         &tss_minimal::types::EK_RSA_TEMPLATE,
                         None,
                     )?;
@@ -112,10 +104,11 @@ impl Api {
                         tss_minimal::handle::STORAGE_ROOT_KEY,
                         e
                     );
+                    let sensitive = unsafe { std::mem::zeroed() };
                     let handle = context.create_primary(
                         &Persistent::PASSWORD_SESSION,
                         Persistent::OWNER_HIERARCHY,
-                        unsafe { &std::mem::zeroed() },
+                        &sensitive,
                         &tss_minimal::types::SRK_RSA_TEMPLATE,
                         None,
                     )?;
@@ -184,7 +177,7 @@ impl Api {
             if let Err(e) = res {
                 // NOTE: It is likely that another process interacting with the
                 // TPM evicted the key.
-                log::warn!("could not evict previous auth key: {}", e);
+                log::warn!("could not evict previous auth key: {e}");
             }
         }
 

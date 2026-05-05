@@ -1,14 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate,
-    clippy::use_self
-)]
-
 /// X.509 extension parsing.
 pub mod extension;
 
@@ -55,7 +46,7 @@ impl std::error::Error for Error {
 foreign_types::foreign_type! {
     type CType = openssl_sys::ENGINE;
 
-    fn drop = |ptr| { let _ = openssl_sys2::ENGINE_free(ptr); };
+    fn drop = |ptr| { _ = openssl_sys2::ENGINE_free(ptr); };
 
     /// A "structural reference" to an openssl engine.
     pub struct StructuralEngine;
@@ -67,17 +58,16 @@ foreign_types::foreign_type! {
 impl StructuralEngine {
     /// Loads an engine by its ID.
     pub fn by_id(id: &std::ffi::CStr) -> Result<Self, Error> {
-        unsafe {
-            let ptr = openssl_returns_nonnull(openssl_sys2::ENGINE_by_id(id.as_ptr()))?;
-            Ok(foreign_types_shared::ForeignType::from_ptr(ptr))
-        }
+        let ptr = openssl_returns_nonnull(unsafe { openssl_sys2::ENGINE_by_id(id.as_ptr()) })?;
+        let result = unsafe { foreign_types_shared::ForeignType::from_ptr(ptr) };
+        Ok(result)
     }
 }
 
 foreign_types::foreign_type! {
     type CType = openssl_sys::ENGINE;
 
-    fn drop = |ptr| { let _ = openssl_sys2::ENGINE_finish(ptr); };
+    fn drop = |ptr| { _ = openssl_sys2::ENGINE_finish(ptr); };
 
     /// A "functional reference" to an openssl engine.
     ///
@@ -100,12 +90,10 @@ unsafe impl Send for FunctionalEngine {}
 impl FunctionalEngineRef {
     /// Queries the engine for its name.
     pub fn name(&self) -> Result<&std::ffi::CStr, Error> {
-        unsafe {
-            let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
-            let name = openssl_returns_nonnull_const(openssl_sys2::ENGINE_get_name(this))?;
-            let name = std::ffi::CStr::from_ptr(name);
-            Ok(name)
-        }
+        let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
+        let name = openssl_returns_nonnull_const(unsafe { openssl_sys2::ENGINE_get_name(this) })?;
+        let name = unsafe { std::ffi::CStr::from_ptr(name) };
+        Ok(name)
     }
 
     /// Loads the public key with the given ID.
@@ -113,17 +101,17 @@ impl FunctionalEngineRef {
         &mut self,
         id: &std::ffi::CStr,
     ) -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
-        unsafe {
-            let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
-            let result = openssl_returns_nonnull(openssl_sys2::ENGINE_load_public_key(
+        let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
+        let result = openssl_returns_nonnull(unsafe {
+            openssl_sys2::ENGINE_load_public_key(
                 this,
                 id.as_ptr(),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-            ))?;
-            let result = foreign_types_shared::ForeignType::from_ptr(result);
-            Ok(result)
-        }
+            )
+        })?;
+        let result = unsafe { foreign_types_shared::ForeignType::from_ptr(result) };
+        Ok(result)
     }
 
     /// Loads the private key with the given ID.
@@ -131,17 +119,17 @@ impl FunctionalEngineRef {
         &mut self,
         id: &std::ffi::CStr,
     ) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, Error> {
-        unsafe {
-            let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
-            let result = openssl_returns_nonnull(openssl_sys2::ENGINE_load_private_key(
+        let this = foreign_types_shared::ForeignTypeRef::as_ptr(self);
+        let result = openssl_returns_nonnull(unsafe {
+            openssl_sys2::ENGINE_load_private_key(
                 this,
                 id.as_ptr(),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-            ))?;
-            let result = foreign_types_shared::ForeignType::from_ptr(result);
-            Ok(result)
-        }
+            )
+        })?;
+        let result = unsafe { foreign_types_shared::ForeignType::from_ptr(result) };
+        Ok(result)
     }
 }
 
@@ -149,13 +137,12 @@ impl std::convert::TryFrom<StructuralEngine> for FunctionalEngine {
     type Error = Error;
 
     fn try_from(engine: StructuralEngine) -> Result<Self, Self::Error> {
-        unsafe {
-            let ptr = foreign_type_into_ptr(engine);
+        let ptr = foreign_type_into_ptr(engine);
 
-            openssl_returns_1(openssl_sys2::ENGINE_init(ptr))?;
+        openssl_returns_1(unsafe { openssl_sys2::ENGINE_init(ptr) })?;
 
-            Ok(foreign_types_shared::ForeignType::from_ptr(ptr))
-        }
+        let result = unsafe { foreign_types_shared::ForeignType::from_ptr(ptr) };
+        Ok(result)
     }
 }
 

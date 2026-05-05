@@ -1,22 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![deny(missing_docs)]
-#![allow(
-    non_camel_case_types,
-    clippy::default_trait_access,
-    clippy::doc_markdown, // clippy wants "IoT" in a code fence
-    clippy::let_and_return,
-    let_underscore_drop,
-    clippy::let_unit_value,
-    clippy::missing_safety_doc,
-    clippy::shadow_unrelated,
-    clippy::similar_names,
-    clippy::too_many_lines,
-    clippy::type_complexity,
-    clippy::upper_case_acronyms
-)]
+#![expect(nonstandard_style)]
 
 //! This library is used to create and load keys for the Azure IoT Keys Service.
 //!
@@ -55,7 +39,7 @@
 // Some structs have a corresponding fn item like
 //
 //    #[cfg(any())]
-//    #[no_mangle]
+//    #[unsafe(no_mangle)]
 //    pub extern "C" fn cbindgen_unused_STRUCT() -> STRUCT { unimplemented!(); }
 //
 // These functions are required so that cbindgen emits the corresponding structs in the C header file. This is because cbindgen doesn't emit
@@ -118,12 +102,16 @@ pub struct AZIOT_KEYS_VERSION {
 /// - `AZIOT_KEYS_RC_ERR_INVALID_PARAMETER`:
 ///   - `version` is not recognized by this implementation.
 ///   - `pfunction_list` is `NULL`.
-#[no_mangle]
+///
+/// # Safety
+///
+/// `pfunction_list` must point to a valid writable location.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aziot_keys_get_function_list(
     version: AZIOT_KEYS_VERSION,
     pfunction_list: *mut *const function_list::AZIOT_KEYS_FUNCTION_LIST,
 ) -> AZIOT_KEYS_RC {
-    implementation::get_function_list(version, pfunction_list)
+    unsafe { implementation::get_function_list(version, pfunction_list) }
 }
 
 /// Used as the parameter type with `get_key_pair_parameter`.
@@ -258,9 +246,9 @@ pub struct AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
 }
 
 #[cfg(any())]
-#[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_SIGN_DERIVED_PARAMETERS(
-) -> AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
+#[unsafe(no_mangle)]
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_SIGN_DERIVED_PARAMETERS()
+-> AZIOT_KEYS_SIGN_DERIVED_PARAMETERS {
     unimplemented!();
 }
 
@@ -319,9 +307,9 @@ pub struct AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
 }
 
 #[cfg(any())]
-#[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS(
-) -> AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
+#[unsafe(no_mangle)]
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS()
+-> AZIOT_KEYS_ENCRYPT_AEAD_PARAMETERS {
     unimplemented!();
 }
 
@@ -345,9 +333,9 @@ pub struct AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
 }
 
 #[cfg(any())]
-#[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS(
-) -> AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
+#[unsafe(no_mangle)]
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS()
+-> AZIOT_KEYS_ENCRYPT_DERIVED_PARAMETERS {
     unimplemented!();
 }
 

@@ -1,16 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    clippy::let_unit_value,
-    clippy::missing_errors_doc,
-    clippy::similar_names,
-    clippy::too_many_lines
-)]
-
 mod error;
 mod est;
 mod http;
@@ -30,7 +19,7 @@ use openssl::asn1::Asn1Time;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, PKeyRef, Private, Public};
 use openssl::stack::Stack;
-use openssl::x509::{extension, X509Name, X509NameRef, X509Req, X509ReqRef, X509};
+use openssl::x509::{X509, X509Name, X509NameRef, X509Req, X509ReqRef, extension};
 use openssl2::FunctionalEngine;
 use tokio::sync::Mutex;
 
@@ -237,20 +226,17 @@ impl Api {
         let mut est_credentials = BTreeMap::new();
 
         // Add the default EST ID cert.
-        if let Some(est) = &self.cert_issuance.est {
-            if let Some(auth) = &est.auth {
-                if let Some(x509) = &auth.x509 {
-                    if let Ok(cert) = get_cert_inner(
-                        &self.homedir_path,
-                        &self.preloaded_certs,
-                        &x509.identity.cert,
-                    ) {
-                        if cert.is_some() {
-                            est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
-                        }
-                    }
-                }
-            }
+        if let Some(est) = &self.cert_issuance.est
+            && let Some(auth) = &est.auth
+            && let Some(x509) = &auth.x509
+            && let Ok(cert) = get_cert_inner(
+                &self.homedir_path,
+                &self.preloaded_certs,
+                &x509.identity.cert,
+            )
+            && cert.is_some()
+        {
+            est_credentials.insert(x509.identity.clone(), &x509.identity.cert);
         }
 
         // Add EST ID certs for individual issuance options.
@@ -258,18 +244,15 @@ impl Api {
             if let CertIssuanceMethod::Est {
                 auth: Some(auth), ..
             } = &options.method
+                && let Some(x509) = &auth.x509
+                && let Ok(cert) = get_cert_inner(
+                    &self.homedir_path,
+                    &self.preloaded_certs,
+                    &x509.identity.cert,
+                )
+                && cert.is_some()
             {
-                if let Some(x509) = &auth.x509 {
-                    if let Ok(cert) = get_cert_inner(
-                        &self.homedir_path,
-                        &self.preloaded_certs,
-                        &x509.identity.cert,
-                    ) {
-                        if cert.is_some() {
-                            est_credentials.insert(x509.identity.clone(), cert_id);
-                        }
-                    }
-                }
+                est_credentials.insert(x509.identity.clone(), cert_id);
             }
         }
 
@@ -394,7 +377,7 @@ async fn create_cert_inner<'a>(
         }
 
         let (subject_name, expiry, issuer_ref) =
-            stack.get(0).map_or((subject_name, expiry, None), |x509| {
+            stack.first().map_or((subject_name, expiry, None), |x509| {
                 let issuer_expiry = x509.not_after();
 
                 (

@@ -1,5 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::error::Error as StdError;
+
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
+
 use crate::DynRangeBounds;
 
 #[macro_export]
@@ -11,7 +16,7 @@ macro_rules! make_service {
             $($route:path ,)*
         ],
     ) => {
-        http_common::make_service!{
+        $crate::make_service!{
             service: $service_ty,
             {}
             {}
@@ -30,28 +35,24 @@ macro_rules! make_service {
             $($route:path ,)*
         ],
     ) => {
-        impl $($impl_generics)* hyper::service::Service<hyper::Request<hyper::Body>> for $service_ty
+        impl $($impl_generics)* $crate::hyper::service::Service<$crate::hyper::Request<$crate::hyper::body::Incoming>> for $service_ty
         where
             $($bounds)*
         {
-            type Response = hyper::Response<hyper::Body>;
+            type Response = $crate::hyper::Response<$crate::http_body_util::combinators::BoxBody<$crate::bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>>;
             type Error = std::convert::Infallible;
             type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-            fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-                std::task::Poll::Ready(Ok(()))
-            }
-
-            fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
+            fn call(&self, req: $crate::hyper::Request<$crate::hyper::body::Incoming>) -> Self::Future {
                 fn call_inner $($impl_generics)* (
-                    this: &mut $service_ty,
-                    req: hyper::Request<hyper::Body>,
-                ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>> + Send>>
+                    this: &$service_ty,
+                    req: $crate::hyper::Request<$crate::hyper::body::Incoming>,
+                ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<$crate::hyper::Response<$crate::http_body_util::combinators::BoxBody<$crate::bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>>, std::convert::Infallible>> + Send>>
                 where
                     $($bounds)*
                 {
                     const HYPER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-                    let (http::request::Parts { method, uri, headers, extensions, .. }, body) = req.into_parts();
+                    let ($crate::http::request::Parts { method, uri, headers, extensions, .. }, body) = req.into_parts();
 
                     let path = uri.path();
 
@@ -60,7 +61,7 @@ macro_rules! make_service {
                         let mut query_params = vec![];
 
                         if let Some(query) = uri.query() {
-                            let mut params = url::form_urlencoded::parse(query.as_bytes());
+                            let mut params = $crate::url::form_urlencoded::parse(query.as_bytes());
                             while let Some((name, value)) = params.next() {
                                 if name == "api-version" {
                                     api_version = Some(value);
@@ -71,15 +72,15 @@ macro_rules! make_service {
                             }
                         }
 
-                        let Some(api_version) = api_version else { return Box::pin(futures_util::future::ok((http_common::server::Error {
-                            status_code: http::StatusCode::BAD_REQUEST,
+                        let Some(api_version) = api_version else { return Box::pin($crate::futures_util::future::ok(($crate::server::Error {
+                            status_code: $crate::http::StatusCode::BAD_REQUEST,
                             message: "api-version not specified".into(),
                         }).to_http_response())) };
 
                         let api_version: $api_version_ty = match api_version.parse() {
                             Ok(api_version) => api_version,
-                            Err(()) => return Box::pin(futures_util::future::ok((http_common::server::Error {
-                                status_code: http::StatusCode::BAD_REQUEST,
+                            Err(()) => return Box::pin($crate::futures_util::future::ok(($crate::server::Error {
+                                status_code: $crate::http::StatusCode::BAD_REQUEST,
                                 message: format!("invalid api-version {:?}", api_version).into(),
                             }).to_http_response())),
                         };
@@ -87,35 +88,35 @@ macro_rules! make_service {
                     };
 
                     $(
-                        let route_api_version_matches = <$route as http_common::server::Route>::api_version().contains(&api_version);
+                        let route_api_version_matches = <$route as $crate::server::Route>::api_version().contains(&api_version);
                         if route_api_version_matches {
-                        let route: Option<$route> = http_common::server::Route::from_uri(&*this, path, &query_params, &extensions);
+                        let route: Option<$route> = $crate::server::Route::from_uri(&*this, path, &query_params, &extensions);
                             if let Some(route) = route {
                                 return Box::pin(async move {
                                     let response = match method {
-                                        http::Method::DELETE => {
-                                            let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                Ok(Ok(body)) => body,
-                                                Ok(Err(err)) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::BAD_REQUEST,
-                                                    message: http_common::server::error_to_message(&err).into(),
+                                        $crate::http::Method::DELETE => {
+                                            let body = match $crate::tokio::time::timeout(HYPER_REQUEST_TIMEOUT, $crate::http_body_util::BodyExt::collect(body)).await {
+                                                Ok(Ok(body)) => body.to_bytes(),
+                                                Ok(Err(err)) => return Ok(($crate::server::Error {
+                                                    status_code: $crate::http::StatusCode::BAD_REQUEST,
+                                                    message: $crate::server::error_to_message(&err).into(),
                                                 }).to_http_response()),
-                                                Err(timeout_err) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                    message: http_common::server::error_to_message(&timeout_err).into(),
+                                                Err(timeout_err) => return Ok(($crate::server::Error {
+                                                    status_code: $crate::http::StatusCode::REQUEST_TIMEOUT,
+                                                    message: $crate::server::error_to_message(&timeout_err).into(),
                                                 }).to_http_response()),
                                             };
 
                                             let body = if body.len() == 0 {
                                                 None
                                             } else {
-                                            let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                            let content_type = headers.get($crate::hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
                                             if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
-                                                let body: <$route as http_common::server::Route>::DeleteBody = match serde_json::from_slice(&body) {
+                                                let body: <$route as $crate::server::Route>::DeleteBody = match $crate::serde_json::from_slice(&body) {
                                                     Ok(body) => body,
-                                                    Err(err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    Err(err) => return Ok(($crate::server::Error {
+                                                        status_code: $crate::http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                        message: $crate::server::error_to_message(&err).into(),
                                                     }).to_http_response()),
                                                 };
                                                 Some(body)
@@ -124,42 +125,42 @@ macro_rules! make_service {
                                             }
                                             };
 
-                                            match <$route as http_common::server::Route>::delete(route, body).await {
+                                            match <$route as $crate::server::Route>::delete(route, body).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
                                             }
                                         },
 
-                                        http::Method::GET => {
-                                            match <$route as http_common::server::Route>::get(route).await {
+                                        $crate::http::Method::GET => {
+                                            match <$route as $crate::server::Route>::get(route).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
                                             }
                                         },
 
-                                        http::Method::POST => {
-                                            let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                Ok(Ok(body)) => body,
-                                                Ok(Err(err)) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::BAD_REQUEST,
-                                                    message: http_common::server::error_to_message(&err).into(),
+                                        $crate::http::Method::POST => {
+                                            let body = match $crate::tokio::time::timeout(HYPER_REQUEST_TIMEOUT, $crate::http_body_util::BodyExt::collect(body)).await {
+                                                Ok(Ok(body)) => body.to_bytes(),
+                                                Ok(Err(err)) => return Ok(($crate::server::Error {
+                                                    status_code: $crate::http::StatusCode::BAD_REQUEST,
+                                                    message: $crate::server::error_to_message(&err).into(),
                                                 }).to_http_response()),
-                                                Err(timeout_err) => return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                    message: http_common::server::error_to_message(&timeout_err).into(),
+                                                Err(timeout_err) => return Ok(($crate::server::Error {
+                                                    status_code: $crate::http::StatusCode::REQUEST_TIMEOUT,
+                                                    message: $crate::server::error_to_message(&timeout_err).into(),
                                                 }).to_http_response()),
                                             };
 
                                             let body = if body.len() == 0 {
                                                 None
                                             } else {
-                                                let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                                let content_type = headers.get($crate::hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
                                                 if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
-                                                    let body: <$route as http_common::server::Route>::PostBody = match serde_json::from_slice(&body) {
+                                                    let body: <$route as $crate::server::Route>::PostBody = match $crate::serde_json::from_slice(&body) {
                                                         Ok(body) => body,
-                                                        Err(err) => return Ok((http_common::server::Error {
-                                                            status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                            message: http_common::server::error_to_message(&err).into(),
+                                                        Err(err) => return Ok(($crate::server::Error {
+                                                            status_code: $crate::http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                            message: $crate::server::error_to_message(&err).into(),
                                                         }).to_http_response()),
                                                     };
 
@@ -169,52 +170,52 @@ macro_rules! make_service {
                                                 }
                                             };
 
-                                            match <$route as http_common::server::Route>::post(route, body).await {
+                                            match <$route as $crate::server::Route>::post(route, body).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
                                             }
                                         },
 
-                                        http::Method::PUT => {
-                                            let content_type = headers.get(hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
+                                        $crate::http::Method::PUT => {
+                                            let content_type = headers.get($crate::hyper::header::CONTENT_TYPE).and_then(|value| value.to_str().ok());
                                             let body = if content_type.map_or(true, |ctype| ctype.split(';').next().expect("split always returns at least one element").trim() == "application/json") {
-                                                let body = match tokio::time::timeout(HYPER_REQUEST_TIMEOUT, hyper::body::to_bytes(body)).await {
-                                                    Ok(Ok(body)) => body,
-                                                    Ok(Err(err)) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::BAD_REQUEST,
-                                                        message: http_common::server::error_to_message(&err).into(),
+                                                let body = match $crate::tokio::time::timeout(HYPER_REQUEST_TIMEOUT, $crate::http_body_util::BodyExt::collect(body)).await {
+                                                    Ok(Ok(body)) => body.to_bytes(),
+                                                    Ok(Err(err)) => return Ok(($crate::server::Error {
+                                                        status_code: $crate::http::StatusCode::BAD_REQUEST,
+                                                        message: $crate::server::error_to_message(&err).into(),
                                                     }).to_http_response()),
-                                                    Err(timeout_err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::REQUEST_TIMEOUT,
-                                                        message: http_common::server::error_to_message(&timeout_err).into(),
+                                                    Err(timeout_err) => return Ok(($crate::server::Error {
+                                                        status_code: $crate::http::StatusCode::REQUEST_TIMEOUT,
+                                                        message: $crate::server::error_to_message(&timeout_err).into(),
                                                     }).to_http_response()),
                                                 };
 
-                                                let body: <$route as http_common::server::Route>::PutBody = match serde_json::from_slice(&body) {
+                                                let body: <$route as $crate::server::Route>::PutBody = match $crate::serde_json::from_slice(&body) {
                                                     Ok(body) => body,
-                                                    Err(err) => return Ok((http_common::server::Error {
-                                                        status_code: http::StatusCode::UNPROCESSABLE_ENTITY,
-                                                        message: http_common::server::error_to_message(&err).into(),
+                                                    Err(err) => return Ok(($crate::server::Error {
+                                                        status_code: $crate::http::StatusCode::UNPROCESSABLE_ENTITY,
+                                                        message: $crate::server::error_to_message(&err).into(),
                                                     }).to_http_response()),
                                                 };
 
                                                 body
                                             }
                                             else {
-                                                return Ok((http_common::server::Error {
-                                                    status_code: http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                                                return Ok(($crate::server::Error {
+                                                    status_code: $crate::http::StatusCode::UNSUPPORTED_MEDIA_TYPE,
                                                     message: "request body must be application/json".into(),
                                                 }).to_http_response());
                                             };
 
-                                            match <$route as http_common::server::Route>::put(route, body).await {
+                                            match <$route as $crate::server::Route>::put(route, body).await {
                                                 Ok(result) => result,
                                                 Err(err) => return Ok(err.to_http_response()),
                                             }
                                         },
 
-                                        _ => return Ok((http_common::server::Error {
-                                            status_code: http::StatusCode::BAD_REQUEST,
+                                        _ => return Ok(($crate::server::Error {
+                                            status_code: $crate::http::StatusCode::BAD_REQUEST,
                                             message: "method not allowed".into(),
                                         }).to_http_response()),
                                     };
@@ -224,21 +225,21 @@ macro_rules! make_service {
                         }
                     )*
 
-                    let res = (http_common::server::Error {
-                        status_code: http::StatusCode::NOT_FOUND,
+                    let res = ($crate::server::Error {
+                        status_code: $crate::http::StatusCode::NOT_FOUND,
                         message: "not found".into(),
                     }).to_http_response();
-                    Box::pin(futures_util::future::ok(res))
+                    Box::pin($crate::futures_util::future::ok(res))
                 }
 
                 // TODO: When we get distributed tracing, associate these two logs with the tracing ID.
-                log::info!("<-- {:?} {:?} {:?}", req.method(), req.uri(), req.headers());
+                $crate::log::info!("<-- {:?} {:?} {:?}", req.method(), req.uri(), req.headers());
                 let res = call_inner(self, req);
                 Box::pin(async move {
                     let res = res.await;
                     match &res {
-                        Ok(res) => log::info!("--> {:?} {:?}", res.status(), res.headers()),
-                        Err(err) => log::error!("-!> {:?}", err),
+                        Ok(res) => $crate::log::info!("--> {:?} {:?}", res.status(), res.headers()),
+                        Err(err) => $crate::log::error!("-!> {:?}", err),
                     }
                     res
                 })
@@ -294,9 +295,10 @@ pub trait Route: Sized {
     }
 }
 
-pub type RouteResponse = Result<hyper::Response<hyper::Body>, Error>;
+pub type RouteResponse =
+    Result<hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>, Error>;
 
-pub fn error_to_message(err: &impl std::error::Error) -> String {
+pub fn error_to_message(err: &(impl StdError + ?Sized)) -> String {
     let mut message = String::new();
 
     message.push_str(&err.to_string());
@@ -318,7 +320,9 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn to_http_response(&self) -> hyper::Response<hyper::Body> {
+    pub fn to_http_response(
+        &self,
+    ) -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>> {
         let body = crate::ErrorBody {
             message: std::borrow::Cow::Borrowed(std::borrow::Borrow::borrow(&self.message)),
         };
@@ -328,7 +332,15 @@ impl Error {
 }
 
 pub mod response {
-    pub fn no_content() -> hyper::Response<hyper::Body> {
+    use std::error::Error as StdError;
+
+    use bytes::Bytes;
+    use futures_core::Stream;
+    use futures_util::StreamExt as _;
+    use http_body_util::{BodyExt as _, Full, StreamBody, combinators::BoxBody};
+    use hyper::body::Frame;
+
+    pub fn no_content() -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>> {
         let res = hyper::Response::builder()
             .status(hyper::StatusCode::NO_CONTENT)
             .body(Default::default())
@@ -341,13 +353,16 @@ pub mod response {
         status_code: hyper::StatusCode,
         body: S,
         content_type: &'static str,
-    ) -> hyper::Response<hyper::Body>
+    ) -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>
     where
-        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<hyper::body::Bytes> + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+        S: Stream<Item = Result<O, E>> + Send + Sync + 'static,
+        O: Into<Bytes> + 'static,
+        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
-        let body = hyper::Body::wrap_stream(body);
+        let body = BoxBody::new(StreamBody::new(body.map(|data| match data {
+            Ok(data) => Ok(Frame::data(data.into())),
+            Err(err) => Err(err.into()),
+        })));
 
         let res = hyper::Response::builder()
             .status(status_code)
@@ -361,9 +376,9 @@ pub mod response {
     pub fn json(
         status_code: hyper::StatusCode,
         body: &impl serde::Serialize,
-    ) -> hyper::Response<hyper::Body> {
-        let body = serde_json::to_string(body).expect("cannot fail to serialize response to JSON");
-        let body = hyper::Body::from(body);
+    ) -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>> {
+        let body = serde_json::to_vec(body).expect("cannot fail to serialize response to JSON");
+        let body = BoxBody::new(Full::new(body.into()).map_err(Into::into));
 
         let res = hyper::Response::builder()
             .status(status_code)
@@ -378,13 +393,16 @@ pub mod response {
         status_code: hyper::StatusCode,
         size: usize,
         body: S,
-    ) -> hyper::Response<hyper::Body>
+    ) -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>
     where
-        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<hyper::body::Bytes> + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
+        S: futures_util::stream::Stream<Item = Result<O, E>> + Send + Sync + 'static,
+        O: Into<Bytes> + 'static,
+        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
-        let body = hyper::Body::wrap_stream(body);
+        let body = BoxBody::new(StreamBody::new(body.map(|data| match data {
+            Ok(data) => Ok(Frame::data(data.into())),
+            Err(err) => Err(err.into()),
+        })));
         let res = hyper::Response::builder().status(status_code);
 
         let res = res
@@ -398,8 +416,9 @@ pub mod response {
     }
 }
 
-/// This server is never actually used, but is useful to ensure that the macro
-/// works as expected.
+// This server is never actually used, but is useful to ensure that the macro
+// works as expected.
+#[allow(dead_code)]
 mod test_server {
     use crate as http_common;
 

@@ -1,14 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::module_name_repetitions
-)]
-
 mod error;
 pub use crate::error::Error;
 
@@ -85,7 +76,7 @@ where
                 return Err(Error::ReadConfig(
                     Some(config_directory_path.to_owned()),
                     Box::new(err),
-                ))
+                ));
             }
         }
     }
@@ -104,23 +95,23 @@ fn merge_toml(base: &mut toml::Value, patch: toml::Value) {
     // - Arrays are merged via concatenating the patch to the base, rather than replacing the base with the patch.
     //   This is needed to make principals work; `[[principal]]` sections from multiple files need to be concatenated.
 
-    if let toml::Value::Table(base) = base {
-        if let toml::Value::Table(patch) = patch {
-            for (key, value) in patch {
-                // Insert a dummy `false` if the original key didn't exist at all. It'll be overwritten by `value` in that case.
-                let original_value = base.entry(key).or_insert(toml::Value::Boolean(false));
-                merge_toml(original_value, value);
-            }
-
-            return;
+    if let toml::Value::Table(base) = base
+        && let toml::Value::Table(patch) = patch
+    {
+        for (key, value) in patch {
+            // Insert a dummy `false` if the original key didn't exist at all. It'll be overwritten by `value` in that case.
+            let original_value = base.entry(key).or_insert(toml::Value::Boolean(false));
+            merge_toml(original_value, value);
         }
+
+        return;
     }
 
-    if let toml::Value::Array(base) = base {
-        if let toml::Value::Array(patch) = patch {
-            base.extend(patch);
-            return;
-        }
+    if let toml::Value::Array(base) = base
+        && let toml::Value::Array(patch) = patch
+    {
+        base.extend(patch);
+        return;
     }
 
     *base = patch;

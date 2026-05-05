@@ -2,19 +2,25 @@
 name = "cert-renewal"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
+
 
 [dependencies]
-async-trait = "0.1"
-chrono = "0.4"
-futures-util = "0.3"
-log = "0.4"
-openssl = "0.10"
-serde = "1"
-tokio = { version = "1", features = ["macros", "parking_lot", "rt", "sync", "time"] }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures-util = { workspace = true }
+log = { workspace = true }
+openssl = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+
 
 [dev-dependencies]
-serial_test = "1"
-toml = "0.7"
+serial_test = { workspace = true }
+toml = { workspace = true }
 
 test-common = { path = "../../test-common" }
+
+
+[lints]
+workspace = true

@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use serde::Serialize;
+use tower_service::Service as _;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
 
@@ -28,13 +29,11 @@ impl Checker for DaemonRunningKeyd {
     }
 
     async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        use hyper::service::Service;
-
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_keyd;
         let res = connector
             .call("keyd.sock".parse().unwrap())
             .await
-            .with_context(|| anyhow!("Could not connect to keyd on {}", connector));
+            .with_context(|| anyhow!("Could not connect to keyd on {connector}"));
 
         match res {
             Ok(_) => {
@@ -59,13 +58,11 @@ impl Checker for DaemonRunningCertd {
     }
 
     async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        use hyper::service::Service;
-
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_certd;
         let res = connector
             .call("certd.sock".parse().unwrap())
             .await
-            .with_context(|| anyhow!("Could not connect to certd on {}", connector));
+            .with_context(|| anyhow!("Could not connect to certd on {connector}"));
 
         match res {
             Ok(_) => {
@@ -90,8 +87,6 @@ impl Checker for DaemonRunningTpmd {
     }
 
     async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        use hyper::service::Service;
-
         use aziot_identityd_config::{DpsAttestationMethod, ProvisioningType};
 
         // Only try to connect to the tpmd when using DPS-TPM provisioning
@@ -128,7 +123,7 @@ impl Checker for DaemonRunningTpmd {
         let res = connector
             .call("tpmd.sock".parse().unwrap())
             .await
-            .with_context(|| anyhow!("Could not connect to tpmd on {}", connector));
+            .with_context(|| anyhow!("Could not connect to tpmd on {connector}"));
 
         match res {
             Ok(_) => {
@@ -153,13 +148,11 @@ impl Checker for DaemonRunningIdentityd {
     }
 
     async fn execute(&mut self, _shared: &CheckerShared, cache: &mut CheckerCache) -> CheckResult {
-        use hyper::service::Service;
-
         let mut connector = aziot_identityd_config::Endpoints::default().aziot_identityd;
         let res = connector
             .call("identityd.sock".parse().unwrap())
             .await
-            .with_context(|| anyhow!("Could not connect to identityd on {}", connector));
+            .with_context(|| anyhow!("Could not connect to identityd on {connector}"));
 
         match res {
             Ok(_) => {

@@ -1,15 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::doc_markdown, // clippy wants "IoT" in a code fence
-    clippy::let_and_return,
-    clippy::missing_errors_doc,
-    clippy::shadow_unrelated,
-    clippy::use_self,
-)]
-
 //! This crate implements a custom openssl engine that implements the openssl engine and key methods API
 //! in terms of the Azure IoT Edge Keys Service REST API.
 //!
@@ -48,7 +38,7 @@ pub unsafe fn register(
     init: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
     destroy: openssl_sys2::ENGINE_GEN_INT_FUNC_PTR,
 ) -> Result<(), openssl2::Error> {
-    engine::Engine::register(e, Some((init, destroy)))
+    unsafe { engine::Engine::register(e, Some((init, destroy))) }
 }
 
 /// Initialize an existing structural instance of the openssl engine with the given Keys Service client.
@@ -59,7 +49,7 @@ pub unsafe fn init(
     e: *mut openssl_sys::ENGINE,
     client: std::sync::Arc<aziot_key_client::Client>,
 ) -> Result<(), openssl2::Error> {
-    engine::Engine::init(e, client)
+    unsafe { engine::Engine::init(e, client) }
 }
 
 /// Destroy an existing structural instance of the openssl engine.
@@ -67,11 +57,10 @@ pub unsafe fn init(
 /// This is intended to be used by aziot-key-engine-shared.
 #[doc(hidden)]
 pub unsafe fn destroy(e: *mut openssl_sys::ENGINE) -> Result<(), openssl2::Error> {
-    engine::Engine::destroy(e)
+    unsafe { engine::Engine::destroy(e) }
 }
 
 openssl_errors::openssl_errors! {
-    #[allow(clippy::empty_enum)] // Workaround for https://github.com/sfackler/rust-openssl/issues/1189
     library Error("aziot_key_openssl_engine") {
         functions {
             ENGINE_LOAD_PRIVKEY("aziot_key_engine_load_privkey");
@@ -111,7 +100,7 @@ fn r#catch<T>(
             if let Some(function) = function {
                 openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
             } else {
-                log::error!("[aziot-key-openssl-engine] error: {}", err);
+                log::error!("[aziot-key-openssl-engine] error: {err}");
             }
 
             let mut source = err.source();
@@ -119,7 +108,7 @@ fn r#catch<T>(
                 if let Some(function) = function {
                     openssl_errors::put_error!(function(), Error::MESSAGE, "{}", err);
                 } else {
-                    log::error!("[aziot-key-openssl-engine] caused by: {}", err);
+                    log::error!("[aziot-key-openssl-engine] caused by: {err}");
                 }
 
                 source = err.source();
