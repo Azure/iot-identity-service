@@ -159,7 +159,7 @@ case "$OS" in
         cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
-        cat > .cargo/config << EOF
+        cat > .cargo/config.toml << EOF
 [source.crates-io]
 replace-with = "vendored-sources"
 [source.vendored-sources]
@@ -177,7 +177,7 @@ EOF
         cp /src/rust-toolchain.toml .
         cargo vendor vendor
         mkdir -p .cargo
-        cat > .cargo/config << EOF
+        cat > .cargo/config.toml << EOF
 [source.crates-io]
 replace-with = "vendored-sources"
 [source.vendored-sources]

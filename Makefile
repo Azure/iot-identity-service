@@ -295,7 +295,7 @@ dist:
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
 	mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo
-	printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo/config
+	printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo/config.toml
 
 	# Generate THIRD-PARTY-NOTICES
 	set -euo pipefail; \

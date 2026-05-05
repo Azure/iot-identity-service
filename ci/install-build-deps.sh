@@ -331,16 +331,16 @@ case "$OS:$ARCH" in
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
         export ARMV7_UNKNOWN_LINUX_GNUEABIHF_OPENSSL_INCLUDE_DIR=/usr/include
 
-        echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config
-        echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config
+        echo '[target.armv7-unknown-linux-gnueabihf]' > ~/.cargo/config.toml
+        echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config.toml
         ;;
 
     debian:*:aarch64|ubuntu:*:aarch64)
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu
         export AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR=/usr/include
 
-        echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config
-        echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
+        echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config.toml
+        echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
         ;;
 esac
 
