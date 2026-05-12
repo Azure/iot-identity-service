@@ -157,7 +157,7 @@ async fn get_pkcs7_response(
 
     if status != hyper::StatusCode::OK {
         return Err(
-            format!("EST endpoint did not return successful response: {status} {body:?}",).into(),
+            format!("EST endpoint did not return successful response: {status} {body:?}").into(),
         );
     }
 

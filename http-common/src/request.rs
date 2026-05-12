@@ -489,7 +489,7 @@ mod tests {
 
         let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new().unwrap(), &uri)
             .with_retry(0)
-            .with_timeout(Duration::from_secs(60));
+            .with_timeout(Duration::from_mins(1));
         request.add_header(CONTENT_TYPE, "application/json")?;
         request.add_header(AUTHORIZATION, SAS_TOKEN)?;
 

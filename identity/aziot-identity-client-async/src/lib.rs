@@ -52,7 +52,7 @@ impl Client {
         max_retries: u32,
     ) -> Self {
         // use timeout of 10 minutes to allow identityd to backoff throttled calls
-        let timeout = Duration::from_secs(10 * 60);
+        let timeout = Duration::from_mins(10);
 
         Client {
             api_version,
