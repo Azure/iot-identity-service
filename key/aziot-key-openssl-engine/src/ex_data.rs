@@ -123,7 +123,7 @@ pub(crate) unsafe fn dup<T, U>(from_d: *mut std::ffi::c_void, idx: std::os::raw:
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
     assert_eq!(idx, ex_index);
 
     // Although `dup_func`'s signature types `from_d` as `void*`, it is in fact a `void**` - it points to the pointer returned by

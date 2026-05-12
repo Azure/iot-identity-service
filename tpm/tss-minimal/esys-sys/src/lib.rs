@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![expect(nonstandard_style, clippy::unreadable_literal)]
+#![allow(clippy::unreadable_literal)]
+#![expect(nonstandard_style)]
 
 use tcti_sys::TSS2_TCTI_CONTEXT;
 // TPMI_RH_HIERARCHY is required on 2.3.2 (non-exhaustive)
