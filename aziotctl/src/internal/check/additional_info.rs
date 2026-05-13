@@ -79,7 +79,7 @@ impl DiskInfo {
     fn new(disk: &Disk) -> Self {
         let available_space = disk.available_space();
         let total_space = disk.total_space();
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         let percent_free = format!(
             "{:.1}%",
             available_space as f64 / total_space as f64 * 100.0
@@ -103,7 +103,6 @@ impl DiskInfo {
 }
 
 fn pretty_kbyte(bytes: u64) -> String {
-    #[allow(clippy::cast_precision_loss)]
     match Byte::from_u64_with_unit(bytes, Unit::KiB) {
         Some(b) => format!("{:.2}", b.get_appropriate_unit(UnitType::Binary)),
         None => format!("could not parse bytes value: {bytes} KiB too large for u64"),

@@ -9,7 +9,6 @@ edition = "2024"
 async-trait = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
-futures-core = { workspace = true }
 futures-util = { workspace = true }
 headers = { workspace = true }
 http = { workspace = true }

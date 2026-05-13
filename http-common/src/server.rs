@@ -335,7 +335,6 @@ pub mod response {
     use std::error::Error as StdError;
 
     use bytes::Bytes;
-    use futures_core::Stream;
     use futures_util::StreamExt as _;
     use http_body_util::{BodyExt as _, Full, StreamBody, combinators::BoxBody};
     use hyper::body::Frame;
@@ -346,30 +345,6 @@ pub mod response {
             .body(Default::default())
             .expect("cannot fail to build hyper response");
 
-        res
-    }
-
-    pub fn chunked<S, O, E>(
-        status_code: hyper::StatusCode,
-        body: S,
-        content_type: &'static str,
-    ) -> hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>
-    where
-        S: Stream<Item = Result<O, E>> + Send + Sync + 'static,
-        O: Into<Bytes> + 'static,
-        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
-    {
-        let body = BoxBody::new(StreamBody::new(body.map(|data| match data {
-            Ok(data) => Ok(Frame::data(data.into())),
-            Err(err) => Err(err.into()),
-        })));
-
-        let res = hyper::Response::builder()
-            .status(status_code)
-            .header(hyper::header::CONTENT_TYPE, content_type)
-            .body(body);
-
-        let res = res.expect("cannot fail to build hyper response");
         res
     }
 
