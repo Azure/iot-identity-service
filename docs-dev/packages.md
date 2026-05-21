@@ -1,6 +1,6 @@
 # Building the packages
 
-This repository contains three services - `aziot-certd`, `aziot-identityd` and `aziot-keyd` - as well as the `libaziot_keys.so` library. These four components ship in a single distro package named `aziot-identity-service`. The package can be built for a particular distro and a particular architecture by running the `/ci/package.sh` script in a Docker container of that distro, with an environment variable set to identify the architecture to build the packages for.
+This repository contains four services - `aziot-certd`, `aziot-identityd`, `aziot-keyd` and `aziot-tpmd` - as well as the `libaziot_keys.so` library. These five components ship in a single distro package named `aziot-identity-service`. The package can be built for a particular distro and a particular architecture by running the `/ci/package.sh` script in a Docker container of that distro, with an environment variable set to identify the architecture to build the packages for.
 
 
 <table>

@@ -101,6 +101,17 @@ default:
 	fi
 
 	# Re-generate keys.generated.rs if necessary
+	#
+	# By default, bindgen generates layout tests which are essentially compile-time asserts for the offsets of each field of each generated struct.
+	# However these tests are generated for the host arch, not the target arch. So if we build for arm32v7 target on amd64 host,
+	# the layout tests will assume a pointer is 8B, not 4B, which will then fail to compile.
+	#
+	# The bindgen library does apparently support detecting the target arch when used in build.rs, but there doesn't seem to be an equivalent way
+	# to pass a `--target` value to the bindgen CLI. It seems we would need to manually convert every Rust target to the equivalent clang flag
+	# and then pass that via `-- <CLANG_ARGS>`, which is :effort: since the mapping is complex.
+	#
+	# Our types are simple enough that the definitions themselves work on arm32 even if they were generated for amd64. Only the layout tests break.
+	# So just disable the layout tests.
 	set -euo pipefail; \
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
@@ -108,6 +119,7 @@ default:
 			--allowlist-function 'aziot_keys_.*' \
 			--allowlist-type 'AZIOT_KEYS_.*' \
 			--allowlist-var 'AZIOT_KEYS_.*' \
+			--no-layout-tests \
 			-o key/aziot-keyd/src/keys.generated.rs.tmp \
 			$(BINDGEN_VERBOSE) \
 			key/aziot-keys/aziot-keys.h; \
