@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 #[test]
-#[ignore = "TODO: Investigate why this fails"]
 fn from_tpm_public() -> tss_minimal::Result<()> {
     _ = env_logger::builder().is_test(true).try_init();
 

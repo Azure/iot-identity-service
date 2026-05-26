@@ -31,7 +31,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 1. Every crate must import dependencies and lints from the workspace manifest.
 
     For dependencies, this means every dependency must be specified as `= { workspace = true }`.
-    
+
     For lints, this means the crate manifest must have:
 
     ```toml

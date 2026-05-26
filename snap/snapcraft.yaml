@@ -18,8 +18,8 @@ parts:
     build-packages:
       - curl
     build-environment:
-      - BINDGEN_VERSION: '0.69.4'
-      - CBINDGEN_VERSION: '0.26.0'
+      - BINDGEN_VERSION: '0.72.1'
+      - CBINDGEN_VERSION: '0.29.2'
       - PATH: "$PATH:$HOME/.cargo/bin"
     override-build: |
       mkdir -p $HOME/.cargo/bin

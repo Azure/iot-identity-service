@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 #[test]
-#[ignore = "TODO: Investigate why this fails"]
 fn evict_control() -> tss_minimal::Result<()> {
     _ = env_logger::builder().is_test(true).try_init();
 
