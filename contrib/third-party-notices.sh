@@ -24,10 +24,7 @@ case "$ARCH" in
         ;;
 esac
 
-cargo_metadata="$(
-    cargo metadata --format-version 1 --filter-platform "$platform" |
-        jq -r '.resolve.nodes'
-)"
+cargo_metadata="$(cargo metadata --format-version 1 --filter-platform "$platform")"
 
 # These dependencies include more than we ship, because they include dependencies of crates like aziot-key-openssl-engine-shared-test.
 # So, for each shipping crate, we enumerate only their dependencies, the dependencies of their dependencies, and so on,
@@ -40,11 +37,7 @@ for crate_name in 'aziotctl' 'aziot-certd' 'aziot-identityd' 'aziot-keyd' 'aziot
     crate_pkg_id="$(
         <<< "$cargo_metadata" jq -r \
             --arg 'crate_name' "$crate_name" \
-            '
-                map(select(.id | startswith("\($crate_name) "))) |
-                first |
-                .id
-            '
+            '.packages | map(select(.name == $crate_name).id) | first'
     )"
     dependencies[$crate_pkg_id]=0
 done
@@ -61,6 +54,7 @@ while :; do
                 new_dependencies[$dep_pkg_id]=0
             done < <(<<< "$cargo_metadata" \
                 jq -r --arg crate_pkg_id "$crate_pkg_id" '
+                    .resolve.nodes |
                     map(
                         select(.id == $crate_pkg_id) |
                         .deps[] |
@@ -107,69 +101,70 @@ all other rights not expressly granted under this agreement,
 whether by implication, estoppel or otherwise.
 EOF
 
-cargo metadata --format-version 1 |
-    jq -r --argjson 'dependencies' "$dependencies_array" '
-        [
-            .packages[] |
-            select(.source != null) |
-            select(.id as $pkg_id | ($dependencies | index($pkg_id)) != null) |
-            { id, license, manifest_path, repository }
-        ] |
-        sort_by(.id)[] |
-        (.id | scan("^[^ ]+ [^ ]+")) as $name |
-        .license as $license |
-        {
-            id,
-            license: (
-                if $license == null then
-                    error("crate \($name) has null license")
-                elif (
-                    ($license == "MIT") or
-                    ($license == "(MIT OR Apache-2.0) AND Unicode-DFS-2016") or
-                    ($license | startswith("MIT/")) or
-                    ($license | startswith("MIT /")) or
-                    ($license | startswith("MIT OR")) or
-                    ($license | endswith("/MIT")) or
-                    ($license | endswith("/ MIT")) or
-                    ($license | endswith("OR MIT")) or
-                    ($license | contains("/MIT/")) or
-                    ($license | contains("/ MIT /")) or
-                    ($license | contains("OR MIT OR")) or
-                    false
-                ) then
-                    "MIT"
-                elif (
-                    ($license == "Apache-2.0") or
-                    ($license | startswith("Apache-2.0 OR")) or
-                    false
-                ) then
-                    "Apache-2.0"
-                elif $license == "BSD-3-Clause" then
-                    "BSD-3-Clause"
-                elif $license == "Zlib" then
-                    "Zlib"
-                elif $license == "MPL-2.0" then
-                    "MPL-2.0"
-                elif $license == "ISC" then
-                    "ISC"
-                elif $license == "CC0-1.0" then
-                    "CC0-1.0"
-                else
-                    error("crate \($name) has unknown license \($license)")
-                end
-            ),
-            manifest_path,
-            repository: (if .repository == null then "unknown repository" else .repository end),
-        } |
-        "\(.id)|\(.license)|\(.manifest_path)|\(.repository)"
-    ' |
+<<< "$cargo_metadata" jq -r --argjson 'dependencies' "$dependencies_array" '
+    [
+        .packages[] |
+        select(.source != null) |
+        select(.id as $pkg_id | ($dependencies | index($pkg_id)) != null) |
+        { id, name, version, license, manifest_path, repository }
+    ] |
+    sort_by(.id)[] |
+    .license as $license |
+    {
+        id,
+        name,
+        version,
+        license: (
+            if $license == null then
+                error("crate \(.name):\(.version) has null license")
+            elif $license == "(MIT OR Apache-2.0) AND Unicode-3.0" then
+                "MIT AND Unicode-3.0"
+            elif (
+                ($license == "MIT") or
+                ($license | startswith("MIT OR")) or
+                ($license | startswith("MIT/")) or
+                ($license | endswith("OR MIT")) or
+                ($license | endswith("/MIT")) or
+                ($license | contains("OR MIT OR")) or
+                ($license | contains("/MIT/")) or
+                false
+            ) then
+                "MIT"
+            elif (
+                ($license == "Apache-2.0") or
+                ($license | contains("OR Apache-2.0 OR")) or
+                false
+            ) then
+                "Apache-2.0"
+            elif $license == "BSD-3-Clause" then
+                "BSD-3-Clause"
+            elif $license == "MPL-2.0" then
+                "MPL-2.0"
+            elif $license == "ISC" then
+                "ISC"
+            elif $license == "CC0-1.0" then
+                "CC0-1.0"
+            elif $license == "Unicode-3.0" then
+                "Unicode-3.0"
+            else
+                error("crate \(.name):\(.version) has unknown license \($license)")
+            end
+        ),
+        manifest_path,
+        repository: (if .repository == null then "unknown repository" else .repository end),
+    } |
+    "\(.id)|\(.name)|\(.version)|\(.license)|\(.manifest_path)|\(.repository)"
+' |
     while read -r line; do
-        <<< "$line" IFS='|' read -r id license manifest_path repository
-        <<< "$id" IFS=' ' read -r name version rest
+        <<< "$line" IFS='|' read -r id name version license manifest_path repository
 
         crate_directory="$(dirname "$manifest_path")"
 
         case "$license" in
+            'MIT AND Unicode-3.0')
+                license_file_suffix='MIT-AND-UNICODE'
+                ;;
+
             'MIT')
                 license_file_suffix='MIT'
                 ;;
@@ -180,10 +175,6 @@ cargo metadata --format-version 1 |
 
             'BSD-3-Clause')
                 license_file_suffix='BSD'
-                ;;
-
-            'Zlib')
-                license_file_suffix='ZLIB'
                 ;;
 
             'MPL-2.0')
@@ -198,34 +189,24 @@ cargo metadata --format-version 1 |
                 license_file_suffix='CC0'
                 ;;
 
+            'Unicode-3.0')
+                license_file_suffix='UNICODE'
+                ;;
+
             *)
                 echo "$name:$version at $manifest_path has unsupported license $license" >&2
                 exit 1
                 ;;
         esac
 
-        if [ "$name:$version" == 'inotify:0.7.1' ]; then
-            # TODO: Crate doesn't ship with LICENSE file but it's ISC. Fixed by upstream in
-            # https://github.com/hannobraun/inotify/commit/52c18c527fe227b329f8428d73a1c732f2d56ce5
-            # but that requires inotify v0.8 and notify v4 uses inotify v0.7.
-            # notify v5.0 will depend on inotify v0.8, so remove this when that happens.
-            curl -Lo "$crate_directory/LICENSE" 'https://github.com/hannobraun/inotify/raw/52c18c527fe227b329f8428d73a1c732f2d56ce5/LICENSE'
-        fi
-
-        if [ "$name:$version" == 'inotify-sys:0.1.4' ]; then
-            # TODO: Crate doesn't ship with LICENSE file but it's ISC. Will be fixed by this PR (when merged) -
-            # https://github.com/hannobraun/inotify-sys/pull/21 
-            # notify will need to depend on newer version of inotify (> 0.8) that depends 
-            # on newer version of inotify-sys (> 0.1.4), so remove this when that happens.
-            # The ISC license content is identical in both inotify and inotify-sys repos. 
-            curl -Lo "$crate_directory/LICENSE" 'https://github.com/hannobraun/inotify/raw/52c18c527fe227b329f8428d73a1c732f2d56ce5/LICENSE'
-        fi
-
-        if [ "$name:$version" == 'notify:4.0.17' ]; then
-            # TODO: Crate doesn't ship with LICENSE file but it's CC0-1.0. Fixed by upstream in
-            # https://github.com/notify-rs/notify/commit/e0982ffc760bc0e34544d2a7c9d10cdba65183d9
-            # but that requires notify v5.0, so remove this when that happens.
-            curl -Lo "$crate_directory/LICENSE" 'https://github.com/notify-rs/notify/raw/e0982ffc760bc0e34544d2a7c9d10cdba65183d9/LICENSE'
+        if [ "$name:$version" == 'seahash:4.1.0' ]; then
+            # TODO: Crate doesn't ship with LICENSE file. Fixed by upstream in
+            # https://gitlab.redox-os.org/redox-os/seahash/-/commit/3088c5c912b70b586d27bf553fbe964e025a2c89
+            # but not yet part of a release.
+            curl -Lo "$crate_directory/LICENSE" 'https://gitlab.redox-os.org/redox-os/seahash/-/raw/74c02182146d1edd7c91a9e6eddefc7390682a70/LICENSE'
+        elif [ "$license" == 'MIT AND Unicode-3.0' ]; then
+            # This handles the unicode-ident that has two license files, so concatenate them.
+            ( cat "$crate_directory/LICENSE-MIT"; echo; cat "$crate_directory/LICENSE-UNICODE" ) >"$crate_directory/LICENSE-MIT-AND-UNICODE"
         fi
 
         license_file="$(find "$crate_directory" -maxdepth 1 -type f -regextype posix-egrep -regex ".*/LICEN[CS]E-$license_file_suffix(\\.(md|txt))?" | head -n1)"
@@ -239,3 +220,5 @@ cargo metadata --format-version 1 |
 
         printf '\n\n***\n\n%s %s ( %s ) - %s\n\n%s' "$name" "$version" "$repository" "$license" "$(cat "$license_file")"
     done
+
+echo
