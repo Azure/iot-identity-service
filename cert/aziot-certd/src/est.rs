@@ -1,6 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use bytes::Bytes;
 use foreign_types_shared::{ForeignType as _, ForeignTypeRef as _};
+use http_body_util::{BodyExt as _, Full};
+use hyper_openssl::client::legacy::HttpsConnector;
+use hyper_util::{
+    client::legacy::{Client, connect::HttpConnector},
+    rt::TokioExecutor,
+};
 use openssl::{
     pkcs7::Pkcs7,
     pkey::{PKeyRef, Private},
@@ -77,7 +84,8 @@ pub(crate) async fn create_cert(
 ) -> Result<Vec<u8>, crate::BoxedError> {
     let proxy_connector = MaybeProxyConnector::new(proxy_uri, client_cert, trusted_certs)?;
 
-    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(proxy_connector);
+    let client: Client<_, Full<Bytes>> =
+        Client::builder(TokioExecutor::new()).build(proxy_connector);
 
     let (simple_enroll_uri, ca_certs_uri) = {
         let mut uri = url.to_string();
@@ -134,10 +142,8 @@ pub(crate) async fn create_cert(
 }
 
 async fn get_pkcs7_response(
-    client: &hyper::Client<
-        MaybeProxyConnector<hyper_openssl::HttpsConnector<hyper::client::HttpConnector>>,
-    >,
-    request: Result<hyper::Request<hyper::Body>, http::Error>,
+    client: &Client<MaybeProxyConnector<HttpsConnector<HttpConnector>>, Full<Bytes>>,
+    request: Result<hyper::Request<Full<Bytes>>, http::Error>,
 ) -> Result<Vec<u8>, crate::BoxedError> {
     let response = client.request(request?).await?;
 
@@ -147,11 +153,11 @@ async fn get_pkcs7_response(
         },
         body,
     ) = response.into_parts();
-    let body = hyper::body::to_bytes(body).await?;
+    let body = body.collect().await?.to_bytes();
 
     if status != hyper::StatusCode::OK {
         return Err(
-            format!("EST endpoint did not return successful response: {status} {body:?}",).into(),
+            format!("EST endpoint did not return successful response: {status} {body:?}").into(),
         );
     }
 
@@ -190,21 +196,19 @@ async fn get_pkcs7_response(
 }
 
 fn pkcs7_to_x509(pkcs7: &Pkcs7) -> Option<&StackRef<X509>> {
-    unsafe {
-        let pkcs7 = &*pkcs7.as_ptr();
+    let pkcs7 = unsafe { &*pkcs7.as_ptr() };
 
-        if openssl_sys::OBJ_obj2nid(pkcs7.type_) != openssl_sys::NID_pkcs7_signed {
-            return None;
-        }
-
-        // When an arbitrary PKCS#7 blob is decoded, `d.sign` may still be NULL
-        // even if the type is `NID_pkcs7_signed`, so we need to check both.
-        //
-        // Ref: https://github.com/openssl/openssl/commit/79356a83b78a2d936dcd022847465d9ebf6c67b1
-        let sign = pkcs7.d.sign.as_ref()?;
-
-        Some(StackRef::from_ptr(sign.cert))
+    if unsafe { openssl_sys::OBJ_obj2nid(pkcs7.type_) } != openssl_sys::NID_pkcs7_signed {
+        return None;
     }
+
+    // When an arbitrary PKCS#7 blob is decoded, `d.sign` may still be NULL
+    // even if the type is `NID_pkcs7_signed`, so we need to check both.
+    //
+    // Ref: https://github.com/openssl/openssl/commit/79356a83b78a2d936dcd022847465d9ebf6c67b1
+    let sign = unsafe { pkcs7.d.sign.as_ref()? };
+
+    Some(unsafe { StackRef::from_ptr(sign.cert) })
 }
 
 #[cfg(test)]

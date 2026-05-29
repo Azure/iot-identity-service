@@ -2,18 +2,22 @@
 name = "aziotctl-common"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-anyhow = "1"
-base64 = "0.21"
-log = "0.4"
-nix = "0.26"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_with = "2"
-url = { version = "2", features = ["serde"] }
+anyhow = { workspace = true }
+base64 = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true, features = [
+	"fs",
+	"hostname",
+	"user",
+] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+url = { workspace = true }
 
 aziot-certd-config = { path = "../../cert/aziot-certd-config" }
 aziot-identityd-config = { path = "../../identity/aziot-identityd-config" }
@@ -23,9 +27,15 @@ aziot-tpmd-config = { path = "../../tpm/aziot-tpmd-config" }
 cert-renewal = { path = "../../cert/cert-renewal" }
 http-common = { path = "../../http-common" }
 
+
 [dev-dependencies]
-bytes = "1"
-toml = "0.7"
+bytes = { workspace = true }
+toml = { workspace = true }
+
 
 [features]
 snapctl = []
+
+
+[lints]
+workspace = true

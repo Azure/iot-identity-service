@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_unit_value,
-    clippy::too_many_lines,
-    clippy::use_self
-)]
+use std::ffi::CStr;
 
+use bytes::Bytes;
 use clap::Parser;
+use http_body_util::{BodyExt as _, Empty, Full};
+use hyper_openssl::client::legacy::HttpsConnector;
+use hyper_util::{
+    client::legacy::{Client, connect::HttpConnector},
+    rt::TokioExecutor,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -61,7 +61,7 @@ async fn main() -> Result<(), Error> {
             key_handle,
             port,
         } => {
-            let mut http_connector = hyper::client::HttpConnector::new();
+            let mut http_connector = HttpConnector::new();
             http_connector.enforce_http(false);
 
             let mut engine = load_engine()?;
@@ -106,18 +106,17 @@ async fn main() -> Result<(), Error> {
                 },
             );
 
-            let tls_connector =
-                hyper_openssl::HttpsConnector::with_connector(http_connector, tls_connector)?;
+            let tls_connector = HttpsConnector::with_connector(http_connector, tls_connector)?;
 
-            let client: hyper::Client<_, hyper::Body> =
-                hyper::Client::builder().build(tls_connector);
+            let client: Client<_, Empty<Bytes>> =
+                Client::builder(TokioExecutor::new()).build(tls_connector);
 
             let response = client
                 .get(format!("https://127.0.0.1:{port}/").parse()?)
                 .await?;
 
             let (http::response::Parts { status, .. }, response_body) = response.into_parts();
-            let response_body = hyper::body::to_bytes(response_body).await?;
+            let response_body = response_body.collect().await?.to_bytes();
 
             println!("server returned {status} {response_body:?}");
 
@@ -135,23 +134,22 @@ async fn main() -> Result<(), Error> {
 
             let key = load_private_key(&mut engine, key_handle)?;
 
-            let incoming =
-                test_common::tokio_openssl2::Incoming::new("0.0.0.0", port, &cert, &key, true)?;
-
-            let server =
-                hyper::Server::builder(incoming).serve(hyper::service::make_service_fn(|_| {
-                    futures_util::future::ok::<_, std::convert::Infallible>(
-                        hyper::service::service_fn(|_| {
-                            futures_util::future::ok::<_, std::convert::Infallible>(
-                                hyper::Response::new(hyper::Body::from("Hello, world!\n")),
-                            )
-                        }),
-                    )
-                }));
+            let server = test_common::tokio_openssl2::Server::new(
+                "0.0.0.0",
+                port,
+                &cert,
+                &key,
+                true,
+                hyper::service::service_fn(|_| {
+                    futures_util::future::ok::<_, std::convert::Infallible>(hyper::Response::new(
+                        Full::new(&b"Hello, world!\n"[..]),
+                    ))
+                }),
+            )?;
 
             println!("Starting web server...");
 
-            let () = server.await?;
+            () = server.await?;
         }
     }
 
@@ -159,15 +157,13 @@ async fn main() -> Result<(), Error> {
 }
 
 fn load_engine() -> Result<openssl2::FunctionalEngine, Error> {
-    const ENGINE_ID: &[u8] = b"aziot_keys\0";
+    const ENGINE_ID: &CStr = c"aziot_keys";
 
     unsafe {
         openssl_sys2::ENGINE_load_builtin_engines();
     }
 
-    let engine_id =
-        std::ffi::CStr::from_bytes_with_nul(ENGINE_ID).expect("hard-coded engine ID is valid CStr");
-    let engine = openssl2::StructuralEngine::by_id(engine_id)?;
+    let engine = openssl2::StructuralEngine::by_id(ENGINE_ID)?;
     let engine: openssl2::FunctionalEngine = engine.try_into()?;
     println!("Loaded engine: [{}]", engine.name()?.to_string_lossy());
     Ok(engine)
@@ -323,7 +319,7 @@ impl std::fmt::Debug for Error {
 
 impl<E> From<E> for Error
 where
-    E: Into<Box<dyn std::error::Error>>,
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     fn from(err: E) -> Self {
         Error(err.into(), Default::default())

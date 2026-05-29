@@ -2,26 +2,31 @@
 name = "aziot-cloud-client-async"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 publish = false
 
+
 [dependencies]
-async-trait = "0.1"
-base64 = "0.21"
-chrono = "0.4"
-hyper = "0.14"
-hyper-openssl = "0.9"
-log = "0.4"
-percent-encoding = "2"
-serde = "1"
-serde_json = "1"
-tokio = { version = "1", features = ["parking_lot", "time"] }
-url = "2"
+async-trait = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+hyper = { workspace = true }
+hyper-openssl = { workspace = true }
+hyper-util = { workspace = true }
+log = { workspace = true }
+percent-encoding = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
 
 aziot-identity-common = { path = "../aziot-identity-common" }
 aziot-key-client-async = { path = "../../key/aziot-key-client-async" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common = { path = "../../tpm/aziot-tpm-common" }
-
 http-common = { path = "../../http-common" }
+
+
+[lints]
+workspace = true

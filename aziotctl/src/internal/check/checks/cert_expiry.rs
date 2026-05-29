@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use nix::unistd::User;
 use serde::Serialize;
 
@@ -73,7 +73,7 @@ impl IdentityCert {
             ProvisioningType::Dps { .. } => self.provisioning_mode = Some("dps-other"),
             ProvisioningType::Manual { .. } => self.provisioning_mode = Some("manual-other"),
             ProvisioningType::None => self.provisioning_mode = Some("none"),
-        };
+        }
 
         if let Some((identity_cert, identity_cert_name)) = cert {
             let certd_config = unwrap_or_skip!(&cache.cfg.certd);
@@ -251,7 +251,7 @@ async fn validate_cert(
         cert_id,
         false,
     )
-    .map_err(|e| anyhow!("{}", e))?;
+    .map_err(|e| anyhow!("{e}"))?;
 
     if path.exists() {
         let cert_info = CertificateValidity::new(path, cert_name, cert_id, aziotcs_user).await?;
@@ -262,8 +262,7 @@ async fn validate_cert(
         && !certd_config.cert_issuance.certs.contains_key(cert_id)
     {
         Err(anyhow!(
-            "{} certificate is neither preloaded nor configured to be dynamically issued, and thus cannot be used.",
-            cert_name
+            "{cert_name} certificate is neither preloaded nor configured to be dynamically issued, and thus cannot be used.",
         ))
     } else {
         Ok((CheckResult::Ok, None))

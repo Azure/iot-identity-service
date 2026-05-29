@@ -1,12 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
-
 use std::time::Duration;
 
-use aziot_identity_common::{Identity, ID_TYPE_AZIOT, ID_TYPE_LOCAL};
+use aziot_identity_common::{ID_TYPE_AZIOT, ID_TYPE_LOCAL, Identity};
 
 // All exports of aziot_identity_common_http are used in this file.
 #[allow(clippy::wildcard_imports)]
@@ -56,7 +52,7 @@ impl Client {
         max_retries: u32,
     ) -> Self {
         // use timeout of 10 minutes to allow identityd to backoff throttled calls
-        let timeout = Duration::from_secs(10 * 60);
+        let timeout = Duration::from_mins(10);
 
         Client {
             api_version,

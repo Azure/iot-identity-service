@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -52,15 +52,14 @@ impl EstServerHttps {
                 url: Some(url),
                 auth: _,
             } = &options.method
+                && url.scheme() != "https"
             {
-                if url.scheme() != "https" {
-                    warn_aggregated.push(format!(
+                warn_aggregated.push(format!(
                         "EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks.", url.as_str()
                     ));
-                    warn_aggregated.push(
+                warn_aggregated.push(
                         "To clear this warning, configure HTTPS for your EST server and update the URL.".to_owned()
                     );
-                }
             }
         }
 

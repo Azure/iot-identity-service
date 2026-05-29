@@ -2,16 +2,17 @@
 
 use aziot_keys_common::PreloadedKeyLocation;
 
-lazy_static::lazy_static! {
-    static ref HOMEDIR_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
+static HOMEDIR_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = std::sync::RwLock::new(None);
 
-    static ref PKCS11_LIB_PATH: std::sync::RwLock<Option<std::path::PathBuf>> = Default::default();
-    static ref PKCS11_BASE_SLOT: std::sync::RwLock<Option<pkcs11::Uri>> = Default::default();
+static PKCS11_LIB_PATH: std::sync::RwLock<Option<std::path::PathBuf>> =
+    std::sync::RwLock::new(None);
+static PKCS11_BASE_SLOT: std::sync::RwLock<Option<pkcs11::Uri>> = std::sync::RwLock::new(None);
 
-    static ref PRELOADED_KEYS: std::sync::RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>> = Default::default();
+static PRELOADED_KEYS: std::sync::RwLock<std::collections::BTreeMap<String, PreloadedKeyLocation>> =
+    std::sync::RwLock::new(std::collections::BTreeMap::new());
 
-    static ref PKCS11_BASE_SLOT_SESSION: std::sync::Mutex<Option<std::sync::Arc<pkcs11::Session>>> = Default::default();
-}
+static PKCS11_BASE_SLOT_SESSION: std::sync::Mutex<Option<std::sync::Arc<pkcs11::Session>>> =
+    std::sync::Mutex::new(None);
 
 pub(crate) unsafe fn get_function_list(
     version: crate::AZIOT_KEYS_VERSION,
@@ -19,7 +20,7 @@ pub(crate) unsafe fn get_function_list(
 ) -> crate::AZIOT_KEYS_RC {
     // Ignore the error from `try_init`. The error indicates a global logger was already set,
     // which is because `get_function_list` is being called a second time. That's fine.
-    let _ = logger::try_init();
+    _ = logger::try_init();
 
     crate::r#catch(|| {
         static AZIOT_KEYS_FUNCTION_LIST_2_0_0_0:
@@ -71,16 +72,20 @@ pub(crate) unsafe fn get_function_list(
             crate::function_list::v2_0_0_0::AZIOT_KEYS_VERSION_2_0_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() =
-                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_0_0_0).cast();
+                unsafe {
+                    *function_list_out.as_mut() =
+                        std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_0_0_0).cast();
+                }
                 Ok(())
             }
 
             crate::function_list::v2_1_0_0::AZIOT_KEYS_VERSION_2_1_0_0 => {
                 let mut function_list_out = std::ptr::NonNull::new(pfunction_list)
                     .ok_or_else(|| err_invalid_parameter("pfunction_list", "expected non-NULL"))?;
-                *function_list_out.as_mut() =
-                    std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_1_0_0).cast();
+                unsafe {
+                    *function_list_out.as_mut() =
+                        std::ptr::addr_of!(AZIOT_KEYS_FUNCTION_LIST_2_1_0_0).cast();
+                }
                 Ok(())
             }
 
@@ -94,20 +99,18 @@ pub(crate) unsafe extern "C" fn set_parameter(
     value: *const std::os::raw::c_char,
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
-        let name = name
-            .as_ref()
+        let name = (unsafe { name.as_ref() })
             .ok_or_else(|| err_invalid_parameter("name", "expected non-NULL"))?;
-        let name = std::ffi::CStr::from_ptr(name);
+        let name = unsafe { std::ffi::CStr::from_ptr(name) };
         let name = name
             .to_str()
             .map_err(|err| err_invalid_parameter("name", err))?;
 
         match name {
             "homedir_path" => {
-                let value = value
-                    .as_ref()
+                let value = (unsafe { value.as_ref() })
                     .ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
-                let value = std::ffi::CStr::from_ptr(value);
+                let value = unsafe { std::ffi::CStr::from_ptr(value) };
                 let value = value
                     .to_str()
                     .map_err(|err| err_invalid_parameter("value", err))?;
@@ -118,10 +121,9 @@ pub(crate) unsafe extern "C" fn set_parameter(
             }
 
             "pkcs11_lib_path" => {
-                let value = value
-                    .as_ref()
+                let value = (unsafe { value.as_ref() })
                     .ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
-                let value = std::ffi::CStr::from_ptr(value);
+                let value = unsafe { std::ffi::CStr::from_ptr(value) };
                 let value = value
                     .to_str()
                     .map_err(|err| err_invalid_parameter("value", err))?;
@@ -132,10 +134,9 @@ pub(crate) unsafe extern "C" fn set_parameter(
             }
 
             "pkcs11_base_slot" => {
-                let value = value
-                    .as_ref()
+                let value = (unsafe { value.as_ref() })
                     .ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
-                let value = std::ffi::CStr::from_ptr(value);
+                let value = unsafe { std::ffi::CStr::from_ptr(value) };
                 let value = value
                     .to_str()
                     .map_err(|err| err_invalid_parameter("value", err))?;
@@ -153,10 +154,9 @@ pub(crate) unsafe extern "C" fn set_parameter(
                     return Err(err_invalid_parameter("name", "key ID is empty"));
                 }
 
-                let value = value
-                    .as_ref()
+                let value = (unsafe { value.as_ref() })
                     .ok_or_else(|| err_invalid_parameter("value", "expected non-NULL"))?;
-                let value = std::ffi::CStr::from_ptr(value);
+                let value = unsafe { std::ffi::CStr::from_ptr(value) };
                 let value = value
                     .to_str()
                     .map_err(|err| err_invalid_parameter("value", err))?;
@@ -213,10 +213,9 @@ pub(crate) unsafe extern "C" fn sign(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(err_invalid_parameter("id", "expected non-NULL"));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() })
+                .ok_or_else(|| err_invalid_parameter("id", "expected non-NULL"))?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| err_invalid_parameter("id", err))?;
@@ -226,7 +225,7 @@ pub(crate) unsafe extern "C" fn sign(
         let digest = if digest.is_null() {
             return Err(err_invalid_parameter("digest", "expected non-NULL"));
         } else {
-            std::slice::from_raw_parts(digest, digest_len)
+            unsafe { std::slice::from_raw_parts(digest, digest_len) }
         };
 
         let mut signature_len_out = std::ptr::NonNull::new(signature_len)
@@ -235,21 +234,23 @@ pub(crate) unsafe extern "C" fn sign(
         let locations = Location::of(id)?;
 
         let (expected_signature_len, expected_signature) = match mechanism {
-            crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA => {
+            crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA => unsafe {
                 crate::key_pair::sign(&locations, mechanism, parameters, digest)?
-            }
+            },
 
             crate::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256
-            | crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED => {
+            | crate::AZIOT_KEYS_SIGN_MECHANISM_DERIVED => unsafe {
                 crate::key::sign(&locations, mechanism, parameters, digest)?
-            }
+            },
 
             _ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
         };
 
-        let actual_signature_len = *signature_len_out.as_ref();
+        let actual_signature_len = unsafe { *signature_len_out.as_ref() };
 
-        *signature_len_out.as_mut() = expected_signature_len;
+        unsafe {
+            *signature_len_out.as_mut() = expected_signature_len;
+        }
 
         if !signature.is_null() {
             let expected_signature_len = expected_signature.len();
@@ -258,10 +259,13 @@ pub(crate) unsafe extern "C" fn sign(
                 return Err(err_invalid_parameter("signature", "insufficient size"));
             }
 
-            let signature_out = std::slice::from_raw_parts_mut(signature, actual_signature_len);
+            let signature_out =
+                unsafe { std::slice::from_raw_parts_mut(signature, actual_signature_len) };
 
             signature_out[..expected_signature_len].copy_from_slice(&expected_signature);
-            *signature_len_out.as_mut() = expected_signature_len;
+            unsafe {
+                *signature_len_out.as_mut() = expected_signature_len;
+            }
         }
 
         Ok(())
@@ -280,10 +284,9 @@ pub(crate) unsafe extern "C" fn verify(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(err_invalid_parameter("id", "expected non-NULL"));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() })
+                .ok_or_else(|| err_invalid_parameter("id", "expected non-NULL"))?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| err_invalid_parameter("id", err))?;
@@ -293,13 +296,13 @@ pub(crate) unsafe extern "C" fn verify(
         let digest = if digest.is_null() {
             return Err(err_invalid_parameter("digest", "expected non-NULL"));
         } else {
-            std::slice::from_raw_parts(digest, digest_len)
+            unsafe { std::slice::from_raw_parts(digest, digest_len) }
         };
 
         let signature = if signature.is_null() {
             return Err(err_invalid_parameter("signature", "expected non-NULL"));
         } else {
-            std::slice::from_raw_parts(signature, signature_len)
+            unsafe { std::slice::from_raw_parts(signature, signature_len) }
         };
 
         let mut ok_out = std::ptr::NonNull::new(ok)
@@ -312,17 +315,19 @@ pub(crate) unsafe extern "C" fn verify(
             // Verify is not supported for asymmetric keys.
             // Clients can verify signatures themselves from the public parameters of the key pair.
             crate::AZIOT_KEYS_SIGN_MECHANISM_ECDSA => {
-                return Err(err_invalid_parameter("mechanism", "unrecognized value"))
+                return Err(err_invalid_parameter("mechanism", "unrecognized value"));
             }
 
-            crate::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256 => {
+            crate::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256 => unsafe {
                 crate::key::verify(&locations, digest, signature)?
-            }
+            },
 
             _ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
         };
 
-        *ok_out.as_mut() = ok.into();
+        unsafe {
+            *ok_out.as_mut() = ok.into();
+        }
 
         Ok(())
     })
@@ -339,10 +344,9 @@ pub(crate) unsafe extern "C" fn encrypt(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(err_invalid_parameter("id", "expected non-NULL"));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() })
+                .ok_or_else(|| err_invalid_parameter("id", "expected non-NULL"))?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| err_invalid_parameter("id", err))?;
@@ -352,7 +356,7 @@ pub(crate) unsafe extern "C" fn encrypt(
         let plaintext = if plaintext.is_null() {
             return Err(err_invalid_parameter("plaintext", "expected non-NULL"));
         } else {
-            std::slice::from_raw_parts(plaintext, plaintext_len)
+            unsafe { std::slice::from_raw_parts(plaintext, plaintext_len) }
         };
 
         let mut ciphertext_len_out = std::ptr::NonNull::new(ciphertext_len)
@@ -362,21 +366,23 @@ pub(crate) unsafe extern "C" fn encrypt(
 
         let (expected_ciphertext_len, expected_ciphertext) = match mechanism {
             crate::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD
-            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED => {
+            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED => unsafe {
                 crate::key::encrypt(&locations, mechanism, parameters, plaintext)?
-            }
+            },
 
             crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_PKCS1
-            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => {
+            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_RSA_NO_PADDING => unsafe {
                 crate::key_pair::encrypt(&locations, mechanism, parameters, plaintext)?
-            }
+            },
 
             _ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
         };
 
-        let actual_ciphertext_len = *ciphertext_len_out.as_ref();
+        let actual_ciphertext_len = unsafe { *ciphertext_len_out.as_ref() };
 
-        *ciphertext_len_out.as_mut() = expected_ciphertext_len;
+        unsafe {
+            *ciphertext_len_out.as_mut() = expected_ciphertext_len;
+        }
 
         if !ciphertext.is_null() {
             let expected_ciphertext_len = expected_ciphertext.len();
@@ -385,10 +391,13 @@ pub(crate) unsafe extern "C" fn encrypt(
                 return Err(err_invalid_parameter("ciphertext", "insufficient size"));
             }
 
-            let ciphertext_out = std::slice::from_raw_parts_mut(ciphertext, actual_ciphertext_len);
+            let ciphertext_out =
+                unsafe { std::slice::from_raw_parts_mut(ciphertext, actual_ciphertext_len) };
 
             ciphertext_out[..expected_ciphertext_len].copy_from_slice(&expected_ciphertext);
-            *ciphertext_len_out.as_mut() = expected_ciphertext_len;
+            unsafe {
+                *ciphertext_len_out.as_mut() = expected_ciphertext_len;
+            }
         }
 
         Ok(())
@@ -406,10 +415,9 @@ pub(crate) unsafe extern "C" fn decrypt(
 ) -> crate::AZIOT_KEYS_RC {
     crate::r#catch(|| {
         let id = {
-            if id.is_null() {
-                return Err(err_invalid_parameter("id", "expected non-NULL"));
-            }
-            let id = std::ffi::CStr::from_ptr(id);
+            let id = (unsafe { id.as_ref() })
+                .ok_or_else(|| err_invalid_parameter("id", "expected non-NULL"))?;
+            let id = unsafe { std::ffi::CStr::from_ptr(id) };
             let id = id
                 .to_str()
                 .map_err(|err| err_invalid_parameter("id", err))?;
@@ -419,7 +427,7 @@ pub(crate) unsafe extern "C" fn decrypt(
         let ciphertext = if ciphertext.is_null() {
             return Err(err_invalid_parameter("ciphertext", "expected non-NULL"));
         } else {
-            std::slice::from_raw_parts(ciphertext, ciphertext_len)
+            unsafe { std::slice::from_raw_parts(ciphertext, ciphertext_len) }
         };
 
         let mut plaintext_len_out = std::ptr::NonNull::new(plaintext_len)
@@ -429,16 +437,18 @@ pub(crate) unsafe extern "C" fn decrypt(
 
         let (expected_plaintext_len, expected_plaintext) = match mechanism {
             crate::AZIOT_KEYS_ENCRYPT_MECHANISM_AEAD
-            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED => {
+            | crate::AZIOT_KEYS_ENCRYPT_MECHANISM_DERIVED => unsafe {
                 crate::key::decrypt(&locations, mechanism, parameters, ciphertext)?
-            }
+            },
 
             _ => return Err(err_invalid_parameter("mechanism", "unrecognized value")),
         };
 
-        let actual_plaintext_len = *plaintext_len_out.as_ref();
+        let actual_plaintext_len = unsafe { *plaintext_len_out.as_ref() };
 
-        *plaintext_len_out.as_mut() = expected_plaintext_len;
+        unsafe {
+            *plaintext_len_out.as_mut() = expected_plaintext_len;
+        }
 
         if !plaintext.is_null() {
             let expected_plaintext_len = expected_plaintext.len();
@@ -447,10 +457,13 @@ pub(crate) unsafe extern "C" fn decrypt(
                 return Err(err_invalid_parameter("plaintext", "insufficient size"));
             }
 
-            let plaintext_out = std::slice::from_raw_parts_mut(plaintext, actual_plaintext_len);
+            let plaintext_out =
+                unsafe { std::slice::from_raw_parts_mut(plaintext, actual_plaintext_len) };
 
             plaintext_out[..expected_plaintext_len].copy_from_slice(&expected_plaintext);
-            *plaintext_len_out.as_mut() = expected_plaintext_len;
+            unsafe {
+                *plaintext_len_out.as_mut() = expected_plaintext_len;
+            }
         }
 
         Ok(())
@@ -498,7 +511,7 @@ impl Location {
                 return Err(err_invalid_parameter(
                     "id",
                     "pre-loaded key requires PKCS#11 lib path to be configured",
-                ))
+                ));
             }
 
             _ => (),
@@ -523,7 +536,7 @@ impl Location {
                 path.push("keys");
 
                 if !path.exists() {
-                    let () = std::fs::create_dir_all(&path).map_err(err_external)?;
+                    () = std::fs::create_dir_all(&path).map_err(err_external)?;
                 }
 
                 let id_sanitized: String = id.chars().filter(char::is_ascii_alphanumeric).collect();
@@ -568,7 +581,7 @@ pub(crate) fn err_external<E>(err: E) -> crate::AZIOT_KEYS_RC
 where
     E: std::fmt::Display,
 {
-    log::error!("{}", err);
+    log::error!("{err}");
     crate::AZIOT_KEYS_RC_ERR_EXTERNAL
 }
 
@@ -576,6 +589,6 @@ pub(crate) fn err_invalid_parameter<E>(name: &str, err: E) -> crate::AZIOT_KEYS_
 where
     E: std::fmt::Display,
 {
-    log::error!("invalid parameter {:?}: {}", name, err);
+    log::error!("invalid parameter {name:?}: {err}");
     crate::AZIOT_KEYS_RC_ERR_INVALID_PARAMETER
 }

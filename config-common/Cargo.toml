@@ -2,17 +2,21 @@
 name = "config-common"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-async-trait = { version = "0.1", optional = true }
-log = { version = "0.4", optional = true }
-notify = { version = "4", optional = true }
-serde = "1"
-tokio = { version = "1", features = ["parking_lot", "rt", "sync"], optional = true }
-toml = "0.7"
+async-trait = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+notify-debouncer-mini = { workspace = true, optional = true }
+serde = { workspace = true }
+tokio = { workspace = true, optional = true }
+toml = { workspace = true }
 
 
 [features]
-watcher = ["async-trait", "log", "notify", "tokio"]
+watcher = ["async-trait", "log", "notify-debouncer-mini", "tokio"]
+
+
+[lints]
+workspace = true

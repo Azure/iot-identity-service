@@ -26,7 +26,7 @@ int aziot_key_openssl_engine_shared_bind(ENGINE* e, const char* id);
  */
 __attribute__((used))
 IMPLEMENT_DYNAMIC_BIND_FN(aziot_key_openssl_engine_shared_bind);
-__asm__(".symver bind_engine,bind_engine@@");
+__asm__(".symver bind_engine,bind_engine@");
 __attribute__((used))
 IMPLEMENT_DYNAMIC_CHECK_FN();
-__asm__(".symver v_check,v_check@@");
+__asm__(".symver v_check,v_check@");

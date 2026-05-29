@@ -1,9 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::missing_errors_doc)]
-
 const LOG_LEVEL_ENV_VAR: &str = "AZIOT_LOG";
 
 pub fn try_init() -> Result<(), log::SetLoggerError> {

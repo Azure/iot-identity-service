@@ -1,14 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    non_camel_case_types,
-    non_snake_case,
-    clippy::must_use_candidate,
-    clippy::upper_case_acronyms,
-    clippy::use_self
-)]
+#![expect(nonstandard_style)]
 
 //! Refs:
 //!
@@ -291,14 +283,14 @@ pub type CK_INFO_PTR = *mut CK_INFO;
 impl std::fmt::Display for CK_INFO {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
-			f,
-			"description: [{}], version: [{}], manufacturer ID: [{}], PKCS#11 version: [{}], flags: [{}]",
-			String::from_utf8_lossy(&self.libraryDescription).trim(),
-			self.libraryVersion,
-			String::from_utf8_lossy(&self.manufacturerID).trim(),
-			self.cryptokiVersion,
-			self.flags,
-		)?;
+            f,
+            "description: [{}], version: [{}], manufacturer ID: [{}], PKCS#11 version: [{}], flags: [{}]",
+            String::from_utf8_lossy(&self.libraryDescription).trim(),
+            self.libraryVersion,
+            String::from_utf8_lossy(&self.manufacturerID).trim(),
+            self.cryptokiVersion,
+            self.flags,
+        )?;
         Ok(())
     }
 }

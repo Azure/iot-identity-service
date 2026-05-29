@@ -2,7 +2,7 @@
 
 //! `rsa.h`
 
-extern "C" {
+unsafe extern "C" {
     pub fn RSA_get_ex_data(
         r: *const openssl_sys::RSA,
         idx: std::os::raw::c_int,
@@ -22,7 +22,7 @@ extern "C" {
     pub fn RSA_get_default_method() -> *const openssl_sys::RSA_METHOD;
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn RSA_meth_dup(meth: *const openssl_sys::RSA_METHOD) -> *mut openssl_sys::RSA_METHOD;
     pub fn RSA_meth_set_flags(
         meth: *mut openssl_sys::RSA_METHOD,

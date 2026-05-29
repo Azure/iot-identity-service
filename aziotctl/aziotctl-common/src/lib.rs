@@ -1,19 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_unit_value,
-    clippy::module_name_repetitions,
-    clippy::similar_names,
-    clippy::too_many_lines,
-    clippy::type_complexity,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::must_use_candidate
-)]
-
 use std::collections::BTreeMap;
 
 use anyhow::Context;

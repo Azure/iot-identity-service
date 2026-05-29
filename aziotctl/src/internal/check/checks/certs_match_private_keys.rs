@@ -2,7 +2,7 @@
 
 use std::fmt::Write;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -15,8 +15,7 @@ impl Checker for CertsMatchPrivateKeys {
     fn meta(&self) -> CheckerMeta {
         CheckerMeta {
             id: "certs-match-private-keys",
-            description:
-                "ensure all preloaded certificates match preloaded private keys with the same ID",
+            description: "ensure all preloaded certificates match preloaded private keys with the same ID",
         }
     }
 
@@ -35,20 +34,20 @@ impl CertsMatchPrivateKeys {
 
         for (id, private_key) in &cache.private_keys {
             if let Some(cert) = cache.certs.get(id) {
-                unsafe {
-                    let result = openssl2::openssl_returns_1(openssl_sys2::X509_check_private_key(
+                let result = openssl2::openssl_returns_1(unsafe {
+                    openssl_sys2::X509_check_private_key(
                         foreign_types_shared::ForeignType::as_ptr(cert),
                         foreign_types_shared::ForeignType::as_ptr(private_key),
-                    ));
-                    if result.is_err() {
-                        if !err_aggregated.is_empty() {
-                            err_aggregated.push('\n');
-                        }
-                        write!(
-                            &mut err_aggregated,
-                            "preloaded cert with ID {id:?} does not match preloaded private key with ID {id:?}"
-                        ).expect("std::fmt::Write for String should not fail");
+                    )
+                });
+                if result.is_err() {
+                    if !err_aggregated.is_empty() {
+                        err_aggregated.push('\n');
                     }
+                    write!(
+                        &mut err_aggregated,
+                        "preloaded cert with ID {id:?} does not match preloaded private key with ID {id:?}"
+                    ).expect("std::fmt::Write for String should not fail");
                 }
             }
         }
@@ -56,7 +55,7 @@ impl CertsMatchPrivateKeys {
         if err_aggregated.is_empty() {
             Ok(CheckResult::Ok)
         } else {
-            Err(anyhow!("{}", err_aggregated))
+            Err(anyhow!("{err_aggregated}"))
         }
     }
 }

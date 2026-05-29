@@ -78,7 +78,7 @@ auth_header=$(az account get-access-token --query "join(' ', ['Authorization: Be
 
 url="$(curl -sSL 'https://pkgs.dev.azure.com/iotedge/iotedge/_packaging/iotedge_PublicPackages/Cargo/index/config.json' | jq -r '.dl')"
 url="${url/\{crate\}/$package}"
-url="${url/\{version\}/$v}"
+url="${url/\{version\}/$version}"
 
 # curl with --max-time of 5 seconds because we don't actually have to download the package, we just need to nudge
 # the feed to acquire the package from upstream

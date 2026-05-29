@@ -1,8 +1,18 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::sync::atomic;
+use std::{error::Error as StdError, os::fd::BorrowedFd, sync::atomic};
 
+use bytes::Bytes;
 use futures_util::future;
+use http_body_util::combinators::BoxBody;
+use hyper::{Request, Response};
+use hyper_util::{
+    client::legacy::{
+        Client,
+        connect::{Connected, Connection},
+    },
+    rt::{TokioExecutor, TokioIo},
+};
 use nix::sys::socket::{AddressFamily, SockaddrLike, SockaddrStorage};
 
 pub const SOCKET_DEFAULT_PERMISSION: u32 = 0o660;
@@ -55,41 +65,39 @@ impl Incoming {
     ) -> std::io::Result<()>
     where
         H: hyper::service::Service<
-                hyper::Request<hyper::Body>,
-                Response = hyper::Response<hyper::Body>,
+                Request<hyper::body::Incoming>,
+                Response = Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>,
                 Error = std::convert::Infallible,
             > + Clone
             + Send
             + 'static,
-        <H as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send,
+        <H as hyper::service::Service<Request<hyper::body::Incoming>>>::Future: Send,
     {
         // Keep track of the number of running tasks.
         let tasks = atomic::AtomicUsize::new(0);
         let tasks = std::sync::Arc::new(tasks);
 
-        let shutdown_loop = shutdown;
-        futures_util::pin_mut!(shutdown_loop);
+        let mut shutdown_loop = std::pin::pin!(shutdown);
 
         match self {
             Incoming::Tcp { listener } => loop {
-                let accept = listener.accept();
-                futures_util::pin_mut!(accept);
+                let accept = std::pin::pin!(listener.accept());
 
                 match future::select(shutdown_loop, accept).await {
                     future::Either::Left((_, _)) => break,
                     future::Either::Right((tcp_stream, shutdown)) => {
-                        let tcp_stream = tcp_stream?.0;
+                        let tcp_stream = TokioIo::new(tcp_stream?.0);
 
                         let server = crate::uid::UidService::new(None, 0, server.clone());
 
                         tasks.fetch_add(1, atomic::Ordering::AcqRel);
                         let server_tasks = tasks.clone();
                         tokio::spawn(async move {
-                            if let Err(http_err) = hyper::server::conn::Http::new()
+                            if let Err(http_err) = hyper::server::conn::http1::Builder::new()
                                 .serve_connection(tcp_stream, server)
                                 .await
                             {
-                                log::info!("Error while serving HTTP connection: {}", http_err);
+                                log::info!("Error while serving HTTP connection: {http_err}");
                             }
 
                             server_tasks.fetch_sub(1, atomic::Ordering::AcqRel);
@@ -105,16 +113,15 @@ impl Incoming {
                 max_requests,
                 user_state,
             } => loop {
-                let accept = listener.accept();
-                futures_util::pin_mut!(accept);
+                let accept = std::pin::pin!(listener.accept());
 
                 // Await either the next established connection or the shutdown signal.
                 match future::select(shutdown_loop, accept).await {
                     future::Either::Left((_, _)) => break,
                     future::Either::Right((unix_stream, shutdown)) => {
-                        let unix_stream = unix_stream?.0;
+                        let unix_stream = TokioIo::new(unix_stream?.0);
 
-                        let ucred = unix_stream.peer_cred()?;
+                        let ucred = unix_stream.inner().peer_cred()?;
                         let servers_available = user_state
                             .entry(ucred.uid())
                             .or_insert_with(|| {
@@ -136,11 +143,11 @@ impl Incoming {
                                 .is_ok();
 
                             if available {
-                                if let Err(http_err) = hyper::server::conn::Http::new()
+                                if let Err(http_err) = hyper::server::conn::http1::Builder::new()
                                     .serve_connection(unix_stream, server)
                                     .await
                                 {
-                                    log::info!("Error while serving HTTP connection: {}", http_err);
+                                    log::info!("Error while serving HTTP connection: {http_err}");
                                 }
 
                                 servers_available.fetch_add(1, atomic::Ordering::AcqRel);
@@ -156,7 +163,7 @@ impl Incoming {
 
                         shutdown_loop = shutdown;
                     }
-                };
+                }
             },
         }
 
@@ -236,18 +243,20 @@ impl Connector {
         }
     }
 
-    pub fn into_client<B>(self) -> hyper::Client<Connector, B>
+    pub fn into_client<B>(self) -> Client<Connector, B>
     where
-        B: hyper::body::HttpBody + Send,
+        B: http_body::Body + Send,
         B::Data: Send,
     {
+        let mut builder = Client::builder(TokioExecutor::new());
         match self {
-            Connector::Tcp { .. } | Connector::Fd { .. } => hyper::Client::builder().build(self),
+            Connector::Tcp { .. } | Connector::Fd { .. } => (),
             // we don't need connection pool'ing for unix sockets.
-            Connector::Unix { .. } => hyper::Client::builder()
-                .pool_max_idle_per_host(0)
-                .build(self),
+            Connector::Unix { .. } => {
+                builder.pool_max_idle_per_host(0);
+            }
         }
+        builder.build(self)
     }
 
     pub fn connect(&self) -> std::io::Result<Stream> {
@@ -287,8 +296,7 @@ impl Connector {
         socket_name: Option<String>,
     ) -> std::io::Result<Incoming> {
         // Check for systemd sockets.
-        let systemd_socket = get_systemd_socket(socket_name)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+        let systemd_socket = get_systemd_socket(socket_name).map_err(std::io::Error::other)?;
 
         match (systemd_socket, self) {
             // Prefer use of systemd sockets.
@@ -299,7 +307,9 @@ impl Connector {
                     Ok(()) => (),
                     Err(err) if err.kind() == std::io::ErrorKind::NotFound => (),
                     Err(err) if err.raw_os_error() == Some(libc::EISDIR) => {
-                        log::warn!("Could not remove socket file because it is a directory. Removing directory.");
+                        log::warn!(
+                            "Could not remove socket file because it is a directory. Removing directory."
+                        );
                         std::fs::remove_dir_all(&*socket_path)?;
                     }
                     Err(err) => return Err(err),
@@ -326,8 +336,7 @@ impl Connector {
                     let listener = tokio::net::TcpListener::bind((&*host, port)).await?;
                     Ok(Incoming::Tcp { listener })
                 } else {
-                    Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    Err(std::io::Error::other(
                         "servers can only use `unix://` connectors, not `http://` connectors",
                     ))
                 }
@@ -392,8 +401,8 @@ impl std::str::FromStr for Connector {
     }
 }
 
-impl hyper::service::Service<hyper::Uri> for Connector {
-    type Response = AsyncStream;
+impl tower_service::Service<hyper::Uri> for Connector {
+    type Response = TokioIo<AsyncStream>;
     type Error = std::io::Error;
     type Future = std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
@@ -412,7 +421,7 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                 let (host, port) = (host.clone(), *port);
                 let f = async move {
                     let inner = tokio::net::TcpStream::connect((&*host, port)).await?;
-                    Ok(AsyncStream::Tcp(inner))
+                    Ok(TokioIo::new(AsyncStream::Tcp(inner)))
                 };
                 Box::pin(f)
             }
@@ -421,7 +430,7 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                 let socket_path = socket_path.clone();
                 let f = async move {
                     let inner = tokio::net::UnixStream::connect(&*socket_path).await?;
-                    Ok(AsyncStream::Unix(inner))
+                    Ok(TokioIo::new(AsyncStream::Unix(inner)))
                 };
                 Box::pin(f)
             }
@@ -437,7 +446,7 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                         stream.set_nonblocking(true)?;
                         let stream = tokio::net::UnixStream::from_std(stream)?;
 
-                        Ok(AsyncStream::Unix(stream))
+                        Ok(TokioIo::new(AsyncStream::Unix(stream)))
                     } else {
                         let stream: std::net::TcpStream =
                             unsafe { std::os::unix::io::FromRawFd::from_raw_fd(fd) };
@@ -445,7 +454,7 @@ impl hyper::service::Service<hyper::Uri> for Connector {
                         stream.set_nonblocking(true)?;
                         let stream = tokio::net::TcpStream::from_std(stream)?;
 
-                        Ok(AsyncStream::Tcp(stream))
+                        Ok(TokioIo::new(AsyncStream::Tcp(stream)))
                     }
                 };
 
@@ -462,7 +471,7 @@ impl<'de> serde::Deserialize<'de> for Connector {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = Connector;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -594,11 +603,11 @@ impl tokio::io::AsyncWrite for AsyncStream {
     }
 }
 
-impl hyper::client::connect::Connection for AsyncStream {
-    fn connected(&self) -> hyper::client::connect::Connected {
+impl Connection for AsyncStream {
+    fn connected(&self) -> Connected {
         match self {
             AsyncStream::Tcp(inner) => inner.connected(),
-            AsyncStream::Unix(_) => hyper::client::connect::Connected::new(),
+            AsyncStream::Unix(_) => Connected::new(),
         }
     }
 }
@@ -626,8 +635,8 @@ impl std::error::Error for ConnectorError {
 /// Returns an Err if the socket type is invalid. TCP sockets are only valid for debug builds,
 /// so this function returns an Err for release builds using a TCP socket.
 fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
-    let sock_addr = nix::sys::socket::getsockname::<SockaddrStorage>(fd)
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+    let sock_addr =
+        nix::sys::socket::getsockname::<SockaddrStorage>(fd).map_err(std::io::Error::other)?;
 
     match sock_addr.family() {
         Some(AddressFamily::Unix) => Ok(true),
@@ -635,10 +644,9 @@ fn is_unix_fd(fd: std::os::unix::io::RawFd) -> std::io::Result<bool> {
         // Only debug builds can set up HTTP servers. Release builds must use unix sockets.
         Some(AddressFamily::Inet | AddressFamily::Inet6) if cfg!(debug_assertions) => Ok(false),
 
-        family => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("systemd socket has unsupported address family {family:?}"),
-        )),
+        family => Err(std::io::Error::other(format!(
+            "systemd socket has unsupported address family {family:?}"
+        ))),
     }
 }
 
@@ -652,7 +660,7 @@ fn get_env(env: &str) -> Result<Option<String>, String> {
             Ok(listen_pid) => listen_pid,
             Err(std::env::VarError::NotPresent) => return Ok(None),
             Err(err @ std::env::VarError::NotUnicode(_)) => {
-                return Err(format!("could not read LISTEN_PID env var: {err}"))
+                return Err(format!("could not read LISTEN_PID env var: {err}"));
             }
         };
 
@@ -747,12 +755,6 @@ fn get_systemd_socket(
     // That is why in edged's case we use the systemd socket name to know which fd the function should return
     // CS/IS/KS currently only expect one socket, so this is fine; but it is not the case for iotedged (mgmt and workload sockets)
     // for example.
-    //
-    // The complication with LISTEN_FDNAMES is that CentOS 7's systemd is too old and doesn't support it, which
-    // would mean CS/IS/KS would have to stop using systemd socket activation on CentOS 7 (just like iotedged). This creates more complications,
-    // because now the sockets either have to be placed in /var/lib/aziot (just like iotedged does) which means host modules need to try
-    // both /run/aziot and /var/lib/aziot to connect to a service, or the services continue to bind sockets under /run/aziot but have to create
-    // /run/aziot themselves on startup with ACLs for all three users and all three groups.
 
     let listen_fds: std::os::unix::io::RawFd = match get_env("LISTEN_FDS")? {
         Some(listen_fds) => listen_fds
@@ -771,7 +773,7 @@ fn get_systemd_socket(
     // Note that we want to do this for all the fds, not just the one we're looking for.
     for fd in SD_LISTEN_FDS_START..(SD_LISTEN_FDS_START + listen_fds) {
         if let Err(err) = nix::fcntl::fcntl(
-            fd,
+            unsafe { BorrowedFd::borrow_raw(fd) },
             nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::FD_CLOEXEC),
         ) {
             return Err(format!("could not fcntl({fd}, F_SETFD, FD_CLOEXEC): {err}"));
@@ -899,7 +901,7 @@ mod tests {
             "ftp://127.0.0.1",
         ] {
             let input = input.parse().unwrap();
-            let _ = super::Connector::new(&input).unwrap_err();
+            _ = super::Connector::new(&input).unwrap_err();
         }
     }
 }

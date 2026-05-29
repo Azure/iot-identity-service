@@ -7,13 +7,13 @@ pub struct EVP_PKEY_METHOD([u8; 0]);
 
 pub const EVP_PKEY_FLAG_AUTOARGLEN: std::os::raw::c_int = 0x0002;
 
-extern "C" {
+unsafe extern "C" {
     pub fn EVP_PKEY_CTX_get0_pkey(
         ctx: *mut openssl_sys::EVP_PKEY_CTX,
     ) -> *mut openssl_sys::EVP_PKEY;
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn EVP_PKEY_meth_copy(dst: *mut EVP_PKEY_METHOD, src: *const EVP_PKEY_METHOD);
     pub fn EVP_PKEY_meth_find(r#type: std::os::raw::c_int) -> *const EVP_PKEY_METHOD;
     pub fn EVP_PKEY_meth_new(
@@ -55,7 +55,7 @@ extern "C" {
     );
 }
 
-extern "C" {
+unsafe extern "C" {
     #[cfg(ossl110)]
     pub fn EVP_PKEY_set1_engine(
         pkey: *mut openssl_sys::EVP_PKEY,

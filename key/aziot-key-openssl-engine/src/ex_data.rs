@@ -1,5 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::sync::LazyLock;
+
 #[derive(Clone, Copy)]
 pub(crate) struct ExIndices {
     pub(crate) engine: openssl::ex_data::Index<openssl_sys::ENGINE, crate::engine::Engine>,
@@ -7,21 +9,16 @@ pub(crate) struct ExIndices {
     pub(crate) rsa: openssl::ex_data::Index<openssl_sys::RSA, KeyExData>,
 }
 
-pub(crate) unsafe fn ex_indices() -> ExIndices {
-    static mut RESULT: *const ExIndices = std::ptr::null();
-    static RESULT_INIT: std::sync::Once = std::sync::Once::new();
-
-    RESULT_INIT.call_once(|| {
-        // If we can't get the ex indices, log the error and swallow it, leaving RESULT as nullptr.
-        // After the Once initializer, the code will assert and abort.
-        let _ = super::r#catch(None, || {
-            extern "C" {
+pub(crate) fn ex_indices() -> ExIndices {
+    static RESULT: LazyLock<ExIndices> = LazyLock::new(|| {
+        super::r#catch(None, || {
+            unsafe extern "C" {
                 fn aziot_key_get_engine_ex_index() -> std::os::raw::c_int;
                 fn aziot_key_get_ec_key_ex_index() -> std::os::raw::c_int;
                 fn aziot_key_get_rsa_ex_index() -> std::os::raw::c_int;
             }
 
-            let engine_ex_index = aziot_key_get_engine_ex_index();
+            let engine_ex_index = unsafe { aziot_key_get_engine_ex_index() };
             if engine_ex_index == -1 {
                 return Err(format!(
                     "could not register ENGINE ex index: {}",
@@ -30,7 +27,7 @@ pub(crate) unsafe fn ex_indices() -> ExIndices {
                 .into());
             }
 
-            let ec_key_ex_index = aziot_key_get_ec_key_ex_index();
+            let ec_key_ex_index = unsafe { aziot_key_get_ec_key_ex_index() };
             if ec_key_ex_index == -1 {
                 return Err(format!(
                     "could not register EC_KEY ex index: {}",
@@ -39,7 +36,7 @@ pub(crate) unsafe fn ex_indices() -> ExIndices {
                 .into());
             }
 
-            let rsa_ex_index = aziot_key_get_rsa_ex_index();
+            let rsa_ex_index = unsafe { aziot_key_get_rsa_ex_index() };
             if rsa_ex_index == -1 {
                 return Err(format!(
                     "could not register RSA ex index: {}",
@@ -49,17 +46,15 @@ pub(crate) unsafe fn ex_indices() -> ExIndices {
             }
 
             let ex_indices = ExIndices {
-                engine: openssl::ex_data::Index::from_raw(engine_ex_index),
-                ec_key: openssl::ex_data::Index::from_raw(ec_key_ex_index),
-                rsa: openssl::ex_data::Index::from_raw(rsa_ex_index),
+                engine: unsafe { openssl::ex_data::Index::from_raw(engine_ex_index) },
+                ec_key: unsafe { openssl::ex_data::Index::from_raw(ec_key_ex_index) },
+                rsa: unsafe { openssl::ex_data::Index::from_raw(rsa_ex_index) },
             };
-            RESULT = Box::into_raw(Box::new(ex_indices));
-
-            Ok(())
-        });
+            Ok(ex_indices)
+        })
+        .expect("ex indices could not be initialized")
     });
 
-    assert!(!RESULT.is_null(), "ex indices could not be initialized");
     *RESULT
 }
 
@@ -67,31 +62,31 @@ pub(crate) trait HasExData<T>: openssl2::ExDataAccessors + Sized {
     unsafe fn index() -> openssl::ex_data::Index<Self, T>;
 }
 
-pub(crate) unsafe fn get<T, U>(this: &T) -> Result<&U, openssl2::Error>
+pub(crate) fn get<T, U>(this: &T) -> Result<&U, openssl2::Error>
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
 
-    let ex_data: *const U = openssl2::openssl_returns_nonnull(
-        (<T as openssl2::ExDataAccessors>::GET_FN)(this, ex_index),
-    )? as _;
+    let ex_data: *const U = openssl2::openssl_returns_nonnull(unsafe {
+        (<T as openssl2::ExDataAccessors>::GET_FN)(this, ex_index)
+    })? as _;
 
-    Ok(&*ex_data)
+    Ok(unsafe { &*ex_data })
 }
 
 pub(crate) unsafe fn set<T, U>(this: *mut T, ex_data: U) -> Result<(), openssl2::Error>
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
 
     let ex_data = std::sync::Arc::new(ex_data);
     let ex_data = std::sync::Arc::into_raw(ex_data) as _;
 
-    openssl2::openssl_returns_1((<T as openssl2::ExDataAccessors>::SET_FN)(
-        this, ex_index, ex_data,
-    ))?;
+    openssl2::openssl_returns_1(unsafe {
+        (<T as openssl2::ExDataAccessors>::SET_FN)(this, ex_index, ex_data)
+    })?;
 
     Ok(())
 }
@@ -101,7 +96,7 @@ pub(crate) unsafe fn dup<T, U>(from_d: *mut *mut std::ffi::c_void, idx: std::os:
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
     assert_eq!(idx, ex_index);
 
     // `from_d` points to the pointer returned by calling `CRYPTO_get_ex_data` on the `from` object.
@@ -117,7 +112,9 @@ where
 
     let ptr = from_d.cast::<*const U>();
     if !ptr.is_null() {
-        std::sync::Arc::increment_strong_count(ptr);
+        unsafe {
+            std::sync::Arc::increment_strong_count(ptr);
+        }
     }
 }
 
@@ -126,7 +123,7 @@ pub(crate) unsafe fn dup<T, U>(from_d: *mut std::ffi::c_void, idx: std::os::raw:
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
     assert_eq!(idx, ex_index);
 
     // Although `dup_func`'s signature types `from_d` as `void*`, it is in fact a `void**` - it points to the pointer returned by
@@ -142,7 +139,9 @@ where
 
     let ptr = from_d.cast::<*const U>();
     if !ptr.is_null() {
-        std::sync::Arc::increment_strong_count(ptr);
+        unsafe {
+            std::sync::Arc::increment_strong_count(ptr);
+        }
     }
 }
 
@@ -150,12 +149,14 @@ pub(crate) unsafe fn free<T, U>(ptr: *mut std::ffi::c_void, idx: std::os::raw::c
 where
     T: HasExData<U>,
 {
-    let ex_index = <T as HasExData<U>>::index().as_raw();
+    let ex_index = (unsafe { <T as HasExData<U>>::index() }).as_raw();
     assert_eq!(idx, ex_index);
 
     let ptr = ptr.cast::<U>();
     if !ptr.is_null() {
-        std::sync::Arc::decrement_strong_count(ptr);
+        unsafe {
+            std::sync::Arc::decrement_strong_count(ptr);
+        }
     }
 }
 

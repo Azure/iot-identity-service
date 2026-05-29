@@ -32,7 +32,7 @@ pub fn create_dir_all(path: impl AsRef<Path>, user: &User, mode: u32) -> anyhow:
     let path_displayable = path.display();
 
     // Create `path` and all its parent directories.
-    let () = fs::create_dir_all(path)
+    () = fs::create_dir_all(path)
         .with_context(|| format!("could not create {path_displayable} directory"))?;
 
     // Enforce all parent directories of `path` are readable by `user`.
@@ -41,9 +41,9 @@ pub fn create_dir_all(path: impl AsRef<Path>, user: &User, mode: u32) -> anyhow:
     }
 
     // Set `path` itself to have the given owner and mode.
-    let () = unistd::chown(path, Some(user.uid), Some(user.gid))
+    () = unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {path_displayable} directory"))?;
-    let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
+    () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
         .with_context(|| format!("could not set permissions on {path_displayable} directory"))?;
 
     Ok(())
@@ -68,11 +68,11 @@ pub fn write_file(
 
     let _file = fs::remove_file(path);
 
-    let () =
+    () =
         fs::write(path, content).with_context(|| format!("could not create {path_displayable}"))?;
-    let () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
+    () = fs::set_permissions(path, fs::Permissions::from_mode(mode))
         .with_context(|| format!("could not set permissions on {path_displayable}"))?;
-    let () = unistd::chown(path, Some(user.uid), Some(user.gid))
+    () = unistd::chown(path, Some(user.uid), Some(user.gid))
         .with_context(|| format!("could not set ownership on {path_displayable}"))?;
 
     Ok(())
@@ -120,18 +120,18 @@ pub fn check_readable(mut path: &Path, user: &User, fix: bool) -> anyhow::Result
             if fix {
                 if is_directory {
                     // Make it world-readable
-                    let () = fs::set_permissions(
+                    () = fs::set_permissions(
                         path,
                         fs::Permissions::from_mode(st_mode | readable_bits),
                     )
                     .with_context(|| format!("could not set permissions on {}", path.display()))?;
                 } else {
                     // Make it owner-readable by `user.uid`
-                    let () =
+                    () =
                         unistd::chown(path, Some(user.uid), Some(user.gid)).with_context(|| {
                             format!("could not set ownership on {}", path.display())
                         })?;
-                    let () = fs::set_permissions(
+                    () = fs::set_permissions(
                         path,
                         fs::Permissions::from_mode(st_mode | (readable_bits << 6)),
                     )

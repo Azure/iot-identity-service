@@ -150,7 +150,7 @@ impl<'de> Deserialize<'de> for ConnectionString {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = ConnectionString;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -341,20 +341,17 @@ fn deserialize_url_check_https<'de, D>(de: D) -> Result<Option<url::Url>, D::Err
 where
     D: serde::Deserializer<'de>,
 {
-    let opt = Option::<Url>::deserialize(de)?;
-    match &opt {
-        Some(url) => {
-            if url.scheme() == "http" {
-                eprintln!(
-                    "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks. \
-                    To clear this warning, configure HTTPS for your EST server and update the URL.",
-                    url.as_str()
-                );
-            }
-        }
-        None => (),
+    let url = Option::<Url>::deserialize(de)?;
+    if let Some(url) = &url
+        && url.scheme() == "http"
+    {
+        eprintln!(
+            "Warning: EST server URL {:?} is configured with unencrypted HTTP, which may expose device to man-in-the-middle attacks. \
+            To clear this warning, configure HTTPS for your EST server and update the URL.",
+            url.as_str(),
+        );
     }
-    Ok(opt)
+    Ok(url)
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -389,7 +386,7 @@ mod base64 {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = Vec<u8>;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

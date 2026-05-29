@@ -48,7 +48,7 @@ fn register(
                 return Response::Error {
                     status: http::StatusCode::INTERNAL_SERVER_ERROR,
                     message: "error creating webhook response payload".to_owned(),
-                }
+                };
             }
         }
     };
@@ -106,15 +106,14 @@ pub(crate) fn process_request(
     req: &crate::server::ParsedRequest,
     context: &mut crate::server::Context,
 ) -> Option<Response> {
-    lazy_static::lazy_static! {
-        static ref DPS_REGEX: regex::Regex = regex::Regex::new(
-            "/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version="
-        ).unwrap();
+    static DPS_REGEX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new("/(?P<scopeId>[^/]+)/registrations/(?P<registrationId>[^/]+)/(?P<action>.+)\\?api-version=").unwrap()
+    });
 
-        static ref OPERATION_STATUS_REGEX: regex::Regex = regex::Regex::new(
-            "operations/(?P<operationId>[^/]+)$"
-        ).unwrap();
-    }
+    static OPERATION_STATUS_REGEX: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| {
+            regex::Regex::new("operations/(?P<operationId>[^/]+)$").unwrap()
+        });
 
     if !DPS_REGEX.is_match(&req.uri) {
         return None;

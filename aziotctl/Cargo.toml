@@ -2,35 +2,39 @@
 name = "aziotctl"
 version = "1.5.6"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 homepage = "https://azure.github.io/iot-identity-service/"
 description = "aziotctl is used to manage the IoT Identity Service and related services."
 license = "MIT"
 
+
 [dependencies]
-anyhow = "1.0.34"
-async-recursion = "1"
-async-trait = "0.1.42"
-base64 = "0.21"
-byte-unit = "4.0.9"
-chrono = { version = "0.4", features = ["serde"] }
-colored = "2.0.0"
-erased-serde = "0.3.12"
-foreign-types-shared = "0.1"
-hyper = "0.14"
-hyper-openssl = "0.9"
-libc = "0.2"
-nix = "0.26"
-log = { version = "0.4", features = ["std"] }
-openssl = "0.10"
-semver = "1.0"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1.0.59"
-clap = { version = "4", features = ["derive"] }
-sysinfo = "0.27"
-tokio = { version = "1", features = ["macros", "fs", "io-util", "rt-multi-thread"] }
-toml = "0.7"
-url = "2"
+anyhow = { workspace = true }
+async-recursion = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+byte-unit = { workspace = true }
+chrono = { workspace = true }
+colored = { workspace = true }
+erased-serde = { workspace = true }
+foreign-types-shared = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+nix = { workspace = true, features = [
+	"user",
+] }
+log = { workspace = true }
+openssl = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+sysinfo = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+tower-service = { workspace = true }
+url = { workspace = true }
 
 aziot-cert-client-async = { path = "../cert/aziot-cert-client-async" }
 aziot-cert-common-http = { path = "../cert/aziot-cert-common-http" }
@@ -52,8 +56,14 @@ mini-sntp = { path = "../mini-sntp" }
 openssl2 = { path = "../openssl2" }
 openssl-sys2 = { path = "../openssl-sys2" }
 
+
 [dev-dependencies]
-bytes = "1"
+bytes = { workspace = true }
+
 
 [features]
 snapctl = ["aziotctl-common/snapctl"]
+
+
+[lints]
+workspace = true

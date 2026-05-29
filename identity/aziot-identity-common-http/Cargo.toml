@@ -2,15 +2,16 @@
 name = "aziot-identity-common-http"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
 aziot-identity-common = { path = "../aziot-identity-common" }
-aziot-key-common = { path = "../../key/aziot-key-common" }
-http-common = { path = "../../http-common" }
+
+
+[lints]
+workspace = true

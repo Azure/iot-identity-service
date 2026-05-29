@@ -6,28 +6,26 @@ publish = false
 description = """
 The code used for Identity Service.
 """
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-async-trait = "0.1"
-chrono = "0.4"
-futures-util = "0.3"
-hex = "0.4"
-http = "0.2"
-hyper = "0.14"
-lazy_static = "1"
-libc = "0.2"
-log = "0.4"
-openssl = "0.10"
-openssl-sys = "0.9"
-percent-encoding = "2"
-regex = "1"
-serde = "1"
-serde_json = "1.0"
-tokio = { version = "1", features = ["parking_lot", "time"] }
-toml = "0.7"
-url = "2"
+async-trait = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
+percent-encoding = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+url = { workspace = true }
 
 aziot-cert-client-async = { path = "../../cert/aziot-cert-client-async" }
 aziot-cert-common-http = { path = "../../cert/aziot-cert-common-http" }
@@ -42,13 +40,19 @@ aziot-key-common-http = { path = "../../key/aziot-key-common-http" }
 aziot-key-openssl-engine = { path = "../../key/aziot-key-openssl-engine" }
 aziot-tpm-client-async = { path = "../../tpm/aziot-tpm-client-async" }
 aziot-tpm-common-http = { path = "../../tpm/aziot-tpm-common-http" }
-
 cert-renewal = { path = "../../cert/cert-renewal" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
 openssl2 = { path = "../../openssl2" }
 
+
 [build-dependencies]
 openssl-build = { path = "../../openssl-build/" }
 
-[dev-dependencies]
+
+[lints]
+workspace = true
+
+
+[package.metadata.cargo-machete]
+ignored = ["openssl-sys"] # We need this dependency so that our build.rs can see openssl-sys's version env var

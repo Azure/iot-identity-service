@@ -1,27 +1,39 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-type HandshakeFuture = std::pin::Pin<
-    Box<
-        dyn std::future::Future<
-            Output = Result<tokio_openssl::SslStream<tokio::net::TcpStream>, openssl::ssl::Error>,
-        >,
-    >,
->;
+use std::{
+    error::Error as StdError,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-/// A stream of incoming TLS connections, for use with a hyper server.
-pub struct Incoming {
+use futures_util::{Stream as _, stream::FuturesUnordered};
+use hyper::{
+    body::{Body, Incoming},
+    server::conn::http1::Builder,
+    service::HttpService,
+};
+use hyper_util::rt::TokioIo;
+
+type Connection = Pin<Box<dyn Future<Output = Result<(), Box<dyn StdError>>>>>;
+
+/// An HTTP server instance that binds a TLS connection with the given parameters and runs the given hyper service on every accepted connection.
+pub struct Server<S> {
+    service: S,
     listener: tokio::net::TcpListener,
     tls_acceptor: openssl::ssl::SslAcceptor,
-    connections: futures_util::stream::FuturesUnordered<HandshakeFuture>,
+    builder: Builder,
+    connections: FuturesUnordered<Connection>,
 }
 
-impl Incoming {
+impl<S> Server<S> {
     pub fn new(
         addr: &str,
         port: u16,
         cert_chain_path: &std::path::Path,
         private_key: &openssl::pkey::PKey<openssl::pkey::Private>,
         verify_client: bool,
+        service: S,
     ) -> std::io::Result<Self> {
         let listener = std::net::TcpListener::bind((addr, port))?;
         listener.set_nonblocking(true)?;
@@ -69,27 +81,32 @@ impl Incoming {
 
         let tls_acceptor = tls_acceptor.build();
 
-        Ok(Incoming {
+        let builder = Builder::new();
+
+        Ok(Self {
+            service,
             listener,
             tls_acceptor,
+            builder,
             connections: Default::default(),
         })
     }
 }
 
-impl hyper::server::accept::Accept for Incoming {
-    type Conn = tokio_openssl::SslStream<tokio::net::TcpStream>;
-    type Error = std::io::Error;
+impl<S> Future for Server<S>
+where
+    Self: Unpin,
+    S: Clone + HttpService<Incoming> + 'static,
+    S::Error: Into<Box<dyn StdError + Send + Sync>>,
+    S::ResBody: 'static,
+    <S::ResBody as Body>::Error: Into<Box<dyn StdError + Send + Sync>>,
+{
+    type Output = Result<(), Box<dyn StdError + Send + Sync>>;
 
-    fn poll_accept(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        use futures_core::Stream;
-
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             match self.listener.poll_accept(cx) {
-                std::task::Poll::Ready(Ok((stream, _))) => {
+                Poll::Ready(Ok((stream, _))) => {
                     let stream = openssl::ssl::Ssl::new(self.tls_acceptor.context())
                         .and_then(|ssl| tokio_openssl::SslStream::new(ssl, stream));
                     let mut stream = match stream {
@@ -101,41 +118,30 @@ impl hyper::server::accept::Accept for Incoming {
                             continue;
                         }
                     };
+
+                    let builder = self.builder.clone();
+                    let service = self.service.clone();
                     self.connections.push(Box::pin(async move {
-                        let () = std::pin::Pin::new(&mut stream).accept().await?;
-                        Ok(stream)
+                        println!("Accepted connection from client");
+                        () = Pin::new(&mut stream).accept().await?;
+                        () = builder
+                            .serve_connection(TokioIo::new(stream), service)
+                            .await?;
+                        Ok(())
                     }));
                 }
 
-                std::task::Poll::Ready(Err(err)) => eprintln!(
-                    "Dropping client that failed to completely establish a TCP connection: {err}"
-                ),
+                Poll::Ready(Err(err)) => eprintln!("Dropping client: {err}"),
 
-                std::task::Poll::Pending => break,
+                Poll::Pending => break,
             }
         }
 
         loop {
-            if self.connections.is_empty() {
-                return std::task::Poll::Pending;
-            }
-
-            match std::pin::Pin::new(&mut self.connections).poll_next(cx) {
-                std::task::Poll::Ready(Some(Ok(stream))) => {
-                    println!("Accepted connection from client");
-                    return std::task::Poll::Ready(Some(Ok(stream)));
-                }
-
-                std::task::Poll::Ready(Some(Err(err))) => {
-                    eprintln!("Dropping client that failed to complete a TLS handshake: {err}");
-                }
-
-                std::task::Poll::Ready(None) => {
-                    println!("Shutting down web server");
-                    return std::task::Poll::Ready(None);
-                }
-
-                std::task::Poll::Pending => return std::task::Poll::Pending,
+            match Pin::new(&mut self.connections).poll_next(cx) {
+                Poll::Ready(Some(Ok(()))) => println!("Client disconnected"),
+                Poll::Ready(Some(Err(err))) => eprintln!("Disconnected client due to error: {err}"),
+                Poll::Ready(None) | Poll::Pending => return Poll::Pending,
             }
         }
     }

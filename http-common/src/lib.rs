@@ -1,20 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    let_underscore_drop,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::module_name_repetitions,
-    clippy::must_use_candidate,
-    clippy::similar_names,
-    clippy::too_many_lines,
-    clippy::type_complexity
-)]
-
 mod dynrange;
 pub use dynrange::DynRangeBounds;
 
@@ -24,7 +9,7 @@ pub use connector::SOCKET_DEFAULT_PERMISSION;
 pub use connector::{Connector, ConnectorError, Incoming, Stream};
 
 mod proxy;
-pub use proxy::{get_proxy_uri, MaybeProxyConnector};
+pub use proxy::{MaybeProxyConnector, get_proxy_uri};
 
 mod request;
 pub use request::{HttpRequest, HttpResponse};
@@ -57,7 +42,7 @@ impl<'de> serde::Deserialize<'de> for ByteString {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = ByteString;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -98,6 +83,17 @@ pub struct ErrorBody<'a> {
 
 impl std::convert::From<ErrorBody<'_>> for std::io::Error {
     fn from(err: ErrorBody<'_>) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Other, err.message)
+        std::io::Error::other(err.message)
     }
 }
+
+// Used by `make_service!` expansion.
+pub use bytes;
+pub use futures_util;
+pub use http;
+pub use http_body_util;
+pub use hyper;
+pub use log;
+pub use serde_json;
+pub use tokio;
+pub use url;

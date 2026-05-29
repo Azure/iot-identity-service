@@ -89,7 +89,7 @@ async fn renewal_loop<I>(
                         log::info!("No certificates left to renew.");
 
                         break crate::Time::forever();
-                    };
+                    }
                 }
             }
         };
@@ -251,7 +251,7 @@ where
                     Err(crate::Error::retryable_error(message))
                 }
                 Err(crate::Error::Fatal(message)) => {
-                    return Err(crate::Error::fatal_error(message))
+                    return Err(crate::Error::fatal_error(message));
                 }
             }
         }
@@ -314,31 +314,25 @@ where
                     }
                     Err(crate::Error::Retryable(message)) => {
                         log::warn!(
-                            "Tried to renew {}, but failed to write new cert: {}.",
-                            cert_id,
-                            message
+                            "Tried to renew {cert_id}, but failed to write new cert: {message}."
                         );
                     }
                     Err(crate::Error::Fatal(message)) => {
-                        log::error!("Failed to write new cert {}: {}.", cert_id, message);
+                        log::error!("Failed to write new cert {cert_id}: {message}.");
 
                         return Err(crate::Error::fatal_error(message));
                     }
                 }
             }
             Err(crate::Error::Retryable(message)) => {
-                log::warn!("Tried to renew {}, but {}.", cert_id, message);
+                log::warn!("Tried to renew {cert_id}, but {message}.");
             }
             Err(crate::Error::Fatal(message)) => {
-                log::error!(
-                    "Failed to initialize cert renewal for {}: {}.",
-                    cert_id,
-                    message
-                );
+                log::error!("Failed to initialize cert renewal for {cert_id}: {message}.");
 
                 return Err(crate::Error::fatal_error(message));
             }
-        };
+        }
     }
 
     let expiry = crate::Time::from(cert_chain[0].not_after());

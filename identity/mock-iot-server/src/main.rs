@@ -1,8 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 mod dps;
 mod hub;
 mod server;
@@ -42,25 +39,17 @@ async fn main() {
     let server_context = std::sync::Arc::new(server_context);
 
     println!("Listening on localhost:{}.", options.port);
-    let incoming = test_common::tokio_openssl2::Incoming::new(
+    let server = test_common::tokio_openssl2::Server::new(
         "localhost",
         options.port,
         &options.server_cert_chain,
         &server_key,
         false,
+        hyper::service::service_fn(move |req| {
+            crate::server::serve_request(server_context.clone(), req)
+        }),
     )
     .unwrap();
-
-    let server =
-        hyper::Server::builder(incoming).serve(hyper::service::make_service_fn(move |_| {
-            let context = server_context.clone();
-
-            let service = hyper::service::service_fn(move |req| {
-                crate::server::serve_request(context.clone(), req)
-            });
-
-            async move { Ok::<_, std::convert::Infallible>(service) }
-        }));
 
     server.await.unwrap();
 }

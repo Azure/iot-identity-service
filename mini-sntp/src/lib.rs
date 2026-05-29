@@ -1,17 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::doc_markdown,
-    clippy::missing_errors_doc,
-    clippy::module_name_repetitions,
-    clippy::must_use_candidate,
-    clippy::too_many_lines,
-    clippy::use_self,
-    clippy::unusual_byte_groupings
-)]
-
 use std::net::{ToSocketAddrs, UdpSocket};
 
 mod error;
@@ -124,10 +112,9 @@ fn create_client_request() -> ([u8; 48], chrono::DateTime<chrono::Utc>) {
     let mut duration_since_sntp_epoch = transmit_timestamp - sntp_epoch;
 
     let integral_part = duration_since_sntp_epoch.num_seconds();
-    duration_since_sntp_epoch =
-        duration_since_sntp_epoch - chrono::Duration::seconds(integral_part);
+    duration_since_sntp_epoch -= chrono::Duration::seconds(integral_part);
 
-    assert!(integral_part >= 0 && integral_part < i64::from(u32::max_value()));
+    assert!(integral_part >= 0 && integral_part < i64::from(u32::MAX));
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let integral_part = (integral_part as u32).to_be_bytes();
     buf[40..44].copy_from_slice(&integral_part[..]);
@@ -136,7 +123,7 @@ fn create_client_request() -> ([u8; 48], chrono::DateTime<chrono::Utc>) {
         .num_nanoseconds()
         .expect("can't overflow nanoseconds");
     let fractional_part = (fractional_part << 32) / 1_000_000_000;
-    assert!(fractional_part >= 0 && fractional_part < i64::from(u32::max_value()));
+    assert!(fractional_part >= 0 && fractional_part < i64::from(u32::MAX));
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let fractional_part = (fractional_part as u32).to_be_bytes();
     buf[44..48].copy_from_slice(&fractional_part[..]);
@@ -174,7 +161,7 @@ fn parse_server_response(
                 BadServerResponseReason::LeapIndicator(leap_indicator),
             ));
         }
-    };
+    }
 
     // RFC 2030 says:
     //
@@ -218,12 +205,11 @@ fn parse_server_response(
 }
 
 fn sntp_epoch() -> chrono::DateTime<chrono::Utc> {
-    chrono::DateTime::<chrono::Utc>::from_utc(
+    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
         chrono::NaiveDate::from_ymd_opt(1900, 1, 1)
             .expect("hardcoded date should parse")
-            .and_time(
-                chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("hardcoded date should parse"),
-            ),
+            .and_hms_opt(0, 0, 0)
+            .expect("hardcoded date should parse"),
         chrono::Utc,
     )
 }
@@ -315,7 +301,7 @@ fn deserialize_timestamp(
 
 #[cfg(test)]
 mod tests {
-    use super::{query, Error, SntpTimeQueryResult};
+    use super::{Error, SntpTimeQueryResult, query};
 
     #[test]
     fn it_works() -> Result<(), Error> {

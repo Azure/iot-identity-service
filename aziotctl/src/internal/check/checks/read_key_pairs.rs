@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -66,15 +66,14 @@ impl ReadKeyPairs {
         let aziotks_user = crate::internal::common::get_system_user(env!("USER_AZIOTKS"))?;
 
         for (id, path) in preloaded_keys {
-            if let Ok(aziot_keys_common::PreloadedKeyLocation::Filesystem { path }) = path.parse() {
-                if let Err(err) =
+            if let Ok(aziot_keys_common::PreloadedKeyLocation::Filesystem { path }) = path.parse()
+                && let Err(err) =
                     aziotctl_common::config::check_readable(&path, &aziotks_user, false)
-                {
-                    err_aggregated.push(format!("{err:?}"));
-                    // There's no point trying to load the key through the API,
-                    // so just continue to the next key.
-                    continue;
-                }
+            {
+                err_aggregated.push(format!("{err:?}"));
+                // There's no point trying to load the key through the API,
+                // so just continue to the next key.
+                continue;
             }
 
             // Load the key through the keyd API and collect any errors.

@@ -101,6 +101,17 @@ default:
 	fi
 
 	# Re-generate keys.generated.rs if necessary
+	#
+	# By default, bindgen generates layout tests which are essentially compile-time asserts for the offsets of each field of each generated struct.
+	# However these tests are generated for the host arch, not the target arch. So if we build for arm32v7 target on amd64 host,
+	# the layout tests will assume a pointer is 8B, not 4B, which will then fail to compile.
+	#
+	# The bindgen library does apparently support detecting the target arch when used in build.rs, but there doesn't seem to be an equivalent way
+	# to pass a `--target` value to the bindgen CLI. It seems we would need to manually convert every Rust target to the equivalent clang flag
+	# and then pass that via `-- <CLANG_ARGS>`, which is :effort: since the mapping is complex.
+	#
+	# Our types are simple enough that the definitions themselves work on arm32 even if they were generated for amd64. Only the layout tests break.
+	# So just disable the layout tests.
 	set -euo pipefail; \
 	if ! [ -f key/aziot-keyd/src/keys.generated.rs ]; then \
 		$(BINDGEN) \
@@ -108,6 +119,7 @@ default:
 			--allowlist-function 'aziot_keys_.*' \
 			--allowlist-type 'AZIOT_KEYS_.*' \
 			--allowlist-var 'AZIOT_KEYS_.*' \
+			--no-layout-tests \
 			-o key/aziot-keyd/src/keys.generated.rs.tmp \
 			$(BINDGEN_VERBOSE) \
 			key/aziot-keys/aziot-keys.h; \
@@ -194,7 +206,7 @@ target/openapi-schema-validated:
 
 	touch target/openapi-schema-validated
 
-test-release: CLIPPY_FLAGS = -D warnings -D clippy::all -D clippy::pedantic
+test-release: CLIPPY_FLAGS = -D warnings
 test-release: test
 	$(CARGO) fmt --all -- --check
 
@@ -213,22 +225,6 @@ test:
 		$$MAYBE_EXCLUDE_TSS_MINIMAL \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) 2>&1 | \
 		grep -v 'running 0 tests' | grep -v '0 passed; 0 failed' | grep '.'
-
-	find . -name '*.rs' | \
-		grep -v '^\./target/' | \
-		grep -v '^\./third-party/' | \
-		grep -v '\.generated\.rs$$' | \
-		grep -E '/(build|lib|main|(examples|tests)/[^/]+)\.rs$$' | \
-		while read -r f; do \
-			if ! grep -Eq '^#!\[deny\(rust_2018_idioms\)\]$$' "$$f"; then \
-				echo "missing #![deny(rust_2018_idioms)] in $$f" >&2; \
-				exit 1; \
-			fi; \
-			if ! grep -Eq '^#!\[warn\(clippy::all, clippy::pedantic\)\]$$' "$$f"; then \
-				echo "missing #![warn(clippy::all, clippy::pedantic)] in $$f" >&2; \
-				exit 1; \
-			fi; \
-		done
 
 	$(CARGO) clippy --all \
 		$(CARGO_PROFILE) --target $(CARGO_TARGET) $(CARGO_VERBOSE) -- $(CLIPPY_FLAGS)
@@ -311,7 +307,7 @@ dist:
 	# `cargo vendor` for offline builds
 	cd /tmp/aziot-identity-service-$(PACKAGE_VERSION) && $(CARGO) vendor
 	mkdir -p /tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo
-	printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo/config
+	printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' >/tmp/aziot-identity-service-$(PACKAGE_VERSION)/.cargo/config.toml
 
 	# Generate THIRD-PARTY-NOTICES
 	set -euo pipefail; \

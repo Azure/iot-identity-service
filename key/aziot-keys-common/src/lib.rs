@@ -1,8 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 /// This crate exists to hold any types that need to be shared between aziot-keys and the other crates,
 /// so that aziot-keys does not have to be compiled as an rlib.
 ///
@@ -70,7 +67,7 @@ impl<'de> serde::Deserialize<'de> for PreloadedKeyLocation {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = PreloadedKeyLocation;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

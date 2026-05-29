@@ -4,7 +4,7 @@
 //! configured to use manual provisioning with that connection string.
 //! All other settings are left as their defaults.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 
 use aziotctl_common::config as common_config;
 
@@ -62,7 +62,7 @@ To reconfigure IoT Identity Service, run:
                     connection_string: common_config::super_config::ConnectionString::new(
                         connection_string,
                     )
-                    .map_err(|e| anyhow!("invalid connection string: {}", e))?,
+                    .map_err(|e| anyhow!("invalid connection string: {e}"))?,
                 },
             },
         },

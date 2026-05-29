@@ -1,14 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    clippy::let_unit_value,
-    clippy::missing_errors_doc,
-    clippy::too_many_lines
-)]
+use std::ffi::{CStr, CString};
 
 use async_trait::async_trait;
 
@@ -43,7 +35,7 @@ pub async fn main(
         let mut keys = keys::Keys::new()?;
 
         for (name, value) in aziot_keys {
-            let name = std::ffi::CString::new(name.clone()).map_err(|err| {
+            let name = CString::new(name.clone()).map_err(|err| {
                 Error::Internal(InternalError::ReadConfig(
                     format!(
                         "key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}"
@@ -53,7 +45,7 @@ pub async fn main(
             })?;
 
             let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
                     "value of key {name:?} in [aziot_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
@@ -63,12 +55,12 @@ pub async fn main(
         for (key_id, value) in preloaded_keys {
             let name = format!("preloaded_key:{key_id}");
             let name =
-                std::ffi::CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                CString::new(name).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
                     "key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
             let value =
-                std::ffi::CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
+                CString::new(value).map_err(|err| Error::Internal(InternalError::ReadConfig(format!(
                     "location of key ID {key_id:?} in [preloaded_keys] section of the configuration could not be converted to a C string: {err}"
                 ).into())))?;
 
@@ -109,10 +101,10 @@ impl Api {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }
 
-        let id_cstr = std::ffi::CString::new(id.to_owned())
-            .map_err(|err| Error::invalid_parameter("id", err))?;
+        let id_cstr =
+            CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
         let preferred_algorithms = preferred_algorithms
-            .map(|preferred_algorithms| std::ffi::CString::new(preferred_algorithms.to_owned()))
+            .map(|preferred_algorithms| CString::new(preferred_algorithms.to_owned()))
             .transpose()
             .map_err(|err| Error::invalid_parameter("preferred_algorithms", err))?;
         self.keys
@@ -132,10 +124,10 @@ impl Api {
             return Err(Error::Unauthorized(user, to.to_owned()));
         }
 
-        let from_cstr = std::ffi::CString::new(from.to_owned())
-            .map_err(|err| Error::invalid_parameter("from", err))?;
-        let to_cstr = std::ffi::CString::new(to.to_owned())
-            .map_err(|err| Error::invalid_parameter("to", err))?;
+        let from_cstr =
+            CString::new(from.to_owned()).map_err(|err| Error::invalid_parameter("from", err))?;
+        let to_cstr =
+            CString::new(to.to_owned()).map_err(|err| Error::invalid_parameter("to", err))?;
 
         self.keys.move_key_pair(&from_cstr, &to_cstr)?;
 
@@ -151,8 +143,8 @@ impl Api {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }
 
-        let id_cstr = std::ffi::CString::new(id.to_owned())
-            .map_err(|err| Error::invalid_parameter("id", err))?;
+        let id_cstr =
+            CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key_pair(&id_cstr)?;
 
         let handle = key_id_to_handle(&KeyId::KeyPair(id.into()), &mut self.keys)?;
@@ -182,9 +174,9 @@ impl Api {
                 return Err(Error::invalid_parameter(
                     "handle",
                     "handle is not for a key pair",
-                ))
+                ));
             }
-        };
+        }
 
         Ok(())
     }
@@ -200,8 +192,8 @@ impl Api {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }
 
-        let id_cstr = std::ffi::CString::new(id.to_owned())
-            .map_err(|err| Error::invalid_parameter("id", err))?;
+        let id_cstr =
+            CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
 
         let mut usage_raw = 0;
         for &usage in usage {
@@ -241,8 +233,8 @@ impl Api {
             return Err(Error::Unauthorized(user, id.to_owned()));
         }
 
-        let id_cstr = std::ffi::CString::new(id.to_owned())
-            .map_err(|err| Error::invalid_parameter("id", err))?;
+        let id_cstr =
+            CString::new(id.to_owned()).map_err(|err| Error::invalid_parameter("id", err))?;
         self.keys.load_key(&id_cstr)?;
 
         let handle = key_id_to_handle(&KeyId::Key(id.into()), &mut self.keys)?;
@@ -259,9 +251,9 @@ impl Api {
                 return Err(Error::invalid_parameter(
                     "handle",
                     "handle is not for a key",
-                ))
+                ));
             }
-        };
+        }
 
         Ok(())
     }
@@ -340,7 +332,7 @@ impl Api {
                 return Err(Error::invalid_parameter(
                     "mechanism",
                     "mechanism cannot be used with this key type",
-                ))
+                ));
             }
         };
 
@@ -420,7 +412,7 @@ impl Api {
                 return Err(Error::invalid_parameter(
                     "mechanism",
                     "mechanism cannot be used with this key type",
-                ))
+                ));
             }
         };
 
@@ -482,7 +474,7 @@ impl Api {
                 return Err(Error::invalid_parameter(
                     "mechanism",
                     "mechanism cannot be used with this key type",
-                ))
+                ));
             }
         };
 
@@ -552,16 +544,14 @@ impl KeyId<'_> {
     }
 }
 
-fn handle_validation_key_id(keys: &mut keys::Keys) -> Result<&'static std::ffi::CStr, Error> {
-    const HANDLE_VALIDATION_KEY_ID_C: &[u8] = b"handle-validation-key\0";
-    let handle_validation_key_id = std::ffi::CStr::from_bytes_with_nul(HANDLE_VALIDATION_KEY_ID_C)
-        .expect("hard-coded key ID is valid CStr");
+fn handle_validation_key_id(keys: &mut keys::Keys) -> Result<&'static CStr, Error> {
+    const HANDLE_VALIDATION_KEY_ID: &CStr = c"handle-validation-key";
     keys.create_key_if_not_exists(
-        handle_validation_key_id,
+        HANDLE_VALIDATION_KEY_ID,
         keys::sys::AZIOT_KEYS_KEY_USAGE_SIGN,
     )
     .map_err(|err| Error::Internal(InternalError::CreateKeyIfNotExistsGenerate(err)))?;
-    Ok(handle_validation_key_id)
+    Ok(HANDLE_VALIDATION_KEY_ID)
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -573,7 +563,7 @@ struct Sr<'a> {
 fn key_handle_to_id(
     handle: &aziot_key_common::KeyHandle,
     keys: &mut keys::Keys,
-) -> Result<(KeyId<'static>, std::ffi::CString), Error> {
+) -> Result<(KeyId<'static>, CString), Error> {
     // DEVNOTE:
     //
     // Map errors from using the handle validation key to Error::Internal instead of relying on `?`,
@@ -624,13 +614,13 @@ fn key_handle_to_id(
 
     let id_cstr = match &id {
         KeyId::KeyPair(id) => {
-            let id_cstr = std::ffi::CString::new(id.clone().into_owned())
+            let id_cstr = CString::new(id.clone().into_owned())
                 .map_err(|err| Error::invalid_parameter("handle", err))?;
             id_cstr
         }
 
         KeyId::Key(id) => {
-            let id_cstr = std::ffi::CString::new(id.clone().into_owned())
+            let id_cstr = CString::new(id.clone().into_owned())
                 .map_err(|err| Error::invalid_parameter("handle", err))?;
             id_cstr
         }

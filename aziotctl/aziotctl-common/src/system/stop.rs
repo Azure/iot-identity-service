@@ -4,7 +4,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-use super::{print_command_error, ServiceDefinition};
+use super::{ServiceDefinition, print_command_error};
 
 #[cfg(not(feature = "snapctl"))]
 pub fn stop(services: &[&ServiceDefinition]) -> Result<()> {

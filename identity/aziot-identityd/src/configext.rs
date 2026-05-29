@@ -42,7 +42,10 @@ pub fn prepare_authorized_principals(
                 };
             }
         } else if found_daemon {
-            log::warn!("Principal {:?} is not authorized. Please ensure there is only one principal without a type in the config.toml", p.name);
+            log::warn!(
+                "Principal {:?} is not authorized. Please ensure there is only one principal without a type in the config.toml",
+                p.name
+            );
             continue;
         } else {
             found_daemon = true;

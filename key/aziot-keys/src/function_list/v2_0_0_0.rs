@@ -187,7 +187,7 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     ///
     /// `derived_key` is an output byte buffer allocated by the caller to store the derived key.
     /// The caller sets `derived_key_len` to the address of the length of the buffer.
-    /// The implementation populates `derived_key` with the parameter derived_key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
+    /// The implementation populates `derived_key` with the derived key and sets `derived_key_len` to the number of bytes it wrote to `derived_key`.
     ///
     /// It is allowed for the caller to call the function with `derived_key` set to `NULL`. In this case the implementation calculates
     /// an upper bound for how many bytes will be needed to store the derived key, sets that in `derived_key_len` and returns.
@@ -373,8 +373,8 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
 }
 
 #[cfg(any())]
-#[no_mangle]
-pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0(
-) -> AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
+#[unsafe(no_mangle)]
+pub extern "C" fn cbindgen_unused_AZIOT_KEYS_FUNCTION_LIST_2_0_0_0()
+-> AZIOT_KEYS_FUNCTION_LIST_2_0_0_0 {
     unimplemented!();
 }

@@ -23,7 +23,11 @@ pub fn set_log_level(services: &[&ServiceDefinition], level: log::Level) -> Resu
         .output()
         .context("could not run systemctl daemon-reload")?;
 
-    println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, crate::program_name());
+    println!(
+        "Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.",
+        level,
+        crate::program_name()
+    );
     Ok(())
 }
 
@@ -49,7 +53,11 @@ pub fn set_log_level(_services: &[&ServiceDefinition], level: log::Level) -> Res
         .context("Failed to call snapctl set")?;
 
     if result.status.success() {
-        println!("Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.", level, crate::program_name());
+        println!(
+            "Set log level to {} for all services. Run the `{} system restart` command for the changes to take effect.",
+            level,
+            crate::program_name()
+        );
     } else {
         print_command_error(&result);
     }

@@ -1,24 +1,25 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-lazy_static::lazy_static! {
-    /// Used to memoize [`Context`]s to PKCS#11 libraries.
-    ///
-    /// The PKCS#11 spec allows implementations to reject multiple successive calls to C_Initialize by returning CKR_CRYPTOKI_ALREADY_INITIALIZED.
-    /// We can't just ignore the error and create a Context anyway (*), because each Context's Drop impl will call C_Finalize
-    /// and we'll have the equivalent of a double-free.
-    ///
-    /// But we don't want users to keep track of this, so we memoize Contexts based on the library path and returns the same Context for
-    /// multiple requests to load the same library.
-    ///
-    /// However if the memoizing map were to hold a strong reference to the Context, then the Context would never be released even after the user dropped theirs,
-    /// so we need the map to specifically hold a weak reference instead.
-    ///
-    /// (*): libp11 *does* actually do this, by ignoring CKR_CRYPTOKI_ALREADY_INITIALIZED and treating it as success.
-    ///      It can do this because it never calls C_Finalize anyway and leaves it to the user.
-    static ref CONTEXTS: std::sync::Mutex<std::collections::BTreeMap<std::path::PathBuf, std::sync::Weak<Context>>> = Default::default();
-}
+/// Used to memoize [`Context`]s to PKCS#11 libraries.
+///
+/// The PKCS#11 spec allows implementations to reject multiple successive calls to `C_Initialize` by returning `CKR_CRYPTOKI_ALREADY_INITIALIZED`.
+/// We can't just ignore the error and create a `Context` anyway (*), because each `Context`'s Drop impl will call `C_Finalize`
+/// and we'll have the equivalent of a double-free.
+///
+/// But we don't want users to keep track of this, so we memoize `Context`s based on the library path and returns the same `Context` for
+/// multiple requests to load the same library.
+///
+/// However if the memoizing map were to hold a strong reference to the `Context`, then the `Context` would never be released even after the user dropped theirs,
+/// so we need the map to specifically hold a weak reference instead.
+///
+/// (*): libp11 *does* actually do this, by ignoring `CKR_CRYPTOKI_ALREADY_INITIALIZED` and treating it as success.
+///      It can do this because it never calls `C_Finalize` anyway and leaves it to the user.
+static CONTEXTS: std::sync::Mutex<
+    std::collections::BTreeMap<std::path::PathBuf, std::sync::Weak<Context>>,
+> = std::sync::Mutex::new(std::collections::BTreeMap::new());
 
 /// A context to a PKCS#11 library.
+#[expect(nonstandard_style)]
 pub struct Context {
     sessions: std::sync::Mutex<
         std::collections::BTreeMap<pkcs11_sys::CK_SLOT_ID, std::sync::Weak<crate::Session>>,
@@ -62,200 +63,200 @@ impl Context {
         })
     }
 
+    #[expect(nonstandard_style)]
     fn load_inner(lib_path: &std::path::Path) -> Result<Self, LoadContextError> {
-        unsafe {
-            let mut library =
-                crate::dl::Library::load(lib_path).map_err(LoadContextError::LoadLibrary)?;
+        let mut library = (unsafe { crate::dl::Library::load(lib_path) })
+            .map_err(LoadContextError::LoadLibrary)?;
 
-            let C_GetFunctionList: pkcs11_sys::CK_C_GetFunctionList = *library
-                .symbol(std::ffi::CStr::from_bytes_with_nul(b"C_GetFunctionList\0").unwrap())
+        let C_GetFunctionList: pkcs11_sys::CK_C_GetFunctionList =
+            *(unsafe { library.symbol(c"C_GetFunctionList") })
                 .map_err(LoadContextError::LoadGetFunctionListSymbol)?;
 
-            let mut function_list = std::ptr::null();
-            let result = C_GetFunctionList(&mut function_list);
-            if result != pkcs11_sys::CKR_OK {
-                return Err(LoadContextError::GetFunctionListFailed(
-                    format!("C_GetFunctionList failed with {result}").into(),
-                ));
-            }
-            if function_list.is_null() {
-                return Err(LoadContextError::GetFunctionListFailed(
-                    "C_GetFunctionList succeeded but function list is still NULL".into(),
-                ));
-            }
+        let mut function_list = std::ptr::null();
+        let result = unsafe { C_GetFunctionList(&raw mut function_list) };
+        if result != pkcs11_sys::CKR_OK {
+            return Err(LoadContextError::GetFunctionListFailed(
+                format!("C_GetFunctionList failed with {result}").into(),
+            ));
+        }
+        if function_list.is_null() {
+            return Err(LoadContextError::GetFunctionListFailed(
+                "C_GetFunctionList succeeded but function list is still NULL".into(),
+            ));
+        }
 
-            let version = {
-                // We don't know if `*function_list` is actually a valid `CK_FUNCTION_LIST` yet,
-                // because we need to look at its `.version` first.
+        let version = {
+            // We don't know if `*function_list` is actually a valid `CK_FUNCTION_LIST` yet,
+            // because we need to look at its `.version` first.
+            //
+            // Miri considers it UB to read the `.version` from a `CK_FUNCTION_LIST` pointer directly
+            // in case the pointee is smaller than a `CK_FUNCTION_LIST`, even if the pointee still has
+            // `version` as its first field. Miri considers it safe if we cast the pointer to
+            // the `version` field's type first and dereference just that.
+            //
+            // Note that C requires there to be no padding before the first field of a struct,
+            // so this cast is valid in that regard.
+
+            let version = function_list.cast::<pkcs11_sys::CK_VERSION>();
+            let version = unsafe { *version };
+            if version.major != 2 || version.minor < 1 {
+                // We require 2.20 or higher. However opensc-pkcs11spy self-reports as v2.11 in the initial `CK_FUNCTION_LIST` version,
+                // and at least one smartcard vendor's library self-reports as v2.01 in the initial `CK_FUNCTION_LIST` version.
+                // Both of these report the real version in the `C_GetInfo` call (in opensc-pkcs11spy's case, it forwards `C_GetInfo` to
+                // the underlying PKCS#11 library), so we check the result of that later.
                 //
-                // Miri considers it UB to read the `.version` from a `CK_FUNCTION_LIST` pointer directly
-                // in case the pointee is smaller than a `CK_FUNCTION_LIST`, even if the pointee still has
-                // `version` as its first field. Miri considers it safe if we cast the pointer to
-                // the `version` field's type first and dereference just that.
-                //
-                // Note that C requires there to be no padding before the first field of a struct,
-                // so this cast is valid in that regard.
-
-                let version = function_list.cast::<pkcs11_sys::CK_VERSION>();
-                let version = *version;
-                if version.major != 2 || version.minor < 1 {
-                    // We require 2.20 or higher. However opensc-pkcs11spy self-reports as v2.11 in the initial `CK_FUNCTION_LIST` version,
-                    // and at least one smartcard vendor's library self-reports as v2.01 in the initial `CK_FUNCTION_LIST` version.
-                    // Both of these report the real version in the `C_GetInfo` call (in opensc-pkcs11spy's case, it forwards `C_GetInfo` to
-                    // the underlying PKCS#11 library), so we check the result of that later.
-                    //
-                    // Here the check here is a more lax v2.01 check, just to be sure that the pointer we have
-                    // is to a `CK_FUNCTION_LIST` with the same structure that we expect. All PKCS#11 2.x versions
-                    // have the same `CK_FUNCTION_LIST` structure with the same fields, so even if the final version from `C_GetInfo`
-                    // turns out to be lower than 2.20, the `function_list` pointer is valid.
-                    return Err(LoadContextError::UnsupportedPkcs11Version {
-                        expected: pkcs11_sys::CK_VERSION { major: 2, minor: 1 },
-                        actual: version,
-                    });
-                }
-
-                version
-            };
-
-            let C_CloseSession = (*function_list)
-                .C_CloseSession
-                .ok_or(LoadContextError::MissingFunction("C_CloseSession"))?;
-            let C_CreateObject = (*function_list)
-                .C_CreateObject
-                .ok_or(LoadContextError::MissingFunction("C_CreateObject"))?;
-            let C_Decrypt = (*function_list)
-                .C_Decrypt
-                .ok_or(LoadContextError::MissingFunction("C_Decrypt"))?;
-            let C_DecryptInit = (*function_list)
-                .C_DecryptInit
-                .ok_or(LoadContextError::MissingFunction("C_DecryptInit"))?;
-            let C_DestroyObject = (*function_list)
-                .C_DestroyObject
-                .ok_or(LoadContextError::MissingFunction("C_DestroyObject"))?;
-            let C_Encrypt = (*function_list)
-                .C_Encrypt
-                .ok_or(LoadContextError::MissingFunction("C_Encrypt"))?;
-            let C_EncryptInit = (*function_list)
-                .C_EncryptInit
-                .ok_or(LoadContextError::MissingFunction("C_EncryptInit"))?;
-            let C_Finalize = (*function_list).C_Finalize;
-            let C_FindObjects = (*function_list)
-                .C_FindObjects
-                .ok_or(LoadContextError::MissingFunction("C_FindObjects"))?;
-            let C_FindObjectsFinal = (*function_list)
-                .C_FindObjectsFinal
-                .ok_or(LoadContextError::MissingFunction("C_FindObjectsFinal"))?;
-            let C_FindObjectsInit = (*function_list)
-                .C_FindObjectsInit
-                .ok_or(LoadContextError::MissingFunction("C_FindObjectsInit"))?;
-            let C_GenerateKey = (*function_list)
-                .C_GenerateKey
-                .ok_or(LoadContextError::MissingFunction("C_GenerateKey"))?;
-            let C_GenerateKeyPair = (*function_list)
-                .C_GenerateKeyPair
-                .ok_or(LoadContextError::MissingFunction("C_GenerateKeyPair"))?;
-            let C_GetAttributeValue = (*function_list)
-                .C_GetAttributeValue
-                .ok_or(LoadContextError::MissingFunction("C_GetAttributeValue"))?;
-            let C_SetAttributeValue = (*function_list)
-                .C_SetAttributeValue
-                .ok_or(LoadContextError::MissingFunction("C_SetAttributeValue"))?;
-            let C_GetInfo = (*function_list).C_GetInfo;
-            let C_GetSessionInfo = (*function_list)
-                .C_GetSessionInfo
-                .ok_or(LoadContextError::MissingFunction("C_GetSessionInfo"))?;
-            let C_GetSlotList = (*function_list)
-                .C_GetSlotList
-                .ok_or(LoadContextError::MissingFunction("C_GetSlotList"))?;
-            let C_GetTokenInfo = (*function_list)
-                .C_GetTokenInfo
-                .ok_or(LoadContextError::MissingFunction("C_GetTokenInfo"))?;
-            let C_Login = (*function_list)
-                .C_Login
-                .ok_or(LoadContextError::MissingFunction("C_Login"))?;
-            let C_OpenSession = (*function_list)
-                .C_OpenSession
-                .ok_or(LoadContextError::MissingFunction("C_OpenSession"))?;
-            let C_Sign = (*function_list)
-                .C_Sign
-                .ok_or(LoadContextError::MissingFunction("C_Sign"))?;
-            let C_SignInit = (*function_list)
-                .C_SignInit
-                .ok_or(LoadContextError::MissingFunction("C_SignInit"))?;
-            let C_Verify = (*function_list)
-                .C_Verify
-                .ok_or(LoadContextError::MissingFunction("C_Verify"))?;
-            let C_VerifyInit = (*function_list)
-                .C_VerifyInit
-                .ok_or(LoadContextError::MissingFunction("C_VerifyInit"))?;
-
-            let C_Initialize = (*function_list)
-                .C_Initialize
-                .ok_or(LoadContextError::MissingFunction("C_Initialize"))?;
-            let initialize_args = pkcs11_sys::CK_C_INITIALIZE_ARGS {
-                CreateMutex: create_mutex,
-                DestroyMutex: destroy_mutex,
-                LockMutex: lock_mutex,
-                UnlockMutex: unlock_mutex,
-                flags: pkcs11_sys::CKF_LIBRARY_CANT_CREATE_OS_THREADS
-                    | pkcs11_sys::CKF_OS_LOCKING_OK,
-                pReserved: std::ptr::null_mut(),
-            };
-            let result = C_Initialize(&initialize_args);
-            if result != pkcs11_sys::CKR_OK {
-                return Err(LoadContextError::InitializeFailed(result));
-            }
-
-            // Now that `C_Initialize` has succeeded, create the `Context` value before doing anything else,
-            // so that its `Drop` will run `C_Finalize` in case anything else fails later.
-            let context = Context {
-                sessions: Default::default(),
-
-                _library: library,
-
-                C_CloseSession,
-                C_CreateObject,
-                C_Decrypt,
-                C_DecryptInit,
-                C_DestroyObject,
-                C_Encrypt,
-                C_EncryptInit,
-                C_Finalize,
-                C_FindObjects,
-                C_FindObjectsFinal,
-                C_FindObjectsInit,
-                C_GenerateKey,
-                C_GenerateKeyPair,
-                C_GetAttributeValue,
-                C_SetAttributeValue,
-                C_GetInfo,
-                C_GetSessionInfo,
-                C_GetSlotList,
-                C_GetTokenInfo,
-                C_Login,
-                C_OpenSession,
-                C_Sign,
-                C_SignInit,
-                C_Verify,
-                C_VerifyInit,
-            };
-
-            let version = context.info().map_or(
-                version, // Doesn't support C_GetInfo, so the initial version in the CK_FUNCTION_LIST is all we have.
-                |info| info.cryptokiVersion,
-            );
-            if version.major != 2 || version.minor < 20 {
+                // Here the check here is a more lax v2.01 check, just to be sure that the pointer we have
+                // is to a `CK_FUNCTION_LIST` with the same structure that we expect. All PKCS#11 2.x versions
+                // have the same `CK_FUNCTION_LIST` structure with the same fields, so even if the final version from `C_GetInfo`
+                // turns out to be lower than 2.20, the `function_list` pointer is valid.
                 return Err(LoadContextError::UnsupportedPkcs11Version {
-                    expected: pkcs11_sys::CK_VERSION {
-                        major: 2,
-                        minor: 20,
-                    },
+                    expected: pkcs11_sys::CK_VERSION { major: 2, minor: 1 },
                     actual: version,
                 });
             }
 
-            Ok(context)
+            version
+        };
+
+        let function_list = unsafe { &*function_list };
+
+        let C_CloseSession = function_list
+            .C_CloseSession
+            .ok_or(LoadContextError::MissingFunction("C_CloseSession"))?;
+        let C_CreateObject = function_list
+            .C_CreateObject
+            .ok_or(LoadContextError::MissingFunction("C_CreateObject"))?;
+        let C_Decrypt = function_list
+            .C_Decrypt
+            .ok_or(LoadContextError::MissingFunction("C_Decrypt"))?;
+        let C_DecryptInit = function_list
+            .C_DecryptInit
+            .ok_or(LoadContextError::MissingFunction("C_DecryptInit"))?;
+        let C_DestroyObject = function_list
+            .C_DestroyObject
+            .ok_or(LoadContextError::MissingFunction("C_DestroyObject"))?;
+        let C_Encrypt = function_list
+            .C_Encrypt
+            .ok_or(LoadContextError::MissingFunction("C_Encrypt"))?;
+        let C_EncryptInit = function_list
+            .C_EncryptInit
+            .ok_or(LoadContextError::MissingFunction("C_EncryptInit"))?;
+        let C_Finalize = function_list.C_Finalize;
+        let C_FindObjects = function_list
+            .C_FindObjects
+            .ok_or(LoadContextError::MissingFunction("C_FindObjects"))?;
+        let C_FindObjectsFinal = function_list
+            .C_FindObjectsFinal
+            .ok_or(LoadContextError::MissingFunction("C_FindObjectsFinal"))?;
+        let C_FindObjectsInit = function_list
+            .C_FindObjectsInit
+            .ok_or(LoadContextError::MissingFunction("C_FindObjectsInit"))?;
+        let C_GenerateKey = function_list
+            .C_GenerateKey
+            .ok_or(LoadContextError::MissingFunction("C_GenerateKey"))?;
+        let C_GenerateKeyPair = function_list
+            .C_GenerateKeyPair
+            .ok_or(LoadContextError::MissingFunction("C_GenerateKeyPair"))?;
+        let C_GetAttributeValue = function_list
+            .C_GetAttributeValue
+            .ok_or(LoadContextError::MissingFunction("C_GetAttributeValue"))?;
+        let C_SetAttributeValue = function_list
+            .C_SetAttributeValue
+            .ok_or(LoadContextError::MissingFunction("C_SetAttributeValue"))?;
+        let C_GetInfo = function_list.C_GetInfo;
+        let C_GetSessionInfo = function_list
+            .C_GetSessionInfo
+            .ok_or(LoadContextError::MissingFunction("C_GetSessionInfo"))?;
+        let C_GetSlotList = function_list
+            .C_GetSlotList
+            .ok_or(LoadContextError::MissingFunction("C_GetSlotList"))?;
+        let C_GetTokenInfo = function_list
+            .C_GetTokenInfo
+            .ok_or(LoadContextError::MissingFunction("C_GetTokenInfo"))?;
+        let C_Login = function_list
+            .C_Login
+            .ok_or(LoadContextError::MissingFunction("C_Login"))?;
+        let C_OpenSession = function_list
+            .C_OpenSession
+            .ok_or(LoadContextError::MissingFunction("C_OpenSession"))?;
+        let C_Sign = function_list
+            .C_Sign
+            .ok_or(LoadContextError::MissingFunction("C_Sign"))?;
+        let C_SignInit = function_list
+            .C_SignInit
+            .ok_or(LoadContextError::MissingFunction("C_SignInit"))?;
+        let C_Verify = function_list
+            .C_Verify
+            .ok_or(LoadContextError::MissingFunction("C_Verify"))?;
+        let C_VerifyInit = function_list
+            .C_VerifyInit
+            .ok_or(LoadContextError::MissingFunction("C_VerifyInit"))?;
+
+        let C_Initialize = function_list
+            .C_Initialize
+            .ok_or(LoadContextError::MissingFunction("C_Initialize"))?;
+        let initialize_args = pkcs11_sys::CK_C_INITIALIZE_ARGS {
+            CreateMutex: create_mutex,
+            DestroyMutex: destroy_mutex,
+            LockMutex: lock_mutex,
+            UnlockMutex: unlock_mutex,
+            flags: pkcs11_sys::CKF_LIBRARY_CANT_CREATE_OS_THREADS | pkcs11_sys::CKF_OS_LOCKING_OK,
+            pReserved: std::ptr::null_mut(),
+        };
+        let result = unsafe { C_Initialize(&raw const initialize_args) };
+        if result != pkcs11_sys::CKR_OK {
+            return Err(LoadContextError::InitializeFailed(result));
         }
+
+        // Now that `C_Initialize` has succeeded, create the `Context` value before doing anything else,
+        // so that its `Drop` will run `C_Finalize` in case anything else fails later.
+        let context = Context {
+            sessions: Default::default(),
+
+            _library: library,
+
+            C_CloseSession,
+            C_CreateObject,
+            C_Decrypt,
+            C_DecryptInit,
+            C_DestroyObject,
+            C_Encrypt,
+            C_EncryptInit,
+            C_Finalize,
+            C_FindObjects,
+            C_FindObjectsFinal,
+            C_FindObjectsInit,
+            C_GenerateKey,
+            C_GenerateKeyPair,
+            C_GetAttributeValue,
+            C_SetAttributeValue,
+            C_GetInfo,
+            C_GetSessionInfo,
+            C_GetSlotList,
+            C_GetTokenInfo,
+            C_Login,
+            C_OpenSession,
+            C_Sign,
+            C_SignInit,
+            C_Verify,
+            C_VerifyInit,
+        };
+
+        let version = context.info().map_or(
+            version, // Doesn't support C_GetInfo, so the initial version in the CK_FUNCTION_LIST is all we have.
+            |info| info.cryptokiVersion,
+        );
+        if version.major != 2 || version.minor < 20 {
+            return Err(LoadContextError::UnsupportedPkcs11Version {
+                expected: pkcs11_sys::CK_VERSION {
+                    major: 2,
+                    minor: 20,
+                },
+                actual: version,
+            });
+        }
+
+        Ok(context)
     }
 }
 
@@ -306,20 +307,19 @@ impl Context {
     ///
     /// If the library does not support getting its information, this returns `None`.
     pub fn info(&self) -> Option<pkcs11_sys::CK_INFO> {
-        unsafe {
-            if let Some(C_GetInfo) = self.C_GetInfo {
-                let mut info = std::mem::MaybeUninit::uninit();
+        #[expect(nonstandard_style)]
+        if let Some(C_GetInfo) = self.C_GetInfo {
+            let mut info = std::mem::MaybeUninit::uninit();
 
-                let result = C_GetInfo(info.as_mut_ptr());
-                if result != pkcs11_sys::CKR_OK {
-                    return None;
-                }
-
-                let info = info.assume_init();
-                Some(info)
-            } else {
-                None
+            let result = unsafe { C_GetInfo(info.as_mut_ptr()) };
+            if result != pkcs11_sys::CKR_OK {
+                return None;
             }
+
+            let info = unsafe { info.assume_init() };
+            Some(info)
+        } else {
+            None
         }
     }
 }
@@ -336,42 +336,40 @@ impl Context {
         // Since we always have to handle the second case (in case a slot is created between the call with NULL and the call with the actual buffer),
         // we can write a working implementation without needing the first case at all.
 
-        unsafe {
-            let mut slot_ids = vec![];
+        let mut slot_ids = vec![];
 
-            loop {
-                let mut actual_len = slot_ids.len().try_into().expect("usize -> CK_ULONG");
-                let result = (self.C_GetSlotList)(
+        loop {
+            let mut actual_len = slot_ids.len().try_into().expect("usize -> CK_ULONG");
+            let result = unsafe {
+                (self.C_GetSlotList)(
                     pkcs11_sys::CK_TRUE,
                     slot_ids.as_mut_ptr(),
-                    &mut actual_len,
-                );
-                match result {
-                    pkcs11_sys::CKR_OK => {
-                        let actual_len = actual_len.try_into().expect("CK_ULONG -> usize");
+                    &raw mut actual_len,
+                )
+            };
+            match result {
+                pkcs11_sys::CKR_OK => {
+                    let actual_len = actual_len.try_into().expect("CK_ULONG -> usize");
 
-                        // If slot_ids.len() < actual_len, then the PKCS#11 library has scribbled past the end of the buffer.
-                        // This is not safe to recover from.
-                        //
-                        // Vec::truncate silently ignores a request to truncate to longer than its current length,
-                        // so we must check for it ourselves.
-                        assert!(slot_ids.len() >= actual_len);
+                    // If slot_ids.len() < actual_len, then the PKCS#11 library has scribbled past the end of the buffer.
+                    // This is not safe to recover from.
+                    //
+                    // Vec::truncate silently ignores a request to truncate to longer than its current length,
+                    // so we must check for it ourselves.
+                    assert!(slot_ids.len() >= actual_len);
 
-                        slot_ids.truncate(actual_len);
+                    slot_ids.truncate(actual_len);
 
-                        return Ok(slot_ids.into_iter());
-                    }
-
-                    pkcs11_sys::CKR_BUFFER_TOO_SMALL => {
-                        let actual_len = actual_len.try_into().expect("CK_ULONG -> usize");
-
-                        slot_ids.resize_with(actual_len, Default::default);
-
-                        continue;
-                    }
-
-                    result => return Err(ListSlotsError::GetSlotList(result)),
+                    return Ok(slot_ids.into_iter());
                 }
+
+                pkcs11_sys::CKR_BUFFER_TOO_SMALL => {
+                    let actual_len = actual_len.try_into().expect("CK_ULONG -> usize");
+
+                    slot_ids.resize_with(actual_len, Default::default);
+                }
+
+                result => return Err(ListSlotsError::GetSlotList(result)),
             }
         }
     }
@@ -467,17 +465,15 @@ impl Context {
         &self,
         slot_id: pkcs11_sys::CK_SLOT_ID,
     ) -> Result<pkcs11_sys::CK_TOKEN_INFO, GetTokenInfoError> {
-        unsafe {
-            let mut info = std::mem::MaybeUninit::uninit();
+        let mut info = std::mem::MaybeUninit::uninit();
 
-            let result = (self.C_GetTokenInfo)(slot_id, info.as_mut_ptr());
-            if result != pkcs11_sys::CKR_OK {
-                return Err(GetTokenInfoError::GetTokenInfo(result));
-            }
-
-            let info = info.assume_init();
-            Ok(info)
+        let result = unsafe { (self.C_GetTokenInfo)(slot_id, info.as_mut_ptr()) };
+        if result != pkcs11_sys::CKR_OK {
+            return Err(GetTokenInfoError::GetTokenInfo(result));
         }
+
+        let info = unsafe { info.assume_init() };
+        Ok(info)
     }
 }
 
@@ -532,29 +528,29 @@ impl Context {
         slot_id: pkcs11_sys::CK_SLOT_ID,
         pin: Option<String>,
     ) -> Result<crate::Session, OpenSessionError> {
-        unsafe {
-            let mut handle = pkcs11_sys::CK_INVALID_SESSION_HANDLE;
-            let result = (self.C_OpenSession)(
+        let mut handle = pkcs11_sys::CK_INVALID_SESSION_HANDLE;
+        let result = unsafe {
+            (self.C_OpenSession)(
                 slot_id,
                 pkcs11_sys::CKF_SERIAL_SESSION | pkcs11_sys::CKF_RW_SESSION,
                 std::ptr::null_mut(),
                 None,
-                &mut handle,
-            );
-            if result != pkcs11_sys::CKR_OK {
-                return Err(OpenSessionError::OpenSessionFailed(
-                    format!("C_OpenSession failed with {result}").into(),
-                ));
-            }
-            if handle == pkcs11_sys::CK_INVALID_SESSION_HANDLE {
-                return Err(OpenSessionError::OpenSessionFailed(
-                    "C_OpenSession succeeded but session handle is still CK_INVALID_HANDLE".into(),
-                ));
-            }
-            let session = crate::Session::new(self, handle, pin);
-
-            Ok(session)
+                &raw mut handle,
+            )
+        };
+        if result != pkcs11_sys::CKR_OK {
+            return Err(OpenSessionError::OpenSessionFailed(
+                format!("C_OpenSession failed with {result}").into(),
+            ));
         }
+        if handle == pkcs11_sys::CK_INVALID_SESSION_HANDLE {
+            return Err(OpenSessionError::OpenSessionFailed(
+                "C_OpenSession succeeded but session handle is still CK_INVALID_HANDLE".into(),
+            ));
+        }
+        let session = crate::Session::new(self, handle, pin);
+
+        Ok(session)
     }
 }
 
@@ -578,10 +574,9 @@ impl std::error::Error for OpenSessionError {}
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe {
-            if let Some(C_Finalize) = self.C_Finalize {
-                let _ = C_Finalize(std::ptr::null_mut());
-            }
+        #[expect(nonstandard_style)]
+        if let Some(C_Finalize) = self.C_Finalize {
+            _ = unsafe { C_Finalize(std::ptr::null_mut()) };
         }
     }
 }
@@ -596,6 +591,7 @@ struct Mutex {
     guard: Option<std::sync::MutexGuard<'static, ()>>,
 }
 
+#[expect(nonstandard_style)]
 unsafe extern "C" fn create_mutex(ppMutex: pkcs11_sys::CK_VOID_PTR_PTR) -> pkcs11_sys::CK_RV {
     let mutex = Mutex {
         inner: Default::default(),
@@ -603,41 +599,46 @@ unsafe extern "C" fn create_mutex(ppMutex: pkcs11_sys::CK_VOID_PTR_PTR) -> pkcs1
     };
     let mutex = Box::new(mutex);
     let mutex = Box::into_raw(mutex);
-    *ppMutex = mutex.cast();
+    unsafe {
+        *ppMutex = mutex.cast();
+    }
     pkcs11_sys::CKR_OK
 }
 
+#[expect(nonstandard_style)]
 unsafe extern "C" fn destroy_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::CK_RV {
-    if pMutex.is_null() {
+    let mutex = pMutex.cast::<Mutex>();
+    let Some(mutex) = (unsafe { mutex.as_mut() }) else {
         return pkcs11_sys::CKR_MUTEX_BAD;
-    }
-
-    let mut mutex: Box<Mutex> = Box::from_raw(pMutex.cast());
+    };
+    let mut mutex: Box<Mutex> = unsafe { Box::from_raw(mutex) };
     drop(mutex.guard.take());
     drop(mutex);
     pkcs11_sys::CKR_OK
 }
 
+#[expect(nonstandard_style)]
 unsafe extern "C" fn lock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::CK_RV {
-    if pMutex.is_null() {
+    let mutex = pMutex.cast::<Mutex>();
+    let Some(mutex) = (unsafe { mutex.as_mut() }) else {
         return pkcs11_sys::CKR_MUTEX_BAD;
-    }
-
-    let mutex: &mut Mutex = &mut *pMutex.cast();
+    };
     let Ok(guard) = mutex.inner.lock() else {
         return pkcs11_sys::CKR_GENERAL_ERROR;
     };
-    let guard = std::mem::transmute(guard);
-    mutex.guard = guard;
+    let guard = unsafe {
+        std::mem::transmute::<std::sync::MutexGuard<'_, _>, std::sync::MutexGuard<'_, _>>(guard)
+    };
+    mutex.guard = Some(guard);
     pkcs11_sys::CKR_OK
 }
 
+#[expect(nonstandard_style)]
 unsafe extern "C" fn unlock_mutex(pMutex: pkcs11_sys::CK_VOID_PTR) -> pkcs11_sys::CK_RV {
-    if pMutex.is_null() {
+    let mutex = pMutex.cast::<Mutex>();
+    let Some(mutex) = (unsafe { mutex.as_mut() }) else {
         return pkcs11_sys::CKR_MUTEX_BAD;
-    }
-
-    let mutex: &mut Mutex = &mut *pMutex.cast();
+    };
     if mutex.guard.take().is_none() {
         return pkcs11_sys::CKR_MUTEX_NOT_LOCKED;
     }
@@ -666,7 +667,7 @@ where
                 let value = value(entry.key())?;
                 let strong = std::sync::Arc::new(value);
                 let weak = std::sync::Arc::downgrade(&strong);
-                let _ = entry.insert(weak);
+                _ = entry.insert(weak);
                 Ok(strong)
             }
         }
@@ -676,7 +677,7 @@ where
             let value = value(entry.key())?;
             let strong = std::sync::Arc::new(value);
             let weak = std::sync::Arc::downgrade(&strong);
-            let _ = entry.insert(weak);
+            _ = entry.insert(weak);
             Ok(strong)
         }
     }

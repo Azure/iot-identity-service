@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{Context, Error, Result, anyhow};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -54,7 +54,7 @@ impl HostLocalTime {
                     ))
                 } else {
                     Err(err).context("Could not query NTP server")
-                }
+                };
             }
         };
 

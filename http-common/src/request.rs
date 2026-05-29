@@ -1,6 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use std::io::{Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind};
+
+use http_body_util::{BodyExt as _, Empty, Full};
+use hyper_util::{
+    client::legacy::{Client, connect::Connect},
+    rt::TokioExecutor,
+};
 
 use crate::backoff::DEFAULT_BACKOFF;
 
@@ -19,7 +25,7 @@ pub struct HttpRequest<TBody, TConnector> {
 impl<TBody, TConnector> HttpRequest<TBody, TConnector>
 where
     TBody: serde::Serialize,
-    TConnector: Clone + Send + Sync + hyper::client::connect::Connect + 'static,
+    TConnector: Clone + Send + Sync + Connect + 'static,
 {
     #[must_use]
     pub fn delete(connector: TConnector, uri: &str, body: Option<TBody>) -> Self {
@@ -118,10 +124,9 @@ where
         if response_status == hyper::StatusCode::NO_CONTENT {
             Ok(())
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                format!("unexpected HTTP status code: {response_status}"),
-            ))
+            Err(Error::other(format!(
+                "unexpected HTTP status code: {response_status}"
+            )))
         }
     }
 
@@ -163,7 +168,7 @@ where
         ),
         Error,
     > {
-        let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(self.connector);
+        let client = Client::builder(TokioExecutor::new()).build(self.connector);
 
         let mut current_attempt = 1;
 
@@ -175,11 +180,10 @@ where
             let request_body = if let Some(body) = &self.body {
                 request = request.header(hyper::header::CONTENT_TYPE, CONTENT_TYPE_JSON);
 
-                serde_json::to_vec(body)
-                    .expect("cannot fail to serialize request")
-                    .into()
+                let body = serde_json::to_vec(body).expect("cannot fail to serialize request");
+                http_body_util::Either::Left(Full::new(Cursor::new(body)))
             } else {
-                hyper::Body::default()
+                http_body_util::Either::Right(Empty::new())
             };
 
             for (header_name, header_value) in &self.headers {
@@ -205,9 +209,11 @@ where
 
                         // Make sure to download body inside the timeout
                         let response_body = if has_response_body {
-                            let response_body = hyper::body::to_bytes(response_body)
+                            let response_body = response_body
+                                .collect()
                                 .await
-                                .map_err(|err| Error::new(ErrorKind::Other, err))?;
+                                .map_err(Error::other)?
+                                .to_bytes();
 
                             Some(response_body)
                         } else {
@@ -217,10 +223,7 @@ where
                         // if response throttled, go into exponential backoff
                         if response_status == http::StatusCode::TOO_MANY_REQUESTS {
                             is_throttled = true;
-                            Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "429: Too many requests",
-                            ))
+                            Err(std::io::Error::other("429: Too many requests"))
                         } else {
                             // Return results
                             Ok((response_status, response_headers, response_body))
@@ -231,7 +234,7 @@ where
                             // Network error.
                             Err(std::io::Error::new(std::io::ErrorKind::NotConnected, err))
                         } else {
-                            Err(std::io::Error::new(std::io::ErrorKind::Other, err))
+                            Err(std::io::Error::other(err))
                         }
                     }
                 }
@@ -324,10 +327,7 @@ impl HttpResponse {
             Ok(response)
         } else if self.status.is_client_error() || self.status.is_server_error() {
             if self.body.is_empty() {
-                Err(Error::new(
-                    ErrorKind::Other,
-                    format!("HTTP error {}", self.status),
-                ))
+                Err(Error::other(format!("HTTP error {}", self.status)))
             } else {
                 let error: TError = serde_json::from_slice(&self.body)
                     .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
@@ -335,13 +335,10 @@ impl HttpResponse {
                 Err(error.into())
             }
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "Expected one of {:?}, got {}",
-                    expected_statuses, self.status
-                ),
-            ))
+            Err(Error::other(format!(
+                "Expected one of {:?}, got {}",
+                expected_statuses, self.status
+            )))
         }
     }
 }
@@ -438,21 +435,21 @@ mod tests {
 
     use std::{
         sync::{
-            atomic::{AtomicUsize, Ordering},
             Arc,
+            atomic::{AtomicUsize, Ordering},
         },
         time::{Duration, Instant},
     };
 
     use http::header::{AUTHORIZATION, CONTENT_TYPE};
-    use hyper_openssl::HttpsConnector;
+    use hyper_openssl::client::legacy::HttpsConnector;
 
     use aziot_identity_common::hub::Module;
 
     use super::*;
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "See doc comment above."]
     async fn test_backoff_manual() {
         if HUB_HOSTNAME == "your-hubname-here.azurecr.io" {
             return;
@@ -492,7 +489,7 @@ mod tests {
 
         let mut request = HttpRequest::<Option<()>, _>::get(HttpsConnector::new().unwrap(), &uri)
             .with_retry(0)
-            .with_timeout(Duration::from_secs(60));
+            .with_timeout(Duration::from_mins(1));
         request.add_header(CONTENT_TYPE, "application/json")?;
         request.add_header(AUTHORIZATION, SAS_TOKEN)?;
 
@@ -516,7 +513,7 @@ mod tests {
 
     impl std::convert::From<HubError> for Error {
         fn from(err: HubError) -> Error {
-            Error::new(ErrorKind::Other, err.message)
+            Error::other(err.message)
         }
     }
 }

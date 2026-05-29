@@ -2,19 +2,24 @@
 name = "aziot-certd-config"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-hex = "0.4"
-libc = "0.2"
-openssl = "0.10"
-serde = { version = "1", features = ["derive"] }
-serde_with = "2"
-url = { version = "2", features = ["serde"] }
+hex = { workspace = true }
+libc = { workspace = true }
+openssl = { workspace = true }
+serde = { workspace = true }
+serde_with = { workspace = true }
+url = { workspace = true }
 
 cert-renewal = { path = "../cert-renewal" }
 http-common = { path = "../../http-common" }
 
+
 [dev-dependencies]
-toml = "0.7"
+toml = { workspace = true }
+
+
+[lints]
+workspace = true

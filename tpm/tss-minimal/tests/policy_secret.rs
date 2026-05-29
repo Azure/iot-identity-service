@@ -1,11 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-
 #[test]
-fn main() -> tss_minimal::Result<()> {
-    let _ = env_logger::builder().is_test(true).try_init();
+fn policy_secret() -> tss_minimal::Result<()> {
+    _ = env_logger::builder().is_test(true).try_init();
 
     let ctx = tss_minimal::EsysContext::new(&std::ffi::CString::default())?;
     let auth_session = tss_minimal::Persistent::PASSWORD_SESSION;

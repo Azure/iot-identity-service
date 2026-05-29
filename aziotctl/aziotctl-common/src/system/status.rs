@@ -3,7 +3,7 @@
 use std::fmt;
 use std::process::Command;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 use super::ServiceDefinition;
 
@@ -16,8 +16,7 @@ pub fn get_status(processes: &[&ServiceDefinition]) -> Result<()> {
         };
 
         return Err(anyhow!(
-            "Command not supported in a snapped environment. Use 'snap services {}'",
-            snap_instance_name
+            "Command not supported in a snapped environment. Use 'snap services {snap_instance_name}'",
         ));
     }
 
@@ -176,7 +175,7 @@ struct ServiceStatus<'a> {
     sockets: Vec<SocketStatus<'a>>,
 }
 
-impl<'a> ServiceStatus<'a> {
+impl ServiceStatus<'_> {
     fn state(&self) -> State {
         if matches!(self.state, State::Active)
             && !self

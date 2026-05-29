@@ -1,19 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    non_snake_case,
-    clippy::default_trait_access,
-    let_underscore_drop,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::must_use_candidate,
-    clippy::too_many_lines,
-    clippy::type_complexity,
-    clippy::use_self
-)]
-
 //! A Rust wrapper to consume a PKCS#11 library. Create a [`Context`] with [`Context::load`] to get started.
 
 mod context;
@@ -253,7 +239,7 @@ impl<'de> serde::Deserialize<'de> for Uri {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = Uri;
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -320,11 +306,11 @@ mod tests {
             }
         }
 
-        let _ = "kcs11:token=Foo%20Bar"
+        _ = "kcs11:token=Foo%20Bar"
             .parse::<super::Uri>()
             .expect_err("expect URI with invalid scheme to fail to parse");
 
-        let _ = "pkcs11:"
+        _ = "pkcs11:"
             .parse::<super::Uri>()
             .expect_err("expect URI with neither label nor slot ID to fail to parse");
     }

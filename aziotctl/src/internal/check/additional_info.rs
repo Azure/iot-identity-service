@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-use byte_unit::{Byte, ByteUnit};
+use byte_unit::{Byte, Unit, UnitType};
 use serde::Serialize;
-use sysinfo::{DiskExt, SystemExt};
+use sysinfo::{Disk, Disks};
 
 use aziotctl_common::host_info::{DmiInfo, OsInfo};
 
@@ -56,7 +56,11 @@ impl SystemInfo {
             total_swap: pretty_kbyte(system.total_swap()),
             used_swap: pretty_kbyte(system.used_swap()),
 
-            disks: system.disks().iter().map(DiskInfo::new).collect(),
+            disks: Disks::new_with_refreshed_list()
+                .list()
+                .iter()
+                .map(DiskInfo::new)
+                .collect(),
         }
     }
 }
@@ -72,13 +76,10 @@ struct DiskInfo {
 }
 
 impl DiskInfo {
-    fn new<T>(disk: &T) -> Self
-    where
-        T: DiskExt,
-    {
+    fn new(disk: &Disk) -> Self {
         let available_space = disk.available_space();
         let total_space = disk.total_space();
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         let percent_free = format!(
             "{:.1}%",
             available_space as f64 / total_space as f64 * 100.0
@@ -87,22 +88,23 @@ impl DiskInfo {
         DiskInfo {
             name: disk.name().to_string_lossy().into_owned(),
             percent_free,
-            available_space: Byte::from_bytes(u128::from(available_space))
-                .get_appropriate_unit(true)
-                .format(2),
-            total_space: Byte::from_bytes(u128::from(total_space))
-                .get_appropriate_unit(true)
-                .format(2),
-            file_system: String::from_utf8_lossy(disk.file_system()).into_owned(),
-            file_type: format!("{:?}", disk.type_()),
+            available_space: format!(
+                "{:.2}",
+                Byte::from_u64(available_space).get_appropriate_unit(UnitType::Binary)
+            ),
+            total_space: format!(
+                "{:.2}",
+                Byte::from_u64(total_space).get_appropriate_unit(UnitType::Binary)
+            ),
+            file_system: disk.file_system().to_string_lossy().into_owned(),
+            file_type: format!("{:?}", disk.kind()),
         }
     }
 }
 
 fn pretty_kbyte(bytes: u64) -> String {
-    #[allow(clippy::cast_precision_loss)]
-    match Byte::from_unit(bytes as f64, ByteUnit::KiB) {
-        Ok(b) => b.get_appropriate_unit(true).format(2),
-        Err(err) => format!("could not parse bytes value: {err:?}"),
+    match Byte::from_u64_with_unit(bytes, Unit::KiB) {
+        Some(b) => format!("{:.2}", b.get_appropriate_unit(UnitType::Binary)),
+        None => format!("could not parse bytes value: {bytes} KiB too large for u64"),
     }
 }

@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-lazy_static::lazy_static! {
-    static ref URI_REGEX: regex::Regex =
-        regex::Regex::new("^/(?P<type>(key|keypair))/(?P<keyId>[^/]+)$")
-        .expect("hard-coded regex must compile");
-}
+static URI_REGEX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new("^/(?P<type>(key|keypair))/(?P<keyId>[^/]+)$")
+        .expect("hard-coded regex must compile")
+});
 
 pub(super) struct Route {
     api: std::sync::Arc<tokio::sync::Mutex<crate::Api>>,
@@ -68,7 +67,7 @@ impl http_common::server::Route for Route {
                 return Err(http_common::server::Error {
                     status_code: hyper::StatusCode::BAD_REQUEST,
                     message: format!("invalid type {type_:?}").into(),
-                })
+                });
             }
         };
 

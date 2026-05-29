@@ -2,13 +2,17 @@
 name = "aziot-cert-client-async"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
+
 
 [dependencies]
-http = "0.2"
-hyper = "0.14"
-percent-encoding = "2"
+hyper = { workspace = true }
+percent-encoding = { workspace = true }
 
 aziot-cert-common-http = { path = "../aziot-cert-common-http" }
 aziot-key-common = { path = "../../key/aziot-key-common" }
 http-common = { path = "../../http-common" }
+
+
+[lints]
+workspace = true

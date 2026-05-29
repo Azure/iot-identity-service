@@ -2,7 +2,7 @@
 
 use std::fmt::Write;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
 
 use crate::internal::check::{CheckResult, Checker, CheckerCache, CheckerMeta, CheckerShared};
@@ -86,7 +86,7 @@ impl ReadCerts {
         if err_aggregated.is_empty() {
             Ok(CheckResult::Ok)
         } else {
-            Err(anyhow!("{}", err_aggregated))
+            Err(anyhow!("{err_aggregated}"))
         }
     }
 }

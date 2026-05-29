@@ -20,7 +20,7 @@ pub fn get_path(
     path.push("certs");
 
     if !path.exists() && create_dir_if_not_exist {
-        let () = std::fs::create_dir_all(&path)?;
+        () = std::fs::create_dir_all(&path)?;
     }
 
     let id_sanitized: String = cert_id
@@ -50,14 +50,14 @@ fn get_preloaded_cert_path(
             }
 
             let path = uri.to_file_path().map_err(|()| {
-                format!("preloaded cert {cert_id:?} does not have a valid URI: not a valid path",)
+                format!("preloaded cert {cert_id:?} does not have a valid URI: not a valid path")
             })?;
 
             Ok(path)
         }
 
         PreloadedCert::Ids(_) => {
-            Err(format!("preloaded cert {cert_id:?} is a list of IDs, not a single URI",).into())
+            Err(format!("preloaded cert {cert_id:?} is a list of IDs, not a single URI").into())
         }
     }
 }

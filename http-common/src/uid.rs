@@ -1,7 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+use std::error::Error as StdError;
+
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
+use hyper::{Request, body::Incoming, service::Service};
 use libc::{pid_t, uid_t};
 
+#[derive(Clone)]
 pub struct UidService<T> {
     pid: Option<pid_t>,
     uid: uid_t,
@@ -14,37 +20,33 @@ impl<T> UidService<T> {
     }
 }
 
-impl<T> hyper::service::Service<hyper::Request<hyper::Body>> for UidService<T>
+impl<T> Service<Request<Incoming>> for UidService<T>
 where
-    T: hyper::service::Service<
-        hyper::Request<hyper::Body>,
-        Response = hyper::Response<hyper::Body>,
-        Error = std::convert::Infallible,
-    >,
-    <T as hyper::service::Service<hyper::Request<hyper::Body>>>::Future: Send + 'static,
+    T: Service<
+            Request<Incoming>,
+            Response = hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>,
+            Error = std::convert::Infallible,
+        >,
+    <T as Service<Request<Incoming>>>::Future: Send + 'static,
 {
     type Response = T::Response;
     type Error = std::convert::Infallible;
     type Future = std::pin::Pin<
         Box<
             dyn std::future::Future<
-                    Output = Result<hyper::Response<hyper::Body>, std::convert::Infallible>,
+                    Output = Result<
+                        hyper::Response<BoxBody<Bytes, Box<dyn StdError + Send + Sync>>>,
+                        std::convert::Infallible,
+                    >,
                 > + Send,
         >,
     >;
 
-    fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
+    fn call(&self, req: Request<Incoming>) -> Self::Future {
         let mut req = req;
         let extensions = req.extensions_mut();
         extensions.insert(self.uid);
         extensions.insert(self.pid);
         Box::pin(self.inner.call(req))
-    }
-
-    fn poll_ready(
-        &mut self,
-        _cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
     }
 }

@@ -2,30 +2,31 @@
 name = "aziot-keyd"
 version = "0.1.0"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 
 
 [dependencies]
-async-trait = "0.1"
-base64 = "0.21"
-futures-util = "0.3"
-http = "0.2"
-hyper = "0.14"
-lazy_static = "1"
-libc = "0.2"
-log = "0.4"
-openssl = "0.10"
-openssl-sys = "0.9"
-percent-encoding = "2"
-regex = "1"
-serde = "1"
-serde_json = "1"
-tokio = { version = "1", features = ["parking_lot", "time"] }
-url = "2"
-wildmatch = "2"
+async-trait = { workspace = true }
+base64 = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
+percent-encoding = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+wildmatch = { workspace = true }
 
 aziot-key-common = { path = "../aziot-key-common" }
 aziot-key-common-http = { path = "../aziot-key-common-http" }
 aziot-keyd-config = { path = "../aziot-keyd-config" }
 config-common = { path = "../../config-common", features = ["watcher"] }
 http-common = { path = "../../http-common" }
+
+
+[lints]
+workspace = true

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use notify::Watcher;
+use notify_debouncer_mini::notify;
 
 #[async_trait]
 pub trait UpdateConfig {
@@ -31,22 +31,23 @@ pub fn start_watcher<TApi>(
     // Start file change listener that asynchronously reads and updates service config.
     tokio::spawn(async move {
         while let Some(()) = file_changed_rx.recv().await {
-            let new_config =
-                match crate::read_config(&config_path_clone, Some(&config_directory_path_clone)) {
-                    Ok(config) => config,
-                    Err(err) => {
-                        log::warn!(
-                        "Detected config file update, but new config failed to parse. Error: {}",
-                        err
+            let new_config = match crate::read_config(
+                &config_path_clone,
+                Some(&config_directory_path_clone),
+            ) {
+                Ok(config) => config,
+                Err(err) => {
+                    log::warn!(
+                        "Detected config file update, but new config failed to parse. Error: {err}"
                     );
-                        continue;
-                    }
-                };
+                    continue;
+                }
+            };
 
             let mut api = api.lock().await;
 
             if let Err(err) = api.update_config(new_config).await {
-                log::warn!("Config update failed. Error: {}", err);
+                log::warn!("Config update failed. Error: {err}");
             }
         }
     });
@@ -57,41 +58,32 @@ pub fn start_watcher<TApi>(
             let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
             // Create a watcher object, delivering debounced events.
-            let mut file_watcher =
-                notify::watcher(file_watcher_tx, std::time::Duration::from_secs(10)).unwrap();
+            let mut file_watcher = notify_debouncer_mini::new_debouncer(
+                std::time::Duration::from_secs(10),
+                file_watcher_tx,
+            )
+            .unwrap();
 
             // Add configuration paths to be watched.
             if config_directory_path.exists() {
                 file_watcher
-                    .watch(config_directory_path, notify::RecursiveMode::NonRecursive)
+                    .watcher()
+                    .watch(&config_directory_path, notify::RecursiveMode::NonRecursive)
                     .expect("Watching config directory path should not fail.");
             }
 
             if config_path.exists() {
                 file_watcher
-                    .watch(config_path, notify::RecursiveMode::NonRecursive)
+                    .watcher()
+                    .watch(&config_path, notify::RecursiveMode::NonRecursive)
                     .expect("Watching config file should not fail.");
             }
 
             loop {
                 let event = file_watcher_rx.recv();
                 log::debug!("Incoming file watcher event: {:?}", &event);
-
-                if let Ok(event) = event {
-                    match event {
-                        notify::DebouncedEvent::NoticeWrite(_)
-                        | notify::DebouncedEvent::NoticeRemove(_)
-                        | notify::DebouncedEvent::Rescan
-                        | notify::DebouncedEvent::Error(_, _) => {}
-
-                        notify::DebouncedEvent::Create(_)
-                        | notify::DebouncedEvent::Write(_)
-                        | notify::DebouncedEvent::Chmod(_)
-                        | notify::DebouncedEvent::Remove(_)
-                        | notify::DebouncedEvent::Rename(_, _) => {
-                            let _ = file_changed_tx.blocking_send(());
-                        }
-                    };
+                if event.is_ok() {
+                    _ = file_changed_tx.blocking_send(());
                 }
             }
         }

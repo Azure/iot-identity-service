@@ -1,22 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::let_and_return,
-    let_underscore_drop,
-    clippy::let_unit_value,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::module_name_repetitions,
-    clippy::must_use_candidate,
-    clippy::too_many_arguments,
-    clippy::too_many_lines,
-    clippy::type_complexity
-)]
-#![allow(dead_code)]
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -68,19 +51,19 @@ pub async fn main(
     let connector = settings.endpoints.aziot_identityd.clone();
     let max_requests = settings.max_requests;
 
-    if !homedir_path.exists() {
-        if let Err(err) = std::fs::create_dir_all(homedir_path) {
-            log::error!("Failed to create home directory: {}", err);
+    if !homedir_path.exists()
+        && let Err(err) = std::fs::create_dir_all(homedir_path)
+    {
+        log::error!("Failed to create home directory: {err}");
 
-            return Err(error::InternalError::CreateHomeDir(err).into());
-        }
+        return Err(error::InternalError::CreateHomeDir(err).into());
     }
 
     #[cfg(ossl300)]
     {
         match openssl::provider::Provider::try_load(None, "default", true) {
             Ok(_provider) => log::info!("Loaded openssl'd Default provider"),
-            Err(why) => log::info!("Failed to load openssl's Default provider: {:?}", why),
+            Err(why) => log::info!("Failed to load openssl's Default provider: {why:?}"),
         }
     }
 
@@ -147,8 +130,7 @@ pub async fn main(
             .await
         {
             log::error!(
-                "Failed to provision with IoT Hub, and no valid device backup was found: {}",
-                err
+                "Failed to provision with IoT Hub, and no valid device backup was found: {err}"
             );
 
             return Err(err.into());
@@ -179,8 +161,6 @@ pub struct Api {
     key_client: Arc<aziot_key_client_async::Client>,
     key_engine: Arc<tokio::sync::Mutex<openssl2::FunctionalEngine>>,
     cert_client: Arc<aziot_cert_client_async::Client>,
-    tpm_client: Arc<aziot_tpm_client_async::Client>,
-    proxy_uri: Option<hyper::Uri>,
 }
 
 impl Api {
@@ -238,9 +218,9 @@ impl Api {
             key_client.clone(),
             key_engine.clone(),
             cert_client.clone(),
-            tpm_client.clone(),
+            tpm_client,
             None,
-            proxy_uri.clone(),
+            proxy_uri,
         );
 
         let (authorizer, authenticator, local_identities) = get_auth(&settings);
@@ -255,8 +235,6 @@ impl Api {
             key_client,
             key_engine,
             cert_client,
-            tpm_client,
-            proxy_uri,
         })
     }
 
@@ -269,16 +247,16 @@ impl Api {
             op_type: auth::OperationType::GetDevice,
         })? {
             return self.id_manager.get_device_identity().await;
-        } else if let crate::auth::AuthId::HostProcess(ref caller_principal) = auth_id {
-            if self.authorizer.authorize(auth::Operation {
+        } else if let crate::auth::AuthId::HostProcess(ref caller_principal) = auth_id
+            && self.authorizer.authorize(auth::Operation {
                 auth_id: auth_id.clone(),
                 op_type: auth::OperationType::GetModule(caller_principal.name.0.clone()),
-            })? {
-                return self
-                    .id_manager
-                    .get_module_identity(&caller_principal.name.0)
-                    .await;
-            }
+            })?
+        {
+            return self
+                .id_manager
+                .get_module_identity(&caller_principal.name.0)
+                .await;
         }
 
         Err(Error::Authorization)
@@ -297,9 +275,9 @@ impl Api {
                 let (auth, registration_id) = match attestation {
                     config::DpsAttestationMethod::SymmetricKey {
                         registration_id, ..
-                    } => ("symmetric_key".to_string(), registration_id.to_string()),
+                    } => ("symmetric_key".to_string(), registration_id.clone()),
                     config::DpsAttestationMethod::Tpm { registration_id } => {
-                        ("tpm".to_string(), registration_id.to_string())
+                        ("tpm".to_string(), registration_id.clone())
                     }
                     config::DpsAttestationMethod::X509 {
                         registration_id,
@@ -349,13 +327,14 @@ impl Api {
                     }
                 };
 
-                let payload: Option<serde_json::Value> = load_dps_request_payload(payload)?;
+                let payload: Option<serde_json::Value> =
+                    load_dps_request_payload(payload.as_ref())?;
 
                 Ok(
                     aziot_identity_common_http::get_provisioning_info::Response::Dps {
                         auth,
                         endpoint: global_endpoint.to_string(),
-                        scope_id: scope_id.to_string(),
+                        scope_id: scope_id.clone(),
                         registration_id,
                         payload,
                     },
@@ -459,8 +438,7 @@ impl Api {
             ID_TYPE_AZIOT => { self.id_manager.create_module_identity(module_id).await },
             ID_TYPE_LOCAL => {
                 if self.local_identities
-                    .get(&aziot_identity_common::ModuleId(module_id.to_owned()))
-                    .is_some() {
+                    .contains_key(&aziot_identity_common::ModuleId(module_id.to_owned())) {
                     // Don't create a local identity for a module in the principals list.
                     Err(Error::invalid_parameter(
                         "moduleId",
@@ -548,7 +526,7 @@ impl Api {
             return Err(Error::Authorization);
         }
 
-        log::info!("Provisioning starting. Reason: {:?}", trigger);
+        log::info!("Provisioning starting. Reason: {trigger:?}");
 
         match trigger {
             ReprovisionTrigger::ConfigurationFileUpdate => {
@@ -583,7 +561,7 @@ impl Api {
 
         log::info!("Provisioning complete.");
 
-        log::info!("Identity reconciliation started. Reason: {:?}", trigger);
+        log::info!("Identity reconciliation started. Reason: {trigger:?}");
 
         if let Err(err) = self
             .id_manager
@@ -596,12 +574,16 @@ impl Api {
                     ReprovisionTrigger::Startup | ReprovisionTrigger::ConfigurationFileUpdate => {
                         // Network errors are not fatal because Identity Service can still run off its backup.
                         if err.is_network() {
-                            log::warn!("Network not available for Identity reconciliation. Using offline backup from last run.");
+                            log::warn!(
+                                "Network not available for Identity reconciliation. Using offline backup from last run."
+                            );
 
                             return Ok(());
                         }
 
-                        log::info!("Could not reconcile Identities with current device data. Reprovisioning.");
+                        log::info!(
+                            "Could not reconcile Identities with current device data. Reprovisioning."
+                        );
 
                         if let Err(err) = self
                             .id_manager
@@ -609,7 +591,9 @@ impl Api {
                             .await
                         {
                             if err.is_network() {
-                                log::warn!("Reprovisioning failed to communicate with DPS. Using offline backup from last run.");
+                                log::warn!(
+                                    "Reprovisioning failed to communicate with DPS. Using offline backup from last run."
+                                );
                             } else {
                                 return Err(err);
                             }
@@ -754,8 +738,7 @@ impl UpdateConfig for Api {
             .await
         {
             log::warn!(
-                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {}.",
-                err
+                "Failed to reprovision device. Running offline. Reprovisioning failure reason: {err}.",
             );
         }
 
@@ -877,14 +860,14 @@ impl auth::authorization::Authorizer for SettingsAuthorizer {
             crate::auth::AuthId::HostProcess(p) => Ok(match o.op_type {
                 auth::OperationType::GetModule(m) => {
                     p.name.0 == m
-                        && p.id_type.map_or(false, |i| {
+                        && p.id_type.is_some_and(|i| {
                             i.contains(&aziot_identity_common::IdType::Module)
                                 || i.contains(&aziot_identity_common::IdType::Local)
                         })
                 }
                 auth::OperationType::GetDevice => p
                     .id_type
-                    .map_or(true, |i| i.contains(&aziot_identity_common::IdType::Device)),
+                    .is_none_or(|i| i.contains(&aziot_identity_common::IdType::Device)),
                 auth::OperationType::GetAllHubModules
                 | auth::OperationType::CreateModule(_)
                 | auth::OperationType::DeleteModule(_)
@@ -908,27 +891,26 @@ fn get_cert_expiration(cert: &str) -> Result<String, Error> {
         .diff(cert.not_after())
         .map_err(|err| Error::Internal(InternalError::CreateCertificate(Box::new(err))))?;
     let diff = i64::from(diff.secs) + i64::from(diff.days) * 86400;
-    let expiration = chrono::NaiveDateTime::from_timestamp_opt(diff, 0).ok_or_else(|| {
-        Error::Internal(InternalError::CreateCertificate(
-            "failed to convert timestamp".into(),
-        ))
-    })?;
-    let expiration =
-        chrono::DateTime::<chrono::Utc>::from_utc(expiration, chrono::Utc).to_rfc3339();
+    let expiration = chrono::DateTime::from_timestamp(diff, 0)
+        .ok_or_else(|| {
+            Error::Internal(InternalError::CreateCertificate(
+                "failed to convert timestamp".into(),
+            ))
+        })?
+        .to_rfc3339();
 
     Ok(expiration)
 }
 
 /// Loads the payload from a `Payload` config object, returning it as a `serde_json::Value`
 pub(crate) fn load_dps_request_payload(
-    payload: &Option<Payload>,
+    payload: Option<&Payload>,
 ) -> Result<Option<serde_json::Value>, Error> {
     payload
-        .as_ref()
         .map(aziot_identityd_config::Payload::serde_json_value)
         .transpose()
         .map_err(|err| {
-            log::error!("Error loading DPS payload: {:?}", payload);
+            log::error!("Error loading DPS payload: {payload:?}");
             Error::InvalidParameter("provisioning.payload", err.into())
         })
 }
@@ -940,9 +922,9 @@ mod tests {
     use aziot_identity_common::{IdType, LocalIdAttr, LocalIdOpts, ModuleId};
     use aziot_identityd_config::{LocalId, Principal, Uid};
 
+    use crate::SettingsAuthorizer;
     use crate::auth::authorization::Authorizer;
     use crate::auth::{AuthId, Operation, OperationType};
-    use crate::SettingsAuthorizer;
 
     use crate::configext::prepare_authorized_principals;
 

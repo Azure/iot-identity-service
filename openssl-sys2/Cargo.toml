@@ -3,11 +3,17 @@ name = "openssl-sys2"
 version = "0.1.0"
 license = "MIT"
 authors = ["Azure IoT Edge Devs"]
-edition = "2021"
+edition = "2024"
 build = "build/main.rs"
 
+
 [dependencies]
-openssl-sys = "0.9"
+openssl-sys = { workspace = true }
+
 
 [build-dependencies]
 openssl-build = { path = "../openssl-build/" }
+
+
+[lints]
+workspace = true

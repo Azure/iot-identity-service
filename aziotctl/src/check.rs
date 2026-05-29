@@ -85,20 +85,19 @@ pub async fn check(cfg: Options) -> Result<()> {
             for (i, line) in $lines.enumerate() {
                 outputln!(
                     $color,
-                    "{}{}",
+                    "{}{line}",
                     if i == 0 {
                         $first_line_indent
                     } else {
                         $other_line_indent
                     },
-                    line
                 );
             }
         };
     }
 
     'all_checks: for (section_name, section_checks) in &mut check_data {
-        outputln!(normal, "{}", section_name);
+        outputln!(normal, "{section_name}");
         outputln!(
             normal,
             "{:->section_name_len$}",

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use nix::unistd::User;
 use serde::Serialize;
 use url::Url;
@@ -69,9 +69,8 @@ async fn walk_preloaded_certs<'a>(
         Some(PreloadedCert::Uri(uri)) => match visited.insert(id, uri) {
             Some(previous_uri) if previous_uri != uri => {
                 return Err(anyhow!(
-                    "preloaded cert {:?} has been defined more than once",
-                    id,
-                ))
+                    "preloaded cert {id:?} has been defined more than once",
+                ));
             }
 
             Some(_) => (),
@@ -79,8 +78,7 @@ async fn walk_preloaded_certs<'a>(
             None => {
                 if uri.scheme() != "file" {
                     return Err(anyhow!(
-                        "preloaded cert {:?} has a scheme other than `file://`",
-                        id,
+                        "preloaded cert {id:?} has a scheme other than `file://`",
                     ));
                 }
 

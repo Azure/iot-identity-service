@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use rand::Rng;
+use rand::RngExt as _;
 
 pub const DEFAULT_BACKOFF: Backoff<4> = Backoff {
     pattern: [
@@ -45,8 +45,8 @@ impl BackoffInstance {
     }
 
     fn backoff_duration(&self) -> Duration {
-        let mut rng = rand::thread_rng();
-        let jitter_multiple = rng.gen_range(0.0..1.0);
+        let mut rng = rand::rng();
+        let jitter_multiple = rng.random_range(0.0..1.0);
 
         self.duration + self.max_jitter.mul_f32(jitter_multiple)
     }

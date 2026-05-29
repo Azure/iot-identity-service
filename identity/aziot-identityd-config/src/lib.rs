@@ -1,13 +1,5 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(rust_2018_idioms)]
-#![warn(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate,
-    clippy::large_enum_variant
-)]
-
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 
@@ -180,12 +172,12 @@ impl TryFrom<&CsrSubject> for openssl::x509::X509Name {
 
         match subject {
             CsrSubject::CommonName(cn) => {
-                let mut cn = cn.to_string();
+                let mut cn = cn.clone();
                 cn.truncate(CN_MAX_LENGTH);
                 builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
             }
             CsrSubject::Subject { cn, rest } => {
-                let mut cn = cn.to_string();
+                let mut cn = cn.clone();
                 cn.truncate(CN_MAX_LENGTH);
                 builder.append_entry_by_nid(openssl::nid::Nid::COMMONNAME, &cn)?;
                 for (name, value) in rest {
@@ -267,7 +259,7 @@ impl Payload {
         let content = std::fs::read_to_string(url.to_file_path().map_err(|()| {
             std::io::Error::new(ErrorKind::InvalidInput, "payload uri is not a file path")
         })?)
-        .map_err(|err| std::io::Error::new(ErrorKind::Other, err))?;
+        .map_err(std::io::Error::other)?;
 
         serde_json::from_str::<serde_json::Value>(content.as_str())
             .map_err(|err| std::io::Error::new(ErrorKind::InvalidInput, err))
@@ -348,7 +340,7 @@ mod tests {
     }
 
     // Checks for successful parsing of a config file containing a 'payload' in the 'provisioning' table
-    fn check_payload(config_filename: &str, expected_payload: &Option<Payload>) {
+    fn check_payload(config_filename: &str, expected_payload: Option<&Payload>) {
         let s = load_settings(config_filename).unwrap();
 
         let ProvisioningType::Dps {
@@ -360,7 +352,8 @@ mod tests {
         };
 
         assert_eq!(
-            expected_payload, &actual_payload,
+            expected_payload,
+            actual_payload.as_ref(),
             "unexpected payload uri parsed from config file"
         );
     }
@@ -376,7 +369,7 @@ mod tests {
             uri: url::Url::parse("file:///tmp/simple_payload.json").unwrap(),
         });
 
-        check_payload(config_filename, &expected_payload);
+        check_payload(config_filename, expected_payload.as_ref());
     }
 
     #[test]
@@ -391,7 +384,7 @@ mod tests {
             uri: url::Url::parse("file:///tmp/complex_payload.json").expect("invalid uri"),
         });
 
-        check_payload(config_filename, &expected_payload);
+        check_payload(config_filename, expected_payload.as_ref());
     }
 
     #[test]
