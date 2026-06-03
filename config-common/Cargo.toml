@@ -8,14 +8,14 @@ edition = "2024"
 [dependencies]
 async-trait = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
-notify-debouncer-mini = { workspace = true, optional = true }
+notify-debouncer-full = { workspace = true, optional = true }
 serde = { workspace = true }
 tokio = { workspace = true, optional = true }
 toml = { workspace = true }
 
 
 [features]
-watcher = ["async-trait", "log", "notify-debouncer-mini", "tokio"]
+watcher = ["async-trait", "log", "notify-debouncer-full", "tokio"]
 
 
 [lints]

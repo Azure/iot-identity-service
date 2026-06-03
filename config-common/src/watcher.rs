@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use notify_debouncer_mini::notify;
+use notify_debouncer_full::notify;
 
 #[async_trait]
 pub trait UpdateConfig {
@@ -58,8 +58,9 @@ pub fn start_watcher<TApi>(
             let (file_watcher_tx, file_watcher_rx) = std::sync::mpsc::channel();
 
             // Create a watcher object, delivering debounced events.
-            let mut file_watcher = notify_debouncer_mini::new_debouncer(
+            let mut file_watcher = notify_debouncer_full::new_debouncer(
                 std::time::Duration::from_secs(10),
+                None,
                 file_watcher_tx,
             )
             .unwrap();
@@ -67,23 +68,32 @@ pub fn start_watcher<TApi>(
             // Add configuration paths to be watched.
             if config_directory_path.exists() {
                 file_watcher
-                    .watcher()
                     .watch(&config_directory_path, notify::RecursiveMode::NonRecursive)
                     .expect("Watching config directory path should not fail.");
             }
 
             if config_path.exists() {
                 file_watcher
-                    .watcher()
                     .watch(&config_path, notify::RecursiveMode::NonRecursive)
                     .expect("Watching config file should not fail.");
             }
 
-            loop {
-                let event = file_watcher_rx.recv();
-                log::debug!("Incoming file watcher event: {:?}", &event);
-                if event.is_ok() {
-                    _ = file_changed_tx.blocking_send(());
+            while let Ok(events) = file_watcher_rx.recv() {
+                let Ok(events) = events else {
+                    continue;
+                };
+                for event in events {
+                    log::debug!("Incoming file watcher event: {:?}", &event);
+                    match event.event.kind {
+                        notify::event::EventKind::Any
+                        | notify::event::EventKind::Create(_)
+                        | notify::event::EventKind::Modify(_)
+                        | notify::event::EventKind::Remove(_)
+                        | notify::event::EventKind::Other => {
+                            _ = file_changed_tx.blocking_send(());
+                        }
+                        notify::event::EventKind::Access(_) => (),
+                    }
                 }
             }
         }
