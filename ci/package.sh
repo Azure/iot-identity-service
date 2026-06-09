@@ -125,6 +125,12 @@ case "$OS" in
                 ;;
         esac
 
+        # RPM does not allow `-` in package version, which we want for RC versions like '1.6.0-rc.1'.
+        # Upstream recommendation is to use ~ instead, ie '1.6.0~rc1'.
+        #
+        # Ref: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_handling_non_sorting_versions_with_tilde_dot_and_caret
+        PACKAGE_VERSION="${PACKAGE_VERSION//-rc./\~rc}"
+
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" V=1 dist
 
         AzureLinuxRPMBUILDDIR="/src/AzureLinux-Build"
