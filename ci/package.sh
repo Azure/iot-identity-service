@@ -36,6 +36,12 @@ case "$OS" in
 
         rm -rf ~/rpmbuild
 
+        # RPM does not allow `-` in package version, which we want for RC versions like '1.6.0-rc.1'.
+        # Upstream recommendation is to use ~ instead, ie '1.6.0~rc1'.
+        #
+        # Ref: https://docs.fedoraproject.org/en-US/packaging-guidelines/Versioning/#_handling_non_sorting_versions_with_tilde_dot_and_caret
+        PACKAGE_VERSION="${PACKAGE_VERSION//-rc./\~rc}"
+
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" PACKAGE_DIST="$PACKAGE_DIST" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 rpm
 
         rm -rf "packages/$TARGET_DIR"
