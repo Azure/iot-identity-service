@@ -263,6 +263,16 @@ impl Api {
         base_handle: &aziot_key_common::KeyHandle,
         derivation_data: &[u8],
     ) -> Result<aziot_key_common::KeyHandle, Error> {
+        match key_handle_to_id(base_handle, &mut self.keys)?.0 {
+            KeyId::KeyPair(_) | KeyId::Key(_) => (),
+            KeyId::Derived(..) => {
+                return Err(Error::invalid_parameter(
+                    "handle",
+                    "nested derived keys are not supported, import the outer derived key first",
+                ));
+            }
+        }
+
         let handle = key_id_to_handle(
             &KeyId::Derived(
                 std::borrow::Cow::Borrowed(base_handle),
@@ -564,74 +574,85 @@ fn key_handle_to_id(
     handle: &aziot_key_common::KeyHandle,
     keys: &mut keys::Keys,
 ) -> Result<(KeyId<'static>, CString), Error> {
-    // DEVNOTE:
-    //
-    // Map errors from using the handle validation key to Error::Internal instead of relying on `?`,
-    // because all errors from using the handle validation key are internal errors.
+    fn key_handle_to_id_inner(
+        handle: &aziot_key_common::KeyHandle,
+        keys: &mut keys::Keys,
+    ) -> Result<KeyId<'static>, Error> {
+        // DEVNOTE:
+        //
+        // Map errors from using the handle validation key to Error::Internal instead of relying on `?`,
+        // because all errors from using the handle validation key are internal errors.
 
-    let params = handle.0.split('&');
+        let params = handle.0.split('&');
 
-    let mut sr = None;
-    let mut sig = None;
+        let mut sr = None;
+        let mut sig = None;
 
-    let engine = base64::engine::general_purpose::STANDARD;
+        let engine = base64::engine::general_purpose::STANDARD;
 
-    for param in params {
-        if let Some(value) = param.strip_prefix("sr=") {
-            let value = base64::Engine::decode(&engine, value.as_bytes())
-                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
-            let value = String::from_utf8(value)
-                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
-            sr = Some(value);
-        } else if let Some(value) = param.strip_prefix("sig=") {
-            let value = base64::Engine::decode(&engine, value.as_bytes())
-                .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
-            sig = Some(value);
+        for param in params {
+            if let Some(value) = param.strip_prefix("sr=") {
+                let value = base64::Engine::decode(&engine, value.as_bytes())
+                    .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
+                let value = String::from_utf8(value)
+                    .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
+                sr = Some(value);
+            } else if let Some(value) = param.strip_prefix("sig=") {
+                let value = base64::Engine::decode(&engine, value.as_bytes())
+                    .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
+                sig = Some(value);
+            }
         }
+
+        let sr = sr.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
+        let sig = sig.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
+
+        let handle_validation_key = handle_validation_key_id(keys)?;
+        let ok = keys
+            .verify(
+                handle_validation_key,
+                keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
+                std::ptr::null(),
+                sr.as_bytes(),
+                &sig,
+            )
+            .map_err(|err| Error::Internal(InternalError::Verify(err)))?;
+        if !ok {
+            return Err(Error::invalid_parameter("handle", "invalid handle"));
+        }
+
+        let sr: Sr<'static> = serde_json::from_str(&sr)
+            .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
+
+        Ok(sr.key_id)
     }
 
-    let sr = sr.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
-    let sig = sig.ok_or_else(|| Error::invalid_parameter("handle", "invalid handle"))?;
-
-    let handle_validation_key = handle_validation_key_id(keys)?;
-    let ok = keys
-        .verify(
-            handle_validation_key,
-            keys::sys::AZIOT_KEYS_SIGN_MECHANISM_HMAC_SHA256,
-            std::ptr::null(),
-            sr.as_bytes(),
-            &sig,
-        )
-        .map_err(|err| Error::Internal(InternalError::Verify(err)))?;
-    if !ok {
-        return Err(Error::invalid_parameter("handle", "invalid handle"));
-    }
-
-    let sr: Sr<'static> = serde_json::from_str(&sr)
-        .map_err(|_e| Error::invalid_parameter("handle", "invalid handle"))?;
-
-    let id = sr.key_id;
-
-    let id_cstr = match &id {
+    Ok(match key_handle_to_id_inner(handle, keys)? {
         KeyId::KeyPair(id) => {
             let id_cstr = CString::new(id.clone().into_owned())
                 .map_err(|err| Error::invalid_parameter("handle", err))?;
-            id_cstr
+            (KeyId::KeyPair(id), id_cstr)
         }
-
         KeyId::Key(id) => {
             let id_cstr = CString::new(id.clone().into_owned())
                 .map_err(|err| Error::invalid_parameter("handle", err))?;
-            id_cstr
+            (KeyId::Key(id), id_cstr)
         }
-
-        KeyId::Derived(base_handle, _) => {
-            let (_, base_id_cstr) = key_handle_to_id(base_handle, keys)?;
-            base_id_cstr
+        KeyId::Derived(base_handle, derivation_data) => {
+            let base_id = match key_handle_to_id_inner(&base_handle, keys)? {
+                KeyId::KeyPair(id) | KeyId::Key(id) => id,
+                KeyId::Derived(..) => {
+                    return Err(Error::invalid_parameter(
+                        "handle",
+                        "nested derived keys are not supported, import the outer derived key first",
+                    ));
+                }
+            };
+            let base_id_cstr = CString::new(base_id.into_owned())
+                .map_err(|err| Error::invalid_parameter("handle", err))?;
+            (KeyId::Derived(base_handle, derivation_data), base_id_cstr)
         }
-    };
-
-    Ok((id, id_cstr))
+    })
 }
 
 fn key_id_to_handle(
