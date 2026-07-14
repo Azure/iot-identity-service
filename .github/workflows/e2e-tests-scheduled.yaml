@@ -50,8 +50,9 @@ jobs:
       env:
         BRANCH: "${{ matrix.branch }}"
 
-        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
         AZURE_LOCATION: "${{ secrets.AZURE_LOCATION }}"
+        AZURE_MANAGED_IDENTITY: "${{ vars.AZURE_MANAGED_IDENTITY }}"
+        AZURE_RESOURCE_GROUP_NAME: "${{ secrets.AZURE_RESOURCE_GROUP_NAME }}"
 
   test-run:
     if: "github.repository == 'Azure/iot-identity-service'"
