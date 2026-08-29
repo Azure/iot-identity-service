@@ -42,7 +42,7 @@ jobs:
           os: 'azurelinux:3'
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         submodules: 'recursive'
     - name: 'Run'
@@ -77,7 +77,7 @@ jobs:
         os_package="$(sed -e 's@[:/]@-@g' <<< "$os_package")"
         echo "artifact-name=packages_${os_package}_${{ matrix.arch }}" >> $GITHUB_OUTPUT
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v4'
+      uses: 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' # v4.6.2
       with:
         name: "${{ steps.generate-artifact-properties.outputs.artifact-name }}"
         path: 'packages'
@@ -101,7 +101,7 @@ jobs:
     - 1ES.ImageOverride=${{ matrix.runner.image }}
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         submodules: 'recursive'
 
@@ -112,13 +112,13 @@ jobs:
         sudo chown $(id -u):$(id -g) /run/user/$(id -u)
 
     - name: 'Run'
-      uses: 'canonical/action-build@v1'
+      uses: 'canonical/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79' # v1.3.0
       id: 'snapcraft'
       with:
         build-info: true
 
     - name: 'Upload'
-      uses: 'actions/upload-artifact@v4'
+      uses: 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' # v4.6.2
       with:
         name: 'packages_snap_${{ matrix.runner.arch }}'
         path: '${{ steps.snapcraft.outputs.snap }}'

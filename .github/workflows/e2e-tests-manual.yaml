@@ -23,7 +23,7 @@ jobs:
     - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -65,7 +65,7 @@ jobs:
       max-parallel: 10
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -106,7 +106,7 @@ jobs:
     - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         ref: "${{ github.event.inputs.branch }}"
 
@@ -129,7 +129,7 @@ jobs:
     - 1ES.ImageOverride=agent-aziotedge-ubuntu-22.04-msmoby
 
     steps:
-    - uses: 'actions/checkout@v3'
+    - uses: 'actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26' # v3.7.0
       with:
         ref: "${{ github.event.inputs.branch }}"
 
