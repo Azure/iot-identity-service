@@ -83,9 +83,9 @@ setupCustomAllocationPolicy() {
         echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
         
         # Initialize function app project and function
-        func init DpsCustomAllocationFunctionProj --dotnet
+        func init DpsCustomAllocationFunctionProj --worker-runtime dotnet-isolated
         pushd DpsCustomAllocationFunctionProj
-        func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --language C# --force
+        func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --force
         
         # Copy source code into function app project
         cp "$GITHUB_WORKSPACE/ci/e2e-tests/DpsCustomAllocation.csfunc" ./DpsCustomAllocation.cs
@@ -107,7 +107,7 @@ setupCustomAllocationPolicy() {
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
             --consumption-plan-location $AZURE_LOCATION \
             --runtime dotnet \
-            --runtime-version 6 \
+            --runtime-version 8 \
             --functions-version 4 \
             --name "$dps_allocation_functionapp_name" \
             --disable-app-insights \
