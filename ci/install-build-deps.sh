@@ -184,13 +184,6 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 acl cmake cpio curl g++ gcc genisoimage git jq libclang1 libssl-dev llvm-dev make \
                 pigz pkg-config python3-distutils python3-pip qemu-utils rpm tar wget zstd
 
-            GO_VERSION=1.24.0
-            [ "$ARCH" == 'aarch64' ] && GO_ARCH='arm64' || GO_ARCH='amd64'
-            mkdir -p /usr/local/go
-            curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" | tar -C /usr/local -xzf -
-            rm -f /usr/bin/go
-            ln -vs /usr/local/go/bin/go /usr/local/bin/go
-
             touch /.mariner-toolkit-ignore-dockerenv
 
             case "$OS" in
@@ -204,6 +197,7 @@ if [ -z "${DISABLE_FOR_CODEQL:-}" ]; then
                 rm -rf "$AzureLinuxToolkitDir"
                 git clone 'https://github.com/microsoft/azurelinux.git' --branch "$BranchTag" --depth 1 "$AzureLinuxToolkitDir"
                 pushd "$AzureLinuxToolkitDir/toolkit/" || exit
+                USER="${USER:-root}" make install-prereqs-and-configure
                 make REBUILD_TOOLS=y package-toolkit
                 popd || exit
                 cp "$AzureLinuxToolkitDir"/out/toolkit-*.tar.gz "$AzureLinuxToolkitDir/toolkit.tar.gz"
