@@ -16,9 +16,9 @@ PRIVATE_LIBS = /usr/lib/aziot-identity-service
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
 %:
-	dh $@ --with systemd
+	dh $@
 
-.PHONY: override_dh_auto_build override_dh_auto_install override_dh_auto_test override_dh_systemd_enable override_dh_systemd_start
+.PHONY: override_dh_auto_build override_dh_auto_install override_dh_auto_test override_dh_installsystemd
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
@@ -54,10 +54,11 @@ override_dh_auto_install:
 		V=1 \
 		install-deb
 
-	# Default behavior of dh_systemd_enable and dh_systemd_start is to enable and start all installed units, ie both sockets and services.
-	# But we don't want to enable or start the services, since the sockets will start them automatically anyway.
-	dh_systemd_enable aziot-certd.socket aziot-identityd.socket aziot-keyd.socket aziot-tpmd.socket
-	dh_systemd_start aziot-certd.socket aziot-identityd.socket aziot-keyd.socket aziot-tpmd.socket
+# Default behavior of dh_installsystemd is to enable and start all installed units, ie both sockets and services.
+# But we don't want to enable or start the services, since the sockets will start them automatically anyway.
+override_dh_installsystemd:
+	dh_installsystemd aziot-certd.socket aziot-identityd.socket aziot-keyd.socket aziot-tpmd.socket
+	dh_installsystemd --no-enable --no-start aziot-certd.service aziot-identityd.service aziot-keyd.service aziot-tpmd.service
 
 override_dh_auto_test:
 	# Default behavior is `make test`, which we don't need, and won't work for cross-compiled packages anyway.
