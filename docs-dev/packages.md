@@ -20,10 +20,6 @@ This repository contains three services - `aziot-certd`, `aziot-identityd` and `
 <td><code>redhat/ubi9:latest</code></td>
 </tr>
 <tr>
-<td>Debian 11</td>
-<td><code>debian:11-slim</code></td>
-</tr>
-<tr>
 <td>Debian 12</td>
 <td><code>debian:12-slim</code></td>
 </tr>
@@ -95,7 +91,7 @@ These files in order are:
 1. A devel package containing the `aziot-keys.h` C header, which contains the API definitions of `libaziot_keys.so`. A user would install this package if they wanted to make their own implementation of `libaziot_keys.so`. It's not needed for a production device.
 
 
-For another example, let's say you want to build the Debian 11 package for ARM32, with version `1.4.0` and revision 0, ie the package version is `1.4.0-0`. You would run:
+For another example, let's say you want to build the Debian 12 package for ARM32, with version `1.4.0` and revision 0, ie the package version is `1.4.0-0`. You would run:
 
 ```sh
 docker run -it --rm \
@@ -103,18 +99,18 @@ docker run -it --rm \
     -e 'ARCH=arm32v7' \
     -e 'PACKAGE_VERSION=1.4.0' \
     -e 'PACKAGE_RELEASE=0' \
-    debian:11-slim \
+    debian:12-slim \
     '/src/ci/package.sh'
 ```
 
 and at the end you would have these files under `~/src/iot-identity-service/packages`:
 
 ```
-debian11/arm32v7/aziot-identity-service_1.4.0-0_armhf.deb
-debian11/arm32v7/aziot-identity-service_1.4.0-0.debian.tar.xz
-debian11/arm32v7/aziot-identity-service_1.4.0-0.dsc
-debian11/arm32v7/aziot-identity-service_1.4.0.orig.tar.gz
-debian11/arm32v7/aziot-identity-service-dbgsym_1.4.0-0_armhf.deb
+debian12/arm32v7/aziot-identity-service_1.4.0-0_armhf.deb
+debian12/arm32v7/aziot-identity-service_1.4.0-0.debian.tar.xz
+debian12/arm32v7/aziot-identity-service_1.4.0-0.dsc
+debian12/arm32v7/aziot-identity-service_1.4.0.orig.tar.gz
+debian12/arm32v7/aziot-identity-service-dbgsym_1.4.0-0_armhf.deb
 ```
 
 The first file is the binary package, the second through fourth file together constitute the source package, and the fifth is the debug symbols package. The meanings are the same as the RHEL example. Note that there is no `-dev` package equivalent of the RHEL `-devel` package; the C header is included in the binary package.
