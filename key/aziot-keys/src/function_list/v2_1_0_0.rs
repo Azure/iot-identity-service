@@ -48,7 +48,7 @@ pub struct AZIOT_KEYS_FUNCTION_LIST_2_1_0_0 {
     ///
     /// `preferred_algorithms` dictates the caller's preference for the key algorithm. It is a string with components separated by COLON U+003A `:`,
     /// where each component specifies the name of an algorithm and will be attempted by the implementation in that order.
-    /// The valid components are `"ec-p256"` for secp256r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates
+    /// The valid components are `"ec-p256"` for secp256r1, `"ec-p384"` for secp384r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates
     /// any algorithm of the implementation's choice. For example, the caller might use `"ec-p256:rsa-2048:*"` to indicate that it would like
     /// the implementation to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the implementation's choice if that also fails.
     ///
