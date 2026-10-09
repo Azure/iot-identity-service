@@ -7,7 +7,7 @@
 # Specify the PKCS#11 library path via the PKCS11_LIB_PATH env var, and the base slot used for dynamic keys
 # via the PKCS11_BASE_SLOT env var. If PKCS11_LIB_PATH is not set, aziot-keyd will be configured to use the filesystem backend.
 #
-# Also set the KEY_TYPE env var to one of "ec-p256", "rsa-2048" and "rsa-4096" to evaluate that kind of asymmetric key pair.
+# Also set the KEY_TYPE env var to one of "ec-p256", "ec-p384", "rsa-2048" and "rsa-4096" to evaluate that kind of asymmetric key pair.
 #
 # Lastly, ensure that libaziot_key_openssl_engine_shared.so has been installed in the openssl engines directory
 # as printed by `openssl version -e`, with the name "aziot_keys.so".

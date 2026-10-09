@@ -641,14 +641,9 @@ fn create_inner(
                 })?;
 
             let private_key = match preferred_algorithm {
-                PreferredAlgorithm::NistP256 => {
-                    let mut group =
-                        openssl::ec::EcGroup::from_curve_name(openssl::nid::Nid::X9_62_PRIME256V1)?;
-                    group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
-                    let ec_key = openssl::ec::EcKey::generate(&group)?;
-                    let private_key = openssl::pkey::PKey::from_ec_key(ec_key)?;
-                    private_key
-                }
+                PreferredAlgorithm::NistP256 => generate_ec_key(openssl2::EcCurve::NistP256)?,
+
+                PreferredAlgorithm::NistP384 => generate_ec_key(openssl2::EcCurve::NistP384)?,
 
                 PreferredAlgorithm::Rsa2048 => {
                     let rsa = openssl::rsa::Rsa::generate(2048)?;
@@ -679,17 +674,23 @@ fn create_inner(
                 .open_session(pkcs11_slot, uri.pin.clone())
                 .map_err(crate::implementation::err_external)?;
 
+            let generate_pkcs11_ec_key = |curve| {
+                pkcs11_session
+                    .clone()
+                    .generate_ec_key_pair(curve, uri.object_label.as_deref())
+                    .is_ok()
+            };
+
             for preferred_algorithm in preferred_algorithms {
                 match preferred_algorithm {
                     PreferredAlgorithm::NistP256 => {
-                        if pkcs11_session
-                            .clone()
-                            .generate_ec_key_pair(
-                                openssl2::EcCurve::NistP256,
-                                uri.object_label.as_deref(),
-                            )
-                            .is_ok()
-                        {
+                        if generate_pkcs11_ec_key(openssl2::EcCurve::NistP256) {
+                            return Ok(());
+                        }
+                    }
+
+                    PreferredAlgorithm::NistP384 => {
+                        if generate_pkcs11_ec_key(openssl2::EcCurve::NistP384) {
                             return Ok(());
                         }
                     }
@@ -732,9 +733,19 @@ fn create_inner(
     }
 }
 
+fn generate_ec_key(
+    curve: openssl2::EcCurve,
+) -> Result<openssl::pkey::PKey<openssl::pkey::Private>, openssl::error::ErrorStack> {
+    let mut group = openssl::ec::EcGroup::from_curve_name(curve.as_nid())?;
+    group.set_asn1_flag(openssl::ec::Asn1Flag::NAMED_CURVE);
+    let ec_key = openssl::ec::EcKey::generate(&group)?;
+    openssl::pkey::PKey::from_ec_key(ec_key)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum PreferredAlgorithm {
     NistP256,
+    NistP384,
     Rsa2048,
     Rsa4096,
 }
@@ -771,6 +782,8 @@ impl PreferredAlgorithm {
                 }
 
                 "ec-p256" => add_if_not_exists(&mut result, PreferredAlgorithm::NistP256),
+
+                "ec-p384" => add_if_not_exists(&mut result, PreferredAlgorithm::NistP384),
 
                 "rsa-2048" => add_if_not_exists(&mut result, PreferredAlgorithm::Rsa2048),
 
