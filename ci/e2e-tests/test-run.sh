@@ -54,8 +54,8 @@ get_package() {
         fi
     }
 
-    # Get workflow runs for this branch and pick the latest one (the first one).
-    # From that, get the artifacts URL.
+    # Pick the latest successful push or dispatched build for this branch, excluding PRs.
+    # The weekly package schedule dispatches each branch's own workflow.
     #
     # Ref: https://docs.github.com/en/rest/reference/actions#list-workflow-runs
     echo "Getting latest workflow run's artifacts URL..." >&2
@@ -72,8 +72,8 @@ get_package() {
         artifacts_url="$(
             github_curl -L \
                 -H 'accept: application/vnd.github.v3+json' \
-                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&event=push&status=success" |
-                jq -r '.workflow_runs[0].artifacts_url'
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/packages.yaml/runs?branch=${BRANCH//\//%2f}&status=success&per_page=100" |
+                jq -r '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")][0].artifacts_url'
         )"
 
         if [ -n "$artifacts_url" ] && [ "$artifacts_url" != 'null' ]; then
@@ -82,7 +82,7 @@ get_package() {
     done
     set -e
 
-    if [ "$artifacts_url" = 'null' ]; then
+    if [ -z "$artifacts_url" ] || [ "$artifacts_url" = 'null' ]; then
         echo "No successfully-concluded packages workflow found for branch $BRANCH" >&2
         exit 1
     fi
