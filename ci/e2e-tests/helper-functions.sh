@@ -83,7 +83,7 @@ setupCustomAllocationPolicy() {
         echo 'Creating an Azure Function for use as a DPS custom allocation policy...' >&2
         
         # Initialize function app project and function
-        func init DpsCustomAllocationFunctionProj --dotnet --target-framework net8.0
+        func init DpsCustomAllocationFunctionProj --worker-runtime dotnet-isolated --target-framework net10.0
         pushd DpsCustomAllocationFunctionProj
         func new --name "$dps_allocation_function_name" --template "HTTP trigger" --authlevel "anonymous" --language C# --force
         
@@ -105,11 +105,11 @@ setupCustomAllocationPolicy() {
         # Create function app
         az functionapp create \
             --resource-group $AZURE_RESOURCE_GROUP_NAME \
-            --consumption-plan-location $AZURE_LOCATION \
-            --runtime dotnet \
-            --runtime-version 8 \
+            --flexconsumption-location "$AZURE_LOCATION" \
+            --runtime dotnet-isolated \
+            --runtime-version 10.0 \
             --functions-version 4 \
-            --app-settings FUNCTIONS_INPROC_NET8_ENABLED=1 \
+            --app-settings FUNCTIONS_WORKER_RUNTIME=dotnet-isolated \
             --name "$dps_allocation_functionapp_name" \
             --disable-app-insights \
             --storage-account "$dps_allocation_storage_account" \
@@ -161,7 +161,7 @@ installTestTools() {
                 fi
             done
             set -e
-            sudo apt-get install -y dotnet8 apt-transport-https azure-functions-core-tools
+            sudo apt-get install -y dotnet-sdk-10.0 apt-transport-https azure-functions-core-tools
             ;;
         *)
             echo "Install of test tools unsupported on OS: $os" >&2

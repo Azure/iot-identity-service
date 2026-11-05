@@ -1,42 +1,58 @@
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
 
-using Microsoft.Azure.Devices.Shared;               // For TwinCollection
 using Microsoft.Azure.Devices.Provisioning.Service; // For TwinState
 
 namespace DpsCustomAllocationFunctionProj
 {
-    public static class DpsCustomAllocation
+    public class DpsCustomAllocation
     {
+        private readonly ILogger<DpsCustomAllocation> log;
+
+        public DpsCustomAllocation(ILogger<DpsCustomAllocation> log)
+        {
+            this.log = log;
+        }
+
         /// <summary>
         /// Assigns an IoT hub based on the model ID in the request payload. 
         /// Assigns the "foo-devices" IoT hub if the model ID includes "foo".
         /// Otherwise, returns an error and does not assign an IoT hub.
         /// </summary>
-        [FunctionName("DpsCustomAllocation")]
-        public static async Task<IActionResult> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req,
-        ILogger log)
+        [Function("DpsCustomAllocation")]
+        public async Task<HttpResponseData> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
 
-            // Get request body
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
+            using JsonDocument data = JsonDocument.Parse(requestBody);
 
             log.LogInformation("Request.Body:...");
-            log.LogInformation(requestBody);
+            log.LogInformation("{RequestBody}", requestBody);
 
-            // Get the custom payload
-            RequestPayload requestPayload = data?.deviceRuntimeContext?.payload?.ToObject<RequestPayload>();
+            RequestPayload? requestPayload = null;
+            string[]? hubs = null;
+            JsonElement root = data.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                if (root.TryGetProperty("deviceRuntimeContext", out JsonElement deviceRuntimeContext) &&
+                    deviceRuntimeContext.ValueKind == JsonValueKind.Object &&
+                    deviceRuntimeContext.TryGetProperty("payload", out JsonElement payload))
+                {
+                    requestPayload = payload.Deserialize<RequestPayload>();
+                }
+
+                if (root.TryGetProperty("linkedHubs", out JsonElement linkedHubs))
+                {
+                    hubs = linkedHubs.Deserialize<string[]>();
+                }
+            }
 
             string message = "Uncaught error";
             bool fail = false;
@@ -50,8 +66,6 @@ namespace DpsCustomAllocationFunctionProj
             }
             else
             {
-                string[] hubs = data?.linkedHubs?.ToObject<string[]>();
-
                 // Must have hubs selected on the enrollment
                 if (hubs == null)
                 {
@@ -103,29 +117,38 @@ namespace DpsCustomAllocationFunctionProj
             }
 
             log.LogInformation("\nResponse");
-            log.LogInformation((obj.iotHubHostName != null) ? JsonConvert.SerializeObject(obj) : message);
+            HttpResponseData response = req.CreateResponse(fail ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
+            if (fail)
+            {
+                log.LogInformation(message);
+                response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
+                await response.WriteStringAsync(message);
+            }
+            else
+            {
+                log.LogInformation(JsonSerializer.Serialize(obj));
+                await response.WriteAsJsonAsync(obj);
+            }
 
-            return (fail)
-                ? new BadRequestObjectResult(message) 
-                : (ActionResult)new OkObjectResult(obj);
+            return response;
         }
     }
 
     public class ResponseObj
     {
-        public string iotHubHostName {get; set;}
-        public TwinState initialTwin {get; set;}
-        public ResponsePayload payload {get; set;}
+        public string? iotHubHostName { get; set; }
+        public TwinState? initialTwin { get; set; }
+        public ResponsePayload? payload { get; set; }
     }
 
     public class RequestPayload
     {
-        public string modelId {get; set;}
+        public string? modelId { get; set; }
     }
 
     public class ResponsePayload
     {
-        public string message {get; set;}
-        public RequestPayload requestPayload {get; set;}
+        public string message { get; set; } = string.Empty;
+        public RequestPayload? requestPayload { get; set; }
     }
 }
