@@ -12,6 +12,18 @@ Put all together, there are three ways to run the script:
 
 - Run the test script locally.
 
+Scheduled branch selection is maintained on `main`: daily E2E covers `main`,
+`release/1.6`, and temporarily `release/1.5`. A weekly dispatcher on `main`
+queues each branch's own `packages.yaml` via `workflow_dispatch`, preserving its
+package versions and build matrix. E2E uses the latest successful push or
+dispatched package build for the requested branch, never a PR build.
+
+Before enabling the schedules, each upstream servicing branch must contain the
+package dispatch trigger and artifact-selection changes and have a completed
+successful package build. Keep package artifacts longer than the weekly refresh
+interval. Remove 1.5 from the E2E and package dispatcher matrices on `main` on
+November 10, 2026; no schedule edits are needed on this servicing branch.
+
 
 ### `e2e-tests-scheduled.yaml` and `e2e-tests-manual.yaml`
 
