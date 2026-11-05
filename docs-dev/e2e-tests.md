@@ -12,6 +12,42 @@ Put all together, there are three ways to run the script:
 
 - Run the test script locally.
 
+### Supported release lines
+
+The daily schedule runs at 01:00 UTC against `main` (1.7 development),
+`release/1.6` (LTS), and temporarily `release/1.5`. All four branch matrices in
+`e2e-tests-scheduled.yaml` must stay aligned, including both cleanup paths.
+This runs 48 OS/provisioning combinations, with the existing test-job concurrency
+limit of 10.
+
+GitHub reads scheduled workflows only from the default branch (`main`).
+`packages-scheduled.yaml` dispatches each supported branch's own `packages.yaml`
+every Sunday at 00:00 UTC. This preserves that branch's package version, build
+matrix, and artifact names while refreshing artifacts on quiet servicing lines.
+The dispatcher requires `actions: write` for `GITHUB_TOKEN` and runs only in
+`Azure/iot-identity-service`. It queues builds without waiting for their completion.
+Neither package workflow publishes releases.
+
+Before enabling the schedules, publish the servicing branches and merge
+`workflow_dispatch` support and the package-selection update into each one.
+Each branch needs a completed successful package build before E2E can use it.
+E2E selects the latest successful `push` or `workflow_dispatch` package build on
+the requested branch, including weekly or manually dispatched builds; PR builds
+are excluded. Until a new build completes, it continues using the previous
+successful build. Package artifacts must be retained for longer than the weekly
+refresh interval.
+
+On November 10, 2026, remove `release/1.5` from all four E2E matrices and from
+the weekly package dispatcher matrix on `main`. Update the regression tests'
+branch list and expected test combinations from 48 to 32 at the same time.
+Retirement is not automatic. Push/PR CI and manual branch selection remain available.
+
+Local regression checks (Python 3 with PyYAML, Bash, jq, and dpkg):
+
+```sh
+python3 -m unittest discover -s ci/tests -v
+```
+
 
 ### `e2e-tests-scheduled.yaml` and `e2e-tests-manual.yaml`
 

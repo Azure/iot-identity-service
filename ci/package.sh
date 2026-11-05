@@ -57,6 +57,9 @@ case "$OS" in
     'debian:12'|'ubuntu:22.04'|'ubuntu:24.04')
         DEBIAN_FRONTEND=noninteractive TZ=UTC apt-get install -y dh-make debhelper
 
+        # Ensure release candidates sort before the final release, as in the RPM builds.
+        PACKAGE_VERSION="${PACKAGE_VERSION//-rc./\~rc}"
+
         make ARCH="$ARCH" PACKAGE_VERSION="$PACKAGE_VERSION" PACKAGE_RELEASE="$PACKAGE_RELEASE" VENDOR_LIBTSS="${VENDOR_LIBTSS:-0}" V=1 deb
 
         case "$OS" in
