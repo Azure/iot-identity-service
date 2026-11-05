@@ -1,6 +1,6 @@
 name: azure-iot-identity
 base: core24 # the base snap is the execution environment for this snap
-version: '1.6.0'
+version: '1.7.0'
 summary: Provides provisioning and cryptographic services for Azure IoT Hub devices.
 description: |
   The Identity Service provisions a device's identity and any modules it runs. The device identity can be based
@@ -61,13 +61,10 @@ parts:
       - libtss2-sys1
       - libtss2-tctildr0
     override-build: |
-      # if version contains substring "dev" set grade to devel, else stable
-      SC_VERSION="$(craftctl get version)"
-      if test "${SC_VERSION#*dev}" != "$SC_VERSION" ; then
-        craftctl set grade=devel
-      else
-        craftctl set grade=stable
-      fi
+      case "$(craftctl get version)" in
+        *dev*|*-*) craftctl set grade=devel ;;
+        *) craftctl set grade=stable ;;
+      esac
       contrib/third-party-notices.sh > THIRD-PARTY-NOTICES
       make install-deb \
         ARCH=$CRAFT_ARCH_BUILD_FOR \

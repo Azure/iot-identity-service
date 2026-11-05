@@ -27,15 +27,13 @@ jobs:
     strategy:
       fail-fast: false
 
-      # The end-to-end tests run against all shipping/supported versions of the service. Usually
-      # only one version is supported at any given time, but when a new major/minor version is
-      # released there's a six-month transition period where both the new and previous versions
-      # are supported. The main branch is the latest version (e.g., 1.n), and the release/1.x branch
-      # is the previous version (where x == n-1).
+      # Test main development and supported servicing lines. Remove release/1.5 from
+      # all four matrices and packages-scheduled.yaml on November 10, 2026.
       matrix:
         branch:
         - 'main'
-        # - 'release/1.4'
+        - 'release/1.6'
+        - 'release/1.5'
 
       max-parallel: 10
 
@@ -68,7 +66,8 @@ jobs:
       matrix:
         branch:
         - 'main'
-        # - 'release/1.4'
+        - 'release/1.6'
+        - 'release/1.5'
         os:
         - 'debian:12'
         # EL8 VMs spontaneously lose ssh after installing updates. Disable it for now.
@@ -131,7 +130,8 @@ jobs:
       matrix:
         branch:
         - 'main'
-        # - 'release/1.4'
+        - 'release/1.6'
+        - 'release/1.5'
 
       max-parallel: 10
 
@@ -164,7 +164,8 @@ jobs:
       matrix:
         branch:
         - 'main'
-        # - 'release/1.4'
+        - 'release/1.6'
+        - 'release/1.5'
 
       max-parallel: 10
 

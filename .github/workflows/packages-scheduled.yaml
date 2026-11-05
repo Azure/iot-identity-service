@@ -1,0 +1,30 @@
+# Dispatch each branch's package workflow so its versions and build matrix are preserved.
+name: 'packages-scheduled'
+
+on:
+  schedule:
+  - cron: '0 0 * * 0'
+
+permissions:
+  actions: write
+
+jobs:
+  packages:
+    if: "github.repository == 'Azure/iot-identity-service'"
+    runs-on: 'ubuntu-22.04'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+        - 'main'
+        - 'release/1.6'
+        - 'release/1.5'
+
+    steps:
+    - name: 'Dispatch package build'
+      run: gh workflow run packages.yaml --ref "$BRANCH"
+      env:
+        GH_TOKEN: "${{ github.token }}"
+        GH_REPO: "${{ github.repository }}"
+        BRANCH: "${{ matrix.branch }}"
