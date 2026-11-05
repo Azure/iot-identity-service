@@ -275,27 +275,34 @@ impl ExDataAccessors for openssl_sys::RSA {
 pub enum EcCurve {
     /// secp256r1, known to openssl as prime256v1
     NistP256,
+
+    /// secp384r1
+    NistP384,
 }
 
 impl EcCurve {
     const SECP256R1_OID_DER: &'static [u8] =
         &[0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07];
+    const SECP384R1_OID_DER: &'static [u8] = &[0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22];
 
     pub fn as_nid(self) -> openssl::nid::Nid {
         match self {
             EcCurve::NistP256 => openssl::nid::Nid::X9_62_PRIME256V1,
+            EcCurve::NistP384 => openssl::nid::Nid::SECP384R1,
         }
     }
 
     pub fn as_oid_der(self) -> &'static [u8] {
         match self {
             EcCurve::NistP256 => EcCurve::SECP256R1_OID_DER,
+            EcCurve::NistP384 => EcCurve::SECP384R1_OID_DER,
         }
     }
 
     pub fn from_nid(nid: openssl::nid::Nid) -> Option<Self> {
         match nid {
             openssl::nid::Nid::X9_62_PRIME256V1 => Some(EcCurve::NistP256),
+            openssl::nid::Nid::SECP384R1 => Some(EcCurve::NistP384),
             _ => None,
         }
     }
@@ -303,7 +310,31 @@ impl EcCurve {
     pub fn from_oid_der(oid: &[u8]) -> Option<Self> {
         match oid {
             EcCurve::SECP256R1_OID_DER => Some(EcCurve::NistP256),
+            EcCurve::SECP384R1_OID_DER => Some(EcCurve::NistP384),
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EcCurve;
+
+    #[test]
+    fn ec_curve_nid_and_oid_round_trip() {
+        for curve in [EcCurve::NistP256, EcCurve::NistP384] {
+            let nid = curve.as_nid();
+            assert_eq!(EcCurve::from_nid(nid).map(EcCurve::as_nid), Some(nid));
+            assert_eq!(
+                EcCurve::from_oid_der(curve.as_oid_der()).map(EcCurve::as_nid),
+                Some(nid)
+            );
+
+            // The DER constant must match the OID that openssl itself uses for this curve.
+            let oid = openssl::asn1::Asn1Object::from_str(nid.short_name().unwrap()).unwrap();
+            let mut expected = vec![0x06, u8::try_from(oid.as_slice().len()).unwrap()];
+            expected.extend_from_slice(oid.as_slice());
+            assert_eq!(curve.as_oid_der(), &expected[..]);
         }
     }
 }

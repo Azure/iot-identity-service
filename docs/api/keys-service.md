@@ -123,7 +123,7 @@ Required. See [API authentication](#api-authentication).
 }
 ```
 
-- `preferredAlgorithms` dictates the caller's preference for the key algorithm. It is a string with components separated by COLON U+003A `:`, where each component specifies the name of an algorithm and will be attempted by the KS in that order. The valid components are `"ec-p256"` for secp256r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates any algorithm of the KS's choice. For example, the caller might use `"ec-p256:rsa-2048:*"` to indicate that it would like the KS to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the KS's choice if that also fails.
+- `preferredAlgorithms` dictates the caller's preference for the key algorithm. It is a string with components separated by COLON U+003A `:`, where each component specifies the name of an algorithm and will be attempted by the KS in that order. The valid components are `"ec-p256"` for secp256r1, `"ec-p384"` for secp384r1, `"rsa-2048"` for 2048-bit RSA, `"rsa-4096"` for 4096-bit RSA, and `"*"` which indicates any algorithm of the KS's choice. For example, the caller might use `"ec-p256:rsa-2048:*"` to indicate that it would like the KS to use secp256r1, else RSA-2048 if that fails, else any other algorithm of the KS's choice if that also fails.
 
     If the KS does not recognize a particular component as an algorithm, or is unable to use the algorithm to generate a key pair, it should ignore that component and try the next one. If no components are left, the KS will return an error. It is allowed for the KS to unable to generate a key pair even if the wildcard algorithm is specified.
 

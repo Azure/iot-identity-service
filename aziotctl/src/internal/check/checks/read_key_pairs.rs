@@ -111,10 +111,14 @@ impl ReadKeyPairs {
                             ));
                         }
                     } else if let Ok(ec_key) = key.ec_key() {
-                        if ec_key.group().curve_name() != Some(openssl::nid::Nid::X9_62_PRIME256V1)
-                        {
+                        if !matches!(
+                            ec_key.group().curve_name(),
+                            Some(
+                                openssl::nid::Nid::X9_62_PRIME256V1 | openssl::nid::Nid::SECP384R1
+                            )
+                        ) {
                             warn_aggregated.push(format!(
-                                "EC key {id} not using recommended curve (recommended: P-256)"
+                                "EC key {id} not using recommended curve (recommended: P-256, P-384)"
                             ));
                         }
                     } else {
